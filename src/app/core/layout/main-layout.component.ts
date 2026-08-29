@@ -21,7 +21,7 @@ interface NavLibrary {
       <aside 
         [class.w-64]="isExpanded()" 
         [class.w-16]="!isExpanded()" 
-        class="h-full bg-slate-900/90 backdrop-blur border-r border-slate-800 flex flex-col justify-between transition-all duration-300 z-30 select-none">
+        class="h-full shrink-0 bg-slate-900/90 backdrop-blur border-r border-slate-800 flex flex-col justify-between transition-all duration-300 z-30 select-none">
         
         <!-- Sidebar Top -->
         <div class="flex flex-col">

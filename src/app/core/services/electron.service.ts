@@ -4,6 +4,7 @@ declare global {
   interface Window {
     electronAPI?: {
       ping: () => Promise<string>;
+      selectDirectory: () => Promise<string | null>;
       send: (channel: string, data: any) => void;
       on: (channel: string, func: (...args: any[]) => void) => void;
     };
@@ -23,5 +24,13 @@ export class ElectronService {
       return await window.electronAPI.ping();
     }
     return 'Electron IPC não está ativo no navegador!';
+  }
+
+  async selectDirectory(): Promise<string | null> {
+    if (this.isElectron && window.electronAPI?.selectDirectory) {
+      return await window.electronAPI.selectDirectory();
+    }
+    // Fallback if running directly in browser for dev testing
+    return prompt('Digite o caminho da pasta:');
   }
 }

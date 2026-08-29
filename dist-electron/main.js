@@ -68,6 +68,18 @@ electron_1.app.on('ready', () => {
     electron_1.ipcMain.handle('app:ping', async () => {
         return 'Pong de Electron Node.js!';
     });
+    electron_1.ipcMain.handle('dialog:openDirectory', async () => {
+        if (!mainWindow)
+            return null;
+        const result = await electron_1.dialog.showOpenDialog(mainWindow, {
+            title: 'Selecionar Diretório de Biblioteca',
+            properties: ['openDirectory', 'createDirectory']
+        });
+        if (result.canceled || result.filePaths.length === 0) {
+            return null;
+        }
+        return result.filePaths[0];
+    });
 });
 electron_1.app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') {

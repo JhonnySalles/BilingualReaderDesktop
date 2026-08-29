@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog } from 'electron';
 import * as path from 'path';
 
 let mainWindow: BrowserWindow | null = null;
@@ -38,6 +38,18 @@ app.on('ready', () => {
 
   ipcMain.handle('app:ping', async () => {
     return 'Pong de Electron Node.js!';
+  });
+
+  ipcMain.handle('dialog:openDirectory', async () => {
+    if (!mainWindow) return null;
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title: 'Selecionar Diretório de Biblioteca',
+      properties: ['openDirectory', 'createDirectory']
+    });
+    if (result.canceled || result.filePaths.length === 0) {
+      return null;
+    }
+    return result.filePaths[0];
   });
 });
 

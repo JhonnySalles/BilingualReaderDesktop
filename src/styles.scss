@@ -2,8 +2,179 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ==========================================================================
+   GLOBAL THEME CSS VARIABLES (Immutable - Never Purged)
+   ========================================================================== */
+
+:root {
+  /* Default Dark Theme Slate Palette (Space-separated RGB for CSS Color Level 4) */
+  --slate-50: 248 250 252;
+  --slate-100: 241 245 249;
+  --slate-200: 226 232 240;
+  --slate-300: 203 213 225;
+  --slate-400: 148 163 184;
+  --slate-500: 100 116 139;
+  --slate-600: 71 85 105;
+  --slate-700: 51 65 85;
+  --slate-800: 30 41 59;
+  --slate-900: 15 23 42;
+  --slate-950: 2 6 23;
+
+  /* Default Accent Palette (Indigo) */
+  --accent-400: 129 140 248;
+  --accent-500: 99 102 241;
+  --accent-600: 79 70 229;
+  --accent-700: 67 56 202;
+  --accent-950: 30 27 75;
+}
+
+/* Explicit Dark Theme */
+[data-theme="dark"] {
+  --slate-50: 248 250 252;
+  --slate-100: 241 245 249;
+  --slate-200: 226 232 240;
+  --slate-300: 203 213 225;
+  --slate-400: 148 163 184;
+  --slate-500: 100 116 139;
+  --slate-600: 71 85 105;
+  --slate-700: 51 65 85;
+  --slate-800: 30 41 59;
+  --slate-900: 15 23 42;
+  --slate-950: 2 6 23;
+
+  --accent-400: 129 140 248;
+  --accent-500: 99 102 241;
+  --accent-600: 79 70 229;
+  --accent-700: 67 56 202;
+  --accent-950: 30 27 75;
+}
+
+/* Light Theme (Clean Inversion) */
+[data-theme="light"] {
+  --slate-50: 15 23 42;
+  --slate-100: 30 41 59;
+  --slate-200: 51 65 85;
+  --slate-300: 71 85 105;
+  --slate-400: 100 116 139;
+  --slate-500: 148 163 184;
+  --slate-600: 203 213 225;
+  --slate-700: 226 232 240;
+  --slate-800: 235 240 245;
+  --slate-900: 245 247 250;
+  --slate-950: 255 255 255;
+}
+
+/* Windows 11 Mica Dark Theme */
+[data-theme="win-mica-dark"] {
+  --slate-50: 248 250 252;
+  --slate-100: 241 245 249;
+  --slate-200: 226 232 240;
+  --slate-300: 203 213 225;
+  --slate-400: 148 163 184;
+  --slate-500: 100 116 139;
+  --slate-600: 71 85 105;
+  --slate-700: 60 75 100;
+  --slate-800: 30 45 70;
+  --slate-900: 18 28 48;
+  --slate-950: 10 16 30;
+
+  --accent-400: 56 189 248;
+  --accent-500: 14 165 233;
+  --accent-600: 2 132 199;
+  --accent-700: 3 105 161;
+  --accent-950: 12 74 110;
+}
+
+/* Windows 11 Mica Light Theme */
+[data-theme="win-mica-light"] {
+  --slate-50: 15 23 42;
+  --slate-100: 30 41 59;
+  --slate-200: 51 65 85;
+  --slate-300: 71 85 105;
+  --slate-400: 100 116 139;
+  --slate-500: 148 163 184;
+  --slate-600: 203 213 225;
+  --slate-700: 226 232 240;
+  --slate-800: 235 240 245;
+  --slate-900: 245 247 250;
+  --slate-950: 255 255 255;
+
+  --accent-400: 56 189 248;
+  --accent-500: 14 165 233;
+  --accent-600: 2 132 199;
+  --accent-700: 3 105 161;
+  --accent-950: 12 74 110;
+}
+
+/* Accent Color Palettes */
+[data-accent="emerald"] {
+  --accent-400: 52 211 153;
+  --accent-500: 16 185 129;
+  --accent-600: 5 150 105;
+  --accent-700: 4 120 87;
+  --accent-950: 2 44 34;
+}
+
+[data-accent="purple"] {
+  --accent-400: 192 132 252;
+  --accent-500: 168 85 247;
+  --accent-600: 147 51 234;
+  --accent-700: 126 34 206;
+  --accent-950: 59 7 100;
+}
+
+[data-accent="oled"] {
+  --slate-950: 0 0 0;
+  --slate-900: 10 10 10;
+  --slate-800: 24 24 27;
+
+  --accent-400: 161 161 170;
+  --accent-500: 113 113 122;
+  --accent-600: 82 82 91;
+  --accent-700: 63 63 70;
+  --accent-950: 24 24 27;
+}
+
 body {
-  @apply bg-slate-900 text-slate-100 font-sans antialiased select-none overflow-hidden;
+  @apply bg-slate-950 text-slate-100 font-sans antialiased select-none overflow-hidden transition-colors duration-200;
+}
+
+/* Windows Mica Translucency & Blurred Background Cover */
+html[data-theme^="win-mica"] body {
+  position: relative;
+  background-color: transparent !important;
+}
+
+html[data-theme^="win-mica"] body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-image: var(--mica-cover-bg, radial-gradient(at 0% 0%, rgba(56, 189, 248, 0.3) 0px, transparent 50%)),
+                    radial-gradient(at 100% 100%, rgba(147, 51, 234, 0.3) 0px, transparent 50%),
+                    radial-gradient(at 50% 50%, rgba(15, 23, 42, 0.95) 0px, transparent 100%);
+  background-size: cover;
+  background-position: center;
+  filter: blur(50px) brightness(0.45);
+  transform: scale(1.1);
+  transition: all 0.5s ease;
+}
+
+/* Windows Mica Semi-Translucent Glass Overlays */
+html[data-theme="win-mica-dark"] aside,
+html[data-theme="win-mica-dark"] header,
+html[data-theme="win-mica-dark"] .bg-slate-900,
+html[data-theme="win-mica-dark"] .bg-slate-950 {
+  background-color: rgba(15, 23, 42, 0.65) !important;
+  backdrop-filter: blur(20px) saturate(180%);
+}
+
+html[data-theme="win-mica-light"] aside,
+html[data-theme="win-mica-light"] header,
+html[data-theme="win-mica-light"] .bg-slate-900,
+html[data-theme="win-mica-light"] .bg-slate-950 {
+  background-color: rgba(255, 255, 255, 0.70) !important;
+  backdrop-filter: blur(20px) saturate(180%);
 }
 
 /* Scrollbar styling */
@@ -12,12 +183,12 @@ body {
   height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: #0f172a;
+  background: rgb(var(--slate-900));
 }
 ::-webkit-scrollbar-thumb {
-  background: #334155;
+  background: rgb(var(--slate-800));
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+  background: rgb(var(--slate-700));
 }
