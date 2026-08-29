@@ -1,0 +1,3 @@
+@echo off
+echo Iniciando Bilingual Reader Desktop em modo de Desenvolvimento...
+yarn electron:dev

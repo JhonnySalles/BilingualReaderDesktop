@@ -1,0 +1,3 @@
+@echo off
+echo Compilando e gerando o executavel do Bilingual Reader Desktop...
+yarn build:electron
