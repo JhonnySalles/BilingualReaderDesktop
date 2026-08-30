@@ -5,8 +5,10 @@ declare global {
     electronAPI?: {
       ping: () => Promise<string>;
       selectDirectory: () => Promise<string | null>;
+      listMangas: (libraryId?: number) => Promise<any[]>;
+      scanLibrary: (folderPath: string) => Promise<boolean>;
       send: (channel: string, data: any) => void;
-      on: (channel: string, func: (...args: any[]) => void) => void;
+      on: (channel: string, func: (...args: any[]) => void) => () => void;
     };
   }
 }

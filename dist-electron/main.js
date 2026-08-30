@@ -35,7 +35,11 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 const electron_1 = require("electron");
 const path = __importStar(require("path"));
+const storage_service_1 = require("./database/storage.service");
+const scanner_manga_service_1 = require("./scanner/scanner-manga.service");
 let mainWindow = null;
+let storageService;
+let scannerMangaService;
 function createWindow() {
     mainWindow = new electron_1.BrowserWindow({
         width: 1280,
@@ -64,6 +68,8 @@ function createWindow() {
     });
 }
 electron_1.app.on('ready', () => {
+    storageService = new storage_service_1.StorageService();
+    scannerMangaService = new scanner_manga_service_1.ScannerMangaService(storageService);
     createWindow();
     electron_1.ipcMain.handle('app:ping', async () => {
         return 'Pong de Electron Node.js!';
@@ -79,6 +85,13 @@ electron_1.app.on('ready', () => {
             return null;
         }
         return result.filePaths[0];
+    });
+    electron_1.ipcMain.handle('manga:list', async (_event, libraryId) => {
+        return storageService.listMangas(libraryId);
+    });
+    electron_1.ipcMain.handle('manga:scan', async (_event, folderPath) => {
+        scannerMangaService.scanFolder(folderPath, mainWindow);
+        return true;
     });
 });
 electron_1.app.on('window-all-closed', () => {

@@ -1,7 +1,12 @@
 import { app, BrowserWindow, ipcMain, dialog } from 'electron';
 import * as path from 'path';
+import { StorageService } from './database/storage.service';
+import { ScannerMangaService } from './scanner/scanner-manga.service';
+import { SettingsController } from './controllers/settings.controller';
 
 let mainWindow: BrowserWindow | null = null;
+let storageService: StorageService;
+let scannerMangaService: ScannerMangaService;
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -34,6 +39,10 @@ function createWindow(): void {
 }
 
 app.on('ready', () => {
+  storageService = new StorageService();
+  scannerMangaService = new ScannerMangaService(storageService);
+  SettingsController.instance.registerIpcHandlers();
+
   createWindow();
 
   ipcMain.handle('app:ping', async () => {
@@ -50,6 +59,15 @@ app.on('ready', () => {
       return null;
     }
     return result.filePaths[0];
+  });
+
+  ipcMain.handle('manga:list', async (_event, libraryId?: number) => {
+    return storageService.listMangas(libraryId);
+  });
+
+  ipcMain.handle('manga:scan', async (_event, folderPath: string) => {
+    scannerMangaService.scanFolder(folderPath, mainWindow);
+    return true;
   });
 });
 

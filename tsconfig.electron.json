@@ -4,11 +4,11 @@
     "module": "commonjs",
     "moduleResolution": "node",
     "outDir": "./dist-electron",
-    "rootDir": "./app",
+    "rootDir": "./",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["app/**/*"]
+  "include": ["app/**/*", "src/app/core/models/**/*"]
 }

@@ -62,21 +62,34 @@ interface NavLibrary {
               @if (isExpanded()) { <span>Início / Biblioteca</span> }
             </a>
 
-            <!-- Dynamic Libraries Header -->
+            <!-- Section 1: Manga Libraries -->
+            <div class="my-2 border-t border-slate-800"></div>
             @if (isExpanded()) {
-              <div class="px-3 pt-4 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 flex items-center justify-between">
-                <span>Bibliotecas Locais</span>
-                <span class="px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 text-[9px]">{{ libraries().length }}</span>
+              <div class="px-3 pt-1 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 flex items-center justify-between">
+                <span>Mangás & Comics</span>
               </div>
             }
 
-            <!-- Dynamic Libraries Items -->
-            @for (lib of libraries(); track lib.id) {
+            <!-- Default Manga Library -->
+            <button 
+              (click)="selectLibrary(defaultMangaLibrary())"
+              class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer">
+              <div class="flex items-center gap-3 overflow-hidden">
+                <span class="text-base min-w-[1.25rem] text-center">🎨</span>
+                @if (isExpanded()) { <span class="truncate font-medium">{{ defaultMangaLibrary().name }}</span> }
+              </div>
+              @if (isExpanded()) {
+                <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">{{ defaultMangaLibrary().count }}</span>
+              }
+            </button>
+
+            <!-- Custom Manga Libraries -->
+            @for (lib of customMangaLibraries(); track lib.id) {
               <button 
                 (click)="selectLibrary(lib)"
                 class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer">
                 <div class="flex items-center gap-3 overflow-hidden">
-                  <span class="text-base min-w-[1.25rem] text-center">{{ lib.type === 'manga' ? '🎨' : '📚' }}</span>
+                  <span class="text-base min-w-[1.25rem] text-center">🎨</span>
                   @if (isExpanded()) { <span class="truncate">{{ lib.name }}</span> }
                 </div>
                 @if (isExpanded()) {
@@ -85,9 +98,46 @@ interface NavLibrary {
               </button>
             }
 
-            <!-- Navigation Sections from Original Android App -->
+            <!-- Section 2: Book Libraries -->
+            <div class="my-2 border-t border-slate-800"></div>
             @if (isExpanded()) {
-              <div class="px-3 pt-4 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+              <div class="px-3 pt-1 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 flex items-center justify-between">
+                <span>Livros & EPUBs</span>
+              </div>
+            }
+
+            <!-- Default Book Library -->
+            <button 
+              (click)="selectLibrary(defaultBookLibrary())"
+              class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer">
+              <div class="flex items-center gap-3 overflow-hidden">
+                <span class="text-base min-w-[1.25rem] text-center">📚</span>
+                @if (isExpanded()) { <span class="truncate font-medium">{{ defaultBookLibrary().name }}</span> }
+              </div>
+              @if (isExpanded()) {
+                <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">{{ defaultBookLibrary().count }}</span>
+              }
+            </button>
+
+            <!-- Custom Book Libraries -->
+            @for (lib of customBookLibraries(); track lib.id) {
+              <button 
+                (click)="selectLibrary(lib)"
+                class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer">
+                <div class="flex items-center gap-3 overflow-hidden">
+                  <span class="text-base min-w-[1.25rem] text-center">📚</span>
+                  @if (isExpanded()) { <span class="truncate">{{ lib.name }}</span> }
+                </div>
+                @if (isExpanded()) {
+                  <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">{{ lib.count }}</span>
+                }
+              </button>
+            }
+
+            <!-- Section 3: Navigation Sections (Reader Menu) -->
+            <div class="my-2 border-t border-slate-800"></div>
+            @if (isExpanded()) {
+              <div class="px-3 pt-1 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">
                 <span>Menu do Leitor</span>
               </div>
             }
@@ -166,11 +216,16 @@ export class MainLayoutComponent {
 
   isExpanded = signal<boolean>(true);
 
-  libraries = signal<NavLibrary[]>([
-    { id: 'manga-default', name: 'Mangás Principais', type: 'manga', icon: 'ico_manga', count: 18 },
-    { id: 'comics', name: 'Comics & HQs', type: 'manga', icon: 'ico_comic', count: 5 },
-    { id: 'book-default', name: 'Livros & Ebooks', type: 'book', icon: 'ico_book', count: 12 }
+  // Default Libraries
+  defaultMangaLibrary = signal<NavLibrary>({ id: 'manga-default', name: 'Biblioteca', type: 'manga', icon: 'ico_manga', count: 18 });
+  defaultBookLibrary = signal<NavLibrary>({ id: 'book-default', name: 'Biblioteca', type: 'book', icon: 'ico_book', count: 12 });
+
+  // Custom Libraries
+  customMangaLibraries = signal<NavLibrary[]>([
+    { id: 'comics', name: 'Comics & HQs', type: 'manga', icon: 'ico_comic', count: 5 }
   ]);
+
+  customBookLibraries = signal<NavLibrary[]>([]);
 
   selectLibrary(lib: NavLibrary) {
     this.router.navigate(['/'], { queryParams: { lib: lib.id } });
