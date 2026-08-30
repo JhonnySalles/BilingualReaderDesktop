@@ -1,7 +1,8 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
 import { ElectronService } from '../services/electron.service';
+import { SettingsService } from '../services/settings.service';
 
 interface NavLibrary {
   id: string;
@@ -213,19 +214,38 @@ interface NavLibrary {
 })
 export class MainLayoutComponent {
   private router = inject(Router);
+  private settingsService = inject(SettingsService);
 
   isExpanded = signal<boolean>(true);
 
   // Default Libraries
-  defaultMangaLibrary = signal<NavLibrary>({ id: 'manga-default', name: 'Biblioteca', type: 'manga', icon: 'ico_manga', count: 18 });
-  defaultBookLibrary = signal<NavLibrary>({ id: 'book-default', name: 'Biblioteca', type: 'book', icon: 'ico_book', count: 12 });
+  defaultMangaLibrary = signal<NavLibrary>({ id: 'manga-default', name: 'Biblioteca', type: 'manga', icon: 'ico_manga', count: 0 });
+  defaultBookLibrary = signal<NavLibrary>({ id: 'book-default', name: 'Biblioteca', type: 'book', icon: 'ico_book', count: 0 });
 
-  // Custom Libraries
-  customMangaLibraries = signal<NavLibrary[]>([
-    { id: 'comics', name: 'Comics & HQs', type: 'manga', icon: 'ico_comic', count: 5 }
-  ]);
+  // Dynamic Custom Libraries mapped from SettingsService
+  customMangaLibraries = computed<NavLibrary[]>(() => {
+    return this.settingsService.libraries()
+      .filter(l => l.type === 'manga')
+      .map(l => ({
+        id: l.id,
+        name: l.title,
+        type: l.type,
+        icon: 'ico_manga',
+        count: 0
+      }));
+  });
 
-  customBookLibraries = signal<NavLibrary[]>([]);
+  customBookLibraries = computed<NavLibrary[]>(() => {
+    return this.settingsService.libraries()
+      .filter(l => l.type === 'book')
+      .map(l => ({
+        id: l.id,
+        name: l.title,
+        type: l.type,
+        icon: 'ico_book',
+        count: 0
+      }));
+  });
 
   selectLibrary(lib: NavLibrary) {
     this.router.navigate(['/'], { queryParams: { lib: lib.id } });

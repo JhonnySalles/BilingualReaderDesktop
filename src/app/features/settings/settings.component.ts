@@ -3,14 +3,8 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ElectronService } from '../../core/services/electron.service';
 import { ThemeService, ThemeMode, AccentColor } from '../../core/services/theme.service';
-
-export interface CustomLibrary {
-  id: string;
-  title: string;
-  language: string;
-  path: string;
-  type: 'manga' | 'book';
-}
+import { SettingsService, CustomLibrary } from '../../core/services/settings.service';
+export type { CustomLibrary };
 
 type SettingTab = 'manga' | 'book' | 'system' | 'ai';
 
@@ -688,19 +682,20 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai';
 export class SettingsComponent {
   private electronService = inject(ElectronService);
   themeService = inject(ThemeService);
+  settingsService = inject(SettingsService);
 
   activeTab = signal<SettingTab>('manga');
 
   // Base Directory Signals
-  mangaBasePath = signal<string>('C:\\Users\\Jhonny\\Documents\\BilingualReader\\Mangas');
-  bookBasePath = signal<string>('C:\\Users\\Jhonny\\Documents\\BilingualReader\\Books');
+  mangaBasePath = computed(() => this.settingsService.mangaBasePath());
+  bookBasePath = computed(() => this.settingsService.bookBasePath());
 
   // Custom Libraries State
-  libraries = signal<CustomLibrary[]>([]);
+  libraries = computed(() => this.settingsService.libraries());
 
   // Filtered Libraries by Group
-  mangaLibraries = computed(() => this.libraries().filter(l => l.type === 'manga'));
-  bookLibraries = computed(() => this.libraries().filter(l => l.type === 'book'));
+  mangaLibraries = computed(() => this.settingsService.libraries().filter(l => l.type === 'manga'));
+  bookLibraries = computed(() => this.settingsService.libraries().filter(l => l.type === 'book'));
 
   // Theme & Visual Signals
   themeMode = computed(() => this.themeService.themeMode());
@@ -735,14 +730,14 @@ export class SettingsComponent {
   async browseMangaBasePath(): Promise<void> {
     const selected = await this.electronService.selectDirectory();
     if (selected) {
-      this.mangaBasePath.set(selected);
+      this.settingsService.mangaBasePath.set(selected);
     }
   }
 
   async browseBookBasePath(): Promise<void> {
     const selected = await this.electronService.selectDirectory();
     if (selected) {
-      this.bookBasePath.set(selected);
+      this.settingsService.bookBasePath.set(selected);
     }
   }
 
@@ -783,9 +778,9 @@ export class SettingsComponent {
     }
 
     if (this.modalMode() === 'add') {
-      this.libraries.update(libs => [...libs, { ...this.libraryForm }]);
+      this.settingsService.addLibrary({ ...this.libraryForm });
     } else {
-      this.libraries.update(libs => libs.map(l => l.id === this.libraryForm.id ? { ...this.libraryForm } : l));
+      this.settingsService.updateLibrary({ ...this.libraryForm });
     }
 
     this.closeLibraryModal();
@@ -796,7 +791,7 @@ export class SettingsComponent {
       event.stopPropagation();
     }
     if (confirm('Deseja remover esta biblioteca da lista?')) {
-      this.libraries.update(libs => libs.filter(l => l.id !== id));
+      this.settingsService.deleteLibrary(id);
     }
   }
 
