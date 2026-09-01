@@ -1,6 +1,6 @@
-import { Component, EventEmitter, Output } from '@angular/core';
+import { Component, EventEmitter, Output, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { MangaLibraryService } from '../../../../../core/services/manga-library.service';
+import { LibraryStateService } from '../../../../../core/services/library-state.service';
 import { OrderType, LibraryViewType } from '../../../../../core/models';
 
 @Component({
@@ -32,10 +32,10 @@ import { OrderType, LibraryViewType } from '../../../../../core/models';
           <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Modo de Exibição</label>
           <div class="grid grid-cols-2 gap-2">
             <button 
-              (click)="libraryService.currentView.set(LibraryViewType.GRID_MEDIUM)"
-              [class.bg-indigo-600]="libraryService.currentView() !== LibraryViewType.LINE"
-              [class.text-white]="libraryService.currentView() !== LibraryViewType.LINE"
-              [class.bg-slate-800]="libraryService.currentView() === LibraryViewType.LINE"
+              (click)="libraryStateService.currentView.set(LibraryViewType.GRID_MEDIUM)"
+              [class.bg-indigo-600]="libraryStateService.currentView() !== LibraryViewType.LINE"
+              [class.text-white]="libraryStateService.currentView() !== LibraryViewType.LINE"
+              [class.bg-slate-800]="libraryStateService.currentView() === LibraryViewType.LINE"
               class="flex items-center justify-center gap-2 p-2.5 rounded-xl border border-slate-700 text-sm font-medium transition-all">
               <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
@@ -43,10 +43,10 @@ import { OrderType, LibraryViewType } from '../../../../../core/models';
               Grade (Cards)
             </button>
             <button 
-              (click)="libraryService.currentView.set(LibraryViewType.LINE)"
-              [class.bg-indigo-600]="libraryService.currentView() === LibraryViewType.LINE"
-              [class.text-white]="libraryService.currentView() === LibraryViewType.LINE"
-              [class.bg-slate-800]="libraryService.currentView() !== LibraryViewType.LINE"
+              (click)="libraryStateService.currentView.set(LibraryViewType.LINE)"
+              [class.bg-indigo-600]="libraryStateService.currentView() === LibraryViewType.LINE"
+              [class.text-white]="libraryStateService.currentView() === LibraryViewType.LINE"
+              [class.bg-slate-800]="libraryStateService.currentView() !== LibraryViewType.LINE"
               class="flex items-center justify-center gap-2 p-2.5 rounded-xl border border-slate-700 text-sm font-medium transition-all">
               <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
@@ -60,17 +60,17 @@ import { OrderType, LibraryViewType } from '../../../../../core/models';
         <div class="mb-6">
           <div class="flex justify-between items-center mb-2">
             <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider">Ordenar Por</label>
-            <button (click)="libraryService.isAscending.set(!libraryService.isAscending())" class="text-xs text-indigo-400 hover:underline flex items-center gap-1 font-medium">
-              {{ libraryService.isAscending() ? 'Crescente ↑' : 'Decrescente ↓' }}
+            <button (click)="libraryStateService.isAscending.set(!libraryStateService.isAscending())" class="text-xs text-indigo-400 hover:underline flex items-center gap-1 font-medium">
+              {{ libraryStateService.isAscending() ? 'Crescente ↑' : 'Decrescente ↓' }}
             </button>
           </div>
           <div class="grid grid-cols-2 gap-2">
             @for (order of orderOptions; track order.value) {
               <button 
-                (click)="libraryService.currentOrder.set(order.value)"
-                [class.border-indigo-500]="libraryService.currentOrder() === order.value"
-                [class.bg-indigo-950]="libraryService.currentOrder() === order.value"
-                [class.text-indigo-300]="libraryService.currentOrder() === order.value"
+                (click)="libraryStateService.currentOrder.set(order.value)"
+                [class.border-indigo-500]="libraryStateService.currentOrder() === order.value"
+                [class.bg-indigo-950]="libraryStateService.currentOrder() === order.value"
+                [class.text-indigo-300]="libraryStateService.currentOrder() === order.value"
                 class="p-2.5 rounded-xl border border-slate-800 bg-slate-800/50 text-left text-sm font-medium hover:border-slate-700 transition-all">
                 {{ order.label }}
               </button>
@@ -90,15 +90,14 @@ import { OrderType, LibraryViewType } from '../../../../../core/models';
 export class MangaFilterModalComponent {
   @Output() close = new EventEmitter<void>();
 
-  constructor(public libraryService: MangaLibraryService) {}
+  public libraryStateService = inject(LibraryStateService);
 
   orderOptions = [
     { label: 'Nome', value: OrderType.Name },
     { label: 'Data de Adição', value: OrderType.Date },
     { label: 'Último Acesso', value: OrderType.LastAccess },
     { label: 'Favorito', value: OrderType.Favorite },
-    { label: 'Autor', value: OrderType.Author },
-    { label: 'Gênero', value: OrderType.Genre }
+    { label: 'Autor', value: OrderType.Author }
   ];
 
   OrderType = OrderType;

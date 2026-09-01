@@ -1,8 +1,11 @@
 import { Component, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { RouterModule, Router } from '@angular/router';
 import { ElectronService } from '../services/electron.service';
 import { SettingsService } from '../services/settings.service';
+import { LibraryStateService } from '../services/library-state.service';
+import { LibraryViewType } from '../models';
 
 interface NavLibrary {
   id: string;
@@ -15,7 +18,7 @@ interface NavLibrary {
 @Component({
   selector: 'app-main-layout',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule],
   template: `
     <div class="h-screen w-screen flex bg-slate-950 text-slate-100 overflow-hidden font-sans">
       <!-- Sidebar Navigation -->
@@ -54,13 +57,14 @@ interface NavLibrary {
           <nav class="p-2 space-y-1">
             <a 
               routerLink="/" 
+              [queryParams]="{ lib: 'home' }"
               routerLinkActive="bg-indigo-600/15 text-indigo-400 font-semibold border-r-2 border-indigo-500" 
               [routerLinkActiveOptions]="{exact: true}"
               class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer">
               <svg class="w-5 h-5 min-w-[1.25rem]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
               </svg>
-              @if (isExpanded()) { <span>Início / Biblioteca</span> }
+              @if (isExpanded()) { <span>Início</span> }
             </a>
 
             <!-- Section 1: Manga Libraries -->
@@ -191,16 +195,66 @@ interface NavLibrary {
       <div class="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         <!-- Top Header Bar -->
         <header class="h-16 px-6 bg-slate-900/60 backdrop-blur border-b border-slate-800/80 flex items-center justify-between select-none">
-          <div class="flex items-center gap-4">
-            <h2 class="text-base font-bold text-slate-100">Bilingual Reader Desktop</h2>
+          
+          <!-- Header Title -->
+          <div class="flex items-center gap-3">
+            <h2 class="text-lg font-bold text-slate-100 flex items-center gap-2">
+              {{ libraryStateService.activeLibrary().name }}
+            </h2>
           </div>
 
-          <!-- Right Status Bar -->
-          <div class="flex items-center gap-4">
-            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse mr-2"></span>
-              SQLite & Electron OK
-            </span>
+          <!-- Header Actions: Search, Filter & View Controls -->
+          <div class="flex items-center gap-3">
+            
+            <!-- Search Bar -->
+            <div class="relative w-48 sm:w-64">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input 
+                type="text" 
+                [ngModel]="libraryStateService.searchQuery()" 
+                (ngModelChange)="libraryStateService.searchQuery.set($event)"
+                placeholder="Pesquisar..." 
+                class="w-full pl-9 pr-4 py-1.5 bg-slate-900/90 border border-slate-800 rounded-xl text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500/80 focus:ring-1 focus:ring-indigo-500/80 transition-all" />
+            </div>
+
+            <!-- Filter Modal Button -->
+            <button 
+              (click)="libraryStateService.showFilterModal.set(true)" 
+              class="p-2 bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl text-slate-300 hover:text-white transition-all flex items-center justify-center cursor-pointer"
+              title="Filtros e Opções">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+              </svg>
+            </button>
+
+            <!-- Toggle View Mode Button (Grid vs List) -->
+            <button 
+              (click)="libraryStateService.toggleViewMode()" 
+              class="p-2 bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl text-slate-300 hover:text-white transition-all flex items-center justify-center cursor-pointer"
+              [title]="libraryStateService.currentView() === LibraryViewType.LINE ? 'Alternar para Grade' : 'Alternar para Lista'">
+              @if (libraryStateService.currentView() === LibraryViewType.LINE) {
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                </svg>
+              } @else {
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              }
+            </button>
+
+            <!-- Toggle Sort Direction Button -->
+            <button 
+              (click)="libraryStateService.toggleSortDirection()" 
+              class="p-2 bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl text-slate-300 hover:text-white transition-all flex items-center justify-center cursor-pointer"
+              [title]="libraryStateService.isAscending() ? 'Ordem Crescente (A-Z)' : 'Ordem Decrescente (Z-A)'">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 transition-transform duration-300" [class.rotate-180]="!libraryStateService.isAscending()" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
+              </svg>
+            </button>
+
           </div>
         </header>
 
@@ -215,12 +269,14 @@ interface NavLibrary {
 export class MainLayoutComponent {
   private router = inject(Router);
   private settingsService = inject(SettingsService);
+  public libraryStateService = inject(LibraryStateService);
 
   isExpanded = signal<boolean>(true);
+  LibraryViewType = LibraryViewType;
 
   // Default Libraries
-  defaultMangaLibrary = signal<NavLibrary>({ id: 'manga-default', name: 'Biblioteca', type: 'manga', icon: 'ico_manga', count: 0 });
-  defaultBookLibrary = signal<NavLibrary>({ id: 'book-default', name: 'Biblioteca', type: 'book', icon: 'ico_book', count: 0 });
+  defaultMangaLibrary = signal<NavLibrary>({ id: 'manga-default', name: 'Biblioteca de Mangás', type: 'manga', icon: 'ico_manga', count: 0 });
+  defaultBookLibrary = signal<NavLibrary>({ id: 'book-default', name: 'Biblioteca de Livros', type: 'book', icon: 'ico_book', count: 0 });
 
   // Dynamic Custom Libraries mapped from SettingsService
   customMangaLibraries = computed<NavLibrary[]>(() => {
