@@ -12,7 +12,7 @@ import { Book } from '../../../../core/models';
       <!-- Cover Image / Icon Container -->
       <div class="relative aspect-[2/3] w-full overflow-hidden bg-slate-900">
         @if (book.coverPath) {
-          <img [src]="'file:///' + book.coverPath" [alt]="book.title" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+          <img [src]="'local-cover:///' + book.coverPath" [alt]="book.title" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
         } @else {
           <div class="w-full h-full flex flex-col items-center justify-center p-4 text-amber-500/70 bg-gradient-to-br from-slate-900 via-slate-900 to-amber-950/30">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-12 h-12 mb-2 opacity-75" fill="none" viewBox="0 0 24 24" stroke="currentColor">

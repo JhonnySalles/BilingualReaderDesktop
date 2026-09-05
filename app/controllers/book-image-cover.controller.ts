@@ -16,8 +16,8 @@ export class BookImageCoverController {
   }
 
   private getCacheDir(): string {
-    const userData = app ? app.getPath('userData') : process.cwd();
-    const cacheDir = path.join(userData, 'cache', 'covers', 'book');
+    const baseDir = process.cwd();
+    const cacheDir = path.join(baseDir, 'book_cover');
     if (!fs.existsSync(cacheDir)) {
       fs.mkdirSync(cacheDir, { recursive: true });
     }

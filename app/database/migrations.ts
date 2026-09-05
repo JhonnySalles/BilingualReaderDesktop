@@ -29,6 +29,10 @@ export class MigrationsManager {
       this.migrate3To4();
       this.db.pragma('user_version = 4');
     }
+    if (currentVersion < 5) {
+      this.migrate4To5();
+      this.db.pragma('user_version = 5');
+    }
     if (currentVersion < 15) {
       this.db.pragma('user_version = 15');
     }
@@ -75,6 +79,7 @@ export class MigrationsManager {
         file_alteration TEXT NOT NULL,
         last_vocabulary_import TEXT,
         last_verify TEXT,
+        cover_path TEXT,
         FOREIGN KEY (id_library) REFERENCES Libraries (id) ON DELETE CASCADE
       );
 
@@ -113,6 +118,7 @@ export class MigrationsManager {
         file_alteration TEXT NOT NULL,
         last_vocabulary_import TEXT,
         last_verify TEXT,
+        cover_path TEXT,
         FOREIGN KEY (id_library) REFERENCES Libraries (id) ON DELETE CASCADE
       );
 
@@ -325,5 +331,18 @@ export class MigrationsManager {
 
       CREATE INDEX IF NOT EXISTS index_AssistantHistory_id_reference_type ON AssistantHistory(id_reference, type);
     `);
+  }
+
+  private migrate4To5(): void {
+    try {
+      this.db.exec(`ALTER TABLE Manga ADD COLUMN cover_path TEXT`);
+    } catch (e) {
+      // Column may already exist
+    }
+    try {
+      this.db.exec(`ALTER TABLE Book ADD COLUMN cover_path TEXT`);
+    } catch (e) {
+      // Column may already exist
+    }
   }
 }

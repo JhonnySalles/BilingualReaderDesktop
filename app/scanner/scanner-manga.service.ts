@@ -28,24 +28,60 @@ export class ScannerMangaService {
 
     try {
       if (!fs.existsSync(folderPath)) {
-        return;
+        try {
+          fs.mkdirSync(folderPath, { recursive: true });
+        } catch (e) {
+          console.warn(`Could not create directory ${folderPath}:`, e);
+          return;
+        }
       }
 
       const libraryId = this.storageService.getOrCreateLibrary(folderPath);
       const existingMangas = this.storageService.listMangas(libraryId);
       const existingMap = new Map<string, Manga>();
-      existingMangas.forEach(m => existingMap.set(m.path || (m as any).file || '', m));
+      existingMangas.forEach(m => {
+        const p = m.path || (m as any).file || '';
+        if (p) {
+          existingMap.set(path.normalize(p).toLowerCase(), m);
+        }
+      });
 
       const foundPaths = new Set<string>();
-      await this.walkDirectory(folderPath, async (filePath, stat) => {
-        const ext = path.extname(filePath).toLowerCase();
+      await this.walkDirectory(folderPath, async (itemPath, stat, isDir) => {
+        if (isDir) {
+          // Check if directory itself is a chapter/manga (e.g. contains images)
+          const parser = ParseFactory.create(itemPath);
+          if (parser) {
+            try {
+              if (parser.numPages() >= 4) {
+                foundPaths.add(itemPath);
+                const normKey = path.normalize(itemPath).toLowerCase();
+                if (!existingMap.has(normKey)) {
+                  await this.processNewManga(itemPath, stat, libraryId, window, true);
+                } else {
+                  const existingItem = existingMap.get(normKey)!;
+                  await this.checkAndRecoverMetadata(existingItem, itemPath, stat, libraryId, window);
+                  existingMap.delete(normKey);
+                }
+              }
+            } finally {
+              parser.destroy();
+            }
+          }
+          return;
+        }
+
+        const ext = path.extname(itemPath).toLowerCase();
         if (MANGA_EXTENSIONS.has(ext)) {
-          foundPaths.add(filePath);
-          if (!existingMap.has(filePath)) {
+          foundPaths.add(itemPath);
+          const normKey = path.normalize(itemPath).toLowerCase();
+          if (!existingMap.has(normKey)) {
             // New Manga Found
-            await this.processNewManga(filePath, stat, libraryId, window);
+            await this.processNewManga(itemPath, stat, libraryId, window, false);
           } else {
-            existingMap.delete(filePath);
+            const existingItem = existingMap.get(normKey)!;
+            await this.checkAndRecoverMetadata(existingItem, itemPath, stat, libraryId, window);
+            existingMap.delete(normKey);
           }
         }
       });
@@ -70,29 +106,39 @@ export class ScannerMangaService {
     }
   }
 
-  private async walkDirectory(dir: string, callback: (filePath: string, stat: fs.Stats) => Promise<void>): Promise<void> {
-    const entries = await fs.promises.readdir(dir, { withFileTypes: true });
-    for (const entry of entries) {
-      const fullPath = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
-        await this.walkDirectory(fullPath, callback);
-      } else if (entry.isFile()) {
-        const stat = await fs.promises.stat(fullPath);
-        await callback(fullPath, stat);
+  private async walkDirectory(
+    dir: string, 
+    callback: (itemPath: string, stat: fs.Stats, isDirectory: boolean) => Promise<void>
+  ): Promise<void> {
+    try {
+      const entries = await fs.promises.readdir(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          const stat = await fs.promises.stat(fullPath);
+          await callback(fullPath, stat, true);
+          await this.walkDirectory(fullPath, callback);
+        } else if (entry.isFile()) {
+          const stat = await fs.promises.stat(fullPath);
+          await callback(fullPath, stat, false);
+        }
       }
+    } catch (err) {
+      console.warn(`Could not read directory ${dir}:`, err);
     }
   }
 
   private async processNewManga(
-    filePath: string,
+    itemPath: string,
     stat: fs.Stats,
     libraryId: number,
-    window: BrowserWindow | null
+    window: BrowserWindow | null,
+    isDirectory: boolean = false
   ): Promise<void> {
-    const ext = path.extname(filePath).toLowerCase();
-    const fileName = path.basename(filePath);
-    const title = path.basename(filePath, ext);
-    const folder = path.dirname(filePath);
+    const ext = isDirectory ? '' : path.extname(itemPath).toLowerCase();
+    const fileName = path.basename(itemPath);
+    const title = isDirectory ? fileName : path.basename(itemPath, ext);
+    const folder = isDirectory ? itemPath : path.dirname(itemPath);
 
     let pages = 1;
     let coverPath: string | undefined = undefined;
@@ -104,8 +150,8 @@ export class ScannerMangaService {
     let volume = '';
     let hasSubtitle = false;
 
-    // Use ParseFactory to inspect comic/manga file
-    const parser = ParseFactory.create(filePath);
+    // Use ParseFactory to inspect comic/manga file or directory
+    const parser = ParseFactory.create(itemPath);
     if (parser) {
       try {
         pages = Math.max(1, parser.numPages());
@@ -120,7 +166,7 @@ export class ScannerMangaService {
           if (comicInfo.number) volume = comicInfo.number;
         }
 
-        const mangaEntity = { path: filePath, name: fileName } as Manga;
+        const mangaEntity = { path: itemPath, name: fileName } as Manga;
         const extractedCover = MangaImageCoverController.instance.getMangaCoverFile(mangaEntity);
         if (extractedCover) {
           coverPath = extractedCover;
@@ -132,14 +178,14 @@ export class ScannerMangaService {
       }
     }
 
-    const typeStr = ext.replace('.', '').toUpperCase();
+    const typeStr = isDirectory ? 'FOLDER' : ext.replace('.', '').toUpperCase();
     const manga: Partial<Manga> = {
       title,
-      path: filePath,
+      path: itemPath,
       folder,
       name: fileName,
       fileSize: stat.size,
-      fileType: (FileType as any)[typeStr] || FileType.UNKNOWN,
+      fileType: isDirectory ? (FileType as any)['CBZ'] || FileType.CBZ : ((FileType as any)[typeStr] || FileType.UNKNOWN),
       pages,
       chapters: [],
       chaptersPages: {},
@@ -158,11 +204,61 @@ export class ScannerMangaService {
       coverPath
     };
 
+    const existingInDb = this.storageService.findMangaByPath(itemPath);
+    if (existingInDb) {
+      manga.id = existingInDb.id;
+    }
+
     const id = this.storageService.saveManga(manga);
     manga.id = id;
 
     if (window) {
       window.webContents.send('manga:updated-add', manga);
+    }
+  }
+
+  private async checkAndRecoverMetadata(
+    existing: Manga,
+    itemPath: string,
+    stat: fs.Stats,
+    libraryId: number,
+    window: BrowserWindow | null
+  ): Promise<void> {
+    let needsUpdate = false;
+    const updated: Partial<Manga> = { ...existing };
+
+    if (!existing.coverPath || !fs.existsSync(existing.coverPath)) {
+      const extractedCover = MangaImageCoverController.instance.getMangaCoverFile(existing);
+      if (extractedCover) {
+        updated.coverPath = extractedCover;
+        needsUpdate = true;
+      }
+    }
+
+    if (!existing.author || !existing.series) {
+      const parser = ParseFactory.create(itemPath);
+      if (parser) {
+        try {
+          const comicInfo = parser.getComicInfo();
+          if (comicInfo) {
+            if (comicInfo.writer && !existing.author) { updated.author = comicInfo.writer; needsUpdate = true; }
+            if (comicInfo.series && !existing.series) { updated.series = comicInfo.series; needsUpdate = true; }
+            if (comicInfo.genre && !existing.genre) { updated.genre = comicInfo.genre; needsUpdate = true; }
+            if (comicInfo.publisher && !existing.publisher) { updated.publisher = comicInfo.publisher; needsUpdate = true; }
+            if (comicInfo.number && !existing.volume) { updated.volume = comicInfo.number; needsUpdate = true; }
+          }
+        } finally {
+          parser.destroy();
+        }
+      }
+    }
+
+    if (needsUpdate || existing.fkLibrary !== libraryId) {
+      updated.fkLibrary = libraryId;
+      this.storageService.saveManga(updated);
+      if (window) {
+        window.webContents.send('manga:updated-add', updated);
+      }
     }
   }
 }

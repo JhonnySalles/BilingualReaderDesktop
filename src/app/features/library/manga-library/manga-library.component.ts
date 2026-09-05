@@ -1,7 +1,8 @@
-import { Component, OnInit, computed, signal } from '@angular/core';
+import { Component, OnInit, computed, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MangaLibraryService } from '../../../core/services/manga-library.service';
+import { SettingsService } from '../../../core/services/settings.service';
 import { MangaCardComponent } from './components/manga-card/manga-card.component';
 import { MangaListItemComponent } from './components/manga-list-item/manga-list-item.component';
 import { MangaFilterModalComponent } from './components/manga-filter-modal/manga-filter-modal.component';
@@ -58,7 +59,7 @@ import { LibraryViewType, OrderType } from '../../../core/models';
 
           <!-- Scan Folder Button -->
           <button 
-            (click)="libraryService.selectAndScanDirectory()" 
+            (click)="onScanClick()" 
             [disabled]="libraryService.isScanning()"
             class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-xl text-sm font-medium transition-all shadow-lg shadow-indigo-600/20 flex items-center gap-2 flex-shrink-0">
             @if (libraryService.isScanning()) {
@@ -139,11 +140,18 @@ import { LibraryViewType, OrderType } from '../../../core/models';
 export class MangaLibraryComponent implements OnInit {
   showModal = signal<boolean>(false);
   LibraryViewType = LibraryViewType;
+  public settingsService = inject(SettingsService);
 
   constructor(public libraryService: MangaLibraryService) {}
 
   ngOnInit(): void {
-    this.libraryService.loadMangas();
+    const basePath = this.settingsService.mangaBasePath();
+    this.libraryService.loadMangas(basePath);
+  }
+
+  onScanClick(): void {
+    const basePath = this.settingsService.mangaBasePath();
+    this.libraryService.scanFolder(basePath);
   }
 
   // Computed Signal for Filtering and Sorting

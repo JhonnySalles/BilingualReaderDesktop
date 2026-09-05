@@ -37,7 +37,6 @@ exports.BookImageCoverController = void 0;
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const crypto = __importStar(require("crypto"));
-const electron_1 = require("electron");
 const book_extractor_factory_1 = require("../parser/book/book-extractor.factory");
 class BookImageCoverController {
     static _instance;
@@ -48,8 +47,8 @@ class BookImageCoverController {
         return this._instance;
     }
     getCacheDir() {
-        const userData = electron_1.app ? electron_1.app.getPath('userData') : process.cwd();
-        const cacheDir = path.join(userData, 'cache', 'covers', 'book');
+        const baseDir = process.cwd();
+        const cacheDir = path.join(baseDir, 'book_cover');
         if (!fs.existsSync(cacheDir)) {
             fs.mkdirSync(cacheDir, { recursive: true });
         }

@@ -1,6 +1,40 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MangaRepository = void 0;
+const path = __importStar(require("path"));
 const base_repository_1 = require("./base.repository");
 class MangaRepository extends base_repository_1.BaseRepository {
     constructor(db) {
@@ -39,8 +73,13 @@ class MangaRepository extends base_repository_1.BaseRepository {
             coverPath: row.cover_path
         };
     }
-    getMangaCount() {
-        const stmt = this.db.prepare(`SELECT count(*) as count FROM Manga`);
+    getMangaCount(libraryId) {
+        if (libraryId !== undefined && libraryId !== null) {
+            const stmt = this.db.prepare(`SELECT count(*) as count FROM Manga WHERE id_library = ? AND excluded = 0`);
+            const row = stmt.get(libraryId);
+            return row ? row.count : 0;
+        }
+        const stmt = this.db.prepare(`SELECT count(*) as count FROM Manga WHERE excluded = 0`);
         const row = stmt.get();
         return row ? row.count : 0;
     }
@@ -70,8 +109,13 @@ class MangaRepository extends base_repository_1.BaseRepository {
         return row ? this.mapRowToManga(row) : undefined;
     }
     getByPath(filePath) {
-        const stmt = this.db.prepare(`SELECT * FROM Manga WHERE excluded = 0 AND path = ?`);
-        const row = stmt.get(filePath);
+        if (!filePath)
+            return undefined;
+        const normalized = path.normalize(filePath);
+        const forwardSlash = normalized.replace(/\\/g, '/');
+        const backSlash = normalized.replace(/\//g, '\\');
+        const stmt = this.db.prepare(`SELECT * FROM Manga WHERE path = ? OR path = ? OR path = ? OR LOWER(path) = LOWER(?)`);
+        const row = stmt.get(filePath, forwardSlash, backSlash, normalized);
         return row ? this.mapRowToManga(row) : undefined;
     }
     listByFolder(folder) {
@@ -103,6 +147,12 @@ class MangaRepository extends base_repository_1.BaseRepository {
         return stmt.all().map(row => this.mapRowToManga(row));
     }
     save(manga) {
+        if (!manga.id && manga.path) {
+            const existing = this.getByPath(manga.path);
+            if (existing) {
+                manga.id = existing.id;
+            }
+        }
         const chaptersJson = typeof manga.chapters === 'string' ? manga.chapters : JSON.stringify(manga.chapters || []);
         const chaptersPagesJson = typeof manga.chaptersPages === 'string' ? manga.chaptersPages : JSON.stringify(manga.chaptersPages || {});
         if (manga.id) {
@@ -113,10 +163,10 @@ class MangaRepository extends base_repository_1.BaseRepository {
           completed = ?, favorite = ?, has_subtitle = ?, author = ?, series = ?,
           genre = ?, publisher = ?, volume = ?, release = ?, id_library = ?,
           excluded = ?, last_access = ?, last_alteration = ?, file_alteration = ?,
-          last_vocabulary_import = ?, last_verify = ?
+          last_vocabulary_import = ?, last_verify = ?, cover_path = ?
         WHERE id = ?
       `);
-            stmt.run(manga.title, manga.path, manga.folder, manga.name, manga.fileSize ?? 0, manga.fileType, manga.pages ?? 1, chaptersJson, chaptersPagesJson, manga.bookMark ?? 0, manga.completed ? 1 : 0, manga.favorite ? 1 : 0, manga.hasSubtitle ? 1 : 0, manga.author ?? '', manga.series ?? '', manga.genre ?? '', manga.publisher ?? '', manga.volume ?? '', manga.release ?? null, manga.fkLibrary ?? null, manga.excluded ? 1 : 0, manga.lastAccess ?? null, manga.lastAlteration ?? new Date().toISOString(), manga.fileAlteration ?? new Date().toISOString(), manga.lastVocabImport ?? null, manga.lastVerify ?? null, manga.id);
+            stmt.run(manga.title, manga.path, manga.folder, manga.name, manga.fileSize ?? 0, manga.fileType, manga.pages ?? 1, chaptersJson, chaptersPagesJson, manga.bookMark ?? 0, manga.completed ? 1 : 0, manga.favorite ? 1 : 0, manga.hasSubtitle ? 1 : 0, manga.author ?? '', manga.series ?? '', manga.genre ?? '', manga.publisher ?? '', manga.volume ?? '', manga.release ?? null, manga.fkLibrary ?? null, manga.excluded ? 1 : 0, manga.lastAccess ?? null, manga.lastAlteration ?? new Date().toISOString(), manga.fileAlteration ?? new Date().toISOString(), manga.lastVocabImport ?? null, manga.lastVerify ?? null, manga.coverPath ?? null, manga.id);
             return manga.id;
         }
         else {
@@ -125,12 +175,12 @@ class MangaRepository extends base_repository_1.BaseRepository {
           title, path, folder, name, size, type, pages, chapters, chapters_pages,
           book_mark, completed, favorite, has_subtitle, author, series, genre,
           publisher, volume, release, id_library, excluded, date_create, last_access,
-          last_alteration, file_alteration, last_vocabulary_import, last_verify
+          last_alteration, file_alteration, last_vocabulary_import, last_verify, cover_path
         ) VALUES (
-          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
         )
       `);
-            const info = stmt.run(manga.title, manga.path, manga.folder, manga.name, manga.fileSize ?? 0, manga.fileType, manga.pages ?? 1, chaptersJson, chaptersPagesJson, manga.bookMark ?? 0, manga.completed ? 1 : 0, manga.favorite ? 1 : 0, manga.hasSubtitle ? 1 : 0, manga.author ?? '', manga.series ?? '', manga.genre ?? '', manga.publisher ?? '', manga.volume ?? '', manga.release ?? null, manga.fkLibrary ?? null, manga.excluded ? 1 : 0, new Date().toISOString(), manga.lastAccess ?? null, manga.lastAlteration ?? new Date().toISOString(), manga.fileAlteration ?? new Date().toISOString(), manga.lastVocabImport ?? null, manga.lastVerify ?? null);
+            const info = stmt.run(manga.title, manga.path, manga.folder, manga.name, manga.fileSize ?? 0, manga.fileType, manga.pages ?? 1, chaptersJson, chaptersPagesJson, manga.bookMark ?? 0, manga.completed ? 1 : 0, manga.favorite ? 1 : 0, manga.hasSubtitle ? 1 : 0, manga.author ?? '', manga.series ?? '', manga.genre ?? '', manga.publisher ?? '', manga.volume ?? '', manga.release ?? null, manga.fkLibrary ?? null, manga.excluded ? 1 : 0, new Date().toISOString(), manga.lastAccess ?? null, manga.lastAlteration ?? new Date().toISOString(), manga.fileAlteration ?? new Date().toISOString(), manga.lastVocabImport ?? null, manga.lastVerify ?? null, manga.coverPath ?? null);
             return Number(info.lastInsertRowid);
         }
     }

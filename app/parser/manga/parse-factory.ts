@@ -3,6 +3,7 @@ import * as path from 'path';
 import { Parse } from './parse.interface';
 import { DirectoryParse } from './directory-parse';
 import { ZipParse } from './zip-parse';
+import { RarParse } from './rar-parse';
 
 export class ParseFactory {
   public static create(filePath: string): Parse | null {
@@ -31,6 +32,8 @@ export class ParseFactory {
 
     if (ext === '.cbz' || ext === '.zip') {
       parser = new ZipParse();
+    } else if (ext === '.cbr' || ext === '.rar') {
+      parser = new RarParse();
     }
 
     if (parser) {
@@ -38,10 +41,14 @@ export class ParseFactory {
       if (result) return result;
     }
 
-    // Fallback: try ZipParse if initial format failed or was unmapped
+    // Fallback: try ZipParse then RarParse
     const zipFallback = new ZipParse();
     const fallbackResult = this.tryParseInternal(zipFallback, filePath);
     if (fallbackResult) return fallbackResult;
+
+    const rarFallback = new RarParse();
+    const rarFallbackResult = this.tryParseInternal(rarFallback, filePath);
+    if (rarFallbackResult) return rarFallbackResult;
 
     return null;
   }

@@ -5,8 +5,14 @@ declare global {
     electronAPI?: {
       ping: () => Promise<string>;
       selectDirectory: () => Promise<string | null>;
-      listMangas: (libraryId?: number) => Promise<any[]>;
+      listMangas: (folderPath?: string) => Promise<any[]>;
       scanLibrary: (folderPath: string) => Promise<boolean>;
+      listBooks: (folderPath?: string) => Promise<any[]>;
+      scanBookLibrary: (folderPath: string) => Promise<boolean>;
+      getLibraryCount: (libraryId: number, type: 'MANGA' | 'BOOK') => Promise<number>;
+      getSetting: (key: string, defaultValue?: any) => Promise<any>;
+      setSetting: (key: string, value: any) => Promise<any>;
+      getSecret: (secretKey: string) => Promise<any>;
       send: (channel: string, data: any) => void;
       on: (channel: string, func: (...args: any[]) => void) => () => void;
     };
@@ -34,5 +40,12 @@ export class ElectronService {
     }
     // Fallback if running directly in browser for dev testing
     return prompt('Digite o caminho da pasta:');
+  }
+
+  async getLibraryCount(libraryId: number, type: 'MANGA' | 'BOOK'): Promise<number> {
+    if (this.isElectron && window.electronAPI?.getLibraryCount) {
+      return await window.electronAPI.getLibraryCount(libraryId, type);
+    }
+    return 0;
   }
 }

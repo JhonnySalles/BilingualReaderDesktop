@@ -16,8 +16,8 @@ export class MangaImageCoverController {
   }
 
   private getCacheDir(): string {
-    const userData = app ? app.getPath('userData') : process.cwd();
-    const cacheDir = path.join(userData, 'cache', 'covers', 'manga');
+    const baseDir = process.cwd();
+    const cacheDir = path.join(baseDir, 'manga_cover');
     if (!fs.existsSync(cacheDir)) {
       fs.mkdirSync(cacheDir, { recursive: true });
     }

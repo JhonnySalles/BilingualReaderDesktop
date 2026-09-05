@@ -38,6 +38,7 @@ const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const directory_parse_1 = require("./directory-parse");
 const zip_parse_1 = require("./zip-parse");
+const rar_parse_1 = require("./rar-parse");
 class ParseFactory {
     static create(filePath) {
         if (!fs.existsSync(filePath)) {
@@ -64,16 +65,23 @@ class ParseFactory {
         if (ext === '.cbz' || ext === '.zip') {
             parser = new zip_parse_1.ZipParse();
         }
+        else if (ext === '.cbr' || ext === '.rar') {
+            parser = new rar_parse_1.RarParse();
+        }
         if (parser) {
             const result = this.tryParseInternal(parser, filePath);
             if (result)
                 return result;
         }
-        // Fallback: try ZipParse if initial format failed or was unmapped
+        // Fallback: try ZipParse then RarParse
         const zipFallback = new zip_parse_1.ZipParse();
         const fallbackResult = this.tryParseInternal(zipFallback, filePath);
         if (fallbackResult)
             return fallbackResult;
+        const rarFallback = new rar_parse_1.RarParse();
+        const rarFallbackResult = this.tryParseInternal(rarFallback, filePath);
+        if (rarFallbackResult)
+            return rarFallbackResult;
         return null;
     }
     static tryParseInternal(parser, filePath) {

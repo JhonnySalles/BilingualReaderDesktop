@@ -32,7 +32,7 @@ import { LibraryStateService } from '../../../../core/services/library-state.ser
               [class.scale-105]="draggedIndex() === index"
               [class.border-2]="dragOverIndex() === index"
               [class.border-indigo-500]="dragOverIndex() === index"
-              class="cursor-grab active:cursor-grabbing transition-all duration-200 rounded-xl overflow-hidden">
+              class="cursor-grab active:cursor-grabbing transition-all duration-200 rounded-xl overflow-hidden animate-fade-in-up">
 
               @if (type === 'manga') {
                 <app-manga-card [manga]="$any(item)"></app-manga-card>
@@ -57,7 +57,7 @@ import { LibraryStateService } from '../../../../core/services/library-state.ser
               [class.opacity-40]="draggedIndex() === index"
               [class.border-l-4]="dragOverIndex() === index"
               [class.border-indigo-500]="dragOverIndex() === index"
-              class="cursor-grab active:cursor-grabbing transition-all duration-200 rounded-lg">
+              class="cursor-grab active:cursor-grabbing transition-all duration-200 rounded-lg animate-fade-in-up">
 
               @if (type === 'manga') {
                 <app-manga-list-item [manga]="$any(item)"></app-manga-list-item>

@@ -622,16 +622,6 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai';
               </div>
 
               <div>
-                <label class="block text-xs text-slate-300 mb-1 font-medium">Grupo / Tipo</label>
-                <select 
-                  [(ngModel)]="libraryForm.type" 
-                  class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200">
-                  <option value="manga">🎨 Mangás & Comics (HQ / CBZ / CBR)</option>
-                  <option value="book">📚 Livros & EPUBs</option>
-                </select>
-              </div>
-
-              <div>
                 <label class="block text-xs text-slate-300 mb-1 font-medium">Idioma Padrão</label>
                 <select 
                   [(ngModel)]="libraryForm.language" 

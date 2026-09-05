@@ -6,6 +6,7 @@ exports.isMangaFile = isMangaFile;
 var FileType;
 (function (FileType) {
     FileType["UNKNOWN"] = "UNKNOWN";
+    FileType["IMAGE"] = "IMAGE";
     // Manga e Livro
     FileType["EPUB"] = "EPUB";
     FileType["EPUB3"] = "EPUB3";

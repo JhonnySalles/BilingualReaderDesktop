@@ -1,4 +1,5 @@
 import Database from 'better-sqlite3';
+import * as path from 'path';
 import { BaseRepository } from './base.repository';
 import { Manga } from '../../src/app/core/models/entities/manga.model';
 import { FileType } from '../../src/app/core/models/enums/app-enums';
@@ -42,8 +43,13 @@ export class MangaRepository extends BaseRepository<Manga, number> {
     };
   }
 
-  public getMangaCount(): number {
-    const stmt = this.db.prepare(`SELECT count(*) as count FROM Manga`);
+  public getMangaCount(libraryId?: number): number {
+    if (libraryId !== undefined && libraryId !== null) {
+      const stmt = this.db.prepare(`SELECT count(*) as count FROM Manga WHERE id_library = ? AND excluded = 0`);
+      const row = stmt.get(libraryId) as { count: number };
+      return row ? row.count : 0;
+    }
+    const stmt = this.db.prepare(`SELECT count(*) as count FROM Manga WHERE excluded = 0`);
     const row = stmt.get() as { count: number };
     return row ? row.count : 0;
   }
@@ -84,8 +90,14 @@ export class MangaRepository extends BaseRepository<Manga, number> {
   }
 
   public getByPath(filePath: string): Manga | undefined {
-    const stmt = this.db.prepare(`SELECT * FROM Manga WHERE excluded = 0 AND path = ?`);
-    const row = stmt.get(filePath);
+    if (!filePath) return undefined;
+    const normalized = path.normalize(filePath);
+    const forwardSlash = normalized.replace(/\\/g, '/');
+    const backSlash = normalized.replace(/\//g, '\\');
+    const stmt = this.db.prepare(
+      `SELECT * FROM Manga WHERE path = ? OR path = ? OR path = ? OR LOWER(path) = LOWER(?)`
+    );
+    const row = stmt.get(filePath, forwardSlash, backSlash, normalized);
     return row ? this.mapRowToManga(row) : undefined;
   }
 
@@ -123,6 +135,13 @@ export class MangaRepository extends BaseRepository<Manga, number> {
   }
 
   public save(manga: Partial<Manga>): number {
+    if (!manga.id && manga.path) {
+      const existing = this.getByPath(manga.path);
+      if (existing) {
+        manga.id = existing.id;
+      }
+    }
+
     const chaptersJson = typeof manga.chapters === 'string' ? manga.chapters : JSON.stringify(manga.chapters || []);
     const chaptersPagesJson = typeof manga.chaptersPages === 'string' ? manga.chaptersPages : JSON.stringify(manga.chaptersPages || {});
 
@@ -134,7 +153,7 @@ export class MangaRepository extends BaseRepository<Manga, number> {
           completed = ?, favorite = ?, has_subtitle = ?, author = ?, series = ?,
           genre = ?, publisher = ?, volume = ?, release = ?, id_library = ?,
           excluded = ?, last_access = ?, last_alteration = ?, file_alteration = ?,
-          last_vocabulary_import = ?, last_verify = ?
+          last_vocabulary_import = ?, last_verify = ?, cover_path = ?
         WHERE id = ?
       `);
       stmt.run(
@@ -143,7 +162,7 @@ export class MangaRepository extends BaseRepository<Manga, number> {
         manga.completed ? 1 : 0, manga.favorite ? 1 : 0, manga.hasSubtitle ? 1 : 0, manga.author ?? '', manga.series ?? '',
         manga.genre ?? '', manga.publisher ?? '', manga.volume ?? '', manga.release ?? null, manga.fkLibrary ?? null,
         manga.excluded ? 1 : 0, manga.lastAccess ?? null, manga.lastAlteration ?? new Date().toISOString(), manga.fileAlteration ?? new Date().toISOString(),
-        manga.lastVocabImport ?? null, manga.lastVerify ?? null, manga.id
+        manga.lastVocabImport ?? null, manga.lastVerify ?? null, manga.coverPath ?? null, manga.id
       );
       return manga.id;
     } else {
@@ -152,9 +171,9 @@ export class MangaRepository extends BaseRepository<Manga, number> {
           title, path, folder, name, size, type, pages, chapters, chapters_pages,
           book_mark, completed, favorite, has_subtitle, author, series, genre,
           publisher, volume, release, id_library, excluded, date_create, last_access,
-          last_alteration, file_alteration, last_vocabulary_import, last_verify
+          last_alteration, file_alteration, last_vocabulary_import, last_verify, cover_path
         ) VALUES (
-          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
         )
       `);
       const info = stmt.run(
@@ -164,7 +183,8 @@ export class MangaRepository extends BaseRepository<Manga, number> {
         manga.author ?? '', manga.series ?? '', manga.genre ?? '', manga.publisher ?? '', manga.volume ?? '',
         manga.release ?? null, manga.fkLibrary ?? null, manga.excluded ? 1 : 0,
         new Date().toISOString(), manga.lastAccess ?? null, manga.lastAlteration ?? new Date().toISOString(),
-        manga.fileAlteration ?? new Date().toISOString(), manga.lastVocabImport ?? null, manga.lastVerify ?? null
+        manga.fileAlteration ?? new Date().toISOString(), manga.lastVocabImport ?? null, manga.lastVerify ?? null,
+        manga.coverPath ?? null
       );
       return Number(info.lastInsertRowid);
     }

@@ -12,7 +12,7 @@ import { Manga } from '../../../../../core/models';
       <!-- Cover Image Container -->
       <div class="relative aspect-[2/3] w-full overflow-hidden bg-slate-900">
         @if (manga.coverPath) {
-          <img [src]="'file:///' + manga.coverPath" [alt]="manga.title" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+          <img [src]="'local-cover:///' + manga.coverPath" [alt]="manga.title" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
         } @else {
           <div class="w-full h-full flex flex-col items-center justify-center p-4 text-slate-500 bg-gradient-to-br from-slate-900 to-slate-800">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-12 h-12 mb-2 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">

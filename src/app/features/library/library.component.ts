@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { LibraryStateService } from '../../core/services/library-state.service';
 import { MangaLibraryService } from '../../core/services/manga-library.service';
+import { BookLibraryService } from '../../core/services/book-library.service';
 import { SettingsService } from '../../core/services/settings.service';
 import { SharedListComponent } from './components/shared-list/shared-list.component';
 import { MangaFilterModalComponent } from './manga-library/components/manga-filter-modal/manga-filter-modal.component';
@@ -18,7 +19,7 @@ import { Manga, Book, OrderType } from '../../core/models';
     MangaFilterModalComponent
   ],
   template: `
-    <div class="h-full flex flex-col bg-slate-950 text-slate-100 overflow-hidden p-6">
+    <div class="h-full flex flex-col bg-slate-950 text-slate-100 overflow-hidden p-6 relative">
       
       <!-- Filter Modal -->
       @if (libraryStateService.showFilterModal()) {
@@ -72,7 +73,7 @@ import { Manga, Book, OrderType } from '../../core/models';
                   </div>
                   <div>
                     <h4 class="text-base font-bold text-slate-100 group-hover:text-amber-400 transition-colors">Biblioteca de Livros</h4>
-                    <p class="text-xs text-slate-400 mt-0.5">{{ mockBooks.length }} itens cadastrados</p>
+                    <p class="text-xs text-slate-400 mt-0.5">{{ bookLibraryService.books().length }} itens cadastrados</p>
                   </div>
                 </div>
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-slate-500 group-hover:text-amber-400 group-hover:translate-x-1 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -114,25 +115,23 @@ import { Manga, Book, OrderType } from '../../core/models';
               </span>
             </div>
 
-            @if (activeLibType() === 'manga') {
-              <button 
-                (click)="mangaLibraryService.selectAndScanDirectory()" 
-                [disabled]="mangaLibraryService.isScanning()"
-                class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-xl text-xs font-medium transition-all shadow-lg shadow-indigo-600/20 flex items-center gap-2">
-                @if (mangaLibraryService.isScanning()) {
-                  <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Escaneando...
-                } @else {
-                  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                  Escanear Pasta
-                }
-              </button>
-            }
+            <button 
+              (click)="onScanClick()" 
+              [disabled]="isCurrentlyScanning()"
+              class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-xl text-xs font-medium transition-all shadow-lg shadow-indigo-600/20 flex items-center gap-2">
+              @if (isCurrentlyScanning()) {
+                <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Escaneando...
+              } @else {
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Escanear Pasta
+              }
+            </button>
           </div>
 
           <!-- Empty State -->
@@ -158,6 +157,13 @@ import { Manga, Book, OrderType } from '../../core/models';
         </div>
       }
 
+      <!-- FOOTER INDETERMINATE PROGRESS BAR -->
+      @if (isCurrentlyScanning()) {
+        <div class="absolute bottom-0 left-0 right-0 h-1 bg-slate-900 overflow-hidden z-50">
+          <div class="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500 animate-indeterminate"></div>
+        </div>
+      }
+
     </div>
   `
 })
@@ -165,62 +171,24 @@ export class LibraryComponent implements OnInit {
   private route = inject(ActivatedRoute);
   public libraryStateService = inject(LibraryStateService);
   public mangaLibraryService = inject(MangaLibraryService);
+  public bookLibraryService = inject(BookLibraryService);
   public settingsService = inject(SettingsService);
 
   activeLibId = signal<string>('home');
   activeLibType = signal<'manga' | 'book'>('manga');
   customOrderItems = signal<(Manga | Book)[] | null>(null);
 
-  mockBooks: Book[] = [
-    {
-      id: 1,
-      title: 'Dom Casmurro',
-      author: 'Machado de Assis',
-      path: '/books/dom-casmurro.epub',
-      folder: '/books',
-      name: 'dom-casmurro.epub',
-      fileSize: 1540000,
-      fileType: 'EPUB' as any,
-      pages: 256,
-      bookMark: 45,
-      completed: false,
-      favorite: true,
-      series: 'Literatura Brasileira',
-      genre: 'Romance',
-      publisher: 'Garnier',
-      volume: '1',
-      excluded: false,
-      fileAlteration: new Date().toISOString()
-    },
-    {
-      id: 2,
-      title: 'O Cortiço',
-      author: 'Aluísio Azevedo',
-      path: '/books/o-cortico.epub',
-      folder: '/books',
-      name: 'o-cortico.epub',
-      fileSize: 1820000,
-      fileType: 'EPUB' as any,
-      pages: 310,
-      bookMark: 310,
-      completed: true,
-      favorite: false,
-      series: 'Naturalismo',
-      genre: 'Romance',
-      publisher: 'B. L. Garnier',
-      volume: '1',
-      excluded: false,
-      fileAlteration: new Date().toISOString()
-    }
-  ];
+  isCurrentlyScanning = computed(() => {
+    return this.mangaLibraryService.isScanning() || this.bookLibraryService.isScanning();
+  });
 
   ngOnInit(): void {
-    this.mangaLibraryService.loadMangas();
-
-    this.route.queryParams.subscribe(params => {
+    this.route.queryParams.subscribe(async params => {
       const libId = params['lib'] || 'home';
       this.activeLibId.set(libId);
       this.customOrderItems.set(null); // Reset manual reorder on lib change
+
+      let pathToScan = '';
 
       if (libId === 'home') {
         this.libraryStateService.activeLibrary.set({
@@ -229,35 +197,72 @@ export class LibraryComponent implements OnInit {
           type: 'manga',
           count: 0
         });
+        this.mangaLibraryService.loadMangas();
+        this.bookLibraryService.loadBooks();
       } else if (libId === 'manga-default') {
         this.activeLibType.set('manga');
+        pathToScan = this.settingsService.mangaBasePath();
         this.libraryStateService.activeLibrary.set({
           id: 'manga-default',
           name: 'Biblioteca de Mangás',
           type: 'manga',
           count: this.mangaLibraryService.mangas().length
         });
+        await this.mangaLibraryService.loadMangas(pathToScan);
+        this.onScanClick();
       } else if (libId === 'book-default') {
         this.activeLibType.set('book');
+        pathToScan = this.settingsService.bookBasePath();
         this.libraryStateService.activeLibrary.set({
           id: 'book-default',
           name: 'Biblioteca de Livros',
           type: 'book',
-          count: this.mockBooks.length
+          count: this.bookLibraryService.books().length
         });
+        await this.bookLibraryService.loadBooks(pathToScan);
+        this.onScanClick();
       } else {
         const found = this.settingsService.libraries().find(l => l.id === libId);
         if (found) {
           this.activeLibType.set(found.type);
+          pathToScan = found.path;
           this.libraryStateService.activeLibrary.set({
             id: found.id,
             name: found.title,
             type: found.type,
             count: 0
           });
+          if (found.type === 'manga') {
+            await this.mangaLibraryService.loadMangas(pathToScan);
+          } else {
+            await this.bookLibraryService.loadBooks(pathToScan);
+          }
+          this.onScanClick();
         }
       }
     });
+  }
+
+  onScanClick(): void {
+    let pathToScan = '';
+    const libId = this.activeLibId();
+
+    if (libId === 'manga-default') {
+      pathToScan = this.settingsService.mangaBasePath();
+    } else if (libId === 'book-default') {
+      pathToScan = this.settingsService.bookBasePath();
+    } else {
+      const found = this.settingsService.libraries().find(l => l.id === libId);
+      if (found) {
+        pathToScan = found.path;
+      }
+    }
+
+    if (this.activeLibType() === 'manga') {
+      this.mangaLibraryService.scanFolder(pathToScan);
+    } else {
+      this.bookLibraryService.scanFolder(pathToScan);
+    }
   }
 
   filteredItems = computed(() => {
@@ -267,7 +272,7 @@ export class LibraryComponent implements OnInit {
 
     let list: (Manga | Book)[] = this.activeLibType() === 'manga'
       ? [...this.mangaLibraryService.mangas()]
-      : [...this.mockBooks];
+      : [...this.bookLibraryService.books()];
 
     const query = this.libraryStateService.searchQuery().toLowerCase().trim();
     const order = this.libraryStateService.currentOrder();

@@ -6,6 +6,7 @@ export interface CustomLibrary {
   language: string;
   path: string;
   type: 'manga' | 'book';
+  count?: number;
 }
 
 const SETTINGS_KEY = 'bilingual_reader_settings';

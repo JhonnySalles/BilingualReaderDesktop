@@ -63,23 +63,36 @@ class ScannerBookService {
         }
         try {
             if (!fs.existsSync(folderPath)) {
-                return;
+                try {
+                    fs.mkdirSync(folderPath, { recursive: true });
+                }
+                catch (e) {
+                    console.warn(`Could not create directory ${folderPath}:`, e);
+                    return;
+                }
             }
             const libraryId = this.storageService.getOrCreateLibrary(folderPath, 'BOOK');
             const existingBooks = this.storageService.listBooks(libraryId);
             const existingMap = new Map();
-            existingBooks.forEach(b => existingMap.set(b.path || '', b));
+            existingBooks.forEach(b => {
+                if (b.path) {
+                    existingMap.set(path.normalize(b.path).toLowerCase(), b);
+                }
+            });
             const foundPaths = new Set();
             await this.walkDirectory(folderPath, async (filePath, stat) => {
                 const ext = path.extname(filePath).toLowerCase();
                 if (BOOK_EXTENSIONS.has(ext)) {
                     foundPaths.add(filePath);
-                    if (!existingMap.has(filePath)) {
+                    const normKey = path.normalize(filePath).toLowerCase();
+                    if (!existingMap.has(normKey)) {
                         // New Book Found
                         await this.processNewBook(filePath, stat, libraryId, window);
                     }
                     else {
-                        existingMap.delete(filePath);
+                        const existingItem = existingMap.get(normKey);
+                        await this.checkAndRecoverMetadata(existingItem, filePath, stat, libraryId, window);
+                        existingMap.delete(normKey);
                     }
                 }
             });
@@ -104,16 +117,21 @@ class ScannerBookService {
         }
     }
     async walkDirectory(dir, callback) {
-        const entries = await fs.promises.readdir(dir, { withFileTypes: true });
-        for (const entry of entries) {
-            const fullPath = path.join(dir, entry.name);
-            if (entry.isDirectory()) {
-                await this.walkDirectory(fullPath, callback);
+        try {
+            const entries = await fs.promises.readdir(dir, { withFileTypes: true });
+            for (const entry of entries) {
+                const fullPath = path.join(dir, entry.name);
+                if (entry.isDirectory()) {
+                    await this.walkDirectory(fullPath, callback);
+                }
+                else if (entry.isFile()) {
+                    const stat = await fs.promises.stat(fullPath);
+                    await callback(fullPath, stat);
+                }
             }
-            else if (entry.isFile()) {
-                const stat = await fs.promises.stat(fullPath);
-                await callback(fullPath, stat);
-            }
+        }
+        catch (err) {
+            console.warn(`Could not read directory ${dir}:`, err);
         }
     }
     async processNewBook(filePath, stat, libraryId, window) {
@@ -148,10 +166,51 @@ class ScannerBookService {
         if (extractedCover) {
             book.coverPath = extractedCover;
         }
+        const existingInDb = this.storageService.findBookByPath(filePath);
+        if (existingInDb) {
+            book.id = existingInDb.id;
+        }
         const id = this.storageService.saveBook(book);
         book.id = id;
         if (window) {
             window.webContents.send('book:updated-add', book);
+        }
+    }
+    async checkAndRecoverMetadata(existing, filePath, stat, libraryId, window) {
+        let needsUpdate = false;
+        const updated = { ...existing };
+        if (!existing.coverPath || !fs.existsSync(existing.coverPath)) {
+            const extractedCover = book_image_cover_controller_1.BookImageCoverController.instance.getBookCoverFile(existing);
+            if (extractedCover) {
+                updated.coverPath = extractedCover;
+                needsUpdate = true;
+            }
+        }
+        if (!existing.author) {
+            const meta = book_extractor_factory_1.BookExtractorFactory.getMetadata(filePath);
+            if (meta.author && !existing.author) {
+                updated.author = meta.author;
+                needsUpdate = true;
+            }
+            if (meta.series && !existing.series) {
+                updated.series = meta.series;
+                needsUpdate = true;
+            }
+            if (meta.genre && !existing.genre) {
+                updated.genre = meta.genre;
+                needsUpdate = true;
+            }
+            if (meta.publisher && !existing.publisher) {
+                updated.publisher = meta.publisher;
+                needsUpdate = true;
+            }
+        }
+        if (needsUpdate || existing.fkLibrary !== libraryId) {
+            updated.fkLibrary = libraryId;
+            this.storageService.saveBook(updated);
+            if (window) {
+                window.webContents.send('book:updated-add', updated);
+            }
         }
     }
 }

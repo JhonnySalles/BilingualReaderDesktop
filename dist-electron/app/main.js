@@ -37,10 +37,12 @@ const electron_1 = require("electron");
 const path = __importStar(require("path"));
 const storage_service_1 = require("./database/storage.service");
 const scanner_manga_service_1 = require("./scanner/scanner-manga.service");
+const scanner_book_service_1 = require("./scanner/scanner-book.service");
 const settings_controller_1 = require("./controllers/settings.controller");
 let mainWindow = null;
 let storageService;
 let scannerMangaService;
+let scannerBookService;
 function createWindow() {
     mainWindow = new electron_1.BrowserWindow({
         width: 1280,
@@ -69,8 +71,14 @@ function createWindow() {
     });
 }
 electron_1.app.on('ready', () => {
+    electron_1.protocol.handle('local-cover', (request) => {
+        const rawPath = request.url.replace(/^local-cover:\/\//, '');
+        const decodedPath = decodeURIComponent(rawPath);
+        return electron_1.net.fetch('file:///' + decodedPath);
+    });
     storageService = new storage_service_1.StorageService();
     scannerMangaService = new scanner_manga_service_1.ScannerMangaService(storageService);
+    scannerBookService = new scanner_book_service_1.ScannerBookService(storageService);
     settings_controller_1.SettingsController.instance.registerIpcHandlers();
     createWindow();
     electron_1.ipcMain.handle('app:ping', async () => {
@@ -88,12 +96,46 @@ electron_1.app.on('ready', () => {
         }
         return result.filePaths[0];
     });
-    electron_1.ipcMain.handle('manga:list', async (_event, libraryId) => {
+    electron_1.ipcMain.handle('manga:list', async (_event, folderPath) => {
+        let libraryId;
+        if (folderPath) {
+            libraryId = storageService.getOrCreateLibrary(folderPath, 'MANGA');
+        }
         return storageService.listMangas(libraryId);
     });
     electron_1.ipcMain.handle('manga:scan', async (_event, folderPath) => {
-        scannerMangaService.scanFolder(folderPath, mainWindow);
+        await scannerMangaService.scanFolder(folderPath, mainWindow);
         return true;
+    });
+    electron_1.ipcMain.handle('book:list', async (_event, folderPath) => {
+        let libraryId;
+        if (folderPath) {
+            libraryId = storageService.getOrCreateLibrary(folderPath, 'BOOK');
+        }
+        return storageService.listBooks(libraryId);
+    });
+    electron_1.ipcMain.handle('book:scan', async (_event, folderPath) => {
+        await scannerBookService.scanFolder(folderPath, mainWindow);
+        return true;
+    });
+    electron_1.ipcMain.handle('library:get-count', async (_event, libIdOrPath, type) => {
+        let targetLibraryId;
+        if (typeof libIdOrPath === 'string' && libIdOrPath.includes('/') || (typeof libIdOrPath === 'string' && libIdOrPath.includes('\\'))) {
+            targetLibraryId = storageService.getOrCreateLibrary(libIdOrPath, type);
+        }
+        else {
+            const numId = typeof libIdOrPath === 'number' ? libIdOrPath : parseInt(libIdOrPath, 10);
+            if (!isNaN(numId) && numId > 0) {
+                targetLibraryId = numId;
+            }
+            else {
+                targetLibraryId = undefined; // Count all/default items if -1 or -2 or undefined
+            }
+        }
+        if (type === 'BOOK') {
+            return storageService.countBooks(targetLibraryId);
+        }
+        return storageService.countMangas(targetLibraryId);
     });
 });
 electron_1.app.on('window-all-closed', () => {

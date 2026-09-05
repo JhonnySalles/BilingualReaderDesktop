@@ -13,7 +13,7 @@ import { Manga } from '../../../../../core/models';
       <div class="flex items-center gap-3 min-w-0 flex-1">
         <div class="w-10 h-14 bg-slate-900 rounded overflow-hidden flex-shrink-0 relative border border-slate-700/50">
           @if (manga.coverPath) {
-            <img [src]="'file:///' + manga.coverPath" [alt]="manga.title" class="w-full h-full object-cover" />
+            <img [src]="'local-cover:///' + manga.coverPath" [alt]="manga.title" class="w-full h-full object-cover" />
           } @else {
             <div class="w-full h-full flex items-center justify-center text-slate-600 text-[10px] uppercase font-bold">
               {{ manga.fileType }}

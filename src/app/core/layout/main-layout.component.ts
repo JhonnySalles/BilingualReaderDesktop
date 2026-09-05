@@ -269,6 +269,7 @@ interface NavLibrary {
 export class MainLayoutComponent {
   private router = inject(Router);
   private settingsService = inject(SettingsService);
+  private electronService = inject(ElectronService);
   public libraryStateService = inject(LibraryStateService);
 
   isExpanded = signal<boolean>(true);
@@ -278,30 +279,36 @@ export class MainLayoutComponent {
   defaultMangaLibrary = signal<NavLibrary>({ id: 'manga-default', name: 'Biblioteca de Mangás', type: 'manga', icon: 'ico_manga', count: 0 });
   defaultBookLibrary = signal<NavLibrary>({ id: 'book-default', name: 'Biblioteca de Livros', type: 'book', icon: 'ico_book', count: 0 });
 
-  // Dynamic Custom Libraries mapped from SettingsService
-  customMangaLibraries = computed<NavLibrary[]>(() => {
-    return this.settingsService.libraries()
-      .filter(l => l.type === 'manga')
-      .map(l => ({
-        id: l.id,
-        name: l.title,
-        type: l.type,
-        icon: 'ico_manga',
-        count: 0
-      }));
-  });
+  customMangaLibraries = signal<NavLibrary[]>([]);
+  customBookLibraries = signal<NavLibrary[]>([]);
 
-  customBookLibraries = computed<NavLibrary[]>(() => {
-    return this.settingsService.libraries()
-      .filter(l => l.type === 'book')
-      .map(l => ({
-        id: l.id,
-        name: l.title,
-        type: l.type,
-        icon: 'ico_book',
-        count: 0
-      }));
-  });
+  constructor() {
+    this.updateCounts();
+  }
+
+  async updateCounts(): Promise<void> {
+    const mangaDefCount = await this.electronService.getLibraryCount(-1, 'MANGA');
+    this.defaultMangaLibrary.update(l => ({ ...l, count: mangaDefCount }));
+
+    const bookDefCount = await this.electronService.getLibraryCount(-2, 'BOOK');
+    this.defaultBookLibrary.update(l => ({ ...l, count: bookDefCount }));
+
+    const allCustom = this.settingsService.libraries();
+
+    const customMangas: NavLibrary[] = [];
+    for (const l of allCustom.filter(c => c.type === 'manga')) {
+      const count = await this.electronService.getLibraryCount(l.path as any, 'MANGA');
+      customMangas.push({ id: l.id, name: l.title, type: l.type, icon: 'ico_manga', count });
+    }
+    this.customMangaLibraries.set(customMangas);
+
+    const customBooks: NavLibrary[] = [];
+    for (const l of allCustom.filter(c => c.type === 'book')) {
+      const count = await this.electronService.getLibraryCount(l.path as any, 'BOOK');
+      customBooks.push({ id: l.id, name: l.title, type: l.type, icon: 'ico_book', count });
+    }
+    this.customBookLibraries.set(customBooks);
+  }
 
   selectLibrary(lib: NavLibrary) {
     this.router.navigate(['/'], { queryParams: { lib: lib.id } });

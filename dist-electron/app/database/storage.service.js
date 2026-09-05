@@ -59,7 +59,7 @@ class StorageService {
     }
     initDatabase() {
         const userDataPath = electron_1.app.getPath('userData');
-        const dbPath = path.join(userDataPath, 'bilingual_reader.db');
+        const dbPath = path.join(userDataPath, 'BilingualReaderDesktop.db');
         const dbDir = path.dirname(dbPath);
         if (!fs.existsSync(dbDir)) {
             fs.mkdirSync(dbDir, { recursive: true });
@@ -84,6 +84,9 @@ class StorageService {
     saveManga(manga) {
         return this.mangaRepository.save(manga);
     }
+    countMangas(libraryId) {
+        return this.mangaRepository.getMangaCount(libraryId);
+    }
     deleteManga(id) {
         this.mangaRepository.delete(id);
     }
@@ -97,6 +100,9 @@ class StorageService {
     saveBook(book) {
         return this.bookRepository.save(book);
     }
+    countBooks(libraryId) {
+        return this.bookRepository.getBookCount(libraryId);
+    }
     deleteBook(id) {
         this.bookRepository.delete(id);
     }
@@ -104,8 +110,9 @@ class StorageService {
         return this.bookRepository.listDeleted(libraryId);
     }
     getOrCreateLibrary(folderPath, type = 'MANGA') {
-        const findStmt = this.db.prepare(`SELECT id FROM Libraries WHERE path = ?`);
-        const row = findStmt.get(folderPath);
+        const normalized = path.normalize(folderPath);
+        const findStmt = this.db.prepare(`SELECT id FROM Libraries WHERE LOWER(path) = LOWER(?) OR path = ?`);
+        const row = findStmt.get(normalized, folderPath);
         if (row)
             return row.id;
         const title = path.basename(folderPath) || 'Biblioteca';

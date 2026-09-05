@@ -25,7 +25,7 @@ export class StorageService {
 
   private initDatabase(): void {
     const userDataPath = app.getPath('userData');
-    const dbPath = path.join(userDataPath, 'bilingual_reader.db');
+    const dbPath = path.join(userDataPath, 'BilingualReaderDesktop.db');
     
     const dbDir = path.dirname(dbPath);
     if (!fs.existsSync(dbDir)) {
@@ -59,6 +59,10 @@ export class StorageService {
     return this.mangaRepository.save(manga);
   }
 
+  public countMangas(libraryId?: number): number {
+    return this.mangaRepository.getMangaCount(libraryId);
+  }
+
   public deleteManga(id: number): void {
     this.mangaRepository.delete(id);
   }
@@ -77,6 +81,10 @@ export class StorageService {
     return this.bookRepository.save(book);
   }
 
+  public countBooks(libraryId?: number): number {
+    return this.bookRepository.getBookCount(libraryId);
+  }
+
   public deleteBook(id: number): void {
     this.bookRepository.delete(id);
   }
@@ -86,8 +94,9 @@ export class StorageService {
   }
 
   public getOrCreateLibrary(folderPath: string, type: 'MANGA' | 'BOOK' = 'MANGA'): number {
-    const findStmt = this.db.prepare(`SELECT id FROM Libraries WHERE path = ?`);
-    const row = findStmt.get(folderPath) as { id: number } | undefined;
+    const normalized = path.normalize(folderPath);
+    const findStmt = this.db.prepare(`SELECT id FROM Libraries WHERE LOWER(path) = LOWER(?) OR path = ?`);
+    const row = findStmt.get(normalized, folderPath) as { id: number } | undefined;
     if (row) return row.id;
 
     const title = path.basename(folderPath) || 'Biblioteca';

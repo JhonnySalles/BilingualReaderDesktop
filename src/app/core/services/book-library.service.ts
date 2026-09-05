@@ -1,11 +1,11 @@
 import { Injectable, signal } from '@angular/core';
-import { Manga, OrderType, LibraryViewType } from '../models';
+import { Book, OrderType, LibraryViewType } from '../models';
 
 @Injectable({
   providedIn: 'root'
 })
-export class MangaLibraryService {
-  public mangas = signal<Manga[]>([]);
+export class BookLibraryService {
+  public books = signal<Book[]>([]);
   public isScanning = signal<boolean>(false);
   public searchQuery = signal<string>('');
   public currentOrder = signal<OrderType>(OrderType.Name);
@@ -20,29 +20,29 @@ export class MangaLibraryService {
 
   private initElectronListeners(): void {
     if (window.electronAPI?.on) {
-      window.electronAPI.on('scan-status', (data: { status: string; folderPath?: string }) => {
+      window.electronAPI.on('book:scan-status', (data: { status: string; folderPath?: string }) => {
         const isStarted = data.status === 'STARTED';
         this.isScanning.set(isStarted);
         if (!isStarted) {
-          this.loadMangas(data.folderPath || this.currentFolderPath);
+          this.loadBooks(data.folderPath || this.currentFolderPath);
         }
       });
 
-      window.electronAPI.on('manga:updated-add', (manga: Manga) => {
-        this.mangas.update(list => [...list.filter(m => m.id !== manga.id), manga]);
+      window.electronAPI.on('book:updated-add', (book: Book) => {
+        this.books.update(list => [...list.filter(b => b.id !== book.id), book]);
       });
 
-      window.electronAPI.on('manga:updated-remove', (data: { id: number }) => {
-        this.mangas.update(list => list.filter(m => m.id !== data.id));
+      window.electronAPI.on('book:updated-remove', (data: { id: number }) => {
+        this.books.update(list => list.filter(b => b.id !== data.id));
       });
     }
   }
 
   public async scanFolder(folderPath: string): Promise<void> {
-    if (!window.electronAPI?.scanLibrary || !folderPath) return;
+    if (!window.electronAPI?.scanBookLibrary || !folderPath) return;
     this.currentFolderPath = folderPath;
-    await window.electronAPI.scanLibrary(folderPath);
-    await this.loadMangas(folderPath);
+    await window.electronAPI.scanBookLibrary(folderPath);
+    await this.loadBooks(folderPath);
   }
 
   public async selectAndScanDirectory(): Promise<void> {
@@ -53,9 +53,9 @@ export class MangaLibraryService {
     }
   }
 
-  public async loadMangas(folderPath?: string): Promise<void> {
-    if (!window.electronAPI?.listMangas) return;
-    const mangas = await window.electronAPI.listMangas(folderPath);
-    this.mangas.set(mangas || []);
+  public async loadBooks(folderPath?: string): Promise<void> {
+    if (!window.electronAPI?.listBooks) return;
+    const books = await window.electronAPI.listBooks(folderPath);
+    this.books.set(books || []);
   }
 }
