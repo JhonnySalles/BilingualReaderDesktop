@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { ElectronService } from '../../core/services/electron.service';
 import { ThemeService, ThemeMode, AccentColor } from '../../core/services/theme.service';
 import { SettingsService, CustomLibrary } from '../../core/services/settings.service';
+import { MangaFitMode, MangaScrollingMode } from '../../core/models';
 export type { CustomLibrary };
 
 type SettingTab = 'manga' | 'book' | 'system' | 'ai';
@@ -14,19 +15,6 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai';
   imports: [CommonModule, FormsModule],
   template: `
     <div class="h-full flex flex-col bg-slate-950 text-slate-100 overflow-hidden select-none">
-      <!-- Header Bar -->
-      <div class="h-14 px-6 bg-slate-900/80 border-b border-slate-800 flex items-center justify-between">
-        <div class="flex items-center gap-3">
-          <h1 class="text-base font-bold text-slate-100">Configurações do Leitor</h1>
-          <span class="text-xs text-slate-400">Portado do aplicativo nativo Android</span>
-        </div>
-        <div class="flex items-center gap-2">
-          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-            Configurações Salvas
-          </span>
-        </div>
-      </div>
-
       <!-- Settings Layout (Left Navigation, Right Scrollable Content) -->
       <div class="flex-1 flex overflow-hidden">
         <!-- Categories Side Nav -->
@@ -169,10 +157,13 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai';
 
                   <div>
                     <label class="block text-xs text-slate-300 mb-1 font-medium">Modo de Visualizador HQ/Comic</label>
-                    <select class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200">
-                      <option>Ajustar à Largura (Fit Width)</option>
-                      <option>Ajustar à Altura (Fit Height)</option>
-                      <option>Tamanho Real (Original)</option>
+                    <select
+                      class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200"
+                      [ngModel]="settingsService.mangaFitMode()"
+                      (ngModelChange)="settingsService.mangaFitMode.set($event)">
+                      <option [ngValue]="MangaFitMode.FitWidth">Ajustar à Largura (Fit Width)</option>
+                      <option [ngValue]="MangaFitMode.FitHeight">Ajustar à Altura (Fit Height)</option>
+                      <option [ngValue]="MangaFitMode.Original">Tamanho Real (Original)</option>
                     </select>
                   </div>
                 </div>
@@ -185,10 +176,15 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai';
                 <div class="grid grid-cols-2 gap-4">
                   <div>
                     <label class="block text-xs text-slate-300 mb-1 font-medium">Sentido da Leitura</label>
-                    <select class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200">
-                      <option>Direita para Esquerda (Mangá Tradicional)</option>
-                      <option>Esquerda para Direita (HQ Ocidental)</option>
-                      <option>Webtoon (Rolagem Vertical Contínua)</option>
+                    <select
+                      class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200"
+                      [ngModel]="settingsService.mangaScrollingMode()"
+                      (ngModelChange)="settingsService.mangaScrollingMode.set($event)">
+                      <option [ngValue]="MangaScrollingMode.HorizontalRtl">Direita para Esquerda (Mangá Tradicional)</option>
+                      <option [ngValue]="MangaScrollingMode.Horizontal">Esquerda para Direita (HQ Ocidental)</option>
+                      <option [ngValue]="MangaScrollingMode.Vertical">Vertical (página a página)</option>
+                      <option [ngValue]="MangaScrollingMode.LongStrip">Tira longa (rolagem contínua)</option>
+                      <option [ngValue]="MangaScrollingMode.LongStripGap">Tira longa com espaçamento</option>
                     </select>
                   </div>
 
@@ -673,6 +669,9 @@ export class SettingsComponent {
   private electronService = inject(ElectronService);
   themeService = inject(ThemeService);
   settingsService = inject(SettingsService);
+
+  MangaFitMode = MangaFitMode;
+  MangaScrollingMode = MangaScrollingMode;
 
   activeTab = signal<SettingTab>('manga');
 

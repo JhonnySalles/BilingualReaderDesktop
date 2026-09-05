@@ -18,6 +18,13 @@ export interface Book extends BaseEntity<number>, HistoryInterface {
   publisher: string;
   volume: string;
   release?: string;
+  language?: string;
+  isbn?: string;
+  annotation?: string;
+  tags?: string;
+  chapter?: string;
+  chapterDescription?: string;
+  password?: string;
   fkLibrary?: number;
   excluded: boolean;
   dateCreate?: string;

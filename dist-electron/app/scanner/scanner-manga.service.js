@@ -39,7 +39,7 @@ const path = __importStar(require("path"));
 const app_enums_1 = require("../../src/app/core/models/enums/app-enums");
 const parse_factory_1 = require("../parser/manga/parse-factory");
 const manga_image_cover_controller_1 = require("../controllers/manga-image-cover.controller");
-const MANGA_EXTENSIONS = new Set(['.cbz', '.cbr', '.cb7', '.cbt', '.zip', '.rar', '.7z', '.tar', '.epub', '.epub3']);
+const MANGA_EXTENSIONS = new Set(['.cbz', '.cbr', '.cb7', '.cbt', '.zip', '.rar', '.7z', '.tar']);
 class ScannerMangaService {
     storageService;
     isScanning = false;
@@ -79,7 +79,7 @@ class ScannerMangaService {
             await this.walkDirectory(folderPath, async (itemPath, stat, isDir) => {
                 if (isDir) {
                     // Check if directory itself is a chapter/manga (e.g. contains images)
-                    const parser = parse_factory_1.ParseFactory.create(itemPath);
+                    const parser = await parse_factory_1.ParseFactory.create(itemPath);
                     if (parser) {
                         try {
                             if (parser.numPages() >= 4) {
@@ -170,7 +170,7 @@ class ScannerMangaService {
         let volume = '';
         let hasSubtitle = false;
         // Use ParseFactory to inspect comic/manga file or directory
-        const parser = parse_factory_1.ParseFactory.create(itemPath);
+        const parser = await parse_factory_1.ParseFactory.create(itemPath);
         if (parser) {
             try {
                 pages = Math.max(1, parser.numPages());
@@ -188,10 +188,9 @@ class ScannerMangaService {
                     if (comicInfo.number)
                         volume = comicInfo.number;
                 }
-                const mangaEntity = { path: itemPath, name: fileName };
-                const extractedCover = manga_image_cover_controller_1.MangaImageCoverController.instance.getMangaCoverFile(mangaEntity);
-                if (extractedCover) {
-                    coverPath = extractedCover;
+                const coverStreams = parser.getCover();
+                if (coverStreams.front) {
+                    coverPath = manga_image_cover_controller_1.MangaImageCoverController.instance.saveCoverToCache(itemPath, coverStreams.front);
                 }
             }
             catch (e) {
@@ -240,14 +239,14 @@ class ScannerMangaService {
         let needsUpdate = false;
         const updated = { ...existing };
         if (!existing.coverPath || !fs.existsSync(existing.coverPath)) {
-            const extractedCover = manga_image_cover_controller_1.MangaImageCoverController.instance.getMangaCoverFile(existing);
+            const extractedCover = await manga_image_cover_controller_1.MangaImageCoverController.instance.getMangaCoverFile(existing);
             if (extractedCover) {
                 updated.coverPath = extractedCover;
                 needsUpdate = true;
             }
         }
         if (!existing.author || !existing.series) {
-            const parser = parse_factory_1.ParseFactory.create(itemPath);
+            const parser = await parse_factory_1.ParseFactory.create(itemPath);
             if (parser) {
                 try {
                     const comicInfo = parser.getComicInfo();

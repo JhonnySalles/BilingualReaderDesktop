@@ -35,14 +35,34 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 const electron_1 = require("electron");
 const path = __importStar(require("path"));
+const url_1 = require("url");
 const storage_service_1 = require("./database/storage.service");
 const scanner_manga_service_1 = require("./scanner/scanner-manga.service");
 const scanner_book_service_1 = require("./scanner/scanner-book.service");
 const settings_controller_1 = require("./controllers/settings.controller");
+const settings_service_1 = require("./services/settings.service");
+const statistics_controller_1 = require("./controllers/statistics.controller");
+const library_controller_1 = require("./controllers/library.controller");
+const manga_reader_controller_1 = require("./controllers/manga-reader.controller");
+const LOCAL_SCHEME_PRIVILEGES = {
+    standard: true,
+    secure: true,
+    supportFetchAPI: true,
+    bypassCSP: true,
+    corsEnabled: true,
+    stream: true
+};
+// Must run before app ready so <img src="local-page://..."> works from http://localhost.
+// Do NOT privilege local-cover: covers already use local-cover:///{windowsPath} and worked
+// without a standard scheme; privileging it breaks path parsing (ERR_FILE_NOT_FOUND).
+electron_1.protocol.registerSchemesAsPrivileged([
+    { scheme: 'local-page', privileges: { ...LOCAL_SCHEME_PRIVILEGES } }
+]);
 let mainWindow = null;
 let storageService;
 let scannerMangaService;
 let scannerBookService;
+let mangaReaderController;
 function createWindow() {
     mainWindow = new electron_1.BrowserWindow({
         width: 1280,
@@ -71,72 +91,125 @@ function createWindow() {
     });
 }
 electron_1.app.on('ready', () => {
-    electron_1.protocol.handle('local-cover', (request) => {
-        const rawPath = request.url.replace(/^local-cover:\/\//, '');
-        const decodedPath = decodeURIComponent(rawPath);
-        return electron_1.net.fetch('file:///' + decodedPath);
-    });
-    storageService = new storage_service_1.StorageService();
-    scannerMangaService = new scanner_manga_service_1.ScannerMangaService(storageService);
-    scannerBookService = new scanner_book_service_1.ScannerBookService(storageService);
-    settings_controller_1.SettingsController.instance.registerIpcHandlers();
-    createWindow();
-    electron_1.ipcMain.handle('app:ping', async () => {
-        return 'Pong de Electron Node.js!';
-    });
-    electron_1.ipcMain.handle('dialog:openDirectory', async () => {
-        if (!mainWindow)
-            return null;
-        const result = await electron_1.dialog.showOpenDialog(mainWindow, {
-            title: 'Selecionar Diretório de Biblioteca',
-            properties: ['openDirectory', 'createDirectory']
+    try {
+        // Keep the original cover handler — renderer uses local-cover:///{absoluteWindowsPath}
+        electron_1.protocol.handle('local-cover', (request) => {
+            const rawPath = request.url.replace(/^local-cover:\/\//, '');
+            const decodedPath = decodeURIComponent(rawPath);
+            return electron_1.net.fetch('file:///' + decodedPath);
         });
-        if (result.canceled || result.filePaths.length === 0) {
-            return null;
-        }
-        return result.filePaths[0];
-    });
-    electron_1.ipcMain.handle('manga:list', async (_event, folderPath) => {
-        let libraryId;
-        if (folderPath) {
-            libraryId = storageService.getOrCreateLibrary(folderPath, 'MANGA');
-        }
-        return storageService.listMangas(libraryId);
-    });
-    electron_1.ipcMain.handle('manga:scan', async (_event, folderPath) => {
-        await scannerMangaService.scanFolder(folderPath, mainWindow);
-        return true;
-    });
-    electron_1.ipcMain.handle('book:list', async (_event, folderPath) => {
-        let libraryId;
-        if (folderPath) {
-            libraryId = storageService.getOrCreateLibrary(folderPath, 'BOOK');
-        }
-        return storageService.listBooks(libraryId);
-    });
-    electron_1.ipcMain.handle('book:scan', async (_event, folderPath) => {
-        await scannerBookService.scanFolder(folderPath, mainWindow);
-        return true;
-    });
-    electron_1.ipcMain.handle('library:get-count', async (_event, libIdOrPath, type) => {
-        let targetLibraryId;
-        if (typeof libIdOrPath === 'string' && libIdOrPath.includes('/') || (typeof libIdOrPath === 'string' && libIdOrPath.includes('\\'))) {
-            targetLibraryId = storageService.getOrCreateLibrary(libIdOrPath, type);
-        }
-        else {
-            const numId = typeof libIdOrPath === 'number' ? libIdOrPath : parseInt(libIdOrPath, 10);
-            if (!isNaN(numId) && numId > 0) {
-                targetLibraryId = numId;
+        storageService = new storage_service_1.StorageService();
+        scannerMangaService = new scanner_manga_service_1.ScannerMangaService(storageService);
+        scannerBookService = new scanner_book_service_1.ScannerBookService(storageService);
+        settings_controller_1.SettingsController.instance.registerIpcHandlers();
+        new statistics_controller_1.StatisticsController(storageService).registerIpcHandlers();
+        new library_controller_1.LibraryController(storageService).registerIpcHandlers();
+        mangaReaderController = new manga_reader_controller_1.MangaReaderController(storageService);
+        mangaReaderController.registerIpcHandlers(() => mainWindow);
+        electron_1.protocol.handle('local-page', (request) => {
+            try {
+                const parsed = new URL(request.url);
+                const fromQuery = parsed.searchParams.get('p');
+                let decodedPath = fromQuery ? decodeURIComponent(fromQuery) : '';
+                if (!decodedPath) {
+                    // Legacy fallback: local-page:///encoded/path
+                    const rawPath = request.url.replace(/^local-page:\/\//, '');
+                    decodedPath = decodeURIComponent(rawPath.split('?')[0]);
+                    if (decodedPath.startsWith('/') && /^\/[A-Za-z]:/.test(decodedPath)) {
+                        decodedPath = decodedPath.slice(1);
+                    }
+                }
+                const session = mangaReaderController.getSessionService();
+                if (!decodedPath || !session.isPathAllowed(decodedPath)) {
+                    console.error('[local-page] forbidden path', decodedPath || request.url);
+                    return new Response('Forbidden', { status: 403 });
+                }
+                return electron_1.net.fetch((0, url_1.pathToFileURL)(decodedPath).href);
+            }
+            catch (err) {
+                console.error('[local-page] failed to serve', request.url, err);
+                return new Response('Not Found', { status: 404 });
+            }
+        });
+        createWindow();
+        electron_1.ipcMain.handle('app:ping', async () => {
+            return 'Pong de Electron Node.js!';
+        });
+        electron_1.ipcMain.handle('dialog:openDirectory', async () => {
+            if (!mainWindow)
+                return null;
+            const result = await electron_1.dialog.showOpenDialog(mainWindow, {
+                title: 'Selecionar Diretório de Biblioteca',
+                properties: ['openDirectory', 'createDirectory']
+            });
+            if (result.canceled || result.filePaths.length === 0) {
+                return null;
+            }
+            return result.filePaths[0];
+        });
+        electron_1.ipcMain.handle('manga:list', async (_event, folderPath) => {
+            let libraryId;
+            if (folderPath) {
+                libraryId = storageService.getOrCreateLibrary(folderPath, 'MANGA');
+            }
+            return storageService.listMangas(libraryId);
+        });
+        electron_1.ipcMain.handle('manga:scan', async (_event, folderPath) => {
+            await scannerMangaService.scanFolder(folderPath, mainWindow);
+            return true;
+        });
+        electron_1.ipcMain.handle('manga:get', async (_event, id) => {
+            return storageService.findMangaById(id) || null;
+        });
+        electron_1.ipcMain.handle('manga:clear-progress', async (_event, id) => {
+            return storageService.clearMangaProgress(id) || null;
+        });
+        electron_1.ipcMain.handle('book:get', async (_event, id) => {
+            return storageService.findBookById(id) || null;
+        });
+        electron_1.ipcMain.handle('book:clear-progress', async (_event, id) => {
+            return storageService.clearBookProgress(id) || null;
+        });
+        electron_1.ipcMain.handle('book:list', async (_event, folderPath) => {
+            let libraryId;
+            if (folderPath) {
+                libraryId = storageService.getOrCreateLibrary(folderPath, 'BOOK');
+            }
+            return storageService.listBooks(libraryId);
+        });
+        electron_1.ipcMain.handle('book:scan', async (_event, folderPath) => {
+            await scannerBookService.scanFolder(folderPath, mainWindow);
+            return true;
+        });
+        electron_1.ipcMain.handle('library:get-count', async (_event, libIdOrPath, type) => {
+            let targetLibraryId;
+            if (typeof libIdOrPath === 'string' && (libIdOrPath.includes('/') || libIdOrPath.includes('\\'))) {
+                targetLibraryId = storageService.getOrCreateLibrary(libIdOrPath, type);
             }
             else {
-                targetLibraryId = undefined; // Count all/default items if -1 or -2 or undefined
+                const numId = typeof libIdOrPath === 'number' ? libIdOrPath : parseInt(libIdOrPath, 10);
+                if (!isNaN(numId) && numId > 0) {
+                    targetLibraryId = numId;
+                }
+                else {
+                    // Reserved/Default library IDs (e.g. -1 or -2) or unspecified path
+                    const defaultPathKey = type === 'MANGA' ? 'mangaBasePath' : 'bookBasePath';
+                    const fallbackPath = type === 'MANGA'
+                        ? 'C:\\Users\\Jhonny\\Documents\\BilingualReader\\Mangas'
+                        : 'C:\\Users\\Jhonny\\Documents\\BilingualReader\\Books';
+                    const folderPath = settings_service_1.SettingsService.instance.get(defaultPathKey, fallbackPath);
+                    targetLibraryId = storageService.getOrCreateLibrary(folderPath, type);
+                }
             }
-        }
-        if (type === 'BOOK') {
-            return storageService.countBooks(targetLibraryId);
-        }
-        return storageService.countMangas(targetLibraryId);
-    });
+            if (type === 'BOOK') {
+                return storageService.countBooks(targetLibraryId);
+            }
+            return storageService.countMangas(targetLibraryId);
+        });
+    }
+    catch (err) {
+        console.error('[main] Failed during app ready / IPC registration:', err);
+    }
 });
 electron_1.app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') {

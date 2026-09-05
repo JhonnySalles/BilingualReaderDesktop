@@ -6,7 +6,7 @@ import { ZipParse } from './zip-parse';
 import { RarParse } from './rar-parse';
 
 export class ParseFactory {
-  public static create(filePath: string): Parse | null {
+  public static async create(filePath: string): Promise<Parse | null> {
     if (!fs.existsSync(filePath)) {
       return null;
     }
@@ -15,7 +15,7 @@ export class ParseFactory {
     if (stat.isDirectory()) {
       const parser = new DirectoryParse();
       try {
-        parser.parse(filePath);
+        await parser.parse(filePath);
         if (parser.numPages() < 4) {
           parser.destroy();
           return null;
@@ -37,27 +37,28 @@ export class ParseFactory {
     }
 
     if (parser) {
-      const result = this.tryParseInternal(parser, filePath);
+      const result = await this.tryParseInternal(parser, filePath);
       if (result) return result;
     }
 
     // Fallback: try ZipParse then RarParse
     const zipFallback = new ZipParse();
-    const fallbackResult = this.tryParseInternal(zipFallback, filePath);
+    const fallbackResult = await this.tryParseInternal(zipFallback, filePath);
     if (fallbackResult) return fallbackResult;
 
     const rarFallback = new RarParse();
-    const rarFallbackResult = this.tryParseInternal(rarFallback, filePath);
+    const rarFallbackResult = await this.tryParseInternal(rarFallback, filePath);
     if (rarFallbackResult) return rarFallbackResult;
 
     return null;
   }
 
-  private static tryParseInternal(parser: Parse, filePath: string): Parse | null {
+  private static async tryParseInternal(parser: Parse, filePath: string): Promise<Parse | null> {
     try {
-      parser.parse(filePath);
+      await parser.parse(filePath);
       return parser;
-    } catch {
+    } catch (err) {
+      console.warn(`[ParseFactory] Failed to parse ${filePath} with ${parser.constructor.name}:`, err);
       try {
         parser.destroy();
       } catch {}

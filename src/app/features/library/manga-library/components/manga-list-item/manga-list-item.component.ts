@@ -21,16 +21,28 @@ import { Manga } from '../../../../../core/models';
           }
         </div>
 
-        <div class="min-w-0">
+        <div class="min-w-0 flex-1">
           <h4 class="text-sm font-medium text-slate-200 truncate group-hover:text-indigo-400 transition-colors" [title]="manga.title">
             {{ manga.title }}
           </h4>
-          <div class="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
-            <span class="px-1.5 py-0.2 rounded bg-slate-900/80 text-indigo-300 font-mono text-[10px] border border-slate-700/60 uppercase">
+          <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400 mt-1">
+            <span class="px-1.5 py-0.5 rounded bg-slate-900/80 text-indigo-300 font-mono text-[10px] border border-slate-700/60 uppercase">
               {{ manga.fileType }}
             </span>
+            @if (manga.series) {
+              <span class="flex items-center gap-1 text-slate-300">
+                <span class="text-slate-500 font-medium">Série:</span> {{ manga.series }}
+              </span>
+            }
             @if (manga.author) {
-              <span class="truncate">{{ manga.author }}</span>
+              <span class="flex items-center gap-1 text-slate-300">
+                <span class="text-slate-500 font-medium">Autor:</span> {{ manga.author }}
+              </span>
+            }
+            @if (manga.publisher) {
+              <span class="flex items-center gap-1 text-slate-400">
+                <span class="text-slate-500 font-medium">Editora:</span> {{ manga.publisher }}
+              </span>
             }
           </div>
         </div>

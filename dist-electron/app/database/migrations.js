@@ -48,7 +48,7 @@ class MigrationsManager {
         if (currentVersion === 0) {
             this.createInitialSchema();
             this.seedInitialData();
-            this.db.pragma('user_version = 15');
+            this.db.pragma('user_version = 16');
             return;
         }
         if (currentVersion < 2) {
@@ -69,6 +69,10 @@ class MigrationsManager {
         }
         if (currentVersion < 15) {
             this.db.pragma('user_version = 15');
+        }
+        if (currentVersion < 16) {
+            this.migrate15To16();
+            this.db.pragma('user_version = 16');
         }
     }
     createInitialSchema() {
@@ -253,6 +257,28 @@ class MigrationsManager {
         id_vocabulary INTEGER NOT NULL,
         appears INTEGER NOT NULL DEFAULT 1
       );
+
+      CREATE TABLE IF NOT EXISTS History (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id_library INTEGER NOT NULL DEFAULT 0,
+        id_reference INTEGER NOT NULL,
+        type TEXT NOT NULL,
+        page_start INTEGER NOT NULL DEFAULT 0,
+        page_end INTEGER NOT NULL DEFAULT 0,
+        pages INTEGER NOT NULL DEFAULT 1,
+        completed INTEGER NOT NULL DEFAULT 0,
+        volume TEXT DEFAULT '',
+        chapters_read INTEGER NOT NULL DEFAULT 0,
+        date_time_start TEXT NOT NULL,
+        date_time_end TEXT NOT NULL,
+        seconds_read INTEGER NOT NULL DEFAULT 0,
+        average_time_page INTEGER NOT NULL DEFAULT 0,
+        use_tts INTEGER NOT NULL DEFAULT 0,
+        notified INTEGER NOT NULL DEFAULT 0
+      );
+
+      CREATE INDEX IF NOT EXISTS index_History_reference_library ON History(id_reference, id_library);
+      CREATE INDEX IF NOT EXISTS index_History_type_start ON History(type, date_time_start);
     `);
     }
     seedInitialData() {
@@ -365,6 +391,31 @@ class MigrationsManager {
         catch (e) {
             // Column may already exist
         }
+    }
+    migrate15To16() {
+        this.db.exec(`
+      CREATE TABLE IF NOT EXISTS History (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id_library INTEGER NOT NULL DEFAULT 0,
+        id_reference INTEGER NOT NULL,
+        type TEXT NOT NULL,
+        page_start INTEGER NOT NULL DEFAULT 0,
+        page_end INTEGER NOT NULL DEFAULT 0,
+        pages INTEGER NOT NULL DEFAULT 1,
+        completed INTEGER NOT NULL DEFAULT 0,
+        volume TEXT DEFAULT '',
+        chapters_read INTEGER NOT NULL DEFAULT 0,
+        date_time_start TEXT NOT NULL,
+        date_time_end TEXT NOT NULL,
+        seconds_read INTEGER NOT NULL DEFAULT 0,
+        average_time_page INTEGER NOT NULL DEFAULT 0,
+        use_tts INTEGER NOT NULL DEFAULT 0,
+        notified INTEGER NOT NULL DEFAULT 0
+      );
+
+      CREATE INDEX IF NOT EXISTS index_History_reference_library ON History(id_reference, id_library);
+      CREATE INDEX IF NOT EXISTS index_History_type_start ON History(type, date_time_start);
+    `);
     }
 }
 exports.MigrationsManager = MigrationsManager;

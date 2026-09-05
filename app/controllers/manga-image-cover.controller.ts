@@ -28,7 +28,7 @@ export class MangaImageCoverController {
     return crypto.createHash('md5').update(filePath).digest('hex');
   }
 
-  public getMangaCoverFile(manga: Manga): string | null {
+  public async getMangaCoverFile(manga: Manga): Promise<string | null> {
     const filePath = manga.path || (manga as any).file;
     if (!filePath || !fs.existsSync(filePath)) {
       return null;
@@ -42,7 +42,7 @@ export class MangaImageCoverController {
       return coverPath;
     }
 
-    const parser = ParseFactory.create(filePath);
+    const parser = await ParseFactory.create(filePath);
     if (!parser) {
       return null;
     }

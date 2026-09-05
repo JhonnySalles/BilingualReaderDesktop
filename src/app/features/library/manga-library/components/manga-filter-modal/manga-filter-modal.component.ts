@@ -31,28 +31,17 @@ import { OrderType, LibraryViewType } from '../../../../../core/models';
         <div class="mb-6">
           <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Modo de Exibição</label>
           <div class="grid grid-cols-2 gap-2">
-            <button 
-              (click)="libraryStateService.currentView.set(LibraryViewType.GRID_MEDIUM)"
-              [class.bg-indigo-600]="libraryStateService.currentView() !== LibraryViewType.LINE"
-              [class.text-white]="libraryStateService.currentView() !== LibraryViewType.LINE"
-              [class.bg-slate-800]="libraryStateService.currentView() === LibraryViewType.LINE"
-              class="flex items-center justify-center gap-2 p-2.5 rounded-xl border border-slate-700 text-sm font-medium transition-all">
-              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-              </svg>
-              Grade (Cards)
-            </button>
-            <button 
-              (click)="libraryStateService.currentView.set(LibraryViewType.LINE)"
-              [class.bg-indigo-600]="libraryStateService.currentView() === LibraryViewType.LINE"
-              [class.text-white]="libraryStateService.currentView() === LibraryViewType.LINE"
-              [class.bg-slate-800]="libraryStateService.currentView() !== LibraryViewType.LINE"
-              class="flex items-center justify-center gap-2 p-2.5 rounded-xl border border-slate-700 text-sm font-medium transition-all">
-              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-              Lista Detalhada
-            </button>
+            @for (viewOpt of viewOptions; track viewOpt.value) {
+              <button 
+                (click)="libraryStateService.setCurrentView(viewOpt.value)"
+                [class.bg-indigo-600]="libraryStateService.currentView() === viewOpt.value"
+                [class.text-white]="libraryStateService.currentView() === viewOpt.value"
+                [class.bg-slate-800]="libraryStateService.currentView() !== viewOpt.value"
+                [class.text-slate-300]="libraryStateService.currentView() !== viewOpt.value"
+                class="flex items-center justify-center gap-1.5 p-2 rounded-xl border border-slate-700/60 text-xs font-medium transition-all text-center">
+                {{ viewOpt.label }}
+              </button>
+            }
           </div>
         </div>
 
@@ -60,14 +49,14 @@ import { OrderType, LibraryViewType } from '../../../../../core/models';
         <div class="mb-6">
           <div class="flex justify-between items-center mb-2">
             <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider">Ordenar Por</label>
-            <button (click)="libraryStateService.isAscending.set(!libraryStateService.isAscending())" class="text-xs text-indigo-400 hover:underline flex items-center gap-1 font-medium">
+            <button (click)="libraryStateService.toggleSortDirection()" class="text-xs text-indigo-400 hover:underline flex items-center gap-1 font-medium">
               {{ libraryStateService.isAscending() ? 'Crescente ↑' : 'Decrescente ↓' }}
             </button>
           </div>
           <div class="grid grid-cols-2 gap-2">
             @for (order of orderOptions; track order.value) {
               <button 
-                (click)="libraryStateService.currentOrder.set(order.value)"
+                (click)="libraryStateService.setCurrentOrder(order.value)"
                 [class.border-indigo-500]="libraryStateService.currentOrder() === order.value"
                 [class.bg-indigo-950]="libraryStateService.currentOrder() === order.value"
                 [class.text-indigo-300]="libraryStateService.currentOrder() === order.value"
@@ -98,6 +87,17 @@ export class MangaFilterModalComponent {
     { label: 'Último Acesso', value: OrderType.LastAccess },
     { label: 'Favorito', value: OrderType.Favorite },
     { label: 'Autor', value: OrderType.Author }
+  ];
+
+  viewOptions = [
+    { label: 'Grid Grande', value: LibraryViewType.GRID_BIG },
+    { label: 'Grid Médio', value: LibraryViewType.GRID_MEDIUM },
+    { label: 'Grid Blur (Overlay)', value: LibraryViewType.GRID_OVERLAY },
+    { label: 'Grande c/ Separador', value: LibraryViewType.SEPARATOR_BIG },
+    { label: 'Médio c/ Separador', value: LibraryViewType.SEPARATOR_MEDIUM },
+    { label: 'Grid Blur c/ Sep.', value: LibraryViewType.SEPARATOR_OVERLAY },
+    { label: 'Linha c/ Separador', value: LibraryViewType.SEPARATOR_LINE },
+    { label: 'Linha Detalhada', value: LibraryViewType.LINE }
   ];
 
   OrderType = OrderType;

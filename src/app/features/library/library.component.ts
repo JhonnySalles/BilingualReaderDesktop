@@ -1,10 +1,11 @@
 import { Component, OnInit, inject, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ActivatedRoute, RouterModule } from '@angular/router';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { LibraryStateService } from '../../core/services/library-state.service';
 import { MangaLibraryService } from '../../core/services/manga-library.service';
 import { BookLibraryService } from '../../core/services/book-library.service';
 import { SettingsService } from '../../core/services/settings.service';
+import { NavigationStackService } from '../../core/services/navigation-stack.service';
 import { SharedListComponent } from './components/shared-list/shared-list.component';
 import { MangaFilterModalComponent } from './manga-library/components/manga-filter-modal/manga-filter-modal.component';
 import { Manga, Book, OrderType } from '../../core/models';
@@ -135,7 +136,7 @@ import { Manga, Book, OrderType } from '../../core/models';
           </div>
 
           <!-- Empty State -->
-          @if (filteredItems().length === 0) {
+          @if (filteredItems().length === 0 && !isCurrentlyScanning()) {
             <div class="flex flex-col items-center justify-center py-20 text-center flex-1">
               <div class="w-16 h-16 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-500 mb-4">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -151,7 +152,10 @@ import { Manga, Book, OrderType } from '../../core/models';
             <app-shared-list 
               [items]="filteredItems()" 
               [type]="activeLibType()"
-              (reordered)="onReordered($event)">
+              [isLoading]="isCurrentlyScanning() && filteredItems().length === 0"
+              (reordered)="onReordered($event)"
+              (open)="onOpenItem($event)"
+              (openDetail)="onOpenDetail($event)">
             </app-shared-list>
           }
         </div>
@@ -169,6 +173,8 @@ import { Manga, Book, OrderType } from '../../core/models';
 })
 export class LibraryComponent implements OnInit {
   private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private nav = inject(NavigationStackService);
   public libraryStateService = inject(LibraryStateService);
   public mangaLibraryService = inject(MangaLibraryService);
   public bookLibraryService = inject(BookLibraryService);
@@ -187,6 +193,7 @@ export class LibraryComponent implements OnInit {
       const libId = params['lib'] || 'home';
       this.activeLibId.set(libId);
       this.customOrderItems.set(null); // Reset manual reorder on lib change
+      this.nav.rememberLibrary(libId);
 
       let pathToScan = '';
 
@@ -313,5 +320,23 @@ export class LibraryComponent implements OnInit {
 
   onReordered(newOrder: (Manga | Book)[]) {
     this.customOrderItems.set(newOrder);
+  }
+
+  onOpenItem(item: Manga | Book): void {
+    if (!item.id) return;
+    if (this.activeLibType() === 'manga') {
+      this.nav.openReader(this.router, 'image', item.id);
+    } else {
+      this.nav.openReader(this.router, 'text', item.id);
+    }
+  }
+
+  onOpenDetail(item: Manga | Book): void {
+    if (!item.id) return;
+    if (this.activeLibType() === 'manga') {
+      this.nav.openDetail(this.router, 'manga', item.id);
+    } else {
+      this.nav.openDetail(this.router, 'book', item.id);
+    }
   }
 }

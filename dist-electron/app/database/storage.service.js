@@ -47,6 +47,8 @@ const book_repository_1 = require("./book.repository");
 const kanji_repository_1 = require("./kanji.repository");
 const kanjax_repository_1 = require("./kanjax.repository");
 const vocabulary_repository_1 = require("./vocabulary.repository");
+const history_repository_1 = require("./history.repository");
+const statistics_repository_1 = require("./statistics.repository");
 class StorageService {
     db;
     mangaRepository;
@@ -54,6 +56,8 @@ class StorageService {
     kanjiRepository;
     kanjaxRepository;
     vocabularyRepository;
+    historyRepository;
+    statisticsRepository;
     constructor() {
         this.initDatabase();
     }
@@ -73,10 +77,15 @@ class StorageService {
         this.kanjiRepository = new kanji_repository_1.KanjiRepository(this.db);
         this.kanjaxRepository = new kanjax_repository_1.KanjaxRepository(this.db);
         this.vocabularyRepository = new vocabulary_repository_1.VocabularyRepository(this.db);
+        this.historyRepository = new history_repository_1.HistoryRepository(this.db);
+        this.statisticsRepository = new statistics_repository_1.StatisticsRepository(this.db);
     }
     // --- Manga Repository Delegates ---
     listMangas(libraryId) {
         return this.mangaRepository.list(libraryId);
+    }
+    findMangaById(id) {
+        return this.mangaRepository.getById(id);
     }
     findMangaByPath(filePath) {
         return this.mangaRepository.getByPath(filePath);
@@ -88,11 +97,23 @@ class StorageService {
         return this.mangaRepository.getMangaCount(libraryId);
     }
     deleteManga(id) {
-        this.mangaRepository.delete(id);
+        this.mangaRepository.softDelete(id);
+    }
+    softDeleteManga(id) {
+        this.mangaRepository.softDelete(id);
+    }
+    clearMangaProgress(id) {
+        return this.mangaRepository.clearProgress(id);
+    }
+    markMangaRead(id) {
+        return this.mangaRepository.markRead(id);
     }
     // --- Book Repository Delegates ---
     listBooks(libraryId) {
         return this.bookRepository.list(libraryId);
+    }
+    findBookById(id) {
+        return this.bookRepository.getById(id);
     }
     findBookByPath(filePath) {
         return this.bookRepository.getByPath(filePath);
@@ -104,10 +125,44 @@ class StorageService {
         return this.bookRepository.getBookCount(libraryId);
     }
     deleteBook(id) {
-        this.bookRepository.delete(id);
+        this.bookRepository.softDelete(id);
+    }
+    softDeleteBook(id) {
+        this.bookRepository.softDelete(id);
+    }
+    clearBookProgress(id) {
+        return this.bookRepository.clearProgress(id);
+    }
+    markBookRead(id) {
+        return this.bookRepository.markRead(id);
     }
     listBooksDeleted(libraryId) {
         return this.bookRepository.listDeleted(libraryId);
+    }
+    // --- History / Statistics ---
+    getStatisticsOverview() {
+        return this.statisticsRepository.getOverview();
+    }
+    getStatisticsChart(type, year, libraryId) {
+        return this.statisticsRepository.getChartData(type, year, libraryId);
+    }
+    listStatisticsYears(type) {
+        return this.statisticsRepository.listYears(type);
+    }
+    listLibrariesByType(type) {
+        return this.statisticsRepository.listLibrariesByType(type);
+    }
+    listHistoryAggregated(options) {
+        return this.historyRepository.listAggregated(options);
+    }
+    startHistorySession(input) {
+        return this.historyRepository.startSession(input);
+    }
+    updateHistorySession(update) {
+        this.historyRepository.updateSession(update);
+    }
+    endHistorySession(id, pageEnd, pages) {
+        this.historyRepository.updateSession({ id, pageEnd, pages, endSession: true });
     }
     getOrCreateLibrary(folderPath, type = 'MANGA') {
         const normalized = path.normalize(folderPath);

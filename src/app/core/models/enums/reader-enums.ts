@@ -7,6 +7,20 @@ export enum ReaderMode {
   WEBTOON = 'WEBTOON'
 }
 
+export enum MangaScrollingMode {
+  Horizontal = 'Horizontal',
+  HorizontalRtl = 'HorizontalRtl',
+  Vertical = 'Vertical',
+  LongStrip = 'LongStrip',
+  LongStripGap = 'LongStripGap'
+}
+
+export enum MangaFitMode {
+  FitWidth = 'FitWidth',
+  FitHeight = 'FitHeight',
+  Original = 'Original'
+}
+
 export enum BookLayout {
   SINGLE_PAGE = 'SINGLE_PAGE',
   DOUBLE_PAGE = 'DOUBLE_PAGE',
@@ -17,8 +31,10 @@ export enum LibraryMangaType {
   GRID_SMALL = 'GRID_SMALL',
   GRID_MEDIUM = 'GRID_MEDIUM',
   GRID_BIG = 'GRID_BIG',
+  GRID_OVERLAY = 'GRID_OVERLAY',
   SEPARATOR_BIG = 'SEPARATOR_BIG',
   SEPARATOR_MEDIUM = 'SEPARATOR_MEDIUM',
+  SEPARATOR_OVERLAY = 'SEPARATOR_OVERLAY',
   SEPARATOR_CAROUSEL = 'SEPARATOR_CAROUSEL',
   SEPARATOR_LINE = 'SEPARATOR_LINE',
   LINE = 'LINE'
@@ -28,6 +44,8 @@ export enum LibraryBookType {
   GRID_SMALL = 'GRID_SMALL',
   GRID_MEDIUM = 'GRID_MEDIUM',
   GRID_BIG = 'GRID_BIG',
+  GRID_OVERLAY = 'GRID_OVERLAY',
+  SEPARATOR_OVERLAY = 'SEPARATOR_OVERLAY',
   LINE = 'LINE'
 }
 

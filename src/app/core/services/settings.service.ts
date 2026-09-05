@@ -1,4 +1,5 @@
 import { Injectable, signal, effect } from '@angular/core';
+import { MangaFitMode, MangaScrollingMode } from '../models';
 
 export interface CustomLibrary {
   id: string;
@@ -15,6 +16,8 @@ interface SettingsData {
   mangaBasePath: string;
   bookBasePath: string;
   libraries: CustomLibrary[];
+  mangaScrollingMode?: MangaScrollingMode;
+  mangaFitMode?: MangaFitMode;
 }
 
 @Injectable({
@@ -24,15 +27,19 @@ export class SettingsService {
   mangaBasePath = signal<string>('C:\\Users\\Jhonny\\Documents\\BilingualReader\\Mangas');
   bookBasePath = signal<string>('C:\\Users\\Jhonny\\Documents\\BilingualReader\\Books');
   libraries = signal<CustomLibrary[]>([]);
+  mangaScrollingMode = signal<MangaScrollingMode>(MangaScrollingMode.HorizontalRtl);
+  mangaFitMode = signal<MangaFitMode>(MangaFitMode.FitWidth);
 
   constructor() {
     this.loadSettings();
-    
+
     effect(() => {
       const data: SettingsData = {
         mangaBasePath: this.mangaBasePath(),
         bookBasePath: this.bookBasePath(),
-        libraries: this.libraries()
+        libraries: this.libraries(),
+        mangaScrollingMode: this.mangaScrollingMode(),
+        mangaFitMode: this.mangaFitMode()
       };
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(data));
     });
@@ -46,6 +53,12 @@ export class SettingsService {
         if (data.mangaBasePath) this.mangaBasePath.set(data.mangaBasePath);
         if (data.bookBasePath) this.bookBasePath.set(data.bookBasePath);
         if (Array.isArray(data.libraries)) this.libraries.set(data.libraries);
+        if (data.mangaScrollingMode && Object.values(MangaScrollingMode).includes(data.mangaScrollingMode)) {
+          this.mangaScrollingMode.set(data.mangaScrollingMode);
+        }
+        if (data.mangaFitMode && Object.values(MangaFitMode).includes(data.mangaFitMode)) {
+          this.mangaFitMode.set(data.mangaFitMode);
+        }
       } catch (e) {
         console.error('Failed to parse settings', e);
       }

@@ -83,6 +83,12 @@ export class MangaRepository extends BaseRepository<Manga, number> {
     return stmt.all().map(row => this.mapRowToManga(row));
   }
 
+  public getById(id: number): Manga | undefined {
+    const stmt = this.db.prepare(`SELECT * FROM Manga WHERE id = ?`);
+    const row = stmt.get(id);
+    return row ? this.mapRowToManga(row) : undefined;
+  }
+
   public getByFileName(name: string): Manga | undefined {
     const stmt = this.db.prepare(`SELECT * FROM Manga WHERE excluded = 0 AND UPPER(name) = UPPER(?)`);
     const row = stmt.get(name);
@@ -123,6 +129,25 @@ export class MangaRepository extends BaseRepository<Manga, number> {
   public softDelete(id: number): void {
     const stmt = this.db.prepare(`UPDATE Manga SET excluded = 1 WHERE id = ?`);
     stmt.run(id);
+  }
+
+  public clearProgress(id: number): Manga | undefined {
+    const stmt = this.db.prepare(
+      `UPDATE Manga SET book_mark = 0, completed = 0, last_alteration = ? WHERE id = ?`
+    );
+    stmt.run(new Date().toISOString(), id);
+    return this.getById(id);
+  }
+
+  public markRead(id: number): Manga | undefined {
+    const manga = this.getById(id);
+    if (!manga) return undefined;
+    const pages = Math.max(1, manga.pages || 1);
+    const stmt = this.db.prepare(
+      `UPDATE Manga SET book_mark = ?, completed = 1, last_alteration = ? WHERE id = ?`
+    );
+    stmt.run(pages, new Date().toISOString(), id);
+    return this.getById(id);
   }
 
   public listDeleted(libraryId?: number): Manga[] {

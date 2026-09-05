@@ -7,7 +7,7 @@ import { FileType } from '../../src/app/core/models/enums/app-enums';
 import { ParseFactory } from '../parser/manga/parse-factory';
 import { MangaImageCoverController } from '../controllers/manga-image-cover.controller';
 
-const MANGA_EXTENSIONS = new Set(['.cbz', '.cbr', '.cb7', '.cbt', '.zip', '.rar', '.7z', '.tar', '.epub', '.epub3']);
+const MANGA_EXTENSIONS = new Set(['.cbz', '.cbr', '.cb7', '.cbt', '.zip', '.rar', '.7z', '.tar']);
 
 export class ScannerMangaService {
   private isScanning = false;
@@ -50,7 +50,7 @@ export class ScannerMangaService {
       await this.walkDirectory(folderPath, async (itemPath, stat, isDir) => {
         if (isDir) {
           // Check if directory itself is a chapter/manga (e.g. contains images)
-          const parser = ParseFactory.create(itemPath);
+          const parser = await ParseFactory.create(itemPath);
           if (parser) {
             try {
               if (parser.numPages() >= 4) {
@@ -151,7 +151,7 @@ export class ScannerMangaService {
     let hasSubtitle = false;
 
     // Use ParseFactory to inspect comic/manga file or directory
-    const parser = ParseFactory.create(itemPath);
+    const parser = await ParseFactory.create(itemPath);
     if (parser) {
       try {
         pages = Math.max(1, parser.numPages());
@@ -166,10 +166,9 @@ export class ScannerMangaService {
           if (comicInfo.number) volume = comicInfo.number;
         }
 
-        const mangaEntity = { path: itemPath, name: fileName } as Manga;
-        const extractedCover = MangaImageCoverController.instance.getMangaCoverFile(mangaEntity);
-        if (extractedCover) {
-          coverPath = extractedCover;
+        const coverStreams = parser.getCover();
+        if (coverStreams.front) {
+          coverPath = MangaImageCoverController.instance.saveCoverToCache(itemPath, coverStreams.front);
         }
       } catch (e) {
         console.warn(`Could not parse ${fileName}:`, e);
@@ -228,7 +227,7 @@ export class ScannerMangaService {
     const updated: Partial<Manga> = { ...existing };
 
     if (!existing.coverPath || !fs.existsSync(existing.coverPath)) {
-      const extractedCover = MangaImageCoverController.instance.getMangaCoverFile(existing);
+      const extractedCover = await MangaImageCoverController.instance.getMangaCoverFile(existing);
       if (extractedCover) {
         updated.coverPath = extractedCover;
         needsUpdate = true;
@@ -236,7 +235,7 @@ export class ScannerMangaService {
     }
 
     if (!existing.author || !existing.series) {
-      const parser = ParseFactory.create(itemPath);
+      const parser = await ParseFactory.create(itemPath);
       if (parser) {
         try {
           const comicInfo = parser.getComicInfo();

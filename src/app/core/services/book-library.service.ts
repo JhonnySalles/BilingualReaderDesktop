@@ -58,4 +58,29 @@ export class BookLibraryService {
     const books = await window.electronAPI.listBooks(folderPath);
     this.books.set(books || []);
   }
+
+  public async toggleFavorite(book: Book): Promise<void> {
+    if (!window.electronAPI?.saveBook || !book.id) return;
+    const updatedFav = !book.favorite;
+    const updated = await window.electronAPI.saveBook({ ...book, favorite: updatedFav });
+    if (updated) {
+      this.books.update(list => list.map(b => b.id === book.id ? { ...b, favorite: updatedFav } : b));
+    }
+  }
+
+  public async clearProgress(book: Book): Promise<void> {
+    if (!window.electronAPI?.clearBookProgress || !book.id) return;
+    const updated = await window.electronAPI.clearBookProgress(book.id);
+    if (updated) {
+      this.books.update(list => list.map(b => b.id === book.id ? { ...b, bookMark: 0, completed: false } : b));
+    }
+  }
+
+  public async deleteBook(book: Book): Promise<void> {
+    if (!window.electronAPI?.deleteBook || !book.id) return;
+    const success = await window.electronAPI.deleteBook(book.id);
+    if (success) {
+      this.books.update(list => list.filter(b => b.id !== book.id));
+    }
+  }
 }

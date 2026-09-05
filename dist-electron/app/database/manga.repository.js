@@ -103,6 +103,11 @@ class MangaRepository extends base_repository_1.BaseRepository {
         const stmt = this.db.prepare(`SELECT * FROM Manga WHERE last_access IS NOT NULL ORDER BY last_access DESC`);
         return stmt.all().map(row => this.mapRowToManga(row));
     }
+    getById(id) {
+        const stmt = this.db.prepare(`SELECT * FROM Manga WHERE id = ?`);
+        const row = stmt.get(id);
+        return row ? this.mapRowToManga(row) : undefined;
+    }
     getByFileName(name) {
         const stmt = this.db.prepare(`SELECT * FROM Manga WHERE excluded = 0 AND UPPER(name) = UPPER(?)`);
         const row = stmt.get(name);
@@ -137,6 +142,20 @@ class MangaRepository extends base_repository_1.BaseRepository {
     softDelete(id) {
         const stmt = this.db.prepare(`UPDATE Manga SET excluded = 1 WHERE id = ?`);
         stmt.run(id);
+    }
+    clearProgress(id) {
+        const stmt = this.db.prepare(`UPDATE Manga SET book_mark = 0, completed = 0, last_alteration = ? WHERE id = ?`);
+        stmt.run(new Date().toISOString(), id);
+        return this.getById(id);
+    }
+    markRead(id) {
+        const manga = this.getById(id);
+        if (!manga)
+            return undefined;
+        const pages = Math.max(1, manga.pages || 1);
+        const stmt = this.db.prepare(`UPDATE Manga SET book_mark = ?, completed = 1, last_alteration = ? WHERE id = ?`);
+        stmt.run(pages, new Date().toISOString(), id);
+        return this.getById(id);
     }
     listDeleted(libraryId) {
         if (libraryId !== undefined && libraryId !== null) {

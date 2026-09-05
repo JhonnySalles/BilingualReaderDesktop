@@ -40,7 +40,7 @@ const directory_parse_1 = require("./directory-parse");
 const zip_parse_1 = require("./zip-parse");
 const rar_parse_1 = require("./rar-parse");
 class ParseFactory {
-    static create(filePath) {
+    static async create(filePath) {
         if (!fs.existsSync(filePath)) {
             return null;
         }
@@ -48,7 +48,7 @@ class ParseFactory {
         if (stat.isDirectory()) {
             const parser = new directory_parse_1.DirectoryParse();
             try {
-                parser.parse(filePath);
+                await parser.parse(filePath);
                 if (parser.numPages() < 4) {
                     parser.destroy();
                     return null;
@@ -69,27 +69,28 @@ class ParseFactory {
             parser = new rar_parse_1.RarParse();
         }
         if (parser) {
-            const result = this.tryParseInternal(parser, filePath);
+            const result = await this.tryParseInternal(parser, filePath);
             if (result)
                 return result;
         }
         // Fallback: try ZipParse then RarParse
         const zipFallback = new zip_parse_1.ZipParse();
-        const fallbackResult = this.tryParseInternal(zipFallback, filePath);
+        const fallbackResult = await this.tryParseInternal(zipFallback, filePath);
         if (fallbackResult)
             return fallbackResult;
         const rarFallback = new rar_parse_1.RarParse();
-        const rarFallbackResult = this.tryParseInternal(rarFallback, filePath);
+        const rarFallbackResult = await this.tryParseInternal(rarFallback, filePath);
         if (rarFallbackResult)
             return rarFallbackResult;
         return null;
     }
-    static tryParseInternal(parser, filePath) {
+    static async tryParseInternal(parser, filePath) {
         try {
-            parser.parse(filePath);
+            await parser.parse(filePath);
             return parser;
         }
-        catch {
+        catch (err) {
+            console.warn(`[ParseFactory] Failed to parse ${filePath} with ${parser.constructor.name}:`, err);
             try {
                 parser.destroy();
             }

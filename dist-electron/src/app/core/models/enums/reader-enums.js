@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.TouchScreen = exports.ImageLoadType = exports.PaginationType = exports.ScrollingType = exports.LibraryBookType = exports.LibraryMangaType = exports.BookLayout = exports.ReaderMode = void 0;
+exports.TouchScreen = exports.ImageLoadType = exports.PaginationType = exports.ScrollingType = exports.LibraryBookType = exports.LibraryMangaType = exports.BookLayout = exports.MangaFitMode = exports.MangaScrollingMode = exports.ReaderMode = void 0;
 var ReaderMode;
 (function (ReaderMode) {
     ReaderMode["DEFAULT"] = "DEFAULT";
@@ -10,6 +10,20 @@ var ReaderMode;
     ReaderMode["PAGINATED_RTL"] = "PAGINATED_RTL";
     ReaderMode["WEBTOON"] = "WEBTOON";
 })(ReaderMode || (exports.ReaderMode = ReaderMode = {}));
+var MangaScrollingMode;
+(function (MangaScrollingMode) {
+    MangaScrollingMode["Horizontal"] = "Horizontal";
+    MangaScrollingMode["HorizontalRtl"] = "HorizontalRtl";
+    MangaScrollingMode["Vertical"] = "Vertical";
+    MangaScrollingMode["LongStrip"] = "LongStrip";
+    MangaScrollingMode["LongStripGap"] = "LongStripGap";
+})(MangaScrollingMode || (exports.MangaScrollingMode = MangaScrollingMode = {}));
+var MangaFitMode;
+(function (MangaFitMode) {
+    MangaFitMode["FitWidth"] = "FitWidth";
+    MangaFitMode["FitHeight"] = "FitHeight";
+    MangaFitMode["Original"] = "Original";
+})(MangaFitMode || (exports.MangaFitMode = MangaFitMode = {}));
 var BookLayout;
 (function (BookLayout) {
     BookLayout["SINGLE_PAGE"] = "SINGLE_PAGE";
@@ -21,8 +35,10 @@ var LibraryMangaType;
     LibraryMangaType["GRID_SMALL"] = "GRID_SMALL";
     LibraryMangaType["GRID_MEDIUM"] = "GRID_MEDIUM";
     LibraryMangaType["GRID_BIG"] = "GRID_BIG";
+    LibraryMangaType["GRID_OVERLAY"] = "GRID_OVERLAY";
     LibraryMangaType["SEPARATOR_BIG"] = "SEPARATOR_BIG";
     LibraryMangaType["SEPARATOR_MEDIUM"] = "SEPARATOR_MEDIUM";
+    LibraryMangaType["SEPARATOR_OVERLAY"] = "SEPARATOR_OVERLAY";
     LibraryMangaType["SEPARATOR_CAROUSEL"] = "SEPARATOR_CAROUSEL";
     LibraryMangaType["SEPARATOR_LINE"] = "SEPARATOR_LINE";
     LibraryMangaType["LINE"] = "LINE";
@@ -32,6 +48,8 @@ var LibraryBookType;
     LibraryBookType["GRID_SMALL"] = "GRID_SMALL";
     LibraryBookType["GRID_MEDIUM"] = "GRID_MEDIUM";
     LibraryBookType["GRID_BIG"] = "GRID_BIG";
+    LibraryBookType["GRID_OVERLAY"] = "GRID_OVERLAY";
+    LibraryBookType["SEPARATOR_OVERLAY"] = "SEPARATOR_OVERLAY";
     LibraryBookType["LINE"] = "LINE";
 })(LibraryBookType || (exports.LibraryBookType = LibraryBookType = {}));
 var ScrollingType;

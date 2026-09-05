@@ -1,10 +1,13 @@
-import { Component, inject, signal, computed } from '@angular/core';
+import { Component, inject, signal, computed, OnInit, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterModule, Router } from '@angular/router';
+import { RouterModule, Router, NavigationEnd } from '@angular/router';
+import { filter } from 'rxjs/operators';
 import { ElectronService } from '../services/electron.service';
 import { SettingsService } from '../services/settings.service';
 import { LibraryStateService } from '../services/library-state.service';
+import { HistoryUiStateService } from '../services/history-ui-state.service';
 import { LibraryViewType } from '../models';
 
 interface NavLibrary {
@@ -15,21 +18,20 @@ interface NavLibrary {
   count: number;
 }
 
+type HeaderMode = 'library' | 'history' | 'settings' | 'titleOnly';
+
 @Component({
   selector: 'app-main-layout',
   standalone: true,
   imports: [CommonModule, FormsModule, RouterModule],
   template: `
     <div class="h-screen w-screen flex bg-slate-950 text-slate-100 overflow-hidden font-sans">
-      <!-- Sidebar Navigation -->
-      <aside 
-        [class.w-64]="isExpanded()" 
-        [class.w-16]="!isExpanded()" 
+      <aside
+        [class.w-64]="isExpanded()"
+        [class.w-16]="!isExpanded()"
         class="h-full shrink-0 bg-slate-900/90 backdrop-blur border-r border-slate-800 flex flex-col justify-between transition-all duration-300 z-30 select-none">
-        
-        <!-- Sidebar Top -->
+
         <div class="flex flex-col">
-          <!-- Logo & Toggle -->
           <div class="h-16 px-4 flex items-center justify-between border-b border-slate-800">
             <div class="flex items-center gap-3 overflow-hidden">
               <div class="w-9 h-9 min-w-[2.25rem] rounded-xl bg-indigo-600 flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-indigo-600/30">
@@ -43,7 +45,7 @@ interface NavLibrary {
               }
             </div>
 
-            <button 
+            <button
               (click)="isExpanded.set(!isExpanded())"
               class="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors cursor-pointer"
               title="Expandir / Recolher Menu">
@@ -53,12 +55,11 @@ interface NavLibrary {
             </button>
           </div>
 
-          <!-- Main Nav Links -->
           <nav class="p-2 space-y-1">
-            <a 
-              routerLink="/" 
+            <a
+              routerLink="/"
               [queryParams]="{ lib: 'home' }"
-              routerLinkActive="bg-indigo-600/15 text-indigo-400 font-semibold border-r-2 border-indigo-500" 
+              routerLinkActive="bg-indigo-600/15 text-indigo-400 font-semibold border-r-2 border-indigo-500"
               [routerLinkActiveOptions]="{exact: true}"
               class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer">
               <svg class="w-5 h-5 min-w-[1.25rem]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -67,7 +68,6 @@ interface NavLibrary {
               @if (isExpanded()) { <span>Início</span> }
             </a>
 
-            <!-- Section 1: Manga Libraries -->
             <div class="my-2 border-t border-slate-800"></div>
             @if (isExpanded()) {
               <div class="px-3 pt-1 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 flex items-center justify-between">
@@ -75,8 +75,7 @@ interface NavLibrary {
               </div>
             }
 
-            <!-- Default Manga Library -->
-            <button 
+            <button
               (click)="selectLibrary(defaultMangaLibrary())"
               class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer">
               <div class="flex items-center gap-3 overflow-hidden">
@@ -88,9 +87,8 @@ interface NavLibrary {
               }
             </button>
 
-            <!-- Custom Manga Libraries -->
             @for (lib of customMangaLibraries(); track lib.id) {
-              <button 
+              <button
                 (click)="selectLibrary(lib)"
                 class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer">
                 <div class="flex items-center gap-3 overflow-hidden">
@@ -103,7 +101,6 @@ interface NavLibrary {
               </button>
             }
 
-            <!-- Section 2: Book Libraries -->
             <div class="my-2 border-t border-slate-800"></div>
             @if (isExpanded()) {
               <div class="px-3 pt-1 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 flex items-center justify-between">
@@ -111,8 +108,7 @@ interface NavLibrary {
               </div>
             }
 
-            <!-- Default Book Library -->
-            <button 
+            <button
               (click)="selectLibrary(defaultBookLibrary())"
               class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer">
               <div class="flex items-center gap-3 overflow-hidden">
@@ -124,9 +120,8 @@ interface NavLibrary {
               }
             </button>
 
-            <!-- Custom Book Libraries -->
             @for (lib of customBookLibraries(); track lib.id) {
-              <button 
+              <button
                 (click)="selectLibrary(lib)"
                 class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer">
                 <div class="flex items-center gap-3 overflow-hidden">
@@ -139,7 +134,6 @@ interface NavLibrary {
               </button>
             }
 
-            <!-- Section 3: Navigation Sections (Reader Menu) -->
             <div class="my-2 border-t border-slate-800"></div>
             @if (isExpanded()) {
               <div class="px-3 pt-1 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">
@@ -147,8 +141,9 @@ interface NavLibrary {
               </div>
             }
 
-            <a 
+            <a
               routerLink="/history"
+              routerLinkActive="bg-indigo-600/15 text-indigo-400 font-semibold border-r-2 border-indigo-500"
               class="flex items-center gap-3 px-3 py-2 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer">
               <svg class="w-5 h-5 min-w-[1.25rem]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -156,8 +151,9 @@ interface NavLibrary {
               @if (isExpanded()) { <span>Histórico de Leitura</span> }
             </a>
 
-            <a 
+            <a
               routerLink="/vocabulary"
+              routerLinkActive="bg-indigo-600/15 text-indigo-400 font-semibold border-r-2 border-indigo-500"
               class="flex items-center gap-3 px-3 py-2 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer">
               <svg class="w-5 h-5 min-w-[1.25rem]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
@@ -165,8 +161,10 @@ interface NavLibrary {
               @if (isExpanded()) { <span>Vocabulário & Anotações</span> }
             </a>
 
-            <a 
+            <a
               routerLink="/statistics"
+              routerLinkActive="bg-indigo-600/15 text-indigo-400 font-semibold border-r-2 border-indigo-500"
+              [routerLinkActiveOptions]="{ exact: false }"
               class="flex items-center gap-3 px-3 py-2 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer">
               <svg class="w-5 h-5 min-w-[1.25rem]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
@@ -176,9 +174,8 @@ interface NavLibrary {
           </nav>
         </div>
 
-        <!-- Sidebar Bottom Settings -->
         <div class="p-2 border-t border-slate-800">
-          <a 
+          <a
             routerLink="/settings"
             routerLinkActive="bg-indigo-600/15 text-indigo-400 font-semibold border-r-2 border-indigo-500"
             class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer">
@@ -191,74 +188,254 @@ interface NavLibrary {
         </div>
       </aside>
 
-      <!-- Main Content Area -->
       <div class="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
-        <!-- Top Header Bar -->
-        <header class="h-16 px-6 bg-slate-900/60 backdrop-blur border-b border-slate-800/80 flex items-center justify-between select-none">
-          
-          <!-- Header Title -->
-          <div class="flex items-center gap-3">
-            <h2 class="text-lg font-bold text-slate-100 flex items-center gap-2">
-              {{ libraryStateService.activeLibrary().name }}
-            </h2>
+        <header class="h-16 px-6 bg-slate-900/60 backdrop-blur border-b border-slate-800/80 flex items-center justify-between gap-4 select-none">
+
+          <div class="flex items-center gap-3 min-w-0">
+            @if (headerMode() === 'history' && historyUi.fromStatistics()) {
+              <a routerLink="/statistics" class="p-2 text-slate-400 hover:text-slate-200 rounded-lg transition-colors shrink-0">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                </svg>
+              </a>
+            }
+            @if (headerMode() === 'settings') {
+              <div class="flex items-center gap-3 min-w-0">
+                <h2 class="text-lg font-bold text-slate-100 truncate">Configurações do Leitor</h2>
+                <span class="text-xs text-slate-400 truncate hidden sm:inline">Portado do aplicativo nativo Android</span>
+              </div>
+            } @else {
+              <h2 class="text-lg font-bold text-slate-100 truncate">
+                {{ headerTitle() }}
+              </h2>
+            }
           </div>
 
-          <!-- Header Actions: Search, Filter & View Controls -->
-          <div class="flex items-center gap-3">
-            
-            <!-- Search Bar -->
-            <div class="relative w-48 sm:w-64">
-              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <input 
-                type="text" 
-                [ngModel]="libraryStateService.searchQuery()" 
-                (ngModelChange)="libraryStateService.searchQuery.set($event)"
-                placeholder="Pesquisar..." 
-                class="w-full pl-9 pr-4 py-1.5 bg-slate-900/90 border border-slate-800 rounded-xl text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500/80 focus:ring-1 focus:ring-indigo-500/80 transition-all" />
+          @if (headerMode() === 'library') {
+            <div class="flex items-center gap-3 shrink-0">
+              <div class="relative w-48 sm:w-64">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input
+                  type="text"
+                  [ngModel]="libraryStateService.searchQuery()"
+                  (ngModelChange)="libraryStateService.searchQuery.set($event)"
+                  placeholder="Pesquisar..."
+                  class="w-full pl-9 pr-4 py-1.5 bg-slate-900/90 border border-slate-800 rounded-xl text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500/80 focus:ring-1 focus:ring-indigo-500/80 transition-all" />
+              </div>
+
+              <button
+                (click)="libraryStateService.toggleViewMode()"
+                class="p-2 bg-slate-900 border border-slate-800 hover:border-slate-700 active:scale-90 active:rotate-12 rounded-xl text-slate-300 hover:text-white transition-all duration-200 flex items-center justify-center cursor-pointer shadow-sm hover:shadow-indigo-500/10"
+                [title]="'Modo Atual: ' + getViewLabel(libraryStateService.currentView())">
+                @switch (libraryStateService.currentView()) {
+                  @case (LibraryViewType.GRID_BIG) {
+                    <!-- Grid Big: 4 large tiles -->
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h5a1 1 0 011 1v5a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h5a1 1 0 011 1v5a1 1 0 01-1 1h-5a1 1 0 01-1-1V5zM4 14a1 1 0 011-1h5a1 1 0 011 1v5a1 1 0 01-1 1H5a1 1 0 01-1-1v-5zM14 14a1 1 0 011-1h5a1 1 0 011 1v5a1 1 0 01-1 1h-5a1 1 0 01-1-1v-5z" />
+                    </svg>
+                  }
+                  @case (LibraryViewType.GRID_MEDIUM) {
+                    <!-- Grid Medium: 9 smaller grid blocks -->
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                    </svg>
+                  }
+                  @case (LibraryViewType.GRID_OVERLAY) {
+                    <!-- Grid Blur / Overlay: Card with blur layer / image icon -->
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  }
+                  @case (LibraryViewType.SEPARATOR_BIG) {
+                    <!-- Big with Separator: Header bar on top + large grid blocks -->
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h18M4 9h6v10H4zm10 0h6v10h-6z" />
+                    </svg>
+                  }
+                  @case (LibraryViewType.SEPARATOR_MEDIUM) {
+                    <!-- Medium with Separator: Header bar on top + 4 grid blocks -->
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h18M4 8h5v5H4zm11 0h5v5h-5zM4 15h5v5H4zm11 0h5v5h-5z" />
+                    </svg>
+                  }
+                  @case (LibraryViewType.SEPARATOR_OVERLAY) {
+                    <!-- Blur with Separator: Header bar + image overlay card -->
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h18M4 8h16v12H4zM4 16h16" />
+                    </svg>
+                  }
+                  @case (LibraryViewType.SEPARATOR_LINE) {
+                    <!-- Line with Separator: Header bar + horizontal items -->
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h18M4 9h16M4 14h16M4 19h16" />
+                    </svg>
+                  }
+                  @case (LibraryViewType.LINE) {
+                    <!-- Line: clean list lines -->
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                  }
+                  @default {
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                    </svg>
+                  }
+                }
+              </button>
+
+              <button
+                (click)="libraryStateService.toggleSortDirection()"
+                class="p-2 bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl text-slate-300 hover:text-white transition-all flex items-center justify-center cursor-pointer"
+                [title]="libraryStateService.isAscending() ? 'Ordem Crescente (A-Z)' : 'Ordem Decrescente (Z-A)'">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 transition-transform duration-300" [class.rotate-180]="!libraryStateService.isAscending()" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
+                </svg>
+              </button>
+
+              <button
+                (click)="libraryStateService.showFilterModal.set(true)"
+                class="p-2 bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl text-slate-300 hover:text-white transition-all flex items-center justify-center cursor-pointer"
+                title="Filtros e Opções">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                </svg>
+              </button>
             </div>
+          }
 
-            <!-- Filter Modal Button -->
-            <button 
-              (click)="libraryStateService.showFilterModal.set(true)" 
-              class="p-2 bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl text-slate-300 hover:text-white transition-all flex items-center justify-center cursor-pointer"
-              title="Filtros e Opções">
-              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
-              </svg>
-            </button>
-
-            <!-- Toggle View Mode Button (Grid vs List) -->
-            <button 
-              (click)="libraryStateService.toggleViewMode()" 
-              class="p-2 bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl text-slate-300 hover:text-white transition-all flex items-center justify-center cursor-pointer"
-              [title]="libraryStateService.currentView() === LibraryViewType.LINE ? 'Alternar para Grade' : 'Alternar para Lista'">
-              @if (libraryStateService.currentView() === LibraryViewType.LINE) {
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+          @if (headerMode() === 'history') {
+            <div class="flex items-center gap-2 sm:gap-3 shrink-0 flex-wrap justify-end">
+              <div class="relative w-40 sm:w-52">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
-              } @else {
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                <input
+                  type="text"
+                  [ngModel]="historyUi.search()"
+                  (ngModelChange)="onHistorySearch($event)"
+                  placeholder="Pesquisar..."
+                  class="w-full pl-9 pr-3 py-1.5 bg-slate-900/90 border border-slate-800 rounded-xl text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500/80 transition-all" />
+              </div>
+
+              <select
+                class="bg-slate-900 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-slate-200"
+                [ngModel]="historyUi.year()"
+                (ngModelChange)="historyUi.setYear($event)">
+                <option [ngValue]="null">Todos os anos</option>
+                @for (y of historyUi.years(); track y) {
+                  <option [ngValue]="y">{{ y }}</option>
+                }
+              </select>
+
+              <select
+                class="bg-slate-900 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-slate-200 max-w-[10rem]"
+                [ngModel]="historyUi.libraryId()"
+                (ngModelChange)="historyUi.setLibrary($event)">
+                <option [ngValue]="null">Todas as bibliotecas</option>
+                @for (lib of historyUi.libraries(); track lib.id) {
+                  <option [ngValue]="lib.id">{{ lib.title }}</option>
+                }
+              </select>
+
+              <div class="flex items-center gap-1 bg-slate-950/60 border border-slate-800 rounded-xl p-1">
+                <button
+                  type="button"
+                  (click)="historyUi.setType('MANGA')"
+                  class="px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+                  [class.bg-indigo-600]="historyUi.activeType() === 'MANGA'"
+                  [class.text-white]="historyUi.activeType() === 'MANGA'"
+                  [class.text-slate-400]="historyUi.activeType() !== 'MANGA'">
+                  Mangá
+                </button>
+                <button
+                  type="button"
+                  (click)="historyUi.setType('BOOK')"
+                  class="px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+                  [class.bg-amber-600]="historyUi.activeType() === 'BOOK'"
+                  [class.text-white]="historyUi.activeType() === 'BOOK'"
+                  [class.text-slate-400]="historyUi.activeType() !== 'BOOK'">
+                  Livro
+                </button>
+              </div>
+
+              <button
+                (click)="libraryStateService.toggleViewMode()"
+                (contextmenu)="libraryStateService.showFilterModal.set(true); $event.preventDefault()"
+                class="p-2 bg-slate-900 border border-slate-800 hover:border-slate-700 active:scale-90 active:rotate-12 rounded-xl text-slate-300 hover:text-white transition-all duration-200 flex items-center justify-center cursor-pointer shadow-sm hover:shadow-indigo-500/10"
+                [title]="'Modo Atual: ' + getViewLabel(libraryStateService.currentView())">
+                @switch (libraryStateService.currentView()) {
+                  @case (LibraryViewType.GRID_BIG) {
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h5a1 1 0 011 1v5a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h5a1 1 0 011 1v5a1 1 0 01-1 1h-5a1 1 0 01-1-1V5zM4 14a1 1 0 011-1h5a1 1 0 011 1v5a1 1 0 01-1 1H5a1 1 0 01-1-1v-5zM14 14a1 1 0 011-1h5a1 1 0 011 1v5a1 1 0 01-1 1h-5a1 1 0 01-1-1v-5z" />
+                    </svg>
+                  }
+                  @case (LibraryViewType.GRID_MEDIUM) {
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                    </svg>
+                  }
+                  @case (LibraryViewType.GRID_OVERLAY) {
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  }
+                  @case (LibraryViewType.SEPARATOR_BIG) {
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h18M4 9h6v10H4zm10 0h6v10h-6z" />
+                    </svg>
+                  }
+                  @case (LibraryViewType.SEPARATOR_MEDIUM) {
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h18M4 8h5v5H4zm11 0h5v5h-5zM4 15h5v5H4zm11 0h5v5h-5z" />
+                    </svg>
+                  }
+                  @case (LibraryViewType.SEPARATOR_OVERLAY) {
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h18M4 8h16v12H4zM4 16h16" />
+                    </svg>
+                  }
+                  @case (LibraryViewType.SEPARATOR_LINE) {
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h18M4 9h16M4 14h16M4 19h16" />
+                    </svg>
+                  }
+                  @case (LibraryViewType.LINE) {
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                  }
+                  @default {
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                    </svg>
+                  }
+                }
+              </button>
+
+              <button
+                (click)="libraryStateService.toggleSortDirection()"
+                (contextmenu)="libraryStateService.showFilterModal.set(true); $event.preventDefault()"
+                class="p-2 bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl text-slate-300 hover:text-white transition-all flex items-center justify-center cursor-pointer"
+                [title]="libraryStateService.isAscending() ? 'Ordem Crescente' : 'Ordem Decrescente'">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 transition-transform duration-300" [class.rotate-180]="!libraryStateService.isAscending()" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
                 </svg>
-              }
-            </button>
+              </button>
+            </div>
+          }
 
-            <!-- Toggle Sort Direction Button -->
-            <button 
-              (click)="libraryStateService.toggleSortDirection()" 
-              class="p-2 bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl text-slate-300 hover:text-white transition-all flex items-center justify-center cursor-pointer"
-              [title]="libraryStateService.isAscending() ? 'Ordem Crescente (A-Z)' : 'Ordem Decrescente (Z-A)'">
-              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 transition-transform duration-300" [class.rotate-180]="!libraryStateService.isAscending()" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
-              </svg>
-            </button>
-
-          </div>
+          @if (headerMode() === 'settings') {
+            <div class="flex items-center gap-2 shrink-0">
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                Configurações Salvas
+              </span>
+            </div>
+          }
         </header>
 
-        <!-- Router Outlet Container -->
         <main class="flex-1 overflow-hidden relative">
           <router-outlet />
         </main>
@@ -266,31 +443,85 @@ interface NavLibrary {
     </div>
   `
 })
-export class MainLayoutComponent {
+export class MainLayoutComponent implements OnInit {
   private router = inject(Router);
+  private destroyRef = inject(DestroyRef);
   private settingsService = inject(SettingsService);
   private electronService = inject(ElectronService);
   public libraryStateService = inject(LibraryStateService);
+  public historyUi = inject(HistoryUiStateService);
 
   isExpanded = signal<boolean>(true);
   LibraryViewType = LibraryViewType;
+  headerMode = signal<HeaderMode>('library');
 
-  // Default Libraries
   defaultMangaLibrary = signal<NavLibrary>({ id: 'manga-default', name: 'Biblioteca de Mangás', type: 'manga', icon: 'ico_manga', count: 0 });
   defaultBookLibrary = signal<NavLibrary>({ id: 'book-default', name: 'Biblioteca de Livros', type: 'book', icon: 'ico_book', count: 0 });
-
   customMangaLibraries = signal<NavLibrary[]>([]);
   customBookLibraries = signal<NavLibrary[]>([]);
+
+  readonly headerTitle = computed(() => {
+    const mode = this.headerMode();
+    if (mode === 'library') return this.libraryStateService.activeLibrary().name;
+    if (mode === 'history') return this.historyUi.pageTitle();
+    if (mode === 'settings') return 'Configurações do Leitor';
+    return this.titleOnlyLabel();
+  });
+
+  private titleOnlyLabel = signal('Início');
+
+  readonly isLineView = computed(() => {
+    const view = this.libraryStateService.currentView();
+    return view === LibraryViewType.LINE || view === LibraryViewType.SEPARATOR_LINE;
+  });
 
   constructor() {
     this.updateCounts();
   }
 
+  ngOnInit(): void {
+    this.applyRoute(this.router.url);
+    this.router.events
+      .pipe(
+        filter((e): e is NavigationEnd => e instanceof NavigationEnd),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe(e => this.applyRoute(e.urlAfterRedirects || e.url));
+  }
+
+  private applyRoute(url: string): void {
+    const path = url.split('?')[0];
+    if (path === '/' || path === '') {
+      this.headerMode.set('library');
+      return;
+    }
+    if (path === '/history' || path.startsWith('/statistics/history')) {
+      this.headerMode.set('history');
+      this.historyUi.fromStatistics.set(path.startsWith('/statistics/history'));
+      return;
+    }
+    if (path.startsWith('/settings')) {
+      this.headerMode.set('settings');
+      return;
+    }
+    this.headerMode.set('titleOnly');
+    if (path.startsWith('/statistics')) this.titleOnlyLabel.set('Estatísticas de Uso');
+    else if (path.startsWith('/vocabulary')) this.titleOnlyLabel.set('Vocabulário e Anotações');
+    else if (path.startsWith('/detail')) this.titleOnlyLabel.set('Detalhe');
+    else this.titleOnlyLabel.set('Bilingual Reader');
+  }
+
+  onHistorySearch(value: string): void {
+    this.historyUi.setSearch(value);
+  }
+
   async updateCounts(): Promise<void> {
-    const mangaDefCount = await this.electronService.getLibraryCount(-1, 'MANGA');
+    const mangaPath = this.settingsService.mangaBasePath();
+    const mangaDefCount = await this.electronService.getLibraryCount(mangaPath as any, 'MANGA');
     this.defaultMangaLibrary.update(l => ({ ...l, count: mangaDefCount }));
 
-    const bookDefCount = await this.electronService.getLibraryCount(-2, 'BOOK');
+    const bookPath = this.settingsService.bookBasePath();
+    const bookDefCount = await this.electronService.getLibraryCount(bookPath as any, 'BOOK');
     this.defaultBookLibrary.update(l => ({ ...l, count: bookDefCount }));
 
     const allCustom = this.settingsService.libraries();
@@ -312,5 +543,19 @@ export class MainLayoutComponent {
 
   selectLibrary(lib: NavLibrary) {
     this.router.navigate(['/'], { queryParams: { lib: lib.id } });
+  }
+
+  getViewLabel(view: LibraryViewType): string {
+    switch (view) {
+      case LibraryViewType.GRID_BIG: return 'Grid Grande';
+      case LibraryViewType.GRID_MEDIUM: return 'Grid Médio';
+      case LibraryViewType.GRID_OVERLAY: return 'Grid Blur (Overlay)';
+      case LibraryViewType.SEPARATOR_BIG: return 'Grande c/ Separador';
+      case LibraryViewType.SEPARATOR_MEDIUM: return 'Médio c/ Separador';
+      case LibraryViewType.SEPARATOR_OVERLAY: return 'Grid Blur c/ Separador';
+      case LibraryViewType.SEPARATOR_LINE: return 'Linha c/ Separador';
+      case LibraryViewType.LINE: return 'Linha Detalhada';
+      default: return 'Grade';
+    }
   }
 }

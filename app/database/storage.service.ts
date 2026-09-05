@@ -8,6 +8,8 @@ import { BookRepository } from './book.repository';
 import { KanjiRepository } from './kanji.repository';
 import { KanjaxRepository } from './kanjax.repository';
 import { VocabularyRepository } from './vocabulary.repository';
+import { HistoryRepository, HistoryContentType, HistorySessionInput, HistorySessionUpdate } from './history.repository';
+import { StatisticsRepository } from './statistics.repository';
 import { Manga } from '../../src/app/core/models/entities/manga.model';
 import { Book } from '../../src/app/core/models/entities/book.model';
 
@@ -18,6 +20,8 @@ export class StorageService {
   public kanjiRepository!: KanjiRepository;
   public kanjaxRepository!: KanjaxRepository;
   public vocabularyRepository!: VocabularyRepository;
+  public historyRepository!: HistoryRepository;
+  public statisticsRepository!: StatisticsRepository;
 
   constructor() {
     this.initDatabase();
@@ -43,12 +47,18 @@ export class StorageService {
     this.kanjiRepository = new KanjiRepository(this.db);
     this.kanjaxRepository = new KanjaxRepository(this.db);
     this.vocabularyRepository = new VocabularyRepository(this.db);
+    this.historyRepository = new HistoryRepository(this.db);
+    this.statisticsRepository = new StatisticsRepository(this.db);
   }
 
   // --- Manga Repository Delegates ---
 
   public listMangas(libraryId?: number): Manga[] {
     return this.mangaRepository.list(libraryId);
+  }
+
+  public findMangaById(id: number): Manga | undefined {
+    return this.mangaRepository.getById(id);
   }
 
   public findMangaByPath(filePath: string): Manga | undefined {
@@ -64,13 +74,29 @@ export class StorageService {
   }
 
   public deleteManga(id: number): void {
-    this.mangaRepository.delete(id);
+    this.mangaRepository.softDelete(id);
+  }
+
+  public softDeleteManga(id: number): void {
+    this.mangaRepository.softDelete(id);
+  }
+
+  public clearMangaProgress(id: number) {
+    return this.mangaRepository.clearProgress(id);
+  }
+
+  public markMangaRead(id: number) {
+    return this.mangaRepository.markRead(id);
   }
 
   // --- Book Repository Delegates ---
 
   public listBooks(libraryId?: number): Book[] {
     return this.bookRepository.list(libraryId);
+  }
+
+  public findBookById(id: number): Book | undefined {
+    return this.bookRepository.getById(id);
   }
 
   public findBookByPath(filePath: string): Book | undefined {
@@ -86,11 +112,62 @@ export class StorageService {
   }
 
   public deleteBook(id: number): void {
-    this.bookRepository.delete(id);
+    this.bookRepository.softDelete(id);
+  }
+
+  public softDeleteBook(id: number): void {
+    this.bookRepository.softDelete(id);
+  }
+
+  public clearBookProgress(id: number) {
+    return this.bookRepository.clearProgress(id);
+  }
+
+  public markBookRead(id: number) {
+    return this.bookRepository.markRead(id);
   }
 
   public listBooksDeleted(libraryId?: number): Book[] {
     return this.bookRepository.listDeleted(libraryId);
+  }
+
+  // --- History / Statistics ---
+
+  public getStatisticsOverview() {
+    return this.statisticsRepository.getOverview();
+  }
+
+  public getStatisticsChart(type: HistoryContentType, year: number, libraryId?: number | null) {
+    return this.statisticsRepository.getChartData(type, year, libraryId);
+  }
+
+  public listStatisticsYears(type: HistoryContentType) {
+    return this.statisticsRepository.listYears(type);
+  }
+
+  public listLibrariesByType(type: HistoryContentType) {
+    return this.statisticsRepository.listLibrariesByType(type);
+  }
+
+  public listHistoryAggregated(options: {
+    type: HistoryContentType;
+    year?: number | null;
+    libraryId?: number | null;
+    search?: string | null;
+  }) {
+    return this.historyRepository.listAggregated(options);
+  }
+
+  public startHistorySession(input: HistorySessionInput): number {
+    return this.historyRepository.startSession(input);
+  }
+
+  public updateHistorySession(update: HistorySessionUpdate): void {
+    this.historyRepository.updateSession(update);
+  }
+
+  public endHistorySession(id: number, pageEnd: number, pages?: number): void {
+    this.historyRepository.updateSession({ id, pageEnd, pages, endSession: true });
   }
 
   public getOrCreateLibrary(folderPath: string, type: 'MANGA' | 'BOOK' = 'MANGA'): number {
