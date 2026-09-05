@@ -18,12 +18,21 @@ import { NavigationStackService } from '../../core/services/navigation-stack.ser
 import { SettingsService } from '../../core/services/settings.service';
 import { Manga, MangaFitMode, MangaScrollingMode } from '../../core/models';
 
+const ZOOM_MIN = 0.5;
+const ZOOM_MAX = 3;
+const ZOOM_STEP_WHEEL = 0.1;
+const ZOOM_STEP_BUTTON = 0.25;
+const WHEEL_PAGE_THRESHOLD = 200;
+const PROGRAMMATIC_SCROLL_MS = 420;
+const DRAG_THRESHOLD_PX = 5;
+
 @Component({
   selector: 'app-reader-image',
   standalone: true,
   imports: [CommonModule, FormsModule],
+  host: { class: 'block h-screen w-screen' },
   template: `
-    <div class="h-full w-full relative bg-black text-slate-100 overflow-hidden select-none">
+    <div class="h-screen w-screen relative bg-black text-slate-100 overflow-hidden select-none">
       <!-- Loading overlay -->
       @if (loading()) {
         <div class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-slate-950 gap-4">
@@ -59,14 +68,22 @@ import { Manga, MangaFitMode, MangaScrollingMode } from '../../core/models';
       <!-- Page viewport -->
       <div
         #viewport
-        class="absolute inset-0 outline-none"
-        [ngClass]="viewportClasses()"
+        class="outline-none"
+        [class]="viewportClasses()"
+        [class.cursor-grab]="!panning()"
+        [class.cursor-grabbing]="panning()"
         (scroll)="onViewportScroll()"
-        (click)="onViewportClick($event)">
+        (click)="onViewportClick($event)"
+        (wheel)="onViewportWheel($event)"
+        (pointerdown)="onPointerDown($event)"
+        (pointermove)="onPointerMove($event)"
+        (pointerup)="onPointerUp($event)"
+        (pointercancel)="onPointerUp($event)">
         @if (isLongStrip()) {
-          <div class="flex flex-col items-center w-full mx-auto"
+            <div class="flex flex-col items-center w-full mx-auto"
             [class.gap-6]="scrollingMode() === MangaScrollingMode.LongStripGap"
-            [class.max-w-5xl]="fitMode() !== MangaFitMode.Original">
+            [class.max-w-5xl]="fitMode() !== MangaFitMode.Original"
+            [style.zoom]="zoom()">
             @for (url of pages(); track $index; let i = $index) {
               @if (scrollingMode() === MangaScrollingMode.LongStripGap && i > 0) {
                 <div class="text-[10px] uppercase tracking-wider text-slate-500 py-2">{{ i }} / {{ pageCount() }}</div>
@@ -76,8 +93,8 @@ import { Manga, MangaFitMode, MangaScrollingMode } from '../../core/models';
                 [src]="url"
                 [alt]="'Página ' + (i + 1)"
                 [loading]="eagerNear(i) ? 'eager' : 'lazy'"
-                class="block"
-                [ngClass]="pageImageClasses()"
+                class="block object-contain"
+                [class]="pageImageClasses()"
                 (error)="onPageImageError(url, $event)" />
             }
           </div>
@@ -86,13 +103,14 @@ import { Manga, MangaFitMode, MangaScrollingMode } from '../../core/models';
             <div
               class="reader-page snap-center shrink-0 flex items-center justify-center"
               [attr.data-page]="i"
-              [ngClass]="pagedSlotClasses()">
+              [class]="pagedSlotClasses()">
               <img
                 [src]="url"
                 [alt]="'Página ' + (i + 1)"
                 [loading]="eagerNear(i) ? 'eager' : 'lazy'"
-                class="block max-w-full max-h-full"
-                [ngClass]="pageImageClasses()"
+                class="block object-contain"
+                [class]="pageImageClasses()"
+                [style.zoom]="zoom()"
                 (error)="onPageImageError(url, $event)" />
             </div>
           }
@@ -146,12 +164,12 @@ import { Manga, MangaFitMode, MangaScrollingMode } from '../../core/models';
             </button>
 
             <select
-              class="hidden sm:block bg-slate-950/80 border border-slate-700 rounded-lg px-2 py-1.5 text-[11px] text-slate-200 max-w-[9.5rem]"
+              class="hidden sm:block bg-slate-950/80 border border-slate-700 rounded-lg px-2 py-1.5 text-[11px] text-slate-200 max-w-[14rem]"
               [ngModel]="scrollingMode()"
               (ngModelChange)="setScrollingMode($event)"
               title="Modo de rolagem">
-              <option [ngValue]="MangaScrollingMode.Horizontal">Horizontal L→R</option>
-              <option [ngValue]="MangaScrollingMode.HorizontalRtl">Horizontal R→L</option>
+              <option [ngValue]="MangaScrollingMode.Horizontal">Horizontal (Esquerda para direita)</option>
+              <option [ngValue]="MangaScrollingMode.HorizontalRtl">Horizontal (Direita para esquerda)</option>
               <option [ngValue]="MangaScrollingMode.Vertical">Vertical</option>
               <option [ngValue]="MangaScrollingMode.LongStrip">Tira longa</option>
               <option [ngValue]="MangaScrollingMode.LongStripGap">Tira + gap</option>
@@ -166,6 +184,18 @@ import { Manga, MangaFitMode, MangaScrollingMode } from '../../core/models';
               <option [ngValue]="MangaFitMode.FitHeight">Altura</option>
               <option [ngValue]="MangaFitMode.Original">Original</option>
             </select>
+
+            <div class="hidden sm:flex items-center gap-0.5 bg-slate-950/80 border border-slate-700 rounded-lg px-1">
+              <button type="button" (click)="zoomOut()"
+                class="p-1.5 text-slate-300 hover:text-white rounded cursor-pointer" title="Diminuir zoom">
+                <span class="text-sm font-bold leading-none">−</span>
+              </button>
+              <span class="text-[10px] tabular-nums text-slate-400 min-w-[2.5rem] text-center">{{ zoomPercent() }}%</span>
+              <button type="button" (click)="zoomIn()"
+                class="p-1.5 text-slate-300 hover:text-white rounded cursor-pointer" title="Aumentar zoom">
+                <span class="text-sm font-bold leading-none">+</span>
+              </button>
+            </div>
 
             <button type="button" (click)="toggleFullscreen()"
               class="p-2 text-slate-300 hover:text-white rounded-lg transition-colors cursor-pointer"
@@ -208,6 +238,7 @@ import { Manga, MangaFitMode, MangaScrollingMode } from '../../core/models';
               min="0"
               [max]="Math.max(0, pageCount() - 1)"
               [ngModel]="currentPage()"
+              [ngModelOptions]="{ updateOn: 'change' }"
               (ngModelChange)="seekTo($event)"
               class="w-full accent-indigo-500 cursor-pointer" />
             @for (ch of chapters(); track ch) {
@@ -233,7 +264,7 @@ import { Manga, MangaFitMode, MangaScrollingMode } from '../../core/models';
             </svg>
           </button>
 
-          <button type="button" (click)="prevPage()"
+          <button type="button" (click)="goPrev()"
             class="p-2.5 rounded-xl text-slate-200 hover:bg-slate-800 cursor-pointer" title="Página anterior">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
@@ -266,7 +297,7 @@ import { Manga, MangaFitMode, MangaScrollingMode } from '../../core/models';
             </svg>
           </button>
 
-          <button type="button" (click)="nextPage()"
+          <button type="button" (click)="goNext()"
             class="p-2.5 rounded-xl text-slate-200 hover:bg-slate-800 cursor-pointer" title="Próxima página">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
@@ -334,6 +365,8 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
   isFullscreen = signal(false);
   showChapters = signal(false);
   brokenPages = signal(0);
+  zoom = signal(1);
+  panning = signal(false);
 
   scrollingMode = signal<MangaScrollingMode>(this.settings.mangaScrollingMode());
   fitMode = signal<MangaFitMode>(this.settings.mangaFitMode());
@@ -345,13 +378,22 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
   private unsubProgress: (() => void) | null = null;
   private pendingJump: number | null = null;
   private scrollSyncLock = false;
+  private scrollLockTimer: ReturnType<typeof setTimeout> | null = null;
   private mangaMeta: Manga | null = null;
+  private wheelAccum = 0;
+  private didDrag = false;
+  private panPointerId: number | null = null;
+  private panLastX = 0;
+  private panLastY = 0;
+  private panTarget: HTMLElement | null = null;
 
   readonly extractPercent = computed(() => {
     const t = this.extractTotal();
     if (t <= 0) return 0;
     return Math.round((this.extractCurrent() / t) * 100);
   });
+
+  readonly zoomPercent = computed(() => Math.round(this.zoom() * 100));
 
   readonly isLongStrip = computed(() => {
     const m = this.scrollingMode();
@@ -384,6 +426,7 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
 
   ngOnDestroy(): void {
     document.removeEventListener('fullscreenchange', this.onFsChange);
+    if (this.scrollLockTimer) clearTimeout(this.scrollLockTimer);
     this.unsubProgress?.();
     void this.cleanup();
   }
@@ -392,26 +435,38 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
   onKeydown(ev: KeyboardEvent): void {
     if (this.loading()) return;
     const key = ev.key;
-    if (key === 'Escape') {
-      if (this.isFullscreen()) {
-        void document.exitFullscreen();
-      } else {
-        this.chromeVisible.update(v => !v);
-      }
-      return;
-    }
-    if (key === 'ArrowLeft' || key === 'PageUp') {
+    const horizontal = this.isHorizontal();
+
+    if (key === 'ArrowLeft') {
+      if (!horizontal) return;
       ev.preventDefault();
-      this.isRtl() ? this.nextPage() : this.prevPage();
-    } else if (key === 'ArrowRight' || key === 'PageDown' || key === ' ') {
+      this.isRtl() ? this.goNext() : this.goPrev();
+    } else if (key === 'ArrowRight') {
+      if (!horizontal) return;
       ev.preventDefault();
-      this.isRtl() ? this.prevPage() : this.nextPage();
+      this.isRtl() ? this.goPrev() : this.goNext();
     } else if (key === 'ArrowUp') {
+      if (horizontal) return;
       ev.preventDefault();
-      this.prevPage();
+      this.goPrev();
     } else if (key === 'ArrowDown') {
+      if (horizontal) return;
       ev.preventDefault();
-      this.nextPage();
+      this.goNext();
+    } else if (key === 'PageUp') {
+      ev.preventDefault();
+      if (horizontal) {
+        this.isRtl() ? this.goNext() : this.goPrev();
+      } else {
+        this.goPrev();
+      }
+    } else if (key === 'PageDown' || key === ' ') {
+      ev.preventDefault();
+      if (horizontal) {
+        this.isRtl() ? this.goPrev() : this.goNext();
+      } else {
+        this.goNext();
+      }
     } else if (key === 'Home') {
       ev.preventDefault();
       this.seekTo(0);
@@ -420,38 +475,44 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
       this.seekTo(this.pageCount() - 1);
     } else if (key === 'f' || key === 'F') {
       this.toggleFullscreen();
+    } else if (key === '+' || key === '=') {
+      ev.preventDefault();
+      this.zoomIn();
+    } else if (key === '-' || key === '_') {
+      ev.preventDefault();
+      this.zoomOut();
     }
   }
 
-  viewportClasses(): Record<string, boolean> {
-    const long = this.isLongStrip();
-    const horizontal = this.isHorizontal();
-    const vertical = this.scrollingMode() === MangaScrollingMode.Vertical;
-    return {
-      'overflow-x-auto overflow-y-hidden flex scroll-smooth': horizontal,
-      'flex-row-reverse': this.isRtl(),
-      'snap-x snap-mandatory': horizontal,
-      'overflow-y-auto overflow-x-hidden scroll-smooth': long || vertical,
-      'snap-y snap-mandatory flex flex-col': vertical,
-      'py-0': true
-    };
+  viewportClasses(): string {
+    const grab = ' touch-none';
+    if (this.isHorizontal()) {
+      return this.isRtl()
+        ? 'absolute inset-0 overflow-x-auto overflow-y-hidden flex flex-row-reverse snap-x snap-mandatory scroll-smooth' + grab
+        : 'absolute inset-0 overflow-x-auto overflow-y-hidden flex snap-x snap-mandatory scroll-smooth' + grab;
+    }
+    if (this.scrollingMode() === MangaScrollingMode.Vertical) {
+      return 'absolute inset-0 overflow-y-auto overflow-x-hidden flex flex-col snap-y snap-mandatory scroll-smooth' + grab;
+    }
+    return 'absolute inset-0 overflow-y-auto overflow-x-hidden scroll-smooth' + grab;
   }
 
-  pagedSlotClasses(): Record<string, boolean> {
-    const horizontal = this.isHorizontal();
-    return {
-      'w-full h-full min-w-full': horizontal,
-      'w-full min-h-full h-full': !horizontal && !this.isLongStrip()
-    };
+  pagedSlotClasses(): string {
+    if (this.isHorizontal()) {
+      return 'w-full h-full min-w-full overflow-y-auto overflow-x-hidden';
+    }
+    return 'w-full min-h-full h-full overflow-y-auto overflow-x-hidden';
   }
 
-  pageImageClasses(): Record<string, boolean> {
+  pageImageClasses(): string {
     const fit = this.fitMode();
-    return {
-      'w-full h-auto': fit === MangaFitMode.FitWidth,
-      'h-full w-auto max-w-full': fit === MangaFitMode.FitHeight,
-      'w-auto h-auto': fit === MangaFitMode.Original
-    };
+    if (fit === MangaFitMode.FitHeight) {
+      return 'h-full w-auto max-w-full';
+    }
+    if (fit === MangaFitMode.Original) {
+      return 'w-auto h-auto';
+    }
+    return 'w-full h-auto';
   }
 
   eagerNear(index: number): boolean {
@@ -473,6 +534,7 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
     this.scrollingMode.set(mode);
     this.settings.mangaScrollingMode.set(mode);
     this.pendingJump = this.currentPage();
+    this.wheelAccum = 0;
   }
 
   setFitMode(mode: MangaFitMode): void {
@@ -480,61 +542,149 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
     this.settings.mangaFitMode.set(mode);
   }
 
+  zoomIn(): void {
+    this.setZoom(this.zoom() + ZOOM_STEP_BUTTON);
+  }
+
+  zoomOut(): void {
+    this.setZoom(this.zoom() - ZOOM_STEP_BUTTON);
+  }
+
   onViewportClick(ev: MouseEvent): void {
+    if (this.didDrag) {
+      this.didDrag = false;
+      return;
+    }
     const el = this.viewportRef?.nativeElement;
     if (!el) return;
     const rect = el.getBoundingClientRect();
     const x = (ev.clientX - rect.left) / rect.width;
     if (x < 0.28) {
-      this.isRtl() ? this.nextPage() : this.prevPage();
+      this.isRtl() ? this.goNext() : this.goPrev();
     } else if (x > 0.72) {
-      this.isRtl() ? this.prevPage() : this.nextPage();
+      this.isRtl() ? this.goPrev() : this.goNext();
     } else {
       this.chromeVisible.update(v => !v);
     }
   }
 
-  onViewportScroll(): void {
-    if (this.scrollSyncLock || this.loading()) return;
+  onViewportWheel(ev: WheelEvent): void {
+    if (this.loading()) return;
+
+    if (ev.ctrlKey) {
+      ev.preventDefault();
+      const dir = ev.deltaY > 0 ? -1 : 1;
+      this.setZoom(this.zoom() + dir * ZOOM_STEP_WHEEL);
+      return;
+    }
+
+    if (!this.isHorizontal()) {
+      return; // native scroll for vertical / long strip
+    }
+
+    ev.preventDefault();
+    const slot = this.currentPageSlot();
+    if (slot && this.canScrollSlot(slot, ev.deltaY)) {
+      slot.scrollTop += ev.deltaY;
+      this.wheelAccum = 0;
+      return;
+    }
+
+    this.wheelAccum += ev.deltaY;
+    if (Math.abs(this.wheelAccum) < WHEEL_PAGE_THRESHOLD) return;
+
+    const forward = this.wheelAccum > 0;
+    this.wheelAccum = 0;
+    if (this.isRtl()) {
+      forward ? this.seekTo(this.currentPage() - 1) : this.seekTo(this.currentPage() + 1);
+    } else {
+      forward ? this.seekTo(this.currentPage() + 1) : this.seekTo(this.currentPage() - 1);
+    }
+  }
+
+  onPointerDown(ev: PointerEvent): void {
+    if (ev.button !== 0 || this.loading()) return;
     const el = this.viewportRef?.nativeElement;
     if (!el) return;
 
-    let index = this.currentPage();
-    if (this.isHorizontal()) {
-      const pageW = el.clientWidth || 1;
-      index = Math.round(el.scrollLeft / pageW);
-      if (this.isRtl()) {
-        // with flex-row-reverse, scrollLeft behavior varies; use visible page via elements
-        index = this.nearestPageFromDom(el);
-      }
-    } else if (this.scrollingMode() === MangaScrollingMode.Vertical) {
-      const pageH = el.clientHeight || 1;
-      index = Math.round(el.scrollTop / pageH);
-    } else {
-      index = this.nearestPageFromDom(el);
+    this.didDrag = false;
+    this.panning.set(true);
+    this.panPointerId = ev.pointerId;
+    this.panLastX = ev.clientX;
+    this.panLastY = ev.clientY;
+    this.panTarget = this.currentPageSlot() || el;
+    try {
+      el.setPointerCapture(ev.pointerId);
+    } catch { /* ignore */ }
+  }
+
+  onPointerMove(ev: PointerEvent): void {
+    if (this.panPointerId !== ev.pointerId || !this.panning()) return;
+    const dx = ev.clientX - this.panLastX;
+    const dy = ev.clientY - this.panLastY;
+    this.panLastX = ev.clientX;
+    this.panLastY = ev.clientY;
+
+    if (Math.abs(dx) + Math.abs(dy) > DRAG_THRESHOLD_PX) {
+      this.didDrag = true;
     }
 
-    index = Math.min(Math.max(0, index), Math.max(0, this.pageCount() - 1));
-    if (index !== this.currentPage()) {
-      this.currentPage.set(index);
-      this.scheduleProgressUpdate();
+    const slot = this.panTarget;
+    const viewport = this.viewportRef?.nativeElement;
+    if (!viewport) return;
+
+    if (this.isHorizontal()) {
+      if (slot) {
+        slot.scrollTop -= dy;
+        if (this.zoom() !== 1) {
+          slot.scrollLeft -= dx;
+        }
+      }
+      // Horizontal page scrub / pan when slot has no horizontal overflow
+      if (this.zoom() === 1 || !slot || slot.scrollWidth <= slot.clientWidth + 1) {
+        viewport.scrollLeft -= dx;
+      }
+    } else {
+      viewport.scrollLeft -= dx;
+      viewport.scrollTop -= dy;
     }
   }
 
-  prevPage(): void {
+  onPointerUp(ev: PointerEvent): void {
+    if (this.panPointerId !== ev.pointerId) return;
+    const el = this.viewportRef?.nativeElement;
+    if (el && this.panPointerId != null) {
+      try {
+        el.releasePointerCapture(this.panPointerId);
+      } catch { /* ignore */ }
+    }
+    this.panPointerId = null;
+    this.panTarget = null;
+    this.panning.set(false);
+  }
+
+  onViewportScroll(): void {
+    if (this.scrollSyncLock || this.loading()) return;
+    this.syncCurrentPageFromDom();
+  }
+
+  /** Navigate previous with internal page scroll first. */
+  goPrev(): void {
+    if (this.tryScrollCurrentPage(-1)) return;
     this.seekTo(this.currentPage() - 1);
   }
 
-  nextPage(): void {
+  /** Navigate next with internal page scroll first. */
+  goNext(): void {
+    if (this.tryScrollCurrentPage(1)) return;
     this.seekTo(this.currentPage() + 1);
   }
 
   seekTo(page: number): void {
     const max = Math.max(0, this.pageCount() - 1);
     const next = Math.min(Math.max(0, Number(page) || 0), max);
-    this.currentPage.set(next);
+    // Do not set currentPage here — bar updates only after programmatic scroll ends / user scroll
     this.scrollToPage(next, true);
-    this.scheduleProgressUpdate();
   }
 
   async markPage(): Promise<void> {
@@ -571,6 +721,11 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
     this.nav.goBack(this.router);
   }
 
+  private setZoom(value: number): void {
+    const next = Math.round(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, value)) * 100) / 100;
+    this.zoom.set(next);
+  }
+
   private onFsChange = (): void => {
     this.isFullscreen.set(!!document.fullscreenElement);
   };
@@ -604,6 +759,7 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
       this.currentPage.set(opened.bookMark);
       this.pendingJump = opened.bookMark;
       this.brokenPages.set(0);
+      this.zoom.set(1);
 
       this.historySessionId = await this.electron.startHistorySession({
         fkLibrary: manga?.fkLibrary ?? 0,
@@ -614,13 +770,52 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
         volume: manga?.volume || ''
       });
 
-      // Immersive start like the Android app
       setTimeout(() => this.chromeVisible.set(false), 400);
     } catch (e: any) {
       console.error(e);
       this.error.set(e?.message || 'Erro ao abrir o mangá');
     } finally {
       this.loading.set(false);
+    }
+  }
+
+  private beginProgrammaticScroll(smooth: boolean): void {
+    this.scrollSyncLock = true;
+    if (this.scrollLockTimer) clearTimeout(this.scrollLockTimer);
+    this.scrollLockTimer = setTimeout(() => {
+      this.endProgrammaticScroll();
+    }, smooth ? PROGRAMMATIC_SCROLL_MS : 50);
+  }
+
+  private endProgrammaticScroll(): void {
+    this.scrollSyncLock = false;
+    this.scrollLockTimer = null;
+    this.syncCurrentPageFromDom();
+  }
+
+  private syncCurrentPageFromDom(): void {
+    const el = this.viewportRef?.nativeElement;
+    if (!el) return;
+
+    let index = this.currentPage();
+    if (this.isHorizontal()) {
+      if (this.isRtl()) {
+        index = this.nearestPageFromDom(el);
+      } else {
+        const pageW = el.clientWidth || 1;
+        index = Math.round(el.scrollLeft / pageW);
+      }
+    } else if (this.scrollingMode() === MangaScrollingMode.Vertical) {
+      const pageH = el.clientHeight || 1;
+      index = Math.round(el.scrollTop / pageH);
+    } else {
+      index = this.nearestPageFromDom(el);
+    }
+
+    index = Math.min(Math.max(0, index), Math.max(0, this.pageCount() - 1));
+    if (index !== this.currentPage()) {
+      this.currentPage.set(index);
+      this.scheduleProgressUpdate();
     }
   }
 
@@ -631,7 +826,7 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
       return;
     }
 
-    this.scrollSyncLock = true;
+    this.beginProgrammaticScroll(smooth);
     const behavior: ScrollBehavior = smooth ? 'smooth' : 'auto';
 
     if (this.isHorizontal() && !this.isRtl()) {
@@ -645,9 +840,47 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
       target?.scrollIntoView({ behavior, block: 'nearest', inline: 'center' });
     }
 
+    // Reset vertical scroll of target slot after page change settles
     setTimeout(() => {
-      this.scrollSyncLock = false;
-    }, smooth ? 350 : 50);
+      const slot = el.querySelector(`[data-page="${page}"]`) as HTMLElement | null;
+      if (slot) slot.scrollTop = 0;
+    }, smooth ? PROGRAMMATIC_SCROLL_MS : 0);
+  }
+
+  private currentPageSlot(): HTMLElement | null {
+    const el = this.viewportRef?.nativeElement;
+    if (!el) return null;
+    return el.querySelector(`[data-page="${this.currentPage()}"]`) as HTMLElement | null;
+  }
+
+  /** @returns true if scrolled within the current page slot */
+  private tryScrollCurrentPage(dir: 1 | -1): boolean {
+    if (!this.isHorizontal() && this.scrollingMode() !== MangaScrollingMode.Vertical) {
+      return false;
+    }
+    const slot = this.currentPageSlot();
+    if (!slot) return false;
+
+    const maxScroll = slot.scrollHeight - slot.clientHeight;
+    if (maxScroll <= 2) return false;
+
+    if (dir > 0 && slot.scrollTop + slot.clientHeight < slot.scrollHeight - 2) {
+      slot.scrollBy({ top: slot.clientHeight * 0.9, behavior: 'smooth' });
+      return true;
+    }
+    if (dir < 0 && slot.scrollTop > 2) {
+      slot.scrollBy({ top: -slot.clientHeight * 0.9, behavior: 'smooth' });
+      return true;
+    }
+    return false;
+  }
+
+  private canScrollSlot(slot: HTMLElement, deltaY: number): boolean {
+    const maxScroll = slot.scrollHeight - slot.clientHeight;
+    if (maxScroll <= 2) return false;
+    if (deltaY > 0 && slot.scrollTop < maxScroll - 1) return true;
+    if (deltaY < 0 && slot.scrollTop > 1) return true;
+    return false;
   }
 
   private nearestPageFromDom(el: HTMLElement): number {
@@ -710,7 +943,7 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
     if (document.fullscreenElement) {
       try {
         await document.exitFullscreen();
-      } catch {}
+      } catch { /* ignore */ }
     }
   }
 }

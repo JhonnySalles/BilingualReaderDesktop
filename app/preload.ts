@@ -56,6 +56,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setMangaBookmark: (mangaId: number, page: number) => ipcRenderer.invoke('manga:set-bookmark', mangaId, page),
   toggleMangaFavorite: (mangaId: number) => ipcRenderer.invoke('manga:toggle-favorite', mangaId),
 
+  openBookReader: (bookId: number) => ipcRenderer.invoke('book-reader:open', bookId),
+  closeBookReader: (sessionId: string) => ipcRenderer.invoke('book-reader:close', sessionId),
+  setBookBookmark: (payload: {
+    id: number;
+    bookMark: number;
+    bookMarkCfi?: string;
+    chapter?: string;
+    chapterDescription?: string;
+    pages?: number;
+  }) => ipcRenderer.invoke('book:set-bookmark', payload),
+  toggleBookFavorite: (bookId: number) => ipcRenderer.invoke('book:toggle-favorite', bookId),
+  getBookConfiguration: (bookId: number) => ipcRenderer.invoke('book:get-configuration', bookId),
+  saveBookConfiguration: (config: any) => ipcRenderer.invoke('book:save-configuration', config),
+
   send: (channel: string, data: any) => ipcRenderer.send(channel, data),
   on: (channel: string, func: (...args: any[]) => void) => {
     const subscription = (_event: any, ...args: any[]) => func(...args);

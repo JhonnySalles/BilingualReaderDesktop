@@ -1,4 +1,10 @@
 import { FileType } from '../enums/app-enums';
+import {
+  BookAlign,
+  BookMarginSize,
+  BookScrollingMode,
+  BookSpacingSize
+} from '../enums/reader-enums';
 import { BaseEntity, HistoryInterface } from '../interfaces/base-entity.model';
 
 export interface Book extends BaseEntity<number>, HistoryInterface {
@@ -10,6 +16,7 @@ export interface Book extends BaseEntity<number>, HistoryInterface {
   fileType: FileType;
   pages: number;
   bookMark: number;
+  bookMarkCfi?: string;
   completed: boolean;
   favorite: boolean;
   author: string;
@@ -48,12 +55,13 @@ export interface BookAnnotation extends BaseEntity<number> {
 export interface BookConfiguration {
   id?: number;
   fkBook: number;
+  alignment: BookAlign;
+  margin: BookMarginSize;
+  spacing: BookSpacingSize;
+  scrolling: BookScrollingMode | string;
+  pagination: string;
+  fontType: string;
   fontSize: number;
-  fontFamily: string;
-  lineHeight: number;
-  margin: number;
-  backgroundColor: string;
-  textColor: string;
 }
 
 export interface BookSearch {
@@ -66,3 +74,4 @@ export interface BookGroup {
   name: string;
   books: Book[];
 }
+

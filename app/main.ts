@@ -5,10 +5,12 @@ import { StorageService } from './database/storage.service';
 import { ScannerMangaService } from './scanner/scanner-manga.service';
 import { ScannerBookService } from './scanner/scanner-book.service';
 import { SettingsController } from './controllers/settings.controller';
+import { MenuController } from './controllers/menu.controller';
 import { SettingsService } from './services/settings.service';
 import { StatisticsController } from './controllers/statistics.controller';
 import { LibraryController } from './controllers/library.controller';
 import { MangaReaderController } from './controllers/manga-reader.controller';
+import { BookReaderController } from './controllers/book-reader.controller';
 
 const LOCAL_SCHEME_PRIVILEGES = {
   standard: true,
@@ -19,11 +21,10 @@ const LOCAL_SCHEME_PRIVILEGES = {
   stream: true
 } as const;
 
-// Must run before app ready so <img src="local-page://..."> works from http://localhost.
-// Do NOT privilege local-cover: covers already use local-cover:///{windowsPath} and worked
-// without a standard scheme; privileging it breaks path parsing (ERR_FILE_NOT_FOUND).
+// local-book must be privileged so epub.js can fetch() the EPUB from the renderer.
+// Do NOT privilege local-cover: covers use local-cover:///{windowsPath} without a standard scheme.
 protocol.registerSchemesAsPrivileged([
-  { scheme: 'local-page', privileges: { ...LOCAL_SCHEME_PRIVILEGES } }
+  { scheme: 'local-book', privileges: { ...LOCAL_SCHEME_PRIVILEGES } }
 ]);
 
 let mainWindow: BrowserWindow | null = null;
@@ -31,6 +32,7 @@ let storageService: StorageService;
 let scannerMangaService: ScannerMangaService;
 let scannerBookService: ScannerBookService;
 let mangaReaderController: MangaReaderController;
+let bookReaderController: BookReaderController;
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -79,35 +81,68 @@ app.on('ready', () => {
     new LibraryController(storageService).registerIpcHandlers();
     mangaReaderController = new MangaReaderController(storageService);
     mangaReaderController.registerIpcHandlers(() => mainWindow);
+    bookReaderController = new BookReaderController(storageService);
+    bookReaderController.registerIpcHandlers(() => mainWindow);
 
+    // Same pattern as local-cover — absolute path after scheme, no privileged registration
+    let localPageServeLogged = false;
     protocol.handle('local-page', (request) => {
       try {
-        const parsed = new URL(request.url);
-        const fromQuery = parsed.searchParams.get('p');
-        let decodedPath = fromQuery ? decodeURIComponent(fromQuery) : '';
-
-        if (!decodedPath) {
-          // Legacy fallback: local-page:///encoded/path
-          const rawPath = request.url.replace(/^local-page:\/\//, '');
-          decodedPath = decodeURIComponent(rawPath.split('?')[0]);
-          if (decodedPath.startsWith('/') && /^\/[A-Za-z]:/.test(decodedPath)) {
-            decodedPath = decodedPath.slice(1);
-          }
+        const rawPath = request.url.replace(/^local-page:\/\//, '');
+        let decodedPath = decodeURIComponent(rawPath.split('?')[0]);
+        if (decodedPath.startsWith('/') && /^\/[A-Za-z]:/.test(decodedPath)) {
+          decodedPath = decodedPath.slice(1);
         }
-
         const session = mangaReaderController.getSessionService();
         if (!decodedPath || !session.isPathAllowed(decodedPath)) {
           console.error('[local-page] forbidden path', decodedPath || request.url);
           return new Response('Forbidden', { status: 403 });
         }
-        return net.fetch(pathToFileURL(decodedPath).href);
+        if (!localPageServeLogged) {
+          localPageServeLogged = true;
+          console.log('[local-page] serving', decodedPath);
+        }
+        return net.fetch('file:///' + decodedPath);
       } catch (err) {
         console.error('[local-page] failed to serve', request.url, err);
         return new Response('Not Found', { status: 404 });
       }
     });
 
+    protocol.handle('local-book', (request) => {
+      try {
+        const parsed = new URL(request.url);
+        const fromQuery = parsed.searchParams.get('p');
+        let decodedPath = fromQuery ? decodeURIComponent(fromQuery) : '';
+
+        if (!decodedPath) {
+          const rawPath = request.url.replace(/^local-book:\/\//, '');
+          decodedPath = decodeURIComponent(rawPath.split('?')[0]);
+          if (decodedPath.startsWith('/') && /^\/[A-Za-z]:/.test(decodedPath)) {
+            decodedPath = decodedPath.slice(1);
+          }
+        }
+
+        const session = bookReaderController.getSessionService();
+        if (!decodedPath || !session.isPathAllowed(decodedPath)) {
+          console.error('[local-book] forbidden path', decodedPath || request.url);
+          return new Response('Forbidden', { status: 403 });
+        }
+        return net.fetch(pathToFileURL(decodedPath).href);
+      } catch (err) {
+        console.error('[local-book] failed to serve', request.url, err);
+        return new Response('Not Found', { status: 404 });
+      }
+    });
+
     createWindow();
+    MenuController.instance.setServices(
+      () => mainWindow,
+      storageService,
+      scannerMangaService,
+      scannerBookService
+    );
+    MenuController.instance.buildMenu();
 
     ipcMain.handle('app:ping', async () => {
       return 'Pong de Electron Node.js!';
@@ -177,7 +212,6 @@ app.on('ready', () => {
         if (!isNaN(numId) && numId > 0) {
           targetLibraryId = numId;
         } else {
-          // Reserved/Default library IDs (e.g. -1 or -2) or unspecified path
           const defaultPathKey = type === 'MANGA' ? 'mangaBasePath' : 'bookBasePath';
           const fallbackPath = type === 'MANGA'
             ? 'C:\\Users\\Jhonny\\Documents\\BilingualReader\\Mangas'

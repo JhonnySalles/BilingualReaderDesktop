@@ -493,11 +493,17 @@ export class MainLayoutComponent implements OnInit {
     const path = url.split('?')[0];
     if (path === '/' || path === '') {
       this.headerMode.set('library');
+      this.libraryStateService.activeContext.set(
+        this.libraryStateService.activeLibrary().type === 'book' ? 'book' : 'manga'
+      );
       return;
     }
     if (path === '/history' || path.startsWith('/statistics/history')) {
       this.headerMode.set('history');
       this.historyUi.fromStatistics.set(path.startsWith('/statistics/history'));
+      this.libraryStateService.activeContext.set(
+        this.historyUi.activeType() === 'BOOK' ? 'history-book' : 'history-manga'
+      );
       return;
     }
     if (path.startsWith('/settings')) {

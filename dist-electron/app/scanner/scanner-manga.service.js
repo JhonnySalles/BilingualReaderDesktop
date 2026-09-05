@@ -286,5 +286,26 @@ class ScannerMangaService {
             }
         }
     }
+    async processSingleFile(filePath, window) {
+        try {
+            if (!fs.existsSync(filePath))
+                return null;
+            const stat = await fs.promises.stat(filePath);
+            const isDir = stat.isDirectory();
+            const folder = isDir ? filePath : path.dirname(filePath);
+            const libraryId = this.storageService.getOrCreateLibrary(folder, 'MANGA');
+            const existingInDb = this.storageService.findMangaByPath(filePath);
+            if (existingInDb && existingInDb.id) {
+                await this.checkAndRecoverMetadata(existingInDb, filePath, stat, libraryId, window);
+                return this.storageService.findMangaById(existingInDb.id) || existingInDb;
+            }
+            await this.processNewManga(filePath, stat, libraryId, window, isDir);
+            return this.storageService.findMangaByPath(filePath) || null;
+        }
+        catch (e) {
+            console.error('Failed to process single manga file:', filePath, e);
+            return null;
+        }
+    }
 }
 exports.ScannerMangaService = ScannerMangaService;

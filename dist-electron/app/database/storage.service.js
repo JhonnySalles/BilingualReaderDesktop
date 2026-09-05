@@ -44,6 +44,7 @@ const electron_1 = require("electron");
 const migrations_1 = require("./migrations");
 const manga_repository_1 = require("./manga.repository");
 const book_repository_1 = require("./book.repository");
+const book_configuration_repository_1 = require("./book-configuration.repository");
 const kanji_repository_1 = require("./kanji.repository");
 const kanjax_repository_1 = require("./kanjax.repository");
 const vocabulary_repository_1 = require("./vocabulary.repository");
@@ -53,6 +54,7 @@ class StorageService {
     db;
     mangaRepository;
     bookRepository;
+    bookConfigurationRepository;
     kanjiRepository;
     kanjaxRepository;
     vocabularyRepository;
@@ -74,6 +76,7 @@ class StorageService {
         migrationsManager.runMigrations();
         this.mangaRepository = new manga_repository_1.MangaRepository(this.db);
         this.bookRepository = new book_repository_1.BookRepository(this.db);
+        this.bookConfigurationRepository = new book_configuration_repository_1.BookConfigurationRepository(this.db);
         this.kanjiRepository = new kanji_repository_1.KanjiRepository(this.db);
         this.kanjaxRepository = new kanjax_repository_1.KanjaxRepository(this.db);
         this.vocabularyRepository = new vocabulary_repository_1.VocabularyRepository(this.db);
@@ -135,6 +138,12 @@ class StorageService {
     }
     markBookRead(id) {
         return this.bookRepository.markRead(id);
+    }
+    getBookConfiguration(bookId) {
+        return this.bookConfigurationRepository.getByBook(bookId);
+    }
+    saveBookConfiguration(config) {
+        return this.bookConfigurationRepository.upsert(config);
     }
     listBooksDeleted(libraryId) {
         return this.bookRepository.listDeleted(libraryId);

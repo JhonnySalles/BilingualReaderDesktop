@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.TouchScreen = exports.ImageLoadType = exports.PaginationType = exports.ScrollingType = exports.LibraryBookType = exports.LibraryMangaType = exports.BookLayout = exports.MangaFitMode = exports.MangaScrollingMode = exports.ReaderMode = void 0;
+exports.TouchScreen = exports.ImageLoadType = exports.PaginationType = exports.ScrollingType = exports.LibraryBookType = exports.LibraryMangaType = exports.BookScrollingMode = exports.BookLayout = exports.MangaFitMode = exports.MangaScrollingMode = exports.ReaderMode = void 0;
 var ReaderMode;
 (function (ReaderMode) {
     ReaderMode["DEFAULT"] = "DEFAULT";
@@ -30,6 +30,13 @@ var BookLayout;
     BookLayout["DOUBLE_PAGE"] = "DOUBLE_PAGE";
     BookLayout["CONTINUOUS"] = "CONTINUOUS";
 })(BookLayout || (exports.BookLayout = BookLayout = {}));
+var BookScrollingMode;
+(function (BookScrollingMode) {
+    BookScrollingMode["Pagination"] = "Pagination";
+    BookScrollingMode["PaginationRtl"] = "PaginationRtl";
+    BookScrollingMode["PaginationVertical"] = "PaginationVertical";
+    BookScrollingMode["Continuous"] = "Continuous";
+})(BookScrollingMode || (exports.BookScrollingMode = BookScrollingMode = {}));
 var LibraryMangaType;
 (function (LibraryMangaType) {
     LibraryMangaType["GRID_SMALL"] = "GRID_SMALL";

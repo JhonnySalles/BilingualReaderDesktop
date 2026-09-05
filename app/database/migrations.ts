@@ -13,7 +13,7 @@ export class MigrationsManager {
     if (currentVersion === 0) {
       this.createInitialSchema();
       this.seedInitialData();
-      this.db.pragma('user_version = 16');
+      this.db.pragma('user_version = 17');
       return;
     }
 
@@ -39,6 +39,10 @@ export class MigrationsManager {
     if (currentVersion < 16) {
       this.migrate15To16();
       this.db.pragma('user_version = 16');
+    }
+    if (currentVersion < 17) {
+      this.migrate16To17();
+      this.db.pragma('user_version = 17');
     }
   }
 
@@ -105,6 +109,7 @@ export class MigrationsManager {
         chapter TEXT DEFAULT '',
         chapter_description TEXT DEFAULT '',
         book_mark INTEGER NOT NULL DEFAULT 0,
+        book_mark_cfi TEXT,
         completed INTEGER NOT NULL DEFAULT 0,
         language TEXT DEFAULT '',
         path TEXT NOT NULL UNIQUE,
@@ -396,5 +401,13 @@ export class MigrationsManager {
       CREATE INDEX IF NOT EXISTS index_History_reference_library ON History(id_reference, id_library);
       CREATE INDEX IF NOT EXISTS index_History_type_start ON History(type, date_time_start);
     `);
+  }
+
+  private migrate16To17(): void {
+    try {
+      this.db.exec(`ALTER TABLE Book ADD COLUMN book_mark_cfi TEXT`);
+    } catch (e) {
+      // Column may already exist
+    }
   }
 }

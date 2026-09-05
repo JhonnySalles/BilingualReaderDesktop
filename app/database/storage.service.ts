@@ -5,18 +5,20 @@ import { app } from 'electron';
 import { MigrationsManager } from './migrations';
 import { MangaRepository } from './manga.repository';
 import { BookRepository } from './book.repository';
+import { BookConfigurationRepository } from './book-configuration.repository';
 import { KanjiRepository } from './kanji.repository';
 import { KanjaxRepository } from './kanjax.repository';
 import { VocabularyRepository } from './vocabulary.repository';
 import { HistoryRepository, HistoryContentType, HistorySessionInput, HistorySessionUpdate } from './history.repository';
 import { StatisticsRepository } from './statistics.repository';
 import { Manga } from '../../src/app/core/models/entities/manga.model';
-import { Book } from '../../src/app/core/models/entities/book.model';
+import { Book, BookConfiguration } from '../../src/app/core/models/entities/book.model';
 
 export class StorageService {
   private db!: Database.Database;
   public mangaRepository!: MangaRepository;
   public bookRepository!: BookRepository;
+  public bookConfigurationRepository!: BookConfigurationRepository;
   public kanjiRepository!: KanjiRepository;
   public kanjaxRepository!: KanjaxRepository;
   public vocabularyRepository!: VocabularyRepository;
@@ -44,6 +46,7 @@ export class StorageService {
 
     this.mangaRepository = new MangaRepository(this.db);
     this.bookRepository = new BookRepository(this.db);
+    this.bookConfigurationRepository = new BookConfigurationRepository(this.db);
     this.kanjiRepository = new KanjiRepository(this.db);
     this.kanjaxRepository = new KanjaxRepository(this.db);
     this.vocabularyRepository = new VocabularyRepository(this.db);
@@ -125,6 +128,14 @@ export class StorageService {
 
   public markBookRead(id: number) {
     return this.bookRepository.markRead(id);
+  }
+
+  public getBookConfiguration(bookId: number): BookConfiguration | undefined {
+    return this.bookConfigurationRepository.getByBook(bookId);
+  }
+
+  public saveBookConfiguration(config: BookConfiguration): number {
+    return this.bookConfigurationRepository.upsert(config);
   }
 
   public listBooksDeleted(libraryId?: number): Book[] {

@@ -27,6 +27,17 @@ export enum BookLayout {
   CONTINUOUS = 'CONTINUOUS'
 }
 
+export enum BookScrollingMode {
+  Pagination = 'Pagination',
+  PaginationRtl = 'PaginationRtl',
+  PaginationVertical = 'PaginationVertical',
+  Continuous = 'Continuous'
+}
+
+export type BookAlign = 'justify' | 'left' | 'center' | 'right';
+export type BookMarginSize = 'small' | 'medium' | 'large';
+export type BookSpacingSize = 'small' | 'medium' | 'large';
+
 export enum LibraryMangaType {
   GRID_SMALL = 'GRID_SMALL',
   GRID_MEDIUM = 'GRID_MEDIUM',

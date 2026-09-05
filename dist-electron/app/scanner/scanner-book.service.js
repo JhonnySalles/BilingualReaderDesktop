@@ -213,5 +213,25 @@ class ScannerBookService {
             }
         }
     }
+    async processSingleFile(filePath, window) {
+        try {
+            if (!fs.existsSync(filePath))
+                return null;
+            const stat = await fs.promises.stat(filePath);
+            const folder = path.dirname(filePath);
+            const libraryId = this.storageService.getOrCreateLibrary(folder, 'BOOK');
+            const existingInDb = this.storageService.findBookByPath(filePath);
+            if (existingInDb && existingInDb.id) {
+                await this.checkAndRecoverMetadata(existingInDb, filePath, stat, libraryId, window);
+                return this.storageService.findBookById(existingInDb.id) || existingInDb;
+            }
+            await this.processNewBook(filePath, stat, libraryId, window);
+            return this.storageService.findBookByPath(filePath) || null;
+        }
+        catch (e) {
+            console.error('Failed to process single book file:', filePath, e);
+            return null;
+        }
+    }
 }
 exports.ScannerBookService = ScannerBookService;

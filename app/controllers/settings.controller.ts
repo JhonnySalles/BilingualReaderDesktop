@@ -1,6 +1,7 @@
 import { ipcMain } from 'electron';
 import { SettingsService } from '../services/settings.service';
 import { Secrets } from '../utils/secrets';
+import { MenuController } from './menu.controller';
 
 export class SettingsController {
   private static _instance: SettingsController;
@@ -19,6 +20,9 @@ export class SettingsController {
 
     ipcMain.handle('settings:set', async (_event, key: string, value: any) => {
       SettingsService.instance.set(key, value);
+      if (key === 'libraries' || key === 'mangaBasePath' || key === 'bookBasePath') {
+        MenuController.instance.buildMenu();
+      }
       return true;
     });
 

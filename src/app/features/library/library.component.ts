@@ -198,6 +198,7 @@ export class LibraryComponent implements OnInit {
       let pathToScan = '';
 
       if (libId === 'home') {
+        this.libraryStateService.activeContext.set('manga');
         this.libraryStateService.activeLibrary.set({
           id: 'home',
           name: 'Início',
@@ -208,6 +209,7 @@ export class LibraryComponent implements OnInit {
         this.bookLibraryService.loadBooks();
       } else if (libId === 'manga-default') {
         this.activeLibType.set('manga');
+        this.libraryStateService.activeContext.set('manga');
         pathToScan = this.settingsService.mangaBasePath();
         this.libraryStateService.activeLibrary.set({
           id: 'manga-default',
@@ -219,6 +221,7 @@ export class LibraryComponent implements OnInit {
         this.onScanClick();
       } else if (libId === 'book-default') {
         this.activeLibType.set('book');
+        this.libraryStateService.activeContext.set('book');
         pathToScan = this.settingsService.bookBasePath();
         this.libraryStateService.activeLibrary.set({
           id: 'book-default',
@@ -232,6 +235,7 @@ export class LibraryComponent implements OnInit {
         const found = this.settingsService.libraries().find(l => l.id === libId);
         if (found) {
           this.activeLibType.set(found.type);
+          this.libraryStateService.activeContext.set(found.type);
           pathToScan = found.path;
           this.libraryStateService.activeLibrary.set({
             id: found.id,

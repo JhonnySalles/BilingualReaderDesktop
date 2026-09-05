@@ -20,6 +20,7 @@ export class BookRepository extends BaseRepository<Book, number> {
       fileType: row.type as FileType,
       pages: row.pages ?? 1,
       bookMark: row.book_mark ?? 0,
+      bookMarkCfi: row.book_mark_cfi || '',
       completed: Boolean(row.completed),
       favorite: Boolean(row.favorite),
       author: row.author || '',
@@ -125,9 +126,35 @@ export class BookRepository extends BaseRepository<Book, number> {
     return stmt.all().map(row => this.mapRowToBook(row));
   }
 
-  public updateBookMark(id: number, marker: number): void {
-    const stmt = this.db.prepare(`UPDATE Book SET book_mark = ? WHERE id = ?`);
-    stmt.run(marker, id);
+  public updateBookMark(
+    id: number,
+    marker: number,
+    options?: {
+      bookMarkCfi?: string;
+      chapter?: string;
+      chapterDescription?: string;
+      pages?: number;
+    }
+  ): void {
+    const stmt = this.db.prepare(`
+      UPDATE Book SET
+        book_mark = ?,
+        book_mark_cfi = COALESCE(?, book_mark_cfi),
+        chapter = COALESCE(?, chapter),
+        chapter_description = COALESCE(?, chapter_description),
+        pages = COALESCE(?, pages),
+        last_alteration = ?
+      WHERE id = ?
+    `);
+    stmt.run(
+      marker,
+      options?.bookMarkCfi ?? null,
+      options?.chapter ?? null,
+      options?.chapterDescription ?? null,
+      options?.pages ?? null,
+      new Date().toISOString(),
+      id
+    );
   }
 
   public softDelete(id: number): void {
@@ -137,7 +164,7 @@ export class BookRepository extends BaseRepository<Book, number> {
 
   public clearProgress(id: number): Book | undefined {
     const stmt = this.db.prepare(
-      `UPDATE Book SET book_mark = 0, completed = 0, last_alteration = ? WHERE id = ?`
+      `UPDATE Book SET book_mark = 0, book_mark_cfi = NULL, completed = 0, last_alteration = ? WHERE id = ?`
     );
     stmt.run(new Date().toISOString(), id);
     return this.getById(id);
@@ -174,7 +201,7 @@ export class BookRepository extends BaseRepository<Book, number> {
       const stmt = this.db.prepare(`
         UPDATE Book SET
           title = ?, path = ?, folder = ?, name = ?, size = ?,
-          type = ?, pages = ?, book_mark = ?, completed = ?, favorite = ?,
+          type = ?, pages = ?, book_mark = ?, book_mark_cfi = ?, completed = ?, favorite = ?,
           author = ?, series = ?, genre = ?, publisher = ?, volume = ?, release = ?,
           language = ?, isbn = ?, annotation = ?, tags = ?, chapter = ?, chapter_description = ?,
           password = ?, id_library = ?, excluded = ?, last_access = ?, last_alteration = ?,
@@ -183,7 +210,7 @@ export class BookRepository extends BaseRepository<Book, number> {
       `);
       stmt.run(
         book.title, book.path, book.folder, book.name, book.fileSize ?? 0,
-        book.fileType, book.pages ?? 1, book.bookMark ?? 0,
+        book.fileType, book.pages ?? 1, book.bookMark ?? 0, book.bookMarkCfi ?? null,
         book.completed ? 1 : 0, book.favorite ? 1 : 0, book.author ?? '', book.series ?? '',
         book.genre ?? '', book.publisher ?? '', book.volume ?? '', book.release ?? null,
         book.language ?? '', book.isbn ?? '', book.annotation ?? '', book.tags ?? '',
@@ -198,18 +225,18 @@ export class BookRepository extends BaseRepository<Book, number> {
       const stmt = this.db.prepare(`
         INSERT INTO Book (
           title, path, folder, name, size, type, pages,
-          book_mark, completed, favorite, author, series, genre,
+          book_mark, book_mark_cfi, completed, favorite, author, series, genre,
           publisher, volume, release, language, isbn, annotation, tags,
           chapter, chapter_description, password,
           id_library, excluded, date_create, last_access,
           last_alteration, file_alteration, last_vocabulary_import, last_verify, cover_path
         ) VALUES (
-          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
         )
       `);
       const info = stmt.run(
         book.title, book.path, book.folder, book.name, book.fileSize ?? 0, book.fileType, book.pages ?? 1,
-        book.bookMark ?? 0, book.completed ? 1 : 0, book.favorite ? 1 : 0,
+        book.bookMark ?? 0, book.bookMarkCfi ?? null, book.completed ? 1 : 0, book.favorite ? 1 : 0,
         book.author ?? '', book.series ?? '', book.genre ?? '', book.publisher ?? '', book.volume ?? '',
         book.release ?? null, book.language ?? '', book.isbn ?? '', book.annotation ?? '', book.tags ?? '',
         book.chapter ?? '', book.chapterDescription ?? '', book.password ?? '',

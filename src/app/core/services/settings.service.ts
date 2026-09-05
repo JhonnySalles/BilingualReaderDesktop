@@ -1,5 +1,12 @@
 import { Injectable, signal, effect } from '@angular/core';
-import { MangaFitMode, MangaScrollingMode } from '../models';
+import {
+  BookAlign,
+  BookMarginSize,
+  BookScrollingMode,
+  BookSpacingSize,
+  MangaFitMode,
+  MangaScrollingMode
+} from '../models';
 
 export interface CustomLibrary {
   id: string;
@@ -18,6 +25,13 @@ interface SettingsData {
   libraries: CustomLibrary[];
   mangaScrollingMode?: MangaScrollingMode;
   mangaFitMode?: MangaFitMode;
+  bookScrollingMode?: BookScrollingMode;
+  bookFontSize?: number;
+  bookFontFamily?: string;
+  bookLineHeight?: number;
+  bookMargin?: BookMarginSize;
+  bookAlign?: BookAlign;
+  bookSpacing?: BookSpacingSize;
 }
 
 @Injectable({
@@ -27,8 +41,16 @@ export class SettingsService {
   mangaBasePath = signal<string>('C:\\Users\\Jhonny\\Documents\\BilingualReader\\Mangas');
   bookBasePath = signal<string>('C:\\Users\\Jhonny\\Documents\\BilingualReader\\Books');
   libraries = signal<CustomLibrary[]>([]);
-  mangaScrollingMode = signal<MangaScrollingMode>(MangaScrollingMode.HorizontalRtl);
+  mangaScrollingMode = signal<MangaScrollingMode>(MangaScrollingMode.Horizontal);
   mangaFitMode = signal<MangaFitMode>(MangaFitMode.FitWidth);
+
+  bookScrollingMode = signal<BookScrollingMode>(BookScrollingMode.Pagination);
+  bookFontSize = signal<number>(18);
+  bookFontFamily = signal<string>('Georgia, serif');
+  bookLineHeight = signal<number>(1.6);
+  bookMargin = signal<BookMarginSize>('medium');
+  bookAlign = signal<BookAlign>('justify');
+  bookSpacing = signal<BookSpacingSize>('medium');
 
   constructor() {
     this.loadSettings();
@@ -39,9 +61,21 @@ export class SettingsService {
         bookBasePath: this.bookBasePath(),
         libraries: this.libraries(),
         mangaScrollingMode: this.mangaScrollingMode(),
-        mangaFitMode: this.mangaFitMode()
+        mangaFitMode: this.mangaFitMode(),
+        bookScrollingMode: this.bookScrollingMode(),
+        bookFontSize: this.bookFontSize(),
+        bookFontFamily: this.bookFontFamily(),
+        bookLineHeight: this.bookLineHeight(),
+        bookMargin: this.bookMargin(),
+        bookAlign: this.bookAlign(),
+        bookSpacing: this.bookSpacing()
       };
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(data));
+      if (typeof window !== 'undefined' && window.electronAPI?.setSetting) {
+        void window.electronAPI.setSetting('libraries', this.libraries());
+        void window.electronAPI.setSetting('mangaBasePath', this.mangaBasePath());
+        void window.electronAPI.setSetting('bookBasePath', this.bookBasePath());
+      }
     });
   }
 
@@ -58,6 +92,27 @@ export class SettingsService {
         }
         if (data.mangaFitMode && Object.values(MangaFitMode).includes(data.mangaFitMode)) {
           this.mangaFitMode.set(data.mangaFitMode);
+        }
+        if (data.bookScrollingMode && Object.values(BookScrollingMode).includes(data.bookScrollingMode)) {
+          this.bookScrollingMode.set(data.bookScrollingMode);
+        }
+        if (typeof data.bookFontSize === 'number' && data.bookFontSize >= 10 && data.bookFontSize <= 40) {
+          this.bookFontSize.set(data.bookFontSize);
+        }
+        if (typeof data.bookFontFamily === 'string' && data.bookFontFamily.trim()) {
+          this.bookFontFamily.set(data.bookFontFamily);
+        }
+        if (typeof data.bookLineHeight === 'number' && data.bookLineHeight >= 1.2 && data.bookLineHeight <= 2.4) {
+          this.bookLineHeight.set(data.bookLineHeight);
+        }
+        if (data.bookMargin && ['small', 'medium', 'large'].includes(data.bookMargin)) {
+          this.bookMargin.set(data.bookMargin);
+        }
+        if (data.bookAlign && ['justify', 'left', 'center', 'right'].includes(data.bookAlign)) {
+          this.bookAlign.set(data.bookAlign);
+        }
+        if (data.bookSpacing && ['small', 'medium', 'large'].includes(data.bookSpacing)) {
+          this.bookSpacing.set(data.bookSpacing);
         }
       } catch (e) {
         console.error('Failed to parse settings', e);

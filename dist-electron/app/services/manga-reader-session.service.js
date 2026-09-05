@@ -58,7 +58,7 @@ class MangaReaderSessionService {
     }
     toLocalPageUrl(filePath) {
         const normalized = path.resolve(filePath).replace(/\\/g, '/');
-        return `local-page://manga/?p=${encodeURIComponent(normalized)}`;
+        return 'local-page:///' + normalized;
     }
     async open(mangaId, mangaPath, title, bookMark, favorite, sender) {
         if (!fs.existsSync(mangaPath)) {

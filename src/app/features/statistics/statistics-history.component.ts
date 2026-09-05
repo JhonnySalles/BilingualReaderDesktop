@@ -6,7 +6,7 @@ import { ElectronService } from '../../core/services/electron.service';
 import { HistoryUiStateService } from '../../core/services/history-ui-state.service';
 import { LibraryStateService } from '../../core/services/library-state.service';
 import { NavigationStackService } from '../../core/services/navigation-stack.service';
-import { HistoryStatisticsItem, LibraryViewType } from '../../core/models';
+import { HistoryStatisticsItem, LibraryViewType, OrderType } from '../../core/models';
 import { HistoryStatsCardComponent } from './components/history-stats-card.component';
 import { HistoryStatsListItemComponent } from './components/history-stats-list-item.component';
 import { MangaFilterModalComponent } from '../library/manga-library/components/manga-filter-modal/manga-filter-modal.component';
@@ -110,8 +110,27 @@ export class StatisticsHistoryComponent implements OnInit, OnDestroy {
 
   readonly groups = computed<HistoryDayGroup[]>(() => {
     const ascending = this.libraryState.isAscending();
+    const order = this.libraryState.currentOrder();
+
     const sortedItems = [...this.items()].sort((a, b) => {
-      const cmp = (a.lastAccess || a.sessionDate).localeCompare(b.lastAccess || b.sessionDate);
+      let cmp = 0;
+      switch (order) {
+        case OrderType.Name:
+          cmp = (a.title || '').localeCompare(b.title || '');
+          break;
+        case OrderType.Date:
+        case OrderType.LastAccess:
+          cmp = (a.lastAccess || a.sessionDate).localeCompare(b.lastAccess || b.sessionDate);
+          break;
+        case OrderType.Favorite:
+          cmp = (b.favorite ? 1 : 0) - (a.favorite ? 1 : 0);
+          break;
+        case OrderType.Author:
+          cmp = (a.author || '').localeCompare(b.author || '');
+          break;
+        default:
+          cmp = (a.lastAccess || a.sessionDate).localeCompare(b.lastAccess || b.sessionDate);
+      }
       return ascending ? cmp : -cmp;
     });
 
@@ -130,6 +149,8 @@ export class StatisticsHistoryComponent implements OnInit, OnDestroy {
   constructor() {
     effect(() => {
       const token = this.historyUi.reloadToken();
+      const activeType = this.historyUi.activeType();
+      this.libraryState.activeContext.set(activeType === 'BOOK' ? 'history-book' : 'history-manga');
       if (!this.ready) return;
       void token;
       if (this.searchTimer) clearTimeout(this.searchTimer);
@@ -149,6 +170,10 @@ export class StatisticsHistoryComponent implements OnInit, OnDestroy {
     } else if (typeParam === 'manga' || typeParam === 'MANGA') {
       this.historyUi.activeType.set('MANGA');
     }
+
+    this.libraryState.activeContext.set(
+      this.historyUi.activeType() === 'BOOK' ? 'history-book' : 'history-manga'
+    );
 
     const yearParam = this.route.snapshot.queryParamMap.get('year');
     if (yearParam) {

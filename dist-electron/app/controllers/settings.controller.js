@@ -4,6 +4,7 @@ exports.SettingsController = void 0;
 const electron_1 = require("electron");
 const settings_service_1 = require("../services/settings.service");
 const secrets_1 = require("../utils/secrets");
+const menu_controller_1 = require("./menu.controller");
 class SettingsController {
     static _instance;
     static get instance() {
@@ -18,6 +19,9 @@ class SettingsController {
         });
         electron_1.ipcMain.handle('settings:set', async (_event, key, value) => {
             settings_service_1.SettingsService.instance.set(key, value);
+            if (key === 'libraries' || key === 'mangaBasePath' || key === 'bookBasePath') {
+                menu_controller_1.MenuController.instance.buildMenu();
+            }
             return true;
         });
         electron_1.ipcMain.handle('secrets:get', async (_event, secretKey) => {

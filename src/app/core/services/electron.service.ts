@@ -6,7 +6,8 @@ import {
   HistoryStatisticsItem,
   HistoryContentType,
   Manga,
-  Book
+  Book,
+  BookConfiguration
 } from '../models';
 
 declare global {
@@ -72,6 +73,30 @@ declare global {
       closeMangaReader: (sessionId: string) => Promise<boolean>;
       setMangaBookmark: (mangaId: number, page: number) => Promise<Manga | null>;
       toggleMangaFavorite: (mangaId: number) => Promise<Manga | null>;
+      openBookReader: (bookId: number) => Promise<{
+        sessionId: string;
+        bookId: number;
+        title: string;
+        author: string;
+        epubUrl: string;
+        epubPath: string;
+        bookMark: number;
+        bookMarkCfi: string;
+        favorite: boolean;
+        configuration: BookConfiguration | null;
+      }>;
+      closeBookReader: (sessionId: string) => Promise<boolean>;
+      setBookBookmark: (payload: {
+        id: number;
+        bookMark: number;
+        bookMarkCfi?: string;
+        chapter?: string;
+        chapterDescription?: string;
+        pages?: number;
+      }) => Promise<Book | null>;
+      toggleBookFavorite: (bookId: number) => Promise<Book | null>;
+      getBookConfiguration: (bookId: number) => Promise<BookConfiguration | null>;
+      saveBookConfiguration: (config: BookConfiguration) => Promise<BookConfiguration | null>;
       send: (channel: string, data: any) => void;
       on: (channel: string, func: (...args: any[]) => void) => () => void;
     };
@@ -283,9 +308,65 @@ export class ElectronService {
     return null;
   }
 
+  async openBookReader(bookId: number) {
+    if (this.isElectron && window.electronAPI?.openBookReader) {
+      return await window.electronAPI.openBookReader(bookId);
+    }
+    return null;
+  }
+
+  async closeBookReader(sessionId: string): Promise<boolean> {
+    if (this.isElectron && window.electronAPI?.closeBookReader) {
+      return await window.electronAPI.closeBookReader(sessionId);
+    }
+    return false;
+  }
+
+  async setBookBookmark(payload: {
+    id: number;
+    bookMark: number;
+    bookMarkCfi?: string;
+    chapter?: string;
+    chapterDescription?: string;
+    pages?: number;
+  }): Promise<Book | null> {
+    if (this.isElectron && window.electronAPI?.setBookBookmark) {
+      return await window.electronAPI.setBookBookmark(payload);
+    }
+    return null;
+  }
+
+  async toggleBookFavorite(bookId: number): Promise<Book | null> {
+    if (this.isElectron && window.electronAPI?.toggleBookFavorite) {
+      return await window.electronAPI.toggleBookFavorite(bookId);
+    }
+    return null;
+  }
+
+  async getBookConfiguration(bookId: number): Promise<BookConfiguration | null> {
+    if (this.isElectron && window.electronAPI?.getBookConfiguration) {
+      return await window.electronAPI.getBookConfiguration(bookId);
+    }
+    return null;
+  }
+
+  async saveBookConfiguration(config: BookConfiguration): Promise<BookConfiguration | null> {
+    if (this.isElectron && window.electronAPI?.saveBookConfiguration) {
+      return await window.electronAPI.saveBookConfiguration(config);
+    }
+    return null;
+  }
+
   onExtractProgress(handler: (progress: { current: number; total: number }) => void): () => void {
     if (this.isElectron && window.electronAPI?.on) {
       return window.electronAPI.on('manga-reader:extract-progress', handler);
+    }
+    return () => undefined;
+  }
+
+  onNavigate(handler: (routePath: string) => void): () => void {
+    if (this.isElectron && window.electronAPI?.on) {
+      return window.electronAPI.on('app:navigate', handler);
     }
     return () => undefined;
   }

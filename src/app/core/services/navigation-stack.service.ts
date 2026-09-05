@@ -39,6 +39,10 @@ export class NavigationStackService {
     this.returnStack.set([]);
   }
 
+  canGoBack(): boolean {
+    return this.returnStack().length > 0;
+  }
+
   goBack(router: Router): void {
     void router.navigateByUrl(this.consumeReturnUrl());
   }
