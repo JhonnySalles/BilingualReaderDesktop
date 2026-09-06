@@ -10,6 +10,7 @@ export * from './enums/ai-enums';
 // Entities
 export * from './entities/book.model';
 export * from './entities/manga.model';
+export * from './entities/annotation.model';
 export * from './entities/subtitle.model';
 export * from './entities/vocabulary.model';
 export * from './entities/history.model';

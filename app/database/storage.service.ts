@@ -7,13 +7,15 @@ import { MangaRepository } from './manga.repository';
 import { BookRepository } from './book.repository';
 import { BookConfigurationRepository } from './book-configuration.repository';
 import { BookAnnotationRepository } from './book-annotation.repository';
+import { MangaAnnotationRepository } from './manga-annotation.repository';
+import { BookSearchRepository } from './book-search.repository';
 import { KanjiRepository } from './kanji.repository';
 import { KanjaxRepository } from './kanjax.repository';
 import { VocabularyRepository } from './vocabulary.repository';
 import { HistoryRepository, HistoryContentType, HistorySessionInput, HistorySessionUpdate } from './history.repository';
 import { StatisticsRepository } from './statistics.repository';
-import { Manga } from '../../src/app/core/models/entities/manga.model';
-import { Book, BookAnnotation, BookConfiguration } from '../../src/app/core/models/entities/book.model';
+import { Manga, MangaAnnotation } from '../../src/app/core/models/entities/manga.model';
+import { Book, BookAnnotation, BookConfiguration, BookSearchHistory } from '../../src/app/core/models/entities/book.model';
 
 export class StorageService {
   private db!: Database.Database;
@@ -21,6 +23,8 @@ export class StorageService {
   public bookRepository!: BookRepository;
   public bookConfigurationRepository!: BookConfigurationRepository;
   public bookAnnotationRepository!: BookAnnotationRepository;
+  public mangaAnnotationRepository!: MangaAnnotationRepository;
+  public bookSearchRepository!: BookSearchRepository;
   public kanjiRepository!: KanjiRepository;
   public kanjaxRepository!: KanjaxRepository;
   public vocabularyRepository!: VocabularyRepository;
@@ -50,6 +54,8 @@ export class StorageService {
     this.bookRepository = new BookRepository(this.db);
     this.bookConfigurationRepository = new BookConfigurationRepository(this.db);
     this.bookAnnotationRepository = new BookAnnotationRepository(this.db);
+    this.mangaAnnotationRepository = new MangaAnnotationRepository(this.db);
+    this.bookSearchRepository = new BookSearchRepository(this.db);
     this.kanjiRepository = new KanjiRepository(this.db);
     this.kanjaxRepository = new KanjaxRepository(this.db);
     this.vocabularyRepository = new VocabularyRepository(this.db);
@@ -149,6 +155,10 @@ export class StorageService {
     return this.bookAnnotationRepository.listByBook(bookId);
   }
 
+  public listAllBookAnnotations(): (BookAnnotation & { bookTitle: string; bookName: string })[] {
+    return this.bookAnnotationRepository.listAll();
+  }
+
   public saveBookAnnotation(annotation: BookAnnotation): number {
     return this.bookAnnotationRepository.save(annotation);
   }
@@ -159,6 +169,42 @@ export class StorageService {
 
   public deleteBookAnnotation(id: number): boolean {
     return this.bookAnnotationRepository.delete(id);
+  }
+
+  public listMangaAnnotations(mangaId: number): MangaAnnotation[] {
+    return this.mangaAnnotationRepository.listByManga(mangaId);
+  }
+
+  public listAllMangaAnnotations(): (MangaAnnotation & { mangaTitle: string; mangaName: string })[] {
+    return this.mangaAnnotationRepository.listAll();
+  }
+
+  public saveMangaAnnotation(annotation: MangaAnnotation): number {
+    return this.mangaAnnotationRepository.save(annotation);
+  }
+
+  public getMangaAnnotation(id: number): MangaAnnotation | undefined {
+    return this.mangaAnnotationRepository.getById(id);
+  }
+
+  public deleteMangaAnnotation(id: number): boolean {
+    return this.mangaAnnotationRepository.delete(id);
+  }
+
+  public listBookSearchHistory(bookId: number): BookSearchHistory[] {
+    return this.bookSearchRepository.listHistory(bookId);
+  }
+
+  public saveBookSearchHistory(bookId: number, search: string): BookSearchHistory {
+    return this.bookSearchRepository.saveHistory(bookId, search);
+  }
+
+  public deleteBookSearchHistory(id: number): boolean {
+    return this.bookSearchRepository.deleteHistory(id);
+  }
+
+  public deleteAllBookSearchHistory(bookId: number): boolean {
+    return this.bookSearchRepository.deleteAllHistory(bookId);
   }
 
   public listBooksDeleted(libraryId?: number): Book[] {

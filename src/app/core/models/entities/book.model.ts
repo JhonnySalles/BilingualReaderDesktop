@@ -90,11 +90,23 @@ export interface BookConfiguration {
   fontSize: number;
 }
 
-export interface BookSearch {
-  query: string;
-  page: number;
-  snippet: string;
+export interface BookSearchHistory {
+  id?: number;
+  fkBook: number;
+  search: string;
+  date: string; // ISO
 }
+
+export type BookSearchListItem =
+  | { kind: 'chapter'; title: string; chapterIndex: number }
+  | {
+      kind: 'hit';
+      cfi: string;
+      page: number; // location index 0-based for UI "Página N"
+      excerptHtml: string; // trecho com <mark>…</mark>
+      plainExcerpt: string;
+      query: string;
+    };
 
 export interface BookGroup {
   name: string;

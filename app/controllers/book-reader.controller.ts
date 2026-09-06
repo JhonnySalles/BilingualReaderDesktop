@@ -3,6 +3,7 @@ import { StorageService } from '../database/storage.service';
 import { BookReaderSessionService } from '../services/book-reader-session.service';
 import { BookAnnotation, BookConfiguration } from '../../src/app/core/models/entities/book.model';
 
+
 export class BookReaderController {
   private sessionService = new BookReaderSessionService();
 
@@ -100,6 +101,10 @@ export class BookReaderController {
       return this.storage.listBookAnnotations(bookId);
     });
 
+    ipcMain.handle('book:list-all-annotations', async () => {
+      return this.storage.listAllBookAnnotations();
+    });
+
     ipcMain.handle('book:save-annotation', async (_event, annotation: BookAnnotation) => {
       if (!annotation?.fkBook) return null;
       const payload: BookAnnotation = {
@@ -116,6 +121,26 @@ export class BookReaderController {
     ipcMain.handle('book:delete-annotation', async (_event, id: number) => {
       if (!id) return false;
       return this.storage.deleteBookAnnotation(id);
+    });
+
+    ipcMain.handle('book:search-history-list', async (_event, bookId: number) => {
+      if (!bookId) return [];
+      return this.storage.listBookSearchHistory(bookId);
+    });
+
+    ipcMain.handle('book:search-history-save', async (_event, bookId: number, search: string) => {
+      if (!bookId || !(search || '').trim()) return null;
+      return this.storage.saveBookSearchHistory(bookId, search);
+    });
+
+    ipcMain.handle('book:search-history-delete', async (_event, id: number) => {
+      if (!id) return false;
+      return this.storage.deleteBookSearchHistory(id);
+    });
+
+    ipcMain.handle('book:search-history-delete-all', async (_event, bookId: number) => {
+      if (!bookId) return false;
+      return this.storage.deleteAllBookSearchHistory(bookId);
     });
   }
 }

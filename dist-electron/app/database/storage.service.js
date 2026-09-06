@@ -46,6 +46,8 @@ const manga_repository_1 = require("./manga.repository");
 const book_repository_1 = require("./book.repository");
 const book_configuration_repository_1 = require("./book-configuration.repository");
 const book_annotation_repository_1 = require("./book-annotation.repository");
+const manga_annotation_repository_1 = require("./manga-annotation.repository");
+const book_search_repository_1 = require("./book-search.repository");
 const kanji_repository_1 = require("./kanji.repository");
 const kanjax_repository_1 = require("./kanjax.repository");
 const vocabulary_repository_1 = require("./vocabulary.repository");
@@ -57,6 +59,8 @@ class StorageService {
     bookRepository;
     bookConfigurationRepository;
     bookAnnotationRepository;
+    mangaAnnotationRepository;
+    bookSearchRepository;
     kanjiRepository;
     kanjaxRepository;
     vocabularyRepository;
@@ -80,6 +84,8 @@ class StorageService {
         this.bookRepository = new book_repository_1.BookRepository(this.db);
         this.bookConfigurationRepository = new book_configuration_repository_1.BookConfigurationRepository(this.db);
         this.bookAnnotationRepository = new book_annotation_repository_1.BookAnnotationRepository(this.db);
+        this.mangaAnnotationRepository = new manga_annotation_repository_1.MangaAnnotationRepository(this.db);
+        this.bookSearchRepository = new book_search_repository_1.BookSearchRepository(this.db);
         this.kanjiRepository = new kanji_repository_1.KanjiRepository(this.db);
         this.kanjaxRepository = new kanjax_repository_1.KanjaxRepository(this.db);
         this.vocabularyRepository = new vocabulary_repository_1.VocabularyRepository(this.db);
@@ -154,6 +160,9 @@ class StorageService {
     listBookAnnotations(bookId) {
         return this.bookAnnotationRepository.listByBook(bookId);
     }
+    listAllBookAnnotations() {
+        return this.bookAnnotationRepository.listAll();
+    }
     saveBookAnnotation(annotation) {
         return this.bookAnnotationRepository.save(annotation);
     }
@@ -162,6 +171,33 @@ class StorageService {
     }
     deleteBookAnnotation(id) {
         return this.bookAnnotationRepository.delete(id);
+    }
+    listMangaAnnotations(mangaId) {
+        return this.mangaAnnotationRepository.listByManga(mangaId);
+    }
+    listAllMangaAnnotations() {
+        return this.mangaAnnotationRepository.listAll();
+    }
+    saveMangaAnnotation(annotation) {
+        return this.mangaAnnotationRepository.save(annotation);
+    }
+    getMangaAnnotation(id) {
+        return this.mangaAnnotationRepository.getById(id);
+    }
+    deleteMangaAnnotation(id) {
+        return this.mangaAnnotationRepository.delete(id);
+    }
+    listBookSearchHistory(bookId) {
+        return this.bookSearchRepository.listHistory(bookId);
+    }
+    saveBookSearchHistory(bookId, search) {
+        return this.bookSearchRepository.saveHistory(bookId, search);
+    }
+    deleteBookSearchHistory(id) {
+        return this.bookSearchRepository.deleteHistory(id);
+    }
+    deleteAllBookSearchHistory(bookId) {
+        return this.bookSearchRepository.deleteAllHistory(bookId);
     }
     listBooksDeleted(libraryId) {
         return this.bookRepository.listDeleted(libraryId);

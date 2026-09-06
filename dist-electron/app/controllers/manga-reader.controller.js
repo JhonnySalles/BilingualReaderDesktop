@@ -66,6 +66,34 @@ class MangaReaderController {
             });
             return this.storage.findMangaById(id) || null;
         });
+        electron_1.ipcMain.handle('manga:list-annotations', async (_event, mangaId) => {
+            if (!mangaId)
+                return [];
+            return this.storage.listMangaAnnotations(mangaId);
+        });
+        electron_1.ipcMain.handle('manga:list-all-annotations', async () => {
+            return this.storage.listAllMangaAnnotations();
+        });
+        electron_1.ipcMain.handle('manga:save-annotation', async (_event, annotation) => {
+            if (!annotation?.fkManga)
+                return null;
+            const payload = {
+                ...annotation,
+                markType: annotation.markType || 'PageMark',
+                pages: annotation.pages ?? 0,
+                page: annotation.page ?? 0,
+                chapter: annotation.chapter || '',
+                folder: annotation.folder || '',
+                note: annotation.note || ''
+            };
+            const id = this.storage.saveMangaAnnotation(payload);
+            return this.storage.getMangaAnnotation(id) || null;
+        });
+        electron_1.ipcMain.handle('manga:delete-annotation', async (_event, id) => {
+            if (!id)
+                return false;
+            return this.storage.deleteMangaAnnotation(id);
+        });
     }
 }
 exports.MangaReaderController = MangaReaderController;

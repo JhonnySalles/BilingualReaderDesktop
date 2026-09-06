@@ -48,7 +48,7 @@ class MigrationsManager {
         if (currentVersion === 0) {
             this.createInitialSchema();
             this.seedInitialData();
-            this.db.pragma('user_version = 18');
+            this.db.pragma('user_version = 19');
             return;
         }
         if (currentVersion < 2) {
@@ -81,6 +81,10 @@ class MigrationsManager {
         if (currentVersion < 18) {
             this.migrate17To18();
             this.db.pragma('user_version = 18');
+        }
+        if (currentVersion < 19) {
+            this.migrate18To19();
+            this.db.pragma('user_version = 19');
         }
     }
     createInitialSchema() {
@@ -216,6 +220,16 @@ class MigrationsManager {
       );
 
       CREATE INDEX IF NOT EXISTS idx_book_annotation_book ON BookAnnotation (id_book, page);
+
+      CREATE TABLE IF NOT EXISTS BookSearchHistory (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id_book INTEGER NOT NULL,
+        search TEXT NOT NULL,
+        date TEXT NOT NULL,
+        FOREIGN KEY(id_book) REFERENCES Book(id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_book_search_history_book ON BookSearchHistory(id_book);
 
       CREATE TABLE IF NOT EXISTS AssistantHistory (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -479,6 +493,19 @@ class MigrationsManager {
       );
 
       CREATE INDEX IF NOT EXISTS idx_book_annotation_book ON BookAnnotation (id_book, page);
+    `);
+    }
+    migrate18To19() {
+        this.db.exec(`
+      CREATE TABLE IF NOT EXISTS BookSearchHistory (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id_book INTEGER NOT NULL,
+        search TEXT NOT NULL,
+        date TEXT NOT NULL,
+        FOREIGN KEY(id_book) REFERENCES Book(id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_book_search_history_book ON BookSearchHistory(id_book);
     `);
     }
 }

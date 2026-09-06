@@ -28,6 +28,11 @@ export const routes: Routes = [
           import('./features/statistics/statistics-history.component').then(m => m.StatisticsHistoryComponent)
       },
       {
+        path: 'annotations',
+        loadComponent: () =>
+          import('./features/annotations/annotations.component').then(m => m.AnnotationsComponent)
+      },
+      {
         path: 'detail/manga/:id',
         loadComponent: () => import('./features/detail/manga-detail.component').then(m => m.MangaDetailComponent)
       },

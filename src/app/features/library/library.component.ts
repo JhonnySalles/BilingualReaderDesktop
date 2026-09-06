@@ -55,7 +55,7 @@ import { Manga, Book, OrderType, HomeRecentItem } from '../../core/models';
                 <p class="text-sm text-slate-400">Comece a ler para ver seus últimos arquivos aqui.</p>
               </div>
             } @else {
-              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-4xl">
+              <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 max-w-5xl items-stretch">
                 @for (item of home.recentReads(); track item.type + '-' + item.fkReference) {
                   <app-home-recent-card [item]="item" (open)="onOpenRecent($event)" />
                 }

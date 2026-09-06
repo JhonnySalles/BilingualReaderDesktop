@@ -70,6 +70,9 @@ class BookReaderController {
                 return [];
             return this.storage.listBookAnnotations(bookId);
         });
+        electron_1.ipcMain.handle('book:list-all-annotations', async () => {
+            return this.storage.listAllBookAnnotations();
+        });
         electron_1.ipcMain.handle('book:save-annotation', async (_event, annotation) => {
             if (!annotation?.fkBook)
                 return null;
@@ -87,6 +90,26 @@ class BookReaderController {
             if (!id)
                 return false;
             return this.storage.deleteBookAnnotation(id);
+        });
+        electron_1.ipcMain.handle('book:search-history-list', async (_event, bookId) => {
+            if (!bookId)
+                return [];
+            return this.storage.listBookSearchHistory(bookId);
+        });
+        electron_1.ipcMain.handle('book:search-history-save', async (_event, bookId, search) => {
+            if (!bookId || !(search || '').trim())
+                return null;
+            return this.storage.saveBookSearchHistory(bookId, search);
+        });
+        electron_1.ipcMain.handle('book:search-history-delete', async (_event, id) => {
+            if (!id)
+                return false;
+            return this.storage.deleteBookSearchHistory(id);
+        });
+        electron_1.ipcMain.handle('book:search-history-delete-all', async (_event, bookId) => {
+            if (!bookId)
+                return false;
+            return this.storage.deleteAllBookSearchHistory(bookId);
         });
     }
 }

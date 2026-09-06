@@ -20,7 +20,7 @@ import {
   TOUCH_DOUBLE_CLICK_MS,
   TouchZoneService
 } from '../../core/services/touch-zone.service';
-import { Manga, MangaFitMode, MangaScrollingMode } from '../../core/models';
+import { Manga, MangaAnnotation, MangaFitMode, MangaScrollingMode } from '../../core/models';
 import { ReaderTouchOverlayComponent } from '../reader-shared/reader-touch-overlay.component';
 import { ReaderTouchConfigComponent } from '../reader-shared/reader-touch-config.component';
 import { handleReaderTouchTap, TouchActionHandlers } from '../reader-shared/touch-action.util';
@@ -68,6 +68,70 @@ const PROGRAMMATIC_SCROLL_FALLBACK_MS = 1000;
     .reader-viewport.is-panning {
       scroll-behavior: auto !important;
       scroll-snap-type: none !important;
+    }
+    /* Track → dots → thumb. Inset ≈ half thumb so 0%/100% align with min/max. */
+    .reader-seek {
+      height: 1.25rem;
+      display: flex;
+      align-items: center;
+    }
+    .reader-seek-track {
+      left: 0.5rem;
+      right: 0.5rem;
+      height: 0.375rem;
+      border-radius: 9999px;
+      background: #334155;
+      z-index: 0;
+    }
+    .reader-seek-dots {
+      left: 0.5rem;
+      right: 0.5rem;
+      height: 0.375rem;
+      z-index: 1;
+    }
+    .reader-seek-dot {
+      width: 0.375rem;
+      height: 0.375rem;
+      margin: 0;
+      border-radius: 9999px;
+      background: #fbbf24;
+      pointer-events: none;
+    }
+    .reader-seek-input {
+      -webkit-appearance: none;
+      appearance: none;
+      background: transparent;
+      height: 1.25rem;
+      margin: 0;
+    }
+    .reader-seek-input::-webkit-slider-runnable-track {
+      height: 0.375rem;
+      background: transparent;
+      border: none;
+    }
+    .reader-seek-input::-moz-range-track {
+      height: 0.375rem;
+      background: transparent;
+      border: none;
+    }
+    .reader-seek-input::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 1rem;
+      height: 1rem;
+      margin-top: -0.3125rem;
+      border-radius: 9999px;
+      background: #6366f1;
+      cursor: pointer;
+      border: none;
+    }
+    .reader-seek-input::-moz-range-thumb {
+      width: 1rem;
+      height: 1rem;
+      border-radius: 9999px;
+      background: #6366f1;
+      cursor: pointer;
+      border: none;
     }
   `],
   template: `
@@ -298,19 +362,22 @@ const PROGRAMMATIC_SCROLL_FALLBACK_MS = 1000;
               Capítulos
             </button>
           </div>
-          <div class="relative">
+          <div class="reader-seek relative">
+            <div class="reader-seek-track absolute top-1/2 -translate-y-1/2 pointer-events-none"></div>
+            <div class="reader-seek-dots absolute top-1/2 -translate-y-1/2 pointer-events-none">
+              @for (ch of chapters(); track ch) {
+                <span
+                  class="reader-seek-dot absolute top-1/2 -translate-x-1/2 -translate-y-1/2"
+                  [style.left.%]="chapterDotPercent(ch)"></span>
+              }
+            </div>
             <input
               type="range"
               min="0"
               [max]="Math.max(0, pageCount() - 1)"
               [value]="seekBarPage()"
               (change)="onSeekCommit($event)"
-              class="w-full accent-indigo-500 cursor-pointer" />
-            @for (ch of chapters(); track ch) {
-              <span
-                class="absolute top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-amber-400 pointer-events-none"
-                [style.left.%]="chapterDotPercent(ch)"></span>
-            }
+              class="reader-seek-input relative z-10 w-full cursor-pointer" />
           </div>
         </div>
       </div>
@@ -443,7 +510,12 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
   seekBarPage = signal(0);
   chapters = signal<number[]>([]);
   favorite = signal(false);
-  marked = signal(false);
+  annotations = signal<MangaAnnotation[]>([]);
+  readonly marked = computed(() =>
+    this.annotations().some(
+      a => (a.markType || '') === 'PageMark' && a.page === this.currentPage()
+    )
+  );
   loading = signal(true);
   error = signal<string | null>(null);
   extractCurrent = signal(0);
@@ -999,11 +1071,40 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
   async markPage(): Promise<void> {
     if (!this.mangaId) return;
     const page = this.currentPage();
-    const updated = await this.electron.setMangaBookmark(this.mangaId, page);
-    if (updated) {
-      this.mangaMeta = updated;
-      this.marked.set(true);
-      setTimeout(() => this.marked.set(false), 1200);
+    const existing = this.annotations().find(
+      a => (a.markType || '') === 'PageMark' && a.page === page
+    );
+
+    if (existing?.id) {
+      const ok = await this.electron.deleteMangaAnnotation(existing.id);
+      if (ok) {
+        this.annotations.update(list => list.filter(a => a.id !== existing.id));
+        this.showStub(`Página ${page + 1} desmarcada`);
+      }
+      return;
+    }
+
+    const chapterPages = this.chapters();
+    const chapterStart =
+      [...chapterPages].reverse().find(c => c <= page) ?? 0;
+    const chapter =
+      chapterPages.length > 0
+        ? `Cap. ${chapterPages.indexOf(chapterStart) + 1}`
+        : '';
+    const folder = this.pages()[page] || '';
+
+    const saved = await this.electron.saveMangaAnnotation({
+      fkManga: this.mangaId,
+      page,
+      pages: this.pageCount(),
+      markType: 'PageMark',
+      chapter,
+      folder,
+      note: ''
+    });
+    if (saved) {
+      this.annotations.update(list => [saved, ...list.filter(a => a.id !== saved.id)]);
+      this.showStub(`Página ${page + 1} marcada`);
     }
   }
 
@@ -1071,6 +1172,13 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
       this.pendingJump = opened.bookMark;
       this.brokenPages.set(0);
       this.zoom.set(1);
+
+      try {
+        this.annotations.set(await this.electron.listMangaAnnotations(this.mangaId));
+      } catch (e) {
+        console.warn('[reader-image] list annotations failed', e);
+        this.annotations.set([]);
+      }
 
       this.historySessionId = await this.electron.startHistorySession({
         fkLibrary: manga?.fkLibrary ?? 0,

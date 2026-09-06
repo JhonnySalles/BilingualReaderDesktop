@@ -25,6 +25,7 @@ __exportStar(require("./enums/ai-enums"), exports);
 // Entities
 __exportStar(require("./entities/book.model"), exports);
 __exportStar(require("./entities/manga.model"), exports);
+__exportStar(require("./entities/annotation.model"), exports);
 __exportStar(require("./entities/subtitle.model"), exports);
 __exportStar(require("./entities/vocabulary.model"), exports);
 __exportStar(require("./entities/history.model"), exports);

@@ -58,6 +58,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   closeMangaReader: (sessionId: string) => ipcRenderer.invoke('manga-reader:close', sessionId),
   setMangaBookmark: (mangaId: number, page: number) => ipcRenderer.invoke('manga:set-bookmark', mangaId, page),
   toggleMangaFavorite: (mangaId: number) => ipcRenderer.invoke('manga:toggle-favorite', mangaId),
+  listMangaAnnotations: (mangaId: number) => ipcRenderer.invoke('manga:list-annotations', mangaId),
+  listAllMangaAnnotations: () => ipcRenderer.invoke('manga:list-all-annotations'),
+  saveMangaAnnotation: (annotation: any) => ipcRenderer.invoke('manga:save-annotation', annotation),
+  deleteMangaAnnotation: (id: number) => ipcRenderer.invoke('manga:delete-annotation', id),
 
   openBookReader: (bookId: number) => ipcRenderer.invoke('book-reader:open', bookId),
   closeBookReader: (sessionId: string) => ipcRenderer.invoke('book-reader:close', sessionId),
@@ -73,8 +77,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getBookConfiguration: (bookId: number) => ipcRenderer.invoke('book:get-configuration', bookId),
   saveBookConfiguration: (config: any) => ipcRenderer.invoke('book:save-configuration', config),
   listBookAnnotations: (bookId: number) => ipcRenderer.invoke('book:list-annotations', bookId),
+  listAllBookAnnotations: () => ipcRenderer.invoke('book:list-all-annotations'),
   saveBookAnnotation: (annotation: any) => ipcRenderer.invoke('book:save-annotation', annotation),
   deleteBookAnnotation: (id: number) => ipcRenderer.invoke('book:delete-annotation', id),
+  listBookSearchHistory: (bookId: number) => ipcRenderer.invoke('book:search-history-list', bookId),
+  saveBookSearchHistory: (bookId: number, search: string) =>
+    ipcRenderer.invoke('book:search-history-save', bookId, search),
+  deleteBookSearchHistory: (id: number) => ipcRenderer.invoke('book:search-history-delete', id),
+  deleteAllBookSearchHistory: (bookId: number) =>
+    ipcRenderer.invoke('book:search-history-delete-all', bookId),
 
   send: (channel: string, data: any) => ipcRenderer.send(channel, data),
   on: (channel: string, func: (...args: any[]) => void) => {

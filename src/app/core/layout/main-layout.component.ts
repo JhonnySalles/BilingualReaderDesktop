@@ -8,6 +8,7 @@ import { ElectronService } from '../services/electron.service';
 import { SettingsService } from '../services/settings.service';
 import { LibraryStateService } from '../services/library-state.service';
 import { HistoryUiStateService } from '../services/history-ui-state.service';
+import { AnnotationsUiStateService } from '../services/annotations-ui-state.service';
 import { HomeDashboardService } from '../services/home-dashboard.service';
 import { NavigationStackService } from '../services/navigation-stack.service';
 import { LibraryViewType } from '../models';
@@ -20,7 +21,7 @@ interface NavLibrary {
   count: number;
 }
 
-type HeaderMode = 'home' | 'library' | 'history' | 'settings' | 'titleOnly';
+type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'settings' | 'titleOnly';
 
 @Component({
   selector: 'app-main-layout',
@@ -154,13 +155,24 @@ type HeaderMode = 'home' | 'library' | 'history' | 'settings' | 'titleOnly';
             </a>
 
             <a
+              routerLink="/annotations"
+              routerLinkActive="bg-indigo-600/15 text-indigo-400 font-semibold border-r-2 border-indigo-500"
+              class="flex items-center gap-3 px-3 py-2 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer">
+              <svg class="w-5 h-5 min-w-[1.25rem]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M7 8h10M7 12h6m-6 8l-4-4V6a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H7z" />
+              </svg>
+              @if (isExpanded()) { <span>Anotações</span> }
+            </a>
+
+            <a
               routerLink="/vocabulary"
               routerLinkActive="bg-indigo-600/15 text-indigo-400 font-semibold border-r-2 border-indigo-500"
               class="flex items-center gap-3 px-3 py-2 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer">
               <svg class="w-5 h-5 min-w-[1.25rem]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
               </svg>
-              @if (isExpanded()) { <span>Vocabulário & Anotações</span> }
+              @if (isExpanded()) { <span>Vocabulário</span> }
             </a>
 
             <a
@@ -464,6 +476,67 @@ type HeaderMode = 'home' | 'library' | 'history' | 'settings' | 'titleOnly';
             </div>
           }
 
+          @if (headerMode() === 'annotations') {
+            <div class="flex items-center gap-2 sm:gap-3 shrink-0 flex-wrap justify-end">
+              <div class="relative w-40 sm:w-56">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input
+                  type="text"
+                  [ngModel]="annotationsUi.search()"
+                  (ngModelChange)="onAnnotationsSearch($event)"
+                  placeholder="Pesquisar anotações..."
+                  class="w-full pl-9 pr-3 py-1.5 bg-slate-900/90 border border-slate-800 rounded-xl text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500/80 transition-all" />
+              </div>
+
+              <div class="flex items-center gap-1 bg-slate-950/60 border border-slate-800 rounded-xl p-1">
+                <button
+                  type="button"
+                  (click)="annotationsUi.setType(null)"
+                  class="px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+                  [class.bg-indigo-600]="annotationsUi.type() === null"
+                  [class.text-white]="annotationsUi.type() === null"
+                  [class.text-slate-400]="annotationsUi.type() !== null">
+                  Todos
+                </button>
+                <button
+                  type="button"
+                  (click)="annotationsUi.setType('BOOK')"
+                  class="px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+                  [class.bg-amber-600]="annotationsUi.type() === 'BOOK'"
+                  [class.text-white]="annotationsUi.type() === 'BOOK'"
+                  [class.text-slate-400]="annotationsUi.type() !== 'BOOK'">
+                  Livros
+                </button>
+                <button
+                  type="button"
+                  (click)="annotationsUi.setType('MANGA')"
+                  class="px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+                  [class.bg-indigo-600]="annotationsUi.type() === 'MANGA'"
+                  [class.text-white]="annotationsUi.type() === 'MANGA'"
+                  [class.text-slate-400]="annotationsUi.type() !== 'MANGA'">
+                  Mangás
+                </button>
+              </div>
+
+              <button
+                type="button"
+                (click)="annotationsUi.showFilterPopup.set(true)"
+                class="p-2 bg-slate-900 border rounded-xl transition-all flex items-center justify-center cursor-pointer"
+                [class.border-indigo-500]="annotationsUi.hasAdvancedFilters()"
+                [class.text-indigo-300]="annotationsUi.hasAdvancedFilters()"
+                [class.border-slate-800]="!annotationsUi.hasAdvancedFilters()"
+                [class.text-slate-300]="!annotationsUi.hasAdvancedFilters()"
+                [class.hover:border-slate-700]="!annotationsUi.hasAdvancedFilters()"
+                title="Filtros">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                </svg>
+              </button>
+            </div>
+          }
+
           @if (headerMode() === 'settings') {
             <div class="flex items-center gap-2 shrink-0">
               <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
@@ -488,6 +561,7 @@ export class MainLayoutComponent implements OnInit {
   private nav = inject(NavigationStackService);
   public libraryStateService = inject(LibraryStateService);
   public historyUi = inject(HistoryUiStateService);
+  public annotationsUi = inject(AnnotationsUiStateService);
   public home = inject(HomeDashboardService);
 
   isExpanded = signal<boolean>(true);
@@ -504,6 +578,7 @@ export class MainLayoutComponent implements OnInit {
     if (mode === 'home') return 'Início';
     if (mode === 'library') return this.libraryStateService.activeLibrary().name;
     if (mode === 'history') return this.historyUi.pageTitle();
+    if (mode === 'annotations') return this.annotationsUi.pageTitle();
     if (mode === 'settings') return 'Configurações do Leitor';
     return this.titleOnlyLabel();
   });
@@ -555,13 +630,18 @@ export class MainLayoutComponent implements OnInit {
       );
       return;
     }
+    if (path.startsWith('/annotations')) {
+      this.headerMode.set('annotations');
+      this.annotationsUi.bumpReload();
+      return;
+    }
     if (path.startsWith('/settings')) {
       this.headerMode.set('settings');
       return;
     }
     this.headerMode.set('titleOnly');
     if (path.startsWith('/statistics')) this.titleOnlyLabel.set('Estatísticas de Uso');
-    else if (path.startsWith('/vocabulary')) this.titleOnlyLabel.set('Vocabulário e Anotações');
+    else if (path.startsWith('/vocabulary')) this.titleOnlyLabel.set('Vocabulário');
     else if (path.startsWith('/detail')) this.titleOnlyLabel.set('Detalhe');
     else this.titleOnlyLabel.set('Bilingual Reader');
   }
@@ -578,6 +658,10 @@ export class MainLayoutComponent implements OnInit {
 
   onHistorySearch(value: string): void {
     this.historyUi.setSearch(value);
+  }
+
+  onAnnotationsSearch(value: string): void {
+    this.annotationsUi.setSearch(value);
   }
 
   async updateCounts(): Promise<void> {

@@ -10,7 +10,9 @@ import {
   Manga,
   Book,
   BookAnnotation,
-  BookConfiguration
+  MangaAnnotation,
+  BookConfiguration,
+  BookSearchHistory
 } from '../models';
 
 declare global {
@@ -79,6 +81,12 @@ declare global {
       closeMangaReader: (sessionId: string) => Promise<boolean>;
       setMangaBookmark: (mangaId: number, page: number) => Promise<Manga | null>;
       toggleMangaFavorite: (mangaId: number) => Promise<Manga | null>;
+      listMangaAnnotations: (mangaId: number) => Promise<MangaAnnotation[]>;
+      listAllMangaAnnotations: () => Promise<
+        (MangaAnnotation & { mangaTitle: string; mangaName: string })[]
+      >;
+      saveMangaAnnotation: (annotation: MangaAnnotation) => Promise<MangaAnnotation | null>;
+      deleteMangaAnnotation: (id: number) => Promise<boolean>;
       openBookReader: (bookId: number) => Promise<{
         sessionId: string;
         bookId: number;
@@ -104,8 +112,15 @@ declare global {
       getBookConfiguration: (bookId: number) => Promise<BookConfiguration | null>;
       saveBookConfiguration: (config: BookConfiguration) => Promise<BookConfiguration | null>;
       listBookAnnotations: (bookId: number) => Promise<BookAnnotation[]>;
+      listAllBookAnnotations: () => Promise<
+        (BookAnnotation & { bookTitle: string; bookName: string })[]
+      >;
       saveBookAnnotation: (annotation: BookAnnotation) => Promise<BookAnnotation | null>;
       deleteBookAnnotation: (id: number) => Promise<boolean>;
+      listBookSearchHistory: (bookId: number) => Promise<BookSearchHistory[]>;
+      saveBookSearchHistory: (bookId: number, search: string) => Promise<BookSearchHistory | null>;
+      deleteBookSearchHistory: (id: number) => Promise<boolean>;
+      deleteAllBookSearchHistory: (bookId: number) => Promise<boolean>;
       send: (channel: string, data: any) => void;
       on: (channel: string, func: (...args: any[]) => void) => () => void;
     };
@@ -338,6 +353,35 @@ export class ElectronService {
     return null;
   }
 
+  async listMangaAnnotations(mangaId: number): Promise<MangaAnnotation[]> {
+    if (this.isElectron && window.electronAPI?.listMangaAnnotations) {
+      return await window.electronAPI.listMangaAnnotations(mangaId);
+    }
+    return [];
+  }
+
+  async listAllMangaAnnotations(): Promise<(MangaAnnotation & { mangaTitle: string; mangaName: string })[]> {
+    if (this.isElectron && window.electronAPI?.listAllMangaAnnotations) {
+      return await window.electronAPI.listAllMangaAnnotations();
+    }
+    console.warn('[electron] listAllMangaAnnotations unavailable — rebuild Electron preload');
+    return [];
+  }
+
+  async saveMangaAnnotation(annotation: MangaAnnotation): Promise<MangaAnnotation | null> {
+    if (this.isElectron && window.electronAPI?.saveMangaAnnotation) {
+      return await window.electronAPI.saveMangaAnnotation(annotation);
+    }
+    return null;
+  }
+
+  async deleteMangaAnnotation(id: number): Promise<boolean> {
+    if (this.isElectron && window.electronAPI?.deleteMangaAnnotation) {
+      return await window.electronAPI.deleteMangaAnnotation(id);
+    }
+    return false;
+  }
+
   async openBookReader(bookId: number) {
     if (this.isElectron && window.electronAPI?.openBookReader) {
       return await window.electronAPI.openBookReader(bookId);
@@ -394,6 +438,14 @@ export class ElectronService {
     return [];
   }
 
+  async listAllBookAnnotations(): Promise<(BookAnnotation & { bookTitle: string; bookName: string })[]> {
+    if (this.isElectron && window.electronAPI?.listAllBookAnnotations) {
+      return await window.electronAPI.listAllBookAnnotations();
+    }
+    console.warn('[electron] listAllBookAnnotations unavailable — rebuild Electron preload');
+    return [];
+  }
+
   async saveBookAnnotation(annotation: BookAnnotation): Promise<BookAnnotation | null> {
     if (this.isElectron && window.electronAPI?.saveBookAnnotation) {
       return await window.electronAPI.saveBookAnnotation(annotation);
@@ -404,6 +456,34 @@ export class ElectronService {
   async deleteBookAnnotation(id: number): Promise<boolean> {
     if (this.isElectron && window.electronAPI?.deleteBookAnnotation) {
       return await window.electronAPI.deleteBookAnnotation(id);
+    }
+    return false;
+  }
+
+  async listBookSearchHistory(bookId: number): Promise<BookSearchHistory[]> {
+    if (this.isElectron && window.electronAPI?.listBookSearchHistory) {
+      return await window.electronAPI.listBookSearchHistory(bookId);
+    }
+    return [];
+  }
+
+  async saveBookSearchHistory(bookId: number, search: string): Promise<BookSearchHistory | null> {
+    if (this.isElectron && window.electronAPI?.saveBookSearchHistory) {
+      return await window.electronAPI.saveBookSearchHistory(bookId, search);
+    }
+    return null;
+  }
+
+  async deleteBookSearchHistory(id: number): Promise<boolean> {
+    if (this.isElectron && window.electronAPI?.deleteBookSearchHistory) {
+      return await window.electronAPI.deleteBookSearchHistory(id);
+    }
+    return false;
+  }
+
+  async deleteAllBookSearchHistory(bookId: number): Promise<boolean> {
+    if (this.isElectron && window.electronAPI?.deleteAllBookSearchHistory) {
+      return await window.electronAPI.deleteAllBookSearchHistory(bookId);
     }
     return false;
   }

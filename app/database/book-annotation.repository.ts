@@ -46,6 +46,23 @@ export class BookAnnotationRepository {
     return (stmt.all(bookId) as any[]).map(row => this.mapRow(row));
   }
 
+  /**
+   * All book annotations with parent title/filename for the global annotations screen.
+   */
+  listAll(): (BookAnnotation & { bookTitle: string; bookName: string })[] {
+    const stmt = this.db.prepare(`
+      SELECT A.*, B.title AS book_title, B.name AS book_name
+      FROM BookAnnotation A
+      INNER JOIN Book B ON B.id = A.id_book AND B.excluded = 0
+      ORDER BY B.title ASC, A.chapter_number ASC, A.page ASC, A.id ASC
+    `);
+    return (stmt.all() as any[]).map(row => ({
+      ...this.mapRow(row),
+      bookTitle: row.book_title || row.book_name || '',
+      bookName: row.book_name || ''
+    }));
+  }
+
   getById(id: number): BookAnnotation | undefined {
     const stmt = this.db.prepare(`SELECT * FROM BookAnnotation WHERE id = ?`);
     const row = stmt.get(id);

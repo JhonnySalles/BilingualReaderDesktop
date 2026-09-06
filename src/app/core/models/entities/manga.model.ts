@@ -32,15 +32,17 @@ export interface Manga extends BaseEntity<number>, HistoryInterface {
   coverPath?: string;
 }
 
+/** Persisted row in SQLite MangaMark (Android MangaAnnotation). */
 export interface MangaAnnotation extends BaseEntity<number> {
   fkManga: number;
   page: number;
-  x?: number;
-  y?: number;
-  width?: number;
-  height?: number;
+  pages: number;
+  markType: string;
+  chapter: string;
+  folder: string;
   note?: string;
   dateCreate?: string;
+  alteration?: string;
 }
 
 export interface MangaGroup {
