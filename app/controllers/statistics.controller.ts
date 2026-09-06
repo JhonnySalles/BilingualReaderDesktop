@@ -40,6 +40,14 @@ export class StatisticsController {
       }
     );
 
+    ipcMain.handle('history:listRecent', async (_event, limit?: number) => {
+      return this.storage.listRecentReads(limit ?? 3);
+    });
+
+    ipcMain.handle('statistics:heatmap', async (_event, _weeks?: number) => {
+      return this.storage.getReadingActivityHeatmap();
+    });
+
     ipcMain.handle(
       'history:start',
       async (
@@ -53,7 +61,28 @@ export class StatisticsController {
           volume?: string;
         }
       ) => {
-        return this.storage.startHistorySession(input);
+        const sessionId = this.storage.startHistorySession(input);
+        const now = new Date().toISOString();
+        if (input.type === 'MANGA') {
+          const manga = this.storage.findMangaById(input.fkReference);
+          if (manga) {
+            this.storage.saveManga({
+              ...manga,
+              lastAccess: now,
+              lastAlteration: now
+            });
+          }
+        } else {
+          const book = this.storage.findBookById(input.fkReference);
+          if (book) {
+            this.storage.saveBook({
+              ...book,
+              lastAccess: now,
+              lastAlteration: now
+            });
+          }
+        }
+        return sessionId;
       }
     );
 

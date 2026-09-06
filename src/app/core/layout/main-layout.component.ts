@@ -8,6 +8,8 @@ import { ElectronService } from '../services/electron.service';
 import { SettingsService } from '../services/settings.service';
 import { LibraryStateService } from '../services/library-state.service';
 import { HistoryUiStateService } from '../services/history-ui-state.service';
+import { HomeDashboardService } from '../services/home-dashboard.service';
+import { NavigationStackService } from '../services/navigation-stack.service';
 import { LibraryViewType } from '../models';
 
 interface NavLibrary {
@@ -18,7 +20,7 @@ interface NavLibrary {
   count: number;
 }
 
-type HeaderMode = 'library' | 'history' | 'settings' | 'titleOnly';
+type HeaderMode = 'home' | 'library' | 'history' | 'settings' | 'titleOnly';
 
 @Component({
   selector: 'app-main-layout',
@@ -210,6 +212,41 @@ type HeaderMode = 'library' | 'history' | 'settings' | 'titleOnly';
               </h2>
             }
           </div>
+
+          @if (headerMode() === 'home') {
+            <div class="flex items-center gap-3 shrink-0">
+              <button
+                type="button"
+                (click)="onContinueReading()"
+                [disabled]="!home.continueItem()"
+                class="max-w-[16rem] sm:max-w-xs text-left px-3 py-1.5 rounded-xl border transition-all cursor-pointer
+                  disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-slate-800
+                  bg-indigo-600/15 border-indigo-500/40 hover:bg-indigo-600/25 hover:border-indigo-400/60
+                  flex items-center gap-3">
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold text-indigo-300">Continuar</span>
+                    @if (home.continueItem(); as item) {
+                      <span class="px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded bg-slate-950/60 text-slate-300 border border-slate-700">
+                        {{ item.fileType }}
+                      </span>
+                    }
+                  </div>
+                  <p class="text-[10px] text-slate-400 truncate mt-0.5">
+                    @if (home.continueItem(); as item) {
+                      {{ item.title }}
+                    } @else {
+                      Nenhuma leitura recente
+                    }
+                  </p>
+                </div>
+                <svg class="w-4 h-4 shrink-0 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+              </button>
+            </div>
+          }
 
           @if (headerMode() === 'library') {
             <div class="flex items-center gap-3 shrink-0">
@@ -448,12 +485,14 @@ export class MainLayoutComponent implements OnInit {
   private destroyRef = inject(DestroyRef);
   private settingsService = inject(SettingsService);
   private electronService = inject(ElectronService);
+  private nav = inject(NavigationStackService);
   public libraryStateService = inject(LibraryStateService);
   public historyUi = inject(HistoryUiStateService);
+  public home = inject(HomeDashboardService);
 
   isExpanded = signal<boolean>(true);
   LibraryViewType = LibraryViewType;
-  headerMode = signal<HeaderMode>('library');
+  headerMode = signal<HeaderMode>('home');
 
   defaultMangaLibrary = signal<NavLibrary>({ id: 'manga-default', name: 'Biblioteca de Mangás', type: 'manga', icon: 'ico_manga', count: 0 });
   defaultBookLibrary = signal<NavLibrary>({ id: 'book-default', name: 'Biblioteca de Livros', type: 'book', icon: 'ico_book', count: 0 });
@@ -462,6 +501,7 @@ export class MainLayoutComponent implements OnInit {
 
   readonly headerTitle = computed(() => {
     const mode = this.headerMode();
+    if (mode === 'home') return 'Início';
     if (mode === 'library') return this.libraryStateService.activeLibrary().name;
     if (mode === 'history') return this.historyUi.pageTitle();
     if (mode === 'settings') return 'Configurações do Leitor';
@@ -491,8 +531,17 @@ export class MainLayoutComponent implements OnInit {
 
   private applyRoute(url: string): void {
     const path = url.split('?')[0];
+    const query = url.includes('?') ? url.split('?')[1] : '';
+    const params = new URLSearchParams(query);
+    const lib = params.get('lib') || 'home';
+
     if (path === '/' || path === '') {
-      this.headerMode.set('library');
+      if (lib === 'home') {
+        this.headerMode.set('home');
+        void this.home.refresh();
+      } else {
+        this.headerMode.set('library');
+      }
       this.libraryStateService.activeContext.set(
         this.libraryStateService.activeLibrary().type === 'book' ? 'book' : 'manga'
       );
@@ -515,6 +564,16 @@ export class MainLayoutComponent implements OnInit {
     else if (path.startsWith('/vocabulary')) this.titleOnlyLabel.set('Vocabulário e Anotações');
     else if (path.startsWith('/detail')) this.titleOnlyLabel.set('Detalhe');
     else this.titleOnlyLabel.set('Bilingual Reader');
+  }
+
+  onContinueReading(): void {
+    const item = this.home.continueItem();
+    if (!item?.fkReference) return;
+    this.nav.openReader(
+      this.router,
+      item.type === 'MANGA' ? 'image' : 'text',
+      item.fkReference
+    );
   }
 
   onHistorySearch(value: string): void {

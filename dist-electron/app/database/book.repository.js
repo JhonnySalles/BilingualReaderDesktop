@@ -129,7 +129,7 @@ class BookRepository extends base_repository_1.BaseRepository {
         return row ? this.mapRowToBook(row) : undefined;
     }
     listByFolder(folder) {
-        const stmt = this.db.prepare(`SELECT * FROM Book WHERE excluded = 0 AND folder = ? ORDER BY title`);
+        const stmt = this.db.prepare(`SELECT * FROM Book WHERE excluded = 0 AND folder = ? ORDER BY path COLLATE NOCASE, name COLLATE NOCASE`);
         return stmt.all(folder).map(row => this.mapRowToBook(row));
     }
     listOrderByTitle(libraryId) {
@@ -139,6 +139,48 @@ class BookRepository extends base_repository_1.BaseRepository {
         }
         const stmt = this.db.prepare(`SELECT * FROM Book WHERE excluded = 0 ORDER BY title`);
         return stmt.all().map(row => this.mapRowToBook(row));
+    }
+    listOrderByPath(libraryId) {
+        if (libraryId !== undefined && libraryId !== null) {
+            const stmt = this.db.prepare(`SELECT * FROM Book WHERE id_library = ? AND excluded = 0 ORDER BY path COLLATE NOCASE, name COLLATE NOCASE`);
+            return stmt.all(libraryId).map(row => this.mapRowToBook(row));
+        }
+        const stmt = this.db.prepare(`SELECT * FROM Book WHERE excluded = 0 ORDER BY path COLLATE NOCASE, name COLLATE NOCASE`);
+        return stmt.all().map(row => this.mapRowToBook(row));
+    }
+    /**
+     * Adjacent books: same folder by path first, then same library by path (Android Storage parity).
+     */
+    getAdjacentBooks(bookId) {
+        const book = this.getById(bookId);
+        if (!book)
+            return { prev: null, next: null };
+        const neighborsIn = (list) => {
+            const idx = list.findIndex(b => b.id === book.id);
+            if (idx < 0)
+                return { prev: null, next: null };
+            return {
+                prev: idx > 0 ? list[idx - 1] : null,
+                next: idx < list.length - 1 ? list[idx + 1] : null
+            };
+        };
+        let prev = null;
+        let next = null;
+        if (book.folder) {
+            const folderList = this.listByFolder(book.folder);
+            const fromFolder = neighborsIn(folderList);
+            prev = fromFolder.prev;
+            next = fromFolder.next;
+        }
+        if (prev == null || next == null) {
+            const libraryList = this.listOrderByPath(book.fkLibrary);
+            const fromLib = neighborsIn(libraryList);
+            if (prev == null)
+                prev = fromLib.prev;
+            if (next == null)
+                next = fromLib.next;
+        }
+        return { prev, next };
     }
     updateBookMark(id, marker, options) {
         const stmt = this.db.prepare(`

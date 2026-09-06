@@ -24,6 +24,16 @@ import { Manga, MangaFitMode, MangaScrollingMode } from '../../core/models';
 import { ReaderTouchOverlayComponent } from '../reader-shared/reader-touch-overlay.component';
 import { ReaderTouchConfigComponent } from '../reader-shared/reader-touch-config.component';
 import { handleReaderTouchTap, TouchActionHandlers } from '../reader-shared/touch-action.util';
+import {
+  applyColumnAction,
+  canScrollSlot,
+  DRAG_THRESHOLD_PX,
+  pageLandOffsets,
+  planColumnStep,
+  readSlotOverflow,
+  resolvePagerDragTarget,
+  type PageLand
+} from './manga-reader-navigation';
 
 const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 3;
@@ -32,9 +42,6 @@ const ZOOM_STEP_BUTTON = 0.25;
 const ZOOM_DOUBLE_TAP = 2;
 const WHEEL_PAGE_THRESHOLD = 200;
 const PROGRAMMATIC_SCROLL_FALLBACK_MS = 1000;
-const DRAG_THRESHOLD_PX = 5;
-const PAN_STRIP_FACTOR = 2.5;
-const PAN_VERTICAL_FACTOR = 1.5;
 
 @Component({
   selector: 'app-reader-image',
@@ -46,13 +53,21 @@ const PAN_VERTICAL_FACTOR = 1.5;
       -webkit-user-drag: none;
       user-drag: none;
     }
-    .reader-zoom-scale {
-      transform: scale(var(--reader-zoom, 1));
-      transform-origin: center center;
+    /* Layout-affecting zoom so the page slot gets real overflow for pan/columns. */
+    .reader-zoom-original {
+      zoom: var(--reader-zoom, 1);
+      max-width: none;
     }
     .reader-zoom-strip {
       width: calc(100% * var(--reader-zoom, 1));
       max-width: none;
+    }
+    .reader-viewport {
+      overscroll-behavior: contain;
+    }
+    .reader-viewport.is-panning {
+      scroll-behavior: auto !important;
+      scroll-snap-type: none !important;
     }
   `],
   template: `
@@ -276,7 +291,7 @@ const PAN_VERTICAL_FACTOR = 1.5;
         <div class="mx-auto max-w-3xl bg-slate-900/70 backdrop-blur-md border border-slate-800/50 rounded-xl px-4 pt-2 pb-3">
           <div class="flex items-center justify-between mb-1">
             <span class="text-[10px] font-semibold text-slate-300 tabular-nums">
-              {{ currentPage() + 1 }} / {{ pageCount() }}
+              {{ seekBarPage() + 1 }} / {{ pageCount() }}
             </span>
             <button type="button" (click)="toggleChapters()"
               class="text-[10px] font-semibold text-indigo-300 hover:text-indigo-200 cursor-pointer">
@@ -288,7 +303,7 @@ const PAN_VERTICAL_FACTOR = 1.5;
               type="range"
               min="0"
               [max]="Math.max(0, pageCount() - 1)"
-              [value]="currentPage()"
+              [value]="seekBarPage()"
               (change)="onSeekCommit($event)"
               class="w-full accent-indigo-500 cursor-pointer" />
             @for (ch of chapters(); track ch) {
@@ -424,6 +439,8 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
   pages = signal<string[]>([]);
   pageCount = signal(0);
   currentPage = signal(0);
+  /** Progress UI mark (thumb + seek counter); may lead currentPage during smooth scroll. */
+  seekBarPage = signal(0);
   chapters = signal<number[]>([]);
   favorite = signal(false);
   marked = signal(false);
@@ -461,9 +478,22 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
   private panPointerId: number | null = null;
   private panLastX = 0;
   private panLastY = 0;
+  private panStartX = 0;
+  private panStartY = 0;
+  private panStartTime = 0;
+  private panStartPage = 0;
+  private panStartScrollLeft = 0;
+  private panStartScrollTop = 0;
   private panTarget: HTMLElement | null = null;
+  /** When true, this gesture only pans the page slot (zoom / remaining overflow). */
+  private lockToPagePan = false;
+  /** When true, this gesture scrubs the viewport for page turns (anchor on release). */
+  private pagerDragActive = false;
+  /** Gesture mode not chosen until drag passes DRAG_THRESHOLD_PX. */
+  private gestureModePending = false;
   private clickTimer: ReturnType<typeof setTimeout> | null = null;
   private stubToastTimer: ReturnType<typeof setTimeout> | null = null;
+  private pendingPageLand: PageLand = 'start';
 
   readonly extractPercent = computed(() => {
     const t = this.extractTotal();
@@ -565,28 +595,29 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
   }
 
   viewportClasses(): string {
-    const grab = ' touch-none';
+    const pan = this.panning() ? ' is-panning' : '';
+    const base = 'reader-viewport absolute inset-0 outline-none touch-none';
     if (this.isHorizontal()) {
       return this.isRtl()
-        ? 'absolute inset-0 overflow-x-auto overflow-y-hidden flex flex-row-reverse snap-x snap-mandatory scroll-smooth' + grab
-        : 'absolute inset-0 overflow-x-auto overflow-y-hidden flex snap-x snap-mandatory scroll-smooth' + grab;
+        ? `${base} overflow-x-auto overflow-y-hidden flex flex-row-reverse snap-x snap-mandatory scroll-smooth${pan}`
+        : `${base} overflow-x-auto overflow-y-hidden flex snap-x snap-mandatory scroll-smooth${pan}`;
     }
     if (this.scrollingMode() === MangaScrollingMode.Vertical) {
-      return 'absolute inset-0 overflow-y-auto overflow-x-hidden flex flex-col snap-y snap-mandatory scroll-smooth' + grab;
+      return `${base} overflow-y-auto overflow-x-hidden flex flex-col snap-y snap-mandatory scroll-smooth${pan}`;
     }
-    return 'absolute inset-0 overflow-y-auto overflow-x-hidden scroll-smooth' + grab;
+    return `${base} overflow-y-auto overflow-x-hidden scroll-smooth${pan}`;
   }
 
   pagedSlotClasses(): string {
     const zoomed = this.zoom() !== 1;
     if (this.isHorizontal()) {
       return zoomed
-        ? 'w-full h-full min-w-full overflow-y-auto overflow-x-auto'
-        : 'w-full h-full min-w-full overflow-y-auto overflow-x-hidden';
+        ? 'w-full h-full min-w-full overflow-y-auto overflow-x-auto overscroll-contain'
+        : 'w-full h-full min-w-full overflow-y-auto overflow-x-hidden overscroll-contain';
     }
     return zoomed
-      ? 'w-full min-h-full h-full overflow-y-auto overflow-x-auto'
-      : 'w-full min-h-full h-full overflow-y-auto overflow-x-hidden';
+      ? 'w-full min-h-full h-full overflow-y-auto overflow-x-auto overscroll-contain'
+      : 'w-full min-h-full h-full overflow-y-auto overflow-x-hidden overscroll-contain';
   }
 
   pageImageClasses(): string {
@@ -599,7 +630,8 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
       return `${base} w-auto max-w-full`;
     }
     if (fit === MangaFitMode.Original) {
-      return `${base} reader-zoom-scale w-auto h-auto`;
+      // CSS zoom grows layout box so the slot gets real overflow (unlike transform:scale).
+      return `${base} reader-zoom-original w-auto h-auto`;
     }
     // FitWidth — width set via zoomWidthPercent() for layout-affecting zoom
     return `${base} h-auto max-w-none`;
@@ -644,6 +676,13 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
   setFitMode(mode: MangaFitMode): void {
     this.fitMode.set(mode);
     this.settings.mangaFitMode.set(mode);
+    // Mirror Kotlin setViewMode → scale(): changing fit always resets user zoom.
+    this.zoom.set(1);
+    const slot = this.currentPageSlot();
+    if (slot) {
+      slot.scrollTop = 0;
+      slot.scrollLeft = 0;
+    }
   }
 
   zoomIn(): void {
@@ -757,7 +796,7 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
 
     ev.preventDefault();
     const slot = this.currentPageSlot();
-    if (slot && this.canScrollSlot(slot, ev.deltaY)) {
+    if (slot && canScrollSlot(slot, 'y', ev.deltaY > 0 ? 1 : -1)) {
       slot.scrollTop += ev.deltaY;
       this.wheelAccum = 0;
       return;
@@ -769,9 +808,9 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
     const forward = this.wheelAccum > 0;
     this.wheelAccum = 0;
     if (this.isRtl()) {
-      forward ? this.seekTo(this.currentPage() - 1) : this.seekTo(this.currentPage() + 1);
+      forward ? this.seekTo(this.currentPage() - 1, 'end') : this.seekTo(this.currentPage() + 1, 'start');
     } else {
-      forward ? this.seekTo(this.currentPage() + 1) : this.seekTo(this.currentPage() - 1);
+      forward ? this.seekTo(this.currentPage() + 1, 'start') : this.seekTo(this.currentPage() - 1, 'end');
     }
   }
 
@@ -785,7 +824,17 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
     this.panPointerId = ev.pointerId;
     this.panLastX = ev.clientX;
     this.panLastY = ev.clientY;
+    this.panStartX = ev.clientX;
+    this.panStartY = ev.clientY;
+    this.panStartTime = performance.now();
+    this.panStartPage = this.currentPage();
+    this.panStartScrollLeft = el.scrollLeft;
+    this.panStartScrollTop = el.scrollTop;
     this.panTarget = this.currentPageSlot() || el;
+    this.lockToPagePan = false;
+    this.pagerDragActive = false;
+    this.gestureModePending = !this.isLongStrip();
+
     ev.preventDefault();
     try {
       el.setPointerCapture(ev.pointerId);
@@ -799,7 +848,9 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
     this.panLastX = ev.clientX;
     this.panLastY = ev.clientY;
 
-    if (Math.abs(dx) + Math.abs(dy) > DRAG_THRESHOLD_PX) {
+    const totalDx = ev.clientX - this.panStartX;
+    const totalDy = ev.clientY - this.panStartY;
+    if (Math.abs(totalDx) + Math.abs(totalDy) > DRAG_THRESHOLD_PX) {
       this.didDrag = true;
     }
 
@@ -807,30 +858,51 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
     const viewport = this.viewportRef?.nativeElement;
     if (!viewport) return;
 
+    // Long strip: 1:1 viewport pan (is-panning disables scroll-smooth).
+    if (this.isLongStrip()) {
+      viewport.scrollTop -= dy;
+      viewport.scrollLeft -= dx;
+      return;
+    }
+
+    // Decide page-pan vs pager after slop, using dominant axis + direction.
+    if (this.gestureModePending && this.didDrag) {
+      this.gestureModePending = false;
+      const dominantX = Math.abs(totalDx) >= Math.abs(totalDy);
+      const slotEl = slot && slot !== viewport ? slot : this.currentPageSlot();
+      if (slotEl) {
+        if (dominantX) {
+          const dir = (totalDx < 0 ? 1 : -1) as 1 | -1; // finger left → content scrolls right
+          this.lockToPagePan = canScrollSlot(slotEl, 'x', dir);
+          // Meaningful cross-axis remaining scroll keeps the gesture on the page.
+          if (!this.lockToPagePan && Math.abs(totalDy) > DRAG_THRESHOLD_PX) {
+            this.lockToPagePan = canScrollSlot(slotEl, 'y', totalDy < 0 ? 1 : -1);
+          }
+        } else {
+          const dir = (totalDy < 0 ? 1 : -1) as 1 | -1; // finger up → content scrolls down
+          this.lockToPagePan = canScrollSlot(slotEl, 'y', dir);
+          if (!this.lockToPagePan && Math.abs(totalDx) > DRAG_THRESHOLD_PX) {
+            this.lockToPagePan = canScrollSlot(slotEl, 'x', totalDx < 0 ? 1 : -1);
+          }
+        }
+      }
+      this.pagerDragActive = !this.lockToPagePan;
+    }
+
+    if (this.lockToPagePan && slot && slot !== viewport) {
+      slot.scrollTop -= dy;
+      slot.scrollLeft -= dx;
+      return;
+    }
+
+    if (this.gestureModePending) return;
+
+    // Pager drag (viewport scrub; commit/snap on release).
+    this.pagerDragActive = true;
     if (this.isHorizontal()) {
-      if (slot) {
-        slot.scrollTop -= dy;
-        if (this.zoom() !== 1) {
-          slot.scrollLeft -= dx;
-        }
-      }
-      // Horizontal page scrub / pan when slot has no horizontal overflow
-      if (this.zoom() === 1 || !slot || slot.scrollWidth <= slot.clientWidth + 1) {
-        viewport.scrollLeft -= dx;
-      }
-    } else if (this.isLongStrip()) {
-      viewport.scrollTop -= dy * PAN_STRIP_FACTOR;
-      viewport.scrollLeft -= dx * PAN_STRIP_FACTOR;
+      viewport.scrollLeft -= dx;
     } else {
-      // Vertical — scroll current page first, then push viewport toward next/prev
-      if (slot && this.canScrollSlot(slot, -dy)) {
-        slot.scrollTop -= dy;
-        if (this.zoom() !== 1) {
-          slot.scrollLeft -= dx;
-        }
-      } else {
-        viewport.scrollTop -= dy * PAN_VERTICAL_FACTOR;
-      }
+      viewport.scrollTop -= dy;
     }
   }
 
@@ -842,18 +914,53 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
         el.releasePointerCapture(this.panPointerId);
       } catch { /* ignore */ }
     }
+
     const wasDrag = this.didDrag;
+    const wasPager = this.pagerDragActive && wasDrag && !this.isLongStrip();
+    const startPage = this.panStartPage;
+    const startLeft = this.panStartScrollLeft;
+    const startTop = this.panStartScrollTop;
+    const startTime = this.panStartTime;
+
     this.panPointerId = null;
     this.panTarget = null;
+    this.lockToPagePan = false;
+    this.pagerDragActive = false;
+    this.gestureModePending = false;
     this.panning.set(false);
 
-    if (wasDrag && this.scrollingMode() === MangaScrollingMode.Vertical && el) {
-      const nearest = this.nearestPageFromDom(el);
-      if (nearest !== this.currentPage()) {
-        this.scrollToPage(nearest, true);
-      } else {
-        this.syncCurrentPageFromDom();
-      }
+    if (!wasPager || !el) return;
+
+    const elapsed = Math.max(1, performance.now() - startTime) / 1000;
+    if (this.isHorizontal()) {
+      const delta = el.scrollLeft - startLeft;
+      const pageW = el.clientWidth || 1;
+      const velocity = delta / elapsed;
+      // scrollLeft -= dx: finger left → positive delta → next page (LTR and RTL zones agree).
+      const target = resolvePagerDragTarget({
+        startPage,
+        delta,
+        pageSize: pageW,
+        pageCount: this.pageCount(),
+        velocityPxPerS: velocity
+      });
+      const land: PageLand = target > startPage ? 'start' : target < startPage ? 'end' : 'start';
+      this.pendingPageLand = land;
+      this.scrollToPage(target, true, land);
+    } else if (this.scrollingMode() === MangaScrollingMode.Vertical) {
+      const delta = el.scrollTop - startTop;
+      const pageH = el.clientHeight || 1;
+      const velocity = delta / elapsed;
+      const target = resolvePagerDragTarget({
+        startPage,
+        delta,
+        pageSize: pageH,
+        pageCount: this.pageCount(),
+        velocityPxPerS: velocity
+      });
+      const land: PageLand = target > startPage ? 'start' : target < startPage ? 'end' : 'start';
+      this.pendingPageLand = land;
+      this.scrollToPage(target, true, land);
     }
   }
 
@@ -862,31 +969,31 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
     this.syncCurrentPageFromDom();
   }
 
-  /** Navigate previous with internal page scroll first. */
+  /** Navigate previous with column scroll first (zones + keyboard + buttons). */
   goPrev(): void {
     if (this.tryScrollCurrentPage(-1)) return;
-    this.seekTo(this.currentPage() - 1);
+    this.seekTo(this.currentPage() - 1, 'end');
   }
 
-  /** Navigate next with internal page scroll first. */
+  /** Navigate next with column scroll first (zones + keyboard + buttons). */
   goNext(): void {
     if (this.tryScrollCurrentPage(1)) return;
-    this.seekTo(this.currentPage() + 1);
+    this.seekTo(this.currentPage() + 1, 'start');
   }
 
   onSeekCommit(ev: Event): void {
     const input = ev.target as HTMLInputElement;
     const target = Number(input.value);
-    // Keep thumb on current page until smooth scroll finishes
-    input.value = String(this.currentPage());
-    this.seekTo(target);
+    // Keep thumb on the selected page; currentPage still updates when smooth scroll ends.
+    this.seekTo(target, target >= this.currentPage() ? 'start' : 'end');
   }
 
-  seekTo(page: number): void {
+  seekTo(page: number, land: PageLand = 'start'): void {
     const max = Math.max(0, this.pageCount() - 1);
     const next = Math.min(Math.max(0, Number(page) || 0), max);
-    // Do not set currentPage here — bar updates only after programmatic scroll ends / user scroll
-    this.scrollToPage(next, true);
+    this.seekBarPage.set(next);
+    this.pendingPageLand = land;
+    this.scrollToPage(next, true, land);
   }
 
   async markPage(): Promise<void> {
@@ -960,6 +1067,7 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
       this.chapters.set(opened.chapters || []);
       this.favorite.set(opened.favorite);
       this.currentPage.set(opened.bookMark);
+      this.seekBarPage.set(opened.bookMark);
       this.pendingJump = opened.bookMark;
       this.brokenPages.set(0);
       this.zoom.set(1);
@@ -1037,16 +1145,18 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
     }
 
     index = Math.min(Math.max(0, index), Math.max(0, this.pageCount() - 1));
+    this.seekBarPage.set(index);
     if (index !== this.currentPage()) {
       this.currentPage.set(index);
       this.scheduleProgressUpdate();
     }
   }
 
-  private scrollToPage(page: number, smooth: boolean): void {
+  private scrollToPage(page: number, smooth: boolean, land: PageLand = this.pendingPageLand): void {
     const el = this.viewportRef?.nativeElement;
     if (!el) {
       this.pendingJump = page;
+      this.pendingPageLand = land;
       return;
     }
 
@@ -1064,11 +1174,15 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
       target?.scrollIntoView({ behavior, block: 'nearest', inline: 'center' });
     }
 
-    // Reset vertical scroll of target slot after page change settles
+    // Land at start/end of the page slot after the page change settles.
+    const delay = smooth ? PROGRAMMATIC_SCROLL_FALLBACK_MS : 0;
     setTimeout(() => {
       const slot = el.querySelector(`[data-page="${page}"]`) as HTMLElement | null;
-      if (slot) slot.scrollTop = 0;
-    }, smooth ? PROGRAMMATIC_SCROLL_FALLBACK_MS : 0);
+      if (!slot || this.isLongStrip()) return;
+      const offsets = pageLandOffsets(slot, land, this.isRtl());
+      slot.scrollTop = offsets.top;
+      slot.scrollLeft = offsets.left;
+    }, delay);
   }
 
   private currentPageSlot(): HTMLElement | null {
@@ -1077,34 +1191,25 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
     return el.querySelector(`[data-page="${this.currentPage()}"]`) as HTMLElement | null;
   }
 
-  /** @returns true if scrolled within the current page slot */
+  /** @returns true if scrolled within the current page (column reading). */
   private tryScrollCurrentPage(dir: 1 | -1): boolean {
+    if (this.isLongStrip()) return false;
     if (!this.isHorizontal() && this.scrollingMode() !== MangaScrollingMode.Vertical) {
       return false;
     }
     const slot = this.currentPageSlot();
     if (!slot) return false;
 
-    const maxScroll = slot.scrollHeight - slot.clientHeight;
-    if (maxScroll <= 2) return false;
-
-    if (dir > 0 && slot.scrollTop + slot.clientHeight < slot.scrollHeight - 2) {
-      slot.scrollBy({ top: slot.clientHeight * 0.9, behavior: 'smooth' });
-      return true;
-    }
-    if (dir < 0 && slot.scrollTop > 2) {
-      slot.scrollBy({ top: -slot.clientHeight * 0.9, behavior: 'smooth' });
-      return true;
-    }
-    return false;
-  }
-
-  private canScrollSlot(slot: HTMLElement, deltaY: number): boolean {
-    const maxScroll = slot.scrollHeight - slot.clientHeight;
-    if (maxScroll <= 2) return false;
-    if (deltaY > 0 && slot.scrollTop < maxScroll - 1) return true;
-    if (deltaY < 0 && slot.scrollTop > 1) return true;
-    return false;
+    const overflow = readSlotOverflow(slot);
+    const action = planColumnStep({
+      overflow,
+      dir,
+      rtl: this.isRtl(),
+      allowHorizontalColumns: this.isHorizontal() || this.zoom() !== 1,
+      clientWidth: slot.clientWidth,
+      clientHeight: slot.clientHeight
+    });
+    return applyColumnAction(slot, action);
   }
 
   private nearestPageFromDom(el: HTMLElement): number {

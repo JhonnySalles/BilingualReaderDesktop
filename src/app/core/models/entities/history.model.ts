@@ -62,6 +62,27 @@ export interface HistoryStatisticsItem {
   lastAccess: string;
 }
 
+/** Unique recent reads for home screen (cross manga + book). */
+export interface HomeRecentItem {
+  type: HistoryContentType;
+  fkReference: number;
+  fkLibrary: number;
+  title: string;
+  coverPath: string | null;
+  bookMark: number;
+  pages: number;
+  completed: boolean;
+  fileType: string;
+  lastAccess: string;
+}
+
+/** Daily reading activity cell for home heatmap. */
+export interface HeatmapDay {
+  date: string;
+  value: number;
+  pages: number;
+}
+
 export interface AssistantHistory extends BaseEntity<number> {
   role: AssistantMessage;
   content: string;

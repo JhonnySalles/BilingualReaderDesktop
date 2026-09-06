@@ -23,8 +23,36 @@ class StatisticsController {
         electron_1.ipcMain.handle('history:listAggregated', async (_event, options) => {
             return this.storage.listHistoryAggregated(options);
         });
+        electron_1.ipcMain.handle('history:listRecent', async (_event, limit) => {
+            return this.storage.listRecentReads(limit ?? 3);
+        });
+        electron_1.ipcMain.handle('statistics:heatmap', async (_event, _weeks) => {
+            return this.storage.getReadingActivityHeatmap();
+        });
         electron_1.ipcMain.handle('history:start', async (_event, input) => {
-            return this.storage.startHistorySession(input);
+            const sessionId = this.storage.startHistorySession(input);
+            const now = new Date().toISOString();
+            if (input.type === 'MANGA') {
+                const manga = this.storage.findMangaById(input.fkReference);
+                if (manga) {
+                    this.storage.saveManga({
+                        ...manga,
+                        lastAccess: now,
+                        lastAlteration: now
+                    });
+                }
+            }
+            else {
+                const book = this.storage.findBookById(input.fkReference);
+                if (book) {
+                    this.storage.saveBook({
+                        ...book,
+                        lastAccess: now,
+                        lastAlteration: now
+                    });
+                }
+            }
+            return sessionId;
         });
         electron_1.ipcMain.handle('history:update', async (_event, update) => {
             this.storage.updateHistorySession(update);

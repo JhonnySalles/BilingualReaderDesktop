@@ -60,6 +60,20 @@ export interface HistoryStatisticsItem {
   lastAccess: string;
 }
 
+/** Unique recent reads for home screen (cross manga + book). */
+export interface HomeRecentItem {
+  type: HistoryContentType;
+  fkReference: number;
+  fkLibrary: number;
+  title: string;
+  coverPath: string | null;
+  bookMark: number;
+  pages: number;
+  completed: boolean;
+  fileType: string;
+  lastAccess: string;
+}
+
 export class HistoryRepository extends BaseRepository<HistoryRow, number> {
   constructor(db: Database.Database) {
     super(db, 'History');
@@ -241,6 +255,103 @@ export class HistoryRepository extends BaseRepository<HistoryRow, number> {
       pagesRead: row.pagesRead ?? 0,
       timeRead: row.timeRead ?? 0,
       sessionDate: row.sessionDate,
+      lastAccess: row.lastAccess
+    }));
+  }
+
+  /**
+   * Last N unique titles opened (manga + book).
+   * Prefers entity last_access (bookmark / open) and merges History sessions.
+   */
+  public listRecent(limit = 3): HomeRecentItem[] {
+    const safeLimit = Math.max(1, Math.min(20, Math.floor(limit) || 3));
+    const sql = `
+      SELECT
+        type, fkReference, fkLibrary, title, coverPath, bookMark, pages, completed, fileType,
+        MAX(lastAccess) AS lastAccess
+      FROM (
+        SELECT
+          'MANGA' AS type,
+          M.id AS fkReference,
+          COALESCE(M.id_library, 0) AS fkLibrary,
+          M.title AS title,
+          M.cover_path AS coverPath,
+          COALESCE(M.book_mark, 0) AS bookMark,
+          COALESCE(M.pages, 1) AS pages,
+          COALESCE(M.completed, 0) AS completed,
+          COALESCE(M.type, '') AS fileType,
+          M.last_access AS lastAccess
+        FROM Manga M
+        WHERE M.excluded = 0 AND M.last_access IS NOT NULL AND TRIM(M.last_access) != ''
+
+        UNION ALL
+
+        SELECT
+          'BOOK' AS type,
+          B.id AS fkReference,
+          COALESCE(B.id_library, 0) AS fkLibrary,
+          B.title AS title,
+          B.cover_path AS coverPath,
+          COALESCE(B.book_mark, 0) AS bookMark,
+          COALESCE(B.pages, 1) AS pages,
+          COALESCE(B.completed, 0) AS completed,
+          COALESCE(B.type, '') AS fileType,
+          B.last_access AS lastAccess
+        FROM Book B
+        WHERE B.excluded = 0 AND B.last_access IS NOT NULL AND TRIM(B.last_access) != ''
+
+        UNION ALL
+
+        SELECT
+          H.type AS type,
+          H.id_reference AS fkReference,
+          H.id_library AS fkLibrary,
+          I.title AS title,
+          I.cover_path AS coverPath,
+          COALESCE(I.book_mark, 0) AS bookMark,
+          COALESCE(I.pages, 1) AS pages,
+          COALESCE(I.completed, 0) AS completed,
+          COALESCE(I.type, '') AS fileType,
+          MAX(H.date_time_start) AS lastAccess
+        FROM History H
+        INNER JOIN Manga I ON I.id = H.id_reference AND I.excluded = 0
+        WHERE H.type = 'MANGA'
+        GROUP BY H.id_reference
+
+        UNION ALL
+
+        SELECT
+          H.type AS type,
+          H.id_reference AS fkReference,
+          H.id_library AS fkLibrary,
+          I.title AS title,
+          I.cover_path AS coverPath,
+          COALESCE(I.book_mark, 0) AS bookMark,
+          COALESCE(I.pages, 1) AS pages,
+          COALESCE(I.completed, 0) AS completed,
+          COALESCE(I.type, '') AS fileType,
+          MAX(H.date_time_start) AS lastAccess
+        FROM History H
+        INNER JOIN Book I ON I.id = H.id_reference AND I.excluded = 0
+        WHERE H.type = 'BOOK'
+        GROUP BY H.id_reference
+      )
+      GROUP BY type, fkReference
+      ORDER BY lastAccess DESC
+      LIMIT ?
+    `;
+
+    const rows = this.db.prepare(sql).all(safeLimit) as any[];
+    return rows.map(row => ({
+      type: row.type as HistoryContentType,
+      fkReference: row.fkReference,
+      fkLibrary: row.fkLibrary ?? 0,
+      title: row.title ?? '',
+      coverPath: row.coverPath ?? null,
+      bookMark: row.bookMark ?? 0,
+      pages: row.pages ?? 1,
+      completed: Boolean(row.completed),
+      fileType: String(row.fileType || '').toUpperCase() || 'UNKNOWN',
       lastAccess: row.lastAccess
     }));
   }

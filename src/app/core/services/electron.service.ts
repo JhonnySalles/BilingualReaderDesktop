@@ -5,6 +5,8 @@ import {
   LibraryOption,
   HistoryStatisticsItem,
   HistoryContentType,
+  HomeRecentItem,
+  HeatmapDay,
   Manga,
   Book,
   BookAnnotation,
@@ -23,6 +25,7 @@ declare global {
       getLibraryCount: (libraryId: number, type: 'MANGA' | 'BOOK') => Promise<number>;
       getManga: (id: number) => Promise<Manga | null>;
       getBook: (id: number) => Promise<Book | null>;
+      getAdjacentBooks: (id: number) => Promise<{ prev: Book | null; next: Book | null }>;
       saveManga: (manga: Partial<Manga>) => Promise<Manga | null>;
       saveBook: (book: Partial<Book>) => Promise<Book | null>;
       deleteManga: (id: number) => Promise<boolean>;
@@ -44,6 +47,8 @@ declare global {
         libraryId?: number | null;
         search?: string | null;
       }) => Promise<HistoryStatisticsItem[]>;
+      listRecentReads: (limit?: number) => Promise<HomeRecentItem[]>;
+      getReadingActivityHeatmap: (weeks?: number) => Promise<HeatmapDay[]>;
       startHistorySession: (input: {
         fkLibrary: number;
         fkReference: number;
@@ -150,6 +155,13 @@ export class ElectronService {
     return null;
   }
 
+  async getAdjacentBooks(bookId: number): Promise<{ prev: Book | null; next: Book | null }> {
+    if (this.isElectron && window.electronAPI?.getAdjacentBooks) {
+      return await window.electronAPI.getAdjacentBooks(bookId);
+    }
+    return { prev: null, next: null };
+  }
+
   async saveManga(manga: Partial<Manga>): Promise<Manga | null> {
     if (this.isElectron && window.electronAPI?.saveManga) {
       return await window.electronAPI.saveManga(manga);
@@ -246,6 +258,20 @@ export class ElectronService {
   }): Promise<HistoryStatisticsItem[]> {
     if (this.isElectron && window.electronAPI?.listHistoryAggregated) {
       return await window.electronAPI.listHistoryAggregated(options);
+    }
+    return [];
+  }
+
+  async listRecentReads(limit = 3): Promise<HomeRecentItem[]> {
+    if (this.isElectron && window.electronAPI?.listRecentReads) {
+      return await window.electronAPI.listRecentReads(limit);
+    }
+    return [];
+  }
+
+  async getReadingActivityHeatmap(_weeks?: number): Promise<HeatmapDay[]> {
+    if (this.isElectron && window.electronAPI?.getReadingActivityHeatmap) {
+      return await window.electronAPI.getReadingActivityHeatmap();
     }
     return [];
   }

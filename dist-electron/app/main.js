@@ -217,6 +217,9 @@ electron_1.app.on('ready', () => {
         electron_1.ipcMain.handle('book:get', async (_event, id) => {
             return storageService.findBookById(id) || null;
         });
+        electron_1.ipcMain.handle('book:adjacent', async (_event, id) => {
+            return storageService.getAdjacentBooks(id);
+        });
         electron_1.ipcMain.handle('book:clear-progress', async (_event, id) => {
             return storageService.clearBookProgress(id) || null;
         });

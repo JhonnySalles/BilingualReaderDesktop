@@ -209,6 +209,10 @@ app.on('ready', () => {
       return storageService.findBookById(id) || null;
     });
 
+    ipcMain.handle('book:adjacent', async (_event, id: number) => {
+      return storageService.getAdjacentBooks(id);
+    });
+
     ipcMain.handle('book:clear-progress', async (_event, id: number) => {
       return storageService.clearBookProgress(id) || null;
     });

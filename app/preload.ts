@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getLibraryCount: (libraryId: number, type: 'MANGA' | 'BOOK') => ipcRenderer.invoke('library:get-count', libraryId, type),
   getManga: (id: number) => ipcRenderer.invoke('manga:get', id),
   getBook: (id: number) => ipcRenderer.invoke('book:get', id),
+  getAdjacentBooks: (id: number) => ipcRenderer.invoke('book:adjacent', id),
   saveManga: (manga: any) => ipcRenderer.invoke('manga:save', manga),
   saveBook: (book: any) => ipcRenderer.invoke('book:save', book),
   deleteManga: (id: number) => ipcRenderer.invoke('manga:delete', id),
@@ -33,6 +34,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     libraryId?: number | null;
     search?: string | null;
   }) => ipcRenderer.invoke('history:listAggregated', options),
+  listRecentReads: (limit?: number) => ipcRenderer.invoke('history:listRecent', limit),
+  getReadingActivityHeatmap: (weeks?: number) => ipcRenderer.invoke('statistics:heatmap', weeks),
   startHistorySession: (input: {
     fkLibrary: number;
     fkReference: number;

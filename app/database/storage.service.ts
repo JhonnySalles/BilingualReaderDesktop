@@ -105,6 +105,10 @@ export class StorageService {
     return this.bookRepository.getById(id);
   }
 
+  public getAdjacentBooks(bookId: number): { prev: Book | null; next: Book | null } {
+    return this.bookRepository.getAdjacentBooks(bookId);
+  }
+
   public findBookByPath(filePath: string): Book | undefined {
     return this.bookRepository.getByPath(filePath);
   }
@@ -186,6 +190,14 @@ export class StorageService {
     search?: string | null;
   }) {
     return this.historyRepository.listAggregated(options);
+  }
+
+  public listRecentReads(limit = 3) {
+    return this.historyRepository.listRecent(limit);
+  }
+
+  public getReadingActivityHeatmap(_weeks?: number) {
+    return this.statisticsRepository.getReadingActivityHeatmap();
   }
 
   public startHistorySession(input: HistorySessionInput): number {

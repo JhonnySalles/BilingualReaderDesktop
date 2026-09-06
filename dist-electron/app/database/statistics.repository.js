@@ -110,5 +110,55 @@ class StatisticsRepository {
             path: row.path
         }));
     }
+    /**
+     * Daily reading activity for the last 12 months (GitHub contribution style).
+     * value = seconds_read that day (min 1s per session so open sessions count);
+     * pages = pages advanced.
+     */
+    getReadingActivityHeatmap(_weeks) {
+        const today = new Date();
+        today.setHours(12, 0, 0, 0);
+        // ~12 months back, then align start to Sunday so the grid is week-aligned
+        const start = new Date(today);
+        start.setMonth(start.getMonth() - 12);
+        start.setDate(start.getDate() + 1); // inclusive window ending today
+        start.setDate(start.getDate() - start.getDay()); // back to Sunday
+        const startIso = this.toLocalDateKey(start);
+        const endIso = this.toLocalDateKey(today);
+        const rows = this.db.prepare(`
+      SELECT
+        SUBSTR(date_time_start, 1, 10) AS day,
+        COALESCE(SUM(CASE WHEN seconds_read > 0 THEN seconds_read ELSE 1 END), 0) AS seconds,
+        COALESCE(SUM(CASE WHEN page_end > page_start THEN page_end - page_start ELSE 0 END), 0) AS pages
+      FROM History
+      WHERE SUBSTR(date_time_start, 1, 10) >= ?
+        AND SUBSTR(date_time_start, 1, 10) <= ?
+      GROUP BY SUBSTR(date_time_start, 1, 10)
+      ORDER BY day ASC
+    `).all(startIso, endIso);
+        const byDay = new Map(rows.map(r => [r.day, {
+                value: Number(r.seconds) || 0,
+                pages: Number(r.pages) || 0
+            }]));
+        const result = [];
+        const cursor = new Date(start);
+        while (this.toLocalDateKey(cursor) <= endIso) {
+            const key = this.toLocalDateKey(cursor);
+            const entry = byDay.get(key);
+            result.push({
+                date: key,
+                value: entry?.value ?? 0,
+                pages: entry?.pages ?? 0
+            });
+            cursor.setDate(cursor.getDate() + 1);
+        }
+        return result;
+    }
+    toLocalDateKey(d) {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    }
 }
 exports.StatisticsRepository = StatisticsRepository;

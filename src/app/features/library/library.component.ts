@@ -6,9 +6,12 @@ import { MangaLibraryService } from '../../core/services/manga-library.service';
 import { BookLibraryService } from '../../core/services/book-library.service';
 import { SettingsService } from '../../core/services/settings.service';
 import { NavigationStackService } from '../../core/services/navigation-stack.service';
+import { HomeDashboardService } from '../../core/services/home-dashboard.service';
 import { SharedListComponent } from './components/shared-list/shared-list.component';
 import { MangaFilterModalComponent } from './manga-library/components/manga-filter-modal/manga-filter-modal.component';
-import { Manga, Book, OrderType } from '../../core/models';
+import { HomeRecentCardComponent } from './components/home-recent-card/home-recent-card.component';
+import { HomeReadingHeatmapComponent } from './components/home-reading-heatmap/home-reading-heatmap.component';
+import { Manga, Book, OrderType, HomeRecentItem } from '../../core/models';
 
 @Component({
   selector: 'app-library',
@@ -17,98 +20,134 @@ import { Manga, Book, OrderType } from '../../core/models';
     CommonModule,
     RouterModule,
     SharedListComponent,
-    MangaFilterModalComponent
+    MangaFilterModalComponent,
+    HomeRecentCardComponent,
+    HomeReadingHeatmapComponent
   ],
   template: `
     <div class="h-full flex flex-col bg-slate-950 text-slate-100 overflow-hidden p-6 relative">
       
-      <!-- Filter Modal -->
       @if (libraryStateService.showFilterModal()) {
         <app-manga-filter-modal (close)="libraryStateService.showFilterModal.set(false)"></app-manga-filter-modal>
       }
 
-      <!-- HOME DASHBOARD VIEW (when no library selected or lib === 'home') -->
       @if (activeLibId() === 'home') {
-        <div class="flex-1 overflow-y-auto space-y-8">
+        <div class="flex-1 overflow-y-auto space-y-8 pb-4">
           
-          <!-- Hero Banner -->
-          <div class="relative rounded-2xl bg-gradient-to-r from-indigo-900/40 via-slate-900 to-purple-900/30 p-8 border border-slate-800 shadow-xl overflow-hidden">
+          <div class="relative rounded-2xl bg-gradient-to-r from-indigo-900/40 via-slate-900 to-indigo-950/40 p-8 border border-slate-800 shadow-xl overflow-hidden">
             <div class="relative z-10 max-w-xl">
               <h2 class="text-2xl font-extrabold text-white tracking-tight">Bem-vindo ao Bilingual Reader</h2>
               <p class="text-sm text-slate-300 mt-2 leading-relaxed">
-                Selecione uma biblioteca no menu lateral ou abaixo para gerenciar e ler sua coleção de mangás, quadrinhos e livros digitais.
+                Continue de onde parou ou escolha uma biblioteca abaixo para ler mangás e livros.
               </p>
             </div>
             <div class="absolute -right-6 -bottom-6 w-48 h-48 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none"></div>
           </div>
 
-          <!-- Section: Active Libraries Overview -->
           <div>
             <h3 class="text-sm font-bold uppercase tracking-wider text-slate-400 mb-4 flex items-center gap-2">
               <span class="w-2 h-2 rounded-full bg-indigo-500"></span>
-              Suas Bibliotecas Cadastradas
+              Últimos arquivos
             </h3>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <!-- Default Manga Card -->
-              <a [routerLink]="['/']" [queryParams]="{ lib: 'manga-default' }" class="group p-5 rounded-2xl bg-slate-900/80 border border-slate-800 hover:border-indigo-500/50 hover:bg-slate-800/80 transition-all cursor-pointer flex items-center justify-between">
-                <div class="flex items-center gap-4">
-                  <div class="w-12 h-12 rounded-xl bg-indigo-600/20 text-indigo-400 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
-                    🎨
-                  </div>
-                  <div>
-                    <h4 class="text-base font-bold text-slate-100 group-hover:text-indigo-400 transition-colors">Biblioteca de Mangás</h4>
-                    <p class="text-xs text-slate-400 mt-0.5">{{ mangaLibraryService.mangas().length }} itens cadastrados</p>
-                  </div>
-                </div>
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-slate-500 group-hover:text-indigo-400 group-hover:translate-x-1 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                </svg>
-              </a>
+            @if (home.recentReads().length === 0) {
+              <div class="rounded-2xl border border-dashed border-slate-800 bg-slate-900/40 px-6 py-10 text-center">
+                <p class="text-sm text-slate-400">Comece a ler para ver seus últimos arquivos aqui.</p>
+              </div>
+            } @else {
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-4xl">
+                @for (item of home.recentReads(); track item.type + '-' + item.fkReference) {
+                  <app-home-recent-card [item]="item" (open)="onOpenRecent($event)" />
+                }
+              </div>
+            }
+          </div>
 
-              <!-- Default Book Card -->
-              <a [routerLink]="['/']" [queryParams]="{ lib: 'book-default' }" class="group p-5 rounded-2xl bg-slate-900/80 border border-slate-800 hover:border-amber-500/50 hover:bg-slate-800/80 transition-all cursor-pointer flex items-center justify-between">
-                <div class="flex items-center gap-4">
-                  <div class="w-12 h-12 rounded-xl bg-amber-600/20 text-amber-400 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
-                    📚
-                  </div>
-                  <div>
-                    <h4 class="text-base font-bold text-slate-100 group-hover:text-amber-400 transition-colors">Biblioteca de Livros</h4>
-                    <p class="text-xs text-slate-400 mt-0.5">{{ bookLibraryService.books().length }} itens cadastrados</p>
-                  </div>
-                </div>
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-slate-500 group-hover:text-amber-400 group-hover:translate-x-1 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                </svg>
-              </a>
+          <div class="mt-8">
+            <app-home-reading-heatmap [days]="home.heatmap()" />
+          </div>
 
-              <!-- Custom Libraries -->
-              @for (lib of settingsService.libraries(); track lib.id) {
-                <a [routerLink]="['/']" [queryParams]="{ lib: lib.id }" class="group p-5 rounded-2xl bg-slate-900/80 border border-slate-800 hover:border-indigo-500/50 hover:bg-slate-800/80 transition-all cursor-pointer flex items-center justify-between">
-                  <div class="flex items-center gap-4">
-                    <div class="w-12 h-12 rounded-xl bg-slate-800 text-slate-300 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
-                      {{ lib.type === 'manga' ? '🎨' : '📚' }}
-                    </div>
-                    <div>
-                      <h4 class="text-base font-bold text-slate-100 group-hover:text-indigo-400 transition-colors">{{ lib.title }}</h4>
-                      <p class="text-xs text-slate-400 mt-0.5">Biblioteca Personalizada</p>
+          <div class="border-t border-slate-800 pt-8 space-y-6">
+            <h3 class="text-sm font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-indigo-500"></span>
+              Suas bibliotecas
+            </h3>
+
+            <div class="space-y-3">
+              <h4 class="text-xs font-semibold text-indigo-400/90 uppercase tracking-wider">Mangás &amp; Comics</h4>
+              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <a [routerLink]="['/']" [queryParams]="{ lib: 'manga-default' }"
+                  class="group p-5 rounded-2xl bg-slate-900/80 border border-slate-800 hover:border-indigo-500/50 hover:bg-slate-800/80 transition-all cursor-pointer flex items-center justify-between">
+                  <div class="flex items-center gap-4 min-w-0">
+                    <div class="w-12 h-12 shrink-0 rounded-xl bg-indigo-600/20 text-indigo-400 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">🎨</div>
+                    <div class="min-w-0">
+                      <h4 class="text-base font-bold text-slate-100 group-hover:text-indigo-400 transition-colors truncate">Biblioteca de Mangás</h4>
+                      <p class="text-xs text-slate-400 mt-0.5">{{ mangaLibraryService.mangas().length }} itens · padrão</p>
                     </div>
                   </div>
-                  <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-slate-500 group-hover:text-indigo-400 group-hover:translate-x-1 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 shrink-0 text-slate-500 group-hover:text-indigo-400 group-hover:translate-x-1 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                   </svg>
                 </a>
-              }
+
+                @for (lib of mangaCustomLibraries(); track lib.id) {
+                  <a [routerLink]="['/']" [queryParams]="{ lib: lib.id }"
+                    class="group p-5 rounded-2xl bg-slate-900/80 border border-slate-800 hover:border-indigo-500/50 hover:bg-slate-800/80 transition-all cursor-pointer flex items-center justify-between">
+                    <div class="flex items-center gap-4 min-w-0">
+                      <div class="w-12 h-12 shrink-0 rounded-xl bg-slate-800 text-slate-300 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">🎨</div>
+                      <div class="min-w-0">
+                        <h4 class="text-base font-bold text-slate-100 group-hover:text-indigo-400 transition-colors truncate">{{ lib.title }}</h4>
+                        <p class="text-xs text-slate-400 mt-0.5 truncate">{{ lib.language || 'Personalizada' }}</p>
+                      </div>
+                    </div>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 shrink-0 text-slate-500 group-hover:text-indigo-400 group-hover:translate-x-1 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                    </svg>
+                  </a>
+                }
+              </div>
+            </div>
+
+            <div class="space-y-3">
+              <h4 class="text-xs font-semibold text-amber-400/90 uppercase tracking-wider">Livros &amp; EPUBs</h4>
+              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <a [routerLink]="['/']" [queryParams]="{ lib: 'book-default' }"
+                  class="group p-5 rounded-2xl bg-slate-900/80 border border-slate-800 hover:border-amber-500/50 hover:bg-slate-800/80 transition-all cursor-pointer flex items-center justify-between">
+                  <div class="flex items-center gap-4 min-w-0">
+                    <div class="w-12 h-12 shrink-0 rounded-xl bg-amber-600/20 text-amber-400 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">📚</div>
+                    <div class="min-w-0">
+                      <h4 class="text-base font-bold text-slate-100 group-hover:text-amber-400 transition-colors truncate">Biblioteca de Livros</h4>
+                      <p class="text-xs text-slate-400 mt-0.5">{{ bookLibraryService.books().length }} itens · padrão</p>
+                    </div>
+                  </div>
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 shrink-0 text-slate-500 group-hover:text-amber-400 group-hover:translate-x-1 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                  </svg>
+                </a>
+
+                @for (lib of bookCustomLibraries(); track lib.id) {
+                  <a [routerLink]="['/']" [queryParams]="{ lib: lib.id }"
+                    class="group p-5 rounded-2xl bg-slate-900/80 border border-slate-800 hover:border-amber-500/50 hover:bg-slate-800/80 transition-all cursor-pointer flex items-center justify-between">
+                    <div class="flex items-center gap-4 min-w-0">
+                      <div class="w-12 h-12 shrink-0 rounded-xl bg-slate-800 text-slate-300 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">📚</div>
+                      <div class="min-w-0">
+                        <h4 class="text-base font-bold text-slate-100 group-hover:text-amber-400 transition-colors truncate">{{ lib.title }}</h4>
+                        <p class="text-xs text-slate-400 mt-0.5 truncate">{{ lib.language || 'Personalizada' }}</p>
+                      </div>
+                    </div>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 shrink-0 text-slate-500 group-hover:text-amber-400 group-hover:translate-x-1 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                    </svg>
+                  </a>
+                }
+              </div>
             </div>
           </div>
         </div>
       }
 
-      <!-- LIBRARY CONTENT VIEW -->
       @if (activeLibId() !== 'home') {
         <div class="flex-1 flex flex-col min-h-0 overflow-y-auto">
-          
-          <!-- Library Actions Bar -->
           <div class="flex justify-between items-center mb-6">
             <div class="flex items-center gap-2">
               <span class="text-xs font-semibold px-2.5 py-1 rounded-md bg-slate-900 border border-slate-800 text-slate-400">
@@ -135,7 +174,6 @@ import { Manga, Book, OrderType } from '../../core/models';
             </button>
           </div>
 
-          <!-- Empty State -->
           @if (filteredItems().length === 0 && !isCurrentlyScanning()) {
             <div class="flex flex-col items-center justify-center py-20 text-center flex-1">
               <div class="w-16 h-16 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-500 mb-4">
@@ -161,7 +199,6 @@ import { Manga, Book, OrderType } from '../../core/models';
         </div>
       }
 
-      <!-- FOOTER INDETERMINATE PROGRESS BAR -->
       @if (isCurrentlyScanning()) {
         <div class="absolute bottom-0 left-0 right-0 h-1 bg-slate-900 overflow-hidden z-50">
           <div class="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500 animate-indeterminate"></div>
@@ -179,6 +216,7 @@ export class LibraryComponent implements OnInit {
   public mangaLibraryService = inject(MangaLibraryService);
   public bookLibraryService = inject(BookLibraryService);
   public settingsService = inject(SettingsService);
+  public home = inject(HomeDashboardService);
 
   activeLibId = signal<string>('home');
   activeLibType = signal<'manga' | 'book'>('manga');
@@ -188,11 +226,19 @@ export class LibraryComponent implements OnInit {
     return this.mangaLibraryService.isScanning() || this.bookLibraryService.isScanning();
   });
 
+  mangaCustomLibraries = computed(() =>
+    this.settingsService.libraries().filter(l => l.type === 'manga')
+  );
+
+  bookCustomLibraries = computed(() =>
+    this.settingsService.libraries().filter(l => l.type === 'book')
+  );
+
   ngOnInit(): void {
     this.route.queryParams.subscribe(async params => {
       const libId = params['lib'] || 'home';
       this.activeLibId.set(libId);
-      this.customOrderItems.set(null); // Reset manual reorder on lib change
+      this.customOrderItems.set(null);
       this.nav.rememberLibrary(libId);
 
       let pathToScan = '';
@@ -207,6 +253,7 @@ export class LibraryComponent implements OnInit {
         });
         this.mangaLibraryService.loadMangas();
         this.bookLibraryService.loadBooks();
+        void this.home.refresh();
       } else if (libId === 'manga-default') {
         this.activeLibType.set('manga');
         this.libraryStateService.activeContext.set('manga');
@@ -290,7 +337,7 @@ export class LibraryComponent implements OnInit {
     const isAsc = this.libraryStateService.isAscending();
 
     if (query) {
-      list = list.filter(item => 
+      list = list.filter(item =>
         item.title.toLowerCase().includes(query) ||
         (item.author && item.author.toLowerCase().includes(query)) ||
         (item.series && item.series.toLowerCase().includes(query))
@@ -324,6 +371,15 @@ export class LibraryComponent implements OnInit {
 
   onReordered(newOrder: (Manga | Book)[]) {
     this.customOrderItems.set(newOrder);
+  }
+
+  onOpenRecent(item: HomeRecentItem): void {
+    if (!item.fkReference) return;
+    this.nav.openReader(
+      this.router,
+      item.type === 'MANGA' ? 'image' : 'text',
+      item.fkReference
+    );
   }
 
   onOpenItem(item: Manga | Book): void {

@@ -121,6 +121,9 @@ class StorageService {
     findBookById(id) {
         return this.bookRepository.getById(id);
     }
+    getAdjacentBooks(bookId) {
+        return this.bookRepository.getAdjacentBooks(bookId);
+    }
     findBookByPath(filePath) {
         return this.bookRepository.getByPath(filePath);
     }
@@ -178,6 +181,12 @@ class StorageService {
     }
     listHistoryAggregated(options) {
         return this.historyRepository.listAggregated(options);
+    }
+    listRecentReads(limit = 3) {
+        return this.historyRepository.listRecent(limit);
+    }
+    getReadingActivityHeatmap(_weeks) {
+        return this.statisticsRepository.getReadingActivityHeatmap();
     }
     startHistorySession(input) {
         return this.historyRepository.startSession(input);

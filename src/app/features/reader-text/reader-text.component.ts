@@ -37,6 +37,7 @@ import { ReaderTouchConfigComponent } from '../reader-shared/reader-touch-config
 import { handleReaderTouchTap, TouchActionHandlers } from '../reader-shared/touch-action.util';
 import { AnnotationPopupComponent } from './annotation-popup.component';
 import { TextSelectPopupComponent } from './text-select-popup.component';
+import { BOOK_FONT_OPTIONS, BookFontOption } from './book-fonts';
 
 interface TocEntry {
   label: string;
@@ -67,6 +68,12 @@ const ZOOM_STEP_WHEEL = 0.1;
 const ZOOM_STEP_BUTTON = 0.25;
 const WHEEL_PAGE_THRESHOLD = 200;
 const DRAG_THRESHOLD_PX = 5;
+/** Rubber-band / page-turn threshold when dragging past page edge (px). */
+const OVERSCROLL_PAGE_THRESHOLD = 200;
+/** Fraction of viewport used as alternate overscroll threshold. */
+const OVERSCROLL_VIEWPORT_FRACTION = 0.3;
+/** Dedupe window for click + touchend on the same gesture (ms). */
+const TAP_DEDUPE_MS = 350;
 
 @Component({
   selector: 'app-reader-text',
@@ -106,15 +113,21 @@ const DRAG_THRESHOLD_PX = 5;
         class="absolute inset-0 outline-none z-0 touch-none"
         [class.cursor-grab]="!panning()"
         [class.cursor-grabbing]="panning()">
-        <div #viewer class="w-full h-full origin-top" [style.zoom]="zoom()"></div>
+        <div
+          #viewer
+          class="w-full h-full origin-top will-change-transform"
+          [style.zoom]="zoom()"
+          [style.transform]="viewerTransform()"
+          [style.transition]="viewerTransition()"></div>
       </div>
 
-      <!-- Always-visible thin progress strip -->
+      <!-- Always-visible progress track + marker (full book width) -->
       @if (!loading() && !error()) {
         <div class="absolute bottom-0 inset-x-0 z-20 pointer-events-none">
-          <div class="h-0.5 bg-slate-800">
-            <div class="h-full bg-indigo-500 transition-all duration-200"
-              [style.width.%]="progressPercent()"></div>
+          <div class="relative h-0.5 bg-slate-800">
+            <div
+              class="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-indigo-400 shadow-sm transition-[left] duration-200"
+              [style.left.%]="progressMarkerPercent()"></div>
           </div>
           <div class="flex items-center justify-between px-4 py-1 bg-slate-950/50 backdrop-blur-sm">
             <span class="text-[10px] text-slate-400 truncate max-w-[60%]">{{ chapterTitle() || title() }}</span>
@@ -307,8 +320,9 @@ const DRAG_THRESHOLD_PX = 5;
         [class.pointer-events-none]="!chromeVisible()"
         (click)="$event.stopPropagation()">
         <div class="h-14 px-3 sm:px-6 flex items-center justify-center gap-1 sm:gap-2 bg-slate-900/70 backdrop-blur-md border-t border-slate-800/50">
-          <button type="button" disabled title="Arquivo anterior (em breve)"
-            class="p-2.5 rounded-xl text-slate-600 cursor-not-allowed opacity-50">
+          <button type="button" (click)="requestAdjacentFile('prev')"
+            class="p-2.5 rounded-xl text-slate-200 hover:bg-slate-800 cursor-pointer"
+            title="Arquivo anterior">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"/>
             </svg>
@@ -372,8 +386,9 @@ const DRAG_THRESHOLD_PX = 5;
             </svg>
           </button>
 
-          <button type="button" disabled title="Próximo arquivo (em breve)"
-            class="p-2.5 rounded-xl text-slate-600 cursor-not-allowed opacity-50">
+          <button type="button" (click)="requestAdjacentFile('next')"
+            class="p-2.5 rounded-xl text-slate-200 hover:bg-slate-800 cursor-pointer"
+            title="Próximo arquivo">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7"/>
             </svg>
@@ -407,7 +422,7 @@ const DRAG_THRESHOLD_PX = 5;
       <!-- Typography side sheet -->
       @if (showTypography() && chromeVisible()) {
         <aside
-          class="absolute top-14 right-0 bottom-20 z-50 w-[min(90vw,20rem)]
+          class="absolute top-14 right-0 bottom-20 z-50 w-[min(90vw,22rem)]
             bg-slate-900/95 backdrop-blur-md border-l border-slate-700 shadow-2xl p-4 overflow-y-auto"
           (click)="$event.stopPropagation()">
           <div class="flex items-center justify-between mb-3">
@@ -420,50 +435,147 @@ const DRAG_THRESHOLD_PX = 5;
             </button>
           </div>
 
+          <label class="block text-[11px] text-slate-400 mb-2">Fonte</label>
+          <div class="flex gap-2 overflow-x-auto pb-2 mb-4 -mx-1 px-1 snap-x">
+            @for (font of bookFonts; track font.id) {
+              <button type="button" (click)="setFontFamily(font.css)"
+                class="snap-start shrink-0 w-[4.5rem] flex flex-col items-center gap-1 rounded-xl border px-1.5 py-2 cursor-pointer transition-colors hover:border-slate-500"
+                [class.border-indigo-400]="fontFamily() === font.css"
+                [class.bg-indigo-500]="fontFamily() === font.css"
+                [class.bg-opacity-20]="fontFamily() === font.css"
+                [class.text-indigo-200]="fontFamily() === font.css"
+                [class.border-slate-700]="fontFamily() !== font.css"
+                [class.bg-slate-950]="fontFamily() !== font.css"
+                [class.text-slate-300]="fontFamily() !== font.css"
+                [attr.title]="font.label">
+                <span class="text-2xl leading-none pt-1" [style.fontFamily]="font.css">{{ font.sample }}</span>
+                <span class="text-[9px] font-medium truncate w-full text-center">{{ font.label }}</span>
+              </button>
+            }
+          </div>
+
+          <div class="h-px bg-slate-700/80 mx-1 mb-4"></div>
+
           <label class="block text-[11px] text-slate-400 mb-1">Tamanho ({{ fontSize() }}px)</label>
           <div class="flex items-center gap-2 mb-4">
             <button type="button" (click)="adjustFontSize(-1)"
-              class="px-3 py-1.5 rounded-lg bg-slate-800 text-sm cursor-pointer hover:bg-slate-700">A−</button>
+              class="px-3 py-1.5 rounded-lg bg-slate-800 text-sm cursor-pointer hover:bg-slate-700"
+              title="Diminuir">A−</button>
             <input type="range" min="12" max="32" [ngModel]="fontSize()" (ngModelChange)="setFontSize($event)"
               class="flex-1 accent-indigo-500 cursor-pointer" />
             <button type="button" (click)="adjustFontSize(1)"
-              class="px-3 py-1.5 rounded-lg bg-slate-800 text-sm cursor-pointer hover:bg-slate-700">A+</button>
+              class="px-3 py-1.5 rounded-lg bg-slate-800 text-sm cursor-pointer hover:bg-slate-700"
+              title="Aumentar">A+</button>
           </div>
 
-          <label class="block text-[11px] text-slate-400 mb-1">Fonte</label>
-          <select class="w-full mb-4 bg-slate-950 border border-slate-700 rounded-lg px-2 py-2 text-xs text-slate-200"
-            [ngModel]="fontFamily()" (ngModelChange)="setFontFamily($event)">
-            <option value="Georgia, serif">Georgia</option>
-            <option value="'Palatino Linotype', Palatino, serif">Palatino</option>
-            <option value="'Times New Roman', Times, serif">Times</option>
-            <option value="system-ui, sans-serif">Sistema</option>
-            <option value="'Segoe UI', sans-serif">Segoe UI</option>
-          </select>
+          <div class="h-px bg-slate-700/80 mx-1 mb-4"></div>
 
-          <label class="block text-[11px] text-slate-400 mb-1">Alinhamento</label>
-          <select class="w-full mb-4 bg-slate-950 border border-slate-700 rounded-lg px-2 py-2 text-xs text-slate-200"
-            [ngModel]="align()" (ngModelChange)="setAlign($event)">
-            <option value="justify">Justificado</option>
-            <option value="left">Esquerda</option>
-            <option value="center">Centro</option>
-            <option value="right">Direita</option>
-          </select>
+          <label class="block text-[11px] text-slate-400 mb-2">Margem</label>
+          <div class="flex justify-between gap-2 mb-4">
+            <button type="button" (click)="setMargin('small')" title="Pequena"
+              class="flex-1 aspect-square max-h-14 rounded-xl border flex items-center justify-center cursor-pointer transition-colors hover:bg-slate-800 border-slate-700 bg-slate-950"
+              [class.border-indigo-400]="margin() === 'small'"
+              [class.bg-indigo-500]="margin() === 'small'"
+              [class.bg-opacity-20]="margin() === 'small'">
+              <svg class="w-7 h-7 text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <rect x="6" y="4" width="12" height="16" rx="1" stroke-width="1.5"/>
+                <path stroke-width="1.5" d="M8 7h8M8 10h8M8 13h5"/>
+              </svg>
+            </button>
+            <button type="button" (click)="setMargin('medium')" title="Média"
+              class="flex-1 aspect-square max-h-14 rounded-xl border flex items-center justify-center cursor-pointer transition-colors hover:bg-slate-800 border-slate-700 bg-slate-950"
+              [class.border-indigo-400]="margin() === 'medium'"
+              [class.bg-indigo-500]="margin() === 'medium'"
+              [class.bg-opacity-20]="margin() === 'medium'">
+              <svg class="w-7 h-7 text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <rect x="4" y="4" width="16" height="16" rx="1" stroke-width="1.5"/>
+                <path stroke-width="1.5" d="M7 8h10M7 11h10M7 14h7"/>
+              </svg>
+            </button>
+            <button type="button" (click)="setMargin('large')" title="Grande"
+              class="flex-1 aspect-square max-h-14 rounded-xl border flex items-center justify-center cursor-pointer transition-colors hover:bg-slate-800 border-slate-700 bg-slate-950"
+              [class.border-indigo-400]="margin() === 'large'"
+              [class.bg-indigo-500]="margin() === 'large'"
+              [class.bg-opacity-20]="margin() === 'large'">
+              <svg class="w-7 h-7 text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <rect x="2" y="4" width="20" height="16" rx="1" stroke-width="1.5"/>
+                <path stroke-width="1.5" d="M6 8h12M6 11h12M6 14h8"/>
+              </svg>
+            </button>
+          </div>
 
-          <label class="block text-[11px] text-slate-400 mb-1">Margem</label>
-          <select class="w-full mb-4 bg-slate-950 border border-slate-700 rounded-lg px-2 py-2 text-xs text-slate-200"
-            [ngModel]="margin()" (ngModelChange)="setMargin($event)">
-            <option value="small">Pequena</option>
-            <option value="medium">Média</option>
-            <option value="large">Grande</option>
-          </select>
+          <label class="block text-[11px] text-slate-400 mb-2">Espaçamento</label>
+          <div class="flex justify-between gap-2 mb-4">
+            <button type="button" (click)="setSpacing('small')" title="Compacto"
+              class="flex-1 aspect-square max-h-14 rounded-xl border flex items-center justify-center cursor-pointer transition-colors hover:bg-slate-800 border-slate-700 bg-slate-950"
+              [class.border-indigo-400]="spacing() === 'small'"
+              [class.bg-indigo-500]="spacing() === 'small'"
+              [class.bg-opacity-20]="spacing() === 'small'">
+              <svg class="w-7 h-7 text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-width="1.75" stroke-linecap="round" d="M5 8h14M5 11h14M5 14h14"/>
+              </svg>
+            </button>
+            <button type="button" (click)="setSpacing('medium')" title="Normal"
+              class="flex-1 aspect-square max-h-14 rounded-xl border flex items-center justify-center cursor-pointer transition-colors hover:bg-slate-800 border-slate-700 bg-slate-950"
+              [class.border-indigo-400]="spacing() === 'medium'"
+              [class.bg-indigo-500]="spacing() === 'medium'"
+              [class.bg-opacity-20]="spacing() === 'medium'">
+              <svg class="w-7 h-7 text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-width="1.75" stroke-linecap="round" d="M5 7h14M5 12h14M5 17h14"/>
+              </svg>
+            </button>
+            <button type="button" (click)="setSpacing('large')" title="Amplo"
+              class="flex-1 aspect-square max-h-14 rounded-xl border flex items-center justify-center cursor-pointer transition-colors hover:bg-slate-800 border-slate-700 bg-slate-950"
+              [class.border-indigo-400]="spacing() === 'large'"
+              [class.bg-indigo-500]="spacing() === 'large'"
+              [class.bg-opacity-20]="spacing() === 'large'">
+              <svg class="w-7 h-7 text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-width="1.75" stroke-linecap="round" d="M5 6h14M5 12h14M5 18h14"/>
+              </svg>
+            </button>
+          </div>
 
-          <label class="block text-[11px] text-slate-400 mb-1">Espaçamento</label>
-          <select class="w-full mb-4 bg-slate-950 border border-slate-700 rounded-lg px-2 py-2 text-xs text-slate-200"
-            [ngModel]="spacing()" (ngModelChange)="setSpacing($event)">
-            <option value="small">Compacto</option>
-            <option value="medium">Normal</option>
-            <option value="large">Amplo</option>
-          </select>
+          <label class="block text-[11px] text-slate-400 mb-2">Alinhamento</label>
+          <div class="flex justify-between gap-2 mb-4">
+            <button type="button" (click)="setAlign('justify')" title="Justificado"
+              class="flex-1 aspect-square max-h-12 rounded-xl border flex items-center justify-center cursor-pointer transition-colors hover:bg-slate-800 border-slate-700 bg-slate-950"
+              [class.border-indigo-400]="align() === 'justify'"
+              [class.bg-indigo-500]="align() === 'justify'"
+              [class.bg-opacity-20]="align() === 'justify'">
+              <svg class="w-5 h-5 text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-width="2" stroke-linecap="round" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
+              </svg>
+            </button>
+            <button type="button" (click)="setAlign('left')" title="Esquerda"
+              class="flex-1 aspect-square max-h-12 rounded-xl border flex items-center justify-center cursor-pointer transition-colors hover:bg-slate-800 border-slate-700 bg-slate-950"
+              [class.border-indigo-400]="align() === 'left'"
+              [class.bg-indigo-500]="align() === 'left'"
+              [class.bg-opacity-20]="align() === 'left'">
+              <svg class="w-5 h-5 text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-width="2" stroke-linecap="round" d="M4 6h16M4 10h12M4 14h16M4 18h10"/>
+              </svg>
+            </button>
+            <button type="button" (click)="setAlign('center')" title="Centro"
+              class="flex-1 aspect-square max-h-12 rounded-xl border flex items-center justify-center cursor-pointer transition-colors hover:bg-slate-800 border-slate-700 bg-slate-950"
+              [class.border-indigo-400]="align() === 'center'"
+              [class.bg-indigo-500]="align() === 'center'"
+              [class.bg-opacity-20]="align() === 'center'">
+              <svg class="w-5 h-5 text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-width="2" stroke-linecap="round" d="M4 6h16M7 10h10M4 14h16M8 18h8"/>
+              </svg>
+            </button>
+            <button type="button" (click)="setAlign('right')" title="Direita"
+              class="flex-1 aspect-square max-h-12 rounded-xl border flex items-center justify-center cursor-pointer transition-colors hover:bg-slate-800 border-slate-700 bg-slate-950"
+              [class.border-indigo-400]="align() === 'right'"
+              [class.bg-indigo-500]="align() === 'right'"
+              [class.bg-opacity-20]="align() === 'right'">
+              <svg class="w-5 h-5 text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-width="2" stroke-linecap="round" d="M4 6h16M8 10h12M4 14h16M10 18h10"/>
+              </svg>
+            </button>
+          </div>
+
+          <div class="h-px bg-slate-700/80 mx-1 mb-4"></div>
 
           <label class="block text-[11px] text-slate-400 mb-1">Modo de leitura</label>
           <select class="w-full mb-2 bg-slate-950 border border-slate-700 rounded-lg px-2 py-2 text-xs text-slate-200"
@@ -474,6 +586,29 @@ const DRAG_THRESHOLD_PX = 5;
             <option [ngValue]="BookScrollingMode.Continuous">Tira contínua</option>
           </select>
         </aside>
+      }
+
+      <!-- Adjacent file switch confirmation -->
+      @if (switchConfirm(); as conf) {
+        <div class="absolute inset-0 z-[60] flex items-center justify-center bg-black/60 p-4"
+          (click)="cancelSwitchFile()">
+          <div class="w-full max-w-sm rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl p-5"
+            (click)="$event.stopPropagation()">
+            <h2 class="text-sm font-semibold text-slate-100 mb-2">{{ conf.title }}</h2>
+            <p class="text-xs text-slate-400 mb-1">Abrir:</p>
+            <p class="text-sm text-slate-200 font-medium break-all mb-5">{{ conf.fileName }}</p>
+            <div class="flex justify-end gap-2">
+              <button type="button" (click)="cancelSwitchFile()"
+                class="px-3 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800 cursor-pointer">
+                Cancelar
+              </button>
+              <button type="button" (click)="confirmSwitchFile()"
+                class="px-3 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer">
+                Abrir
+              </button>
+            </div>
+          </div>
+        </div>
       }
 
       <app-reader-touch-overlay
@@ -526,6 +661,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
 
   BookScrollingMode = BookScrollingMode;
   Math = Math;
+  bookFonts: BookFontOption[] = BOOK_FONT_OPTIONS;
 
   bookId = Number(this.route.snapshot.paramMap.get('id'));
   title = signal('Leitor de Livro');
@@ -551,6 +687,9 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
   touchMenuOpen = signal(false);
   stubToast = signal<string | null>(null);
   coverUrl = signal<string | null>(null);
+  adjacentPrev = signal<Book | null>(null);
+  adjacentNext = signal<Book | null>(null);
+  switchConfirm = signal<{ direction: 'prev' | 'next'; book: Book; title: string; fileName: string } | null>(null);
   annotations = signal<BookAnnotation[]>([]);
   editingAnnotation = signal<BookAnnotation | null>(null);
   textSelectVisible = signal(false);
@@ -580,16 +719,37 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
   private panPointerId: number | null = null;
   private panLastX = 0;
   private panLastY = 0;
+  /** Accumulated overscroll while dragging past page edge (paginated). */
+  private overscrollX = 0;
+  private overscrollY = 0;
+  private overscrollAnimating = false;
   private contentCleanups: Array<() => void> = [];
   private pendingSelectContents: any | null = null;
   private textSelectPageAtOpen = -1;
   private clickTimer: ReturnType<typeof setTimeout> | null = null;
   private stubToastTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Last tap timestamp for click/touchend dedupe. */
+  private lastTapAt = 0;
+  private lastTapSource: 'click' | 'touch' | null = null;
+  /** After Home/open to start, ignore relocated until CFI stabilizes. */
+  private forceStartPageUntil = 0;
+
+  /** Signals driving rubber-band transform (kept separate from private fields for template). */
+  private overscrollXSignal = signal(0);
+  private overscrollYSignal = signal(0);
+  private overscrollAnimatingSignal = signal(false);
 
   readonly progressPercent = computed(() => {
     const total = this.pageCount();
     if (total <= 0) return 0;
     return Math.min(100, Math.round(((this.currentPage() + 1) / total) * 100));
+  });
+
+  /** Marker position on full-width track (0–100). */
+  readonly progressMarkerPercent = computed(() => {
+    const total = this.pageCount();
+    if (total <= 1) return 0;
+    return Math.min(100, Math.max(0, (this.currentPage() / (total - 1)) * 100));
   });
 
   readonly zoomPercent = computed(() => Math.round(this.zoom() * 100));
@@ -601,13 +761,34 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     return m === BookScrollingMode.Pagination || m === BookScrollingMode.PaginationRtl;
   });
 
-  /** Horizontal paginated only — wheel page-turn; Vertical/Tira use native continuous scroll. */
-  readonly isPaginatedWheelMode = computed(() => this.isHorizontalMode());
-
-  readonly isContinuousScrollMode = computed(() => {
+  /** Paginated modes (H LTR/RTL + Vertical) — wheel/keys turn pages with threshold. */
+  readonly isPaginatedMode = computed(() => {
     const m = this.scrollingMode();
-    return m === BookScrollingMode.Continuous || m === BookScrollingMode.PaginationVertical;
+    return (
+      m === BookScrollingMode.Pagination ||
+      m === BookScrollingMode.PaginationRtl ||
+      m === BookScrollingMode.PaginationVertical
+    );
   });
+
+  /** Wheel page-turn for all paginated modes including Vertical. */
+  readonly isPaginatedWheelMode = computed(() => this.isPaginatedMode());
+
+  /** Tira contínua only — not Vertical. */
+  readonly isContinuousScrollMode = computed(
+    () => this.scrollingMode() === BookScrollingMode.Continuous
+  );
+
+  readonly viewerTransform = computed(() => {
+    const x = this.overscrollXSignal();
+    const y = this.overscrollYSignal();
+    if (x === 0 && y === 0) return 'none';
+    return `translate(${x}px, ${y}px)`;
+  });
+
+  readonly viewerTransition = computed(() =>
+    this.overscrollAnimatingSignal() ? 'transform 180ms ease-out' : 'none'
+  );
 
   ngOnInit(): void {
     document.addEventListener('fullscreenchange', this.onFsChange);
@@ -647,44 +828,53 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
     const key = ev.key;
-    const horizontal = this.isHorizontalMode();
+    const paginated = this.isPaginatedMode();
+    const continuous = this.isContinuousScrollMode();
 
     if (key === 'ArrowLeft') {
-      if (!horizontal) return;
+      if (!paginated) return;
       ev.preventDefault();
       this.isRtl() ? this.goNext() : this.goPrev();
     } else if (key === 'ArrowRight') {
-      if (!horizontal) return;
+      if (!paginated) return;
       ev.preventDefault();
       this.isRtl() ? this.goPrev() : this.goNext();
     } else if (key === 'ArrowUp') {
-      if (horizontal) return;
-      ev.preventDefault();
-      this.scrollContinuousBy(-1);
+      if (paginated) {
+        ev.preventDefault();
+        this.goPrev();
+      } else if (continuous) {
+        ev.preventDefault();
+        this.scrollContinuousBy(-1);
+      }
     } else if (key === 'ArrowDown') {
-      if (horizontal) return;
-      ev.preventDefault();
-      this.scrollContinuousBy(1);
+      if (paginated) {
+        ev.preventDefault();
+        this.goNext();
+      } else if (continuous) {
+        ev.preventDefault();
+        this.scrollContinuousBy(1);
+      }
     } else if (key === 'PageUp') {
       ev.preventDefault();
-      if (horizontal) {
-        this.isRtl() ? this.goNext() : this.goPrev();
+      if (paginated) {
+        this.isRtl() && this.isHorizontalMode() ? this.goNext() : this.goPrev();
       } else {
         this.scrollContinuousBy(-1);
       }
     } else if (key === 'PageDown' || key === ' ') {
       ev.preventDefault();
-      if (horizontal) {
-        this.isRtl() ? this.goPrev() : this.goNext();
+      if (paginated) {
+        this.isRtl() && this.isHorizontalMode() ? this.goPrev() : this.goNext();
       } else {
         this.scrollContinuousBy(1);
       }
     } else if (key === 'Home') {
       ev.preventDefault();
-      this.seekTo(0);
+      void this.goToFirstPage();
     } else if (key === 'End') {
       ev.preventDefault();
-      this.seekTo(this.pageCount() - 1);
+      void this.goToLastPage();
     } else if (key === 'Escape') {
       if (this.showTypography() || this.showToc()) {
         this.showTypography.set(false);
@@ -708,8 +898,11 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     return (location / max) * 100;
   }
 
-  /** Tap zones from epub.js iframe events (client coords are viewport-relative). */
-  handleReaderTap(clientX: number, clientY?: number): void {
+  /**
+   * Tap zones from epub.js iframe events.
+   * Prefer host-local coords (already mapped from iframe); otherwise treat as viewport coords.
+   */
+  handleReaderTap(clientX: number, clientY?: number, alreadyHostLocal = false): void {
     if (this.loading() || this.error()) return;
     if (this.editingAnnotation()) return;
     if (this.textSelectVisible()) {
@@ -722,6 +915,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
     if (this.hasActiveTextSelection()) return;
+
     if (this.touchMenuOpen()) {
       this.touchMenuOpen.set(false);
       return;
@@ -737,13 +931,22 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
     const rect = el.getBoundingClientRect();
-    const localX = clientX - rect.left;
-    const localY = typeof clientY === 'number' ? clientY - rect.top : rect.height / 2;
+    let localX: number;
+    let localY: number;
+    if (alreadyHostLocal) {
+      localX = clientX;
+      localY = typeof clientY === 'number' ? clientY : rect.height / 2;
+    } else {
+      localX = clientX - rect.left;
+      localY = typeof clientY === 'number' ? clientY - rect.top : rect.height / 2;
+    }
+    // Clamp to visible host (never scrollHeight of iframe document)
+    localX = Math.min(Math.max(0, localX), rect.width);
+    localY = Math.min(Math.max(0, localY), rect.height);
 
     if (this.clickTimer) {
       clearTimeout(this.clickTimer);
       this.clickTimer = null;
-      // Double click on book: reset zoom only
       this.setZoom(1);
       return;
     }
@@ -752,6 +955,21 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       this.clickTimer = null;
       this.dispatchTouchTap(localX, localY, rect.width, rect.height);
     }, TOUCH_DOUBLE_CLICK_MS);
+  }
+
+  /** Ingest tap from click or touchend; ignore cross-type duplicates (Windows). */
+  private ingestMappedTap(source: 'click' | 'touch', mapped: { x: number; y: number }): void {
+    const now = Date.now();
+    if (
+      this.lastTapSource &&
+      this.lastTapSource !== source &&
+      now - this.lastTapAt < TAP_DEDUPE_MS
+    ) {
+      return;
+    }
+    this.lastTapSource = source;
+    this.lastTapAt = now;
+    this.handleReaderTap(mapped.x, mapped.y, true);
   }
 
   private dispatchTouchTap(localX: number, localY: number, width: number, height: number): void {
@@ -772,8 +990,8 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
         this.showToc.set(true);
       },
       markPage: () => void this.markPage(),
-      previousFile: () => this.showStub('Arquivo anterior (em breve)'),
-      nextFile: () => this.showStub('Próximo arquivo (em breve)')
+      previousFile: () => this.requestAdjacentFile('prev'),
+      nextFile: () => this.requestAdjacentFile('next')
     };
     handleReaderTouchTap(this.touchZones, 'book', localX, localY, width, height, handlers);
   }
@@ -796,6 +1014,57 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     this.stubToast.set(message);
     if (this.stubToastTimer) clearTimeout(this.stubToastTimer);
     this.stubToastTimer = setTimeout(() => this.stubToast.set(null), 2000);
+  }
+
+  /** Ask to open previous/next book in the library (Android confirmSwitch). */
+  requestAdjacentFile(direction: 'prev' | 'next'): void {
+    const book = direction === 'prev' ? this.adjacentPrev() : this.adjacentNext();
+    if (!book?.id) {
+      this.showStub(direction === 'prev' ? 'Não há arquivo anterior' : 'Não há próximo arquivo');
+      return;
+    }
+    this.switchConfirm.set({
+      direction,
+      book,
+      title: direction === 'prev' ? 'Abrir arquivo anterior?' : 'Abrir próximo arquivo?',
+      fileName: book.name || book.title || `Livro #${book.id}`
+    });
+  }
+
+  cancelSwitchFile(): void {
+    this.switchConfirm.set(null);
+  }
+
+  async confirmSwitchFile(): Promise<void> {
+    const conf = this.switchConfirm();
+    if (!conf?.book?.id) {
+      this.switchConfirm.set(null);
+      return;
+    }
+    const nextId = conf.book.id;
+    this.switchConfirm.set(null);
+    await this.cleanup();
+    this.ended = false;
+    this.bookId = nextId;
+    await this.router.navigate(['/reader-text', nextId], { replaceUrl: true });
+    await this.openReader();
+  }
+
+  private async loadAdjacentBooks(): Promise<void> {
+    if (!this.bookId) {
+      this.adjacentPrev.set(null);
+      this.adjacentNext.set(null);
+      return;
+    }
+    try {
+      const adj = await this.electron.getAdjacentBooks(this.bookId);
+      this.adjacentPrev.set(adj.prev);
+      this.adjacentNext.set(adj.next);
+    } catch (e) {
+      console.warn('[reader-text] adjacent books failed', e);
+      this.adjacentPrev.set(null);
+      this.adjacentNext.set(null);
+    }
   }
 
   private maybeShowFirstTouchDemo(): void {
@@ -858,7 +1127,14 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!this.epubBook) return;
     const max = Math.max(0, this.pageCount() - 1);
     const next = Math.min(Math.max(0, Number(page) || 0), max);
-    // currentPage updates via rendition 'relocated' — avoid seek-bar jump
+    if (next === 0) {
+      void this.goToFirstPage();
+      return;
+    }
+    if (next === max) {
+      void this.goToLastPage();
+      return;
+    }
     try {
       const cfi = this.epubBook.locations.cfiFromLocation(next);
       if (cfi) {
@@ -866,6 +1142,70 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       }
     } catch (e) {
       console.warn('[reader-text] seek failed', e);
+    }
+    this.scheduleProgressUpdate();
+  }
+
+  /** Home — first spine / location 0; continuous scrollTop = 0. */
+  async goToFirstPage(): Promise<void> {
+    if (!this.rendition || !this.epubBook) return;
+    this.forceStartPageUntil = Date.now() + 800;
+    this.currentPage.set(0);
+    try {
+      let startCfi: string | undefined;
+      try {
+        startCfi = this.epubBook.locations.cfiFromPercentage(0) as string;
+      } catch { /* ignore */ }
+      if (!startCfi) {
+        try {
+          startCfi = this.epubBook.locations.cfiFromLocation(0) as string;
+        } catch { /* ignore */ }
+      }
+      const spineFirst = (this.epubBook as any).spine?.first?.();
+      const target = startCfi || spineFirst?.href || undefined;
+      if (target) {
+        await this.rendition.display(target);
+      } else {
+        await this.rendition.display();
+      }
+      this.currentPage.set(0);
+      const container = this.continuousScrollContainer();
+      if (container) container.scrollTop = 0;
+    } catch (e) {
+      console.warn('[reader-text] goToFirstPage failed', e);
+    }
+    this.scheduleProgressUpdate();
+  }
+
+  /** End — last location; continuous scroll to bottom. */
+  async goToLastPage(): Promise<void> {
+    if (!this.rendition || !this.epubBook) return;
+    const max = Math.max(0, this.pageCount() - 1);
+    this.forceStartPageUntil = 0;
+    try {
+      let endCfi: string | undefined;
+      try {
+        endCfi = this.epubBook.locations.cfiFromLocation(max) as string;
+      } catch { /* ignore */ }
+      if (!endCfi) {
+        try {
+          endCfi = this.epubBook.locations.cfiFromPercentage(1) as string;
+        } catch { /* ignore */ }
+      }
+      const spineLast = (this.epubBook as any).spine?.last?.();
+      const target = endCfi || spineLast?.href || undefined;
+      if (target) {
+        await this.rendition.display(target);
+      }
+      this.currentPage.set(max);
+      const container = this.continuousScrollContainer();
+      if (container) {
+        requestAnimationFrame(() => {
+          container.scrollTop = container.scrollHeight;
+        });
+      }
+    } catch (e) {
+      console.warn('[reader-text] goToLastPage failed', e);
     }
     this.scheduleProgressUpdate();
   }
@@ -970,6 +1310,10 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
   };
 
   private onWindowWheel = (ev: WheelEvent): void => {
+    this.handleWheel(ev);
+  };
+
+  private handleWheel(ev: WheelEvent): void {
     if (this.loading() || this.error() || this.ended) return;
 
     if (ev.ctrlKey) {
@@ -980,7 +1324,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     // Continuous strip: let native scroll work
-    if (!this.isPaginatedWheelMode()) return;
+    if (!this.isPaginatedMode()) return;
 
     ev.preventDefault();
 
@@ -996,16 +1340,12 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     const forward = this.wheelAccum > 0;
     this.wheelAccum = 0;
 
-    if (this.isHorizontalMode()) {
-      if (this.isRtl()) {
-        forward ? this.goPrev() : this.goNext();
-      } else {
-        forward ? this.goNext() : this.goPrev();
-      }
+    if (this.isHorizontalMode() && this.isRtl()) {
+      forward ? this.goPrev() : this.goNext();
     } else {
       forward ? this.goNext() : this.goPrev();
     }
-  };
+  }
 
   private onRenditionClick = (event: MouseEvent): void => {
     if (this.editingAnnotation()) return;
@@ -1018,22 +1358,86 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
     if (this.hasActiveTextSelection()) return;
-    const clientX = event?.clientX;
-    if (typeof clientX !== 'number') {
+    const mapped = this.iframeEventToHostLocal(event);
+    if (!mapped) {
       this.chromeVisible.update(v => !v);
       return;
     }
-    this.handleReaderTap(clientX, event?.clientY);
+    this.ingestMappedTap('click', mapped);
+  };
+
+  private onRenditionTouchEnd = (event: TouchEvent): void => {
+    if (this.editingAnnotation()) return;
+    if (this.textSelectVisible()) {
+      if (this.hasActiveTextSelection()) return;
+      this.dismissTextSelect();
+      return;
+    }
+    if (this.didDrag) {
+      this.didDrag = false;
+      return;
+    }
+    if (this.hasActiveTextSelection()) return;
+    const touch = event?.changedTouches?.[0];
+    if (!touch) return;
+    const mapped = this.iframeEventToHostLocal(touch);
+    if (!mapped) return;
+    this.ingestMappedTap('touch', mapped);
   };
 
   private onRenditionDblClick = (_event: MouseEvent): void => {
-    // epub.js may also fire dblclick; ensure zoom reset without zone action
     if (this.clickTimer) {
       clearTimeout(this.clickTimer);
       this.clickTimer = null;
     }
     this.setZoom(1);
   };
+
+  /**
+   * Map iframe-local client coords → host-local (visible viewport).
+   * epub.js click/touch events report clientX/Y relative to the iframe document.
+   */
+  private iframeEventToHostLocal(
+    event: { clientX: number; clientY: number; target?: EventTarget | null; view?: Window | null }
+  ): { x: number; y: number } | null {
+    const host = this.viewerHostRef?.nativeElement;
+    if (!host || typeof event?.clientX !== 'number') return null;
+    const hostRect = host.getBoundingClientRect();
+
+    let iframe: HTMLElement | null = null;
+    try {
+      const view = (event as any).view as Window | undefined;
+      iframe = (view?.frameElement as HTMLElement | null)
+        || ((event.target as Node | null)?.ownerDocument?.defaultView?.frameElement as HTMLElement | null)
+        || (this.activeContents()?.document?.defaultView?.frameElement as HTMLElement | null)
+        || null;
+    } catch { /* ignore */ }
+
+    if (!iframe) {
+      // Already viewport-relative (host-level event)
+      return {
+        x: event.clientX - hostRect.left,
+        y: event.clientY - hostRect.top
+      };
+    }
+
+    const iframeRect = iframe.getBoundingClientRect();
+    // If view is the top window, client coords are already viewport-relative
+    const isTopView = !!(event as any).view && (event as any).view === window;
+    if (isTopView) {
+      return {
+        x: event.clientX - hostRect.left,
+        y: event.clientY - hostRect.top
+      };
+    }
+
+    const screenX = iframeRect.left + event.clientX;
+    const screenY = iframeRect.top + event.clientY;
+    return {
+      x: screenX - hostRect.left,
+      y: screenY - hostRect.top
+    };
+  }
 
   private async openReader(): Promise<void> {
     this.loading.set(true);
@@ -1134,8 +1538,31 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       this.currentPage.set(Math.min(bookMark, locationCount - 1));
       this.currentCfi.set(startCfi);
     } else {
-      await this.rendition!.display();
+      // Same path as Home — display() alone does not guarantee first page in continuous
+      this.forceStartPageUntil = Date.now() + 800;
+      try {
+        let firstCfi: string | undefined;
+        try {
+          firstCfi = book.locations.cfiFromPercentage(0) as string;
+        } catch { /* ignore */ }
+        if (!firstCfi) {
+          try {
+            firstCfi = book.locations.cfiFromLocation(0) as string;
+          } catch { /* ignore */ }
+        }
+        const spineFirst = (book as any).spine?.first?.();
+        const target = firstCfi || spineFirst?.href;
+        if (target) {
+          await this.rendition!.display(target);
+        } else {
+          await this.rendition!.display();
+        }
+      } catch {
+        await this.rendition!.display();
+      }
       this.currentPage.set(0);
+      const container = this.continuousScrollContainer();
+      if (container) container.scrollTop = 0;
     }
 
     this.historySessionId = await this.electron.startHistorySession({
@@ -1155,6 +1582,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     });
 
     this.loading.set(false);
+    void this.loadAdjacentBooks();
     // Brief chrome flash so controls are discoverable, then immersive
     this.chromeVisible.set(true);
     setTimeout(() => {
@@ -1168,8 +1596,8 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
   private createRendition(el: HTMLElement): void {
     if (!this.epubBook) return;
     const mode = this.scrollingMode();
-    const continuous =
-      mode === BookScrollingMode.Continuous || mode === BookScrollingMode.PaginationVertical;
+    // Only Tira uses continuous manager; Vertical is paginated (ViewPager2 parity)
+    const continuous = mode === BookScrollingMode.Continuous;
 
     const rendition = this.epubBook.renderTo(el, continuous
       ? {
@@ -1193,25 +1621,11 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     rendition.on('click', this.onRenditionClick);
     rendition.on('dblclick', this.onRenditionDblClick);
     rendition.on('selected', this.onRenditionSelected);
-    rendition.on('touchend', (event: TouchEvent) => {
-      if (this.editingAnnotation()) return;
-      if (this.textSelectVisible()) {
-        // Keep floating toolbar; ignore tap zones while selecting
-        if (this.hasActiveTextSelection()) return;
-        this.dismissTextSelect();
-        return;
-      }
-      if (this.didDrag) {
-        this.didDrag = false;
-        return;
-      }
-      if (this.hasActiveTextSelection()) return;
-      const touch = event?.changedTouches?.[0];
-      if (touch) this.handleReaderTap(touch.clientX, touch.clientY);
-    });
+    rendition.on('touchend', this.onRenditionTouchEnd);
 
-    // Pan + hand cursor inside iframe documents
+    // Pan + wheel/keydown inside iframe documents
     rendition.hooks.content.register((contents: any) => {
+      this.bindContentsInput(contents);
       this.attachContentPan(contents);
     });
 
@@ -1219,14 +1633,13 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       if (this.relocating) return;
       const cfi = location?.start?.cfi || '';
       this.currentCfi.set(cfi);
-      let loc = 0;
-      try {
-        const raw = this.epubBook?.locations.locationFromCfi(cfi) as unknown;
-        loc = typeof raw === 'number' ? raw : Number(raw) || 0;
-      } catch {
-        loc = location?.start?.location ?? 0;
+      let loc = this.locationFromCfiSafe(cfi, location);
+      if (Date.now() < this.forceStartPageUntil && loc > 0) {
+        // Keep page 0 until CFI after Home/open stabilizes
+        loc = 0;
+      } else if (Date.now() >= this.forceStartPageUntil) {
+        this.forceStartPageUntil = 0;
       }
-      if (typeof loc !== 'number' || Number.isNaN(loc)) loc = 0;
       loc = Math.min(Math.max(0, loc), Math.max(0, this.pageCount() - 1));
       this.currentPage.set(loc);
       this.updateChapterFromHref(location?.start?.href);
@@ -1234,6 +1647,51 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       if (this.textSelectVisible() && this.textSelectPageAtOpen >= 0 && loc !== this.textSelectPageAtOpen) {
         this.dismissTextSelect();
       }
+    });
+  }
+
+  /** Resolve location index from CFI with percentage fallback. */
+  private locationFromCfiSafe(cfi: string, location?: any): number {
+    const max = Math.max(0, this.pageCount() - 1);
+    if (cfi && this.epubBook?.locations) {
+      try {
+        const raw = this.epubBook.locations.locationFromCfi(cfi) as unknown;
+        const loc = typeof raw === 'number' ? raw : Number(raw);
+        if (typeof loc === 'number' && !Number.isNaN(loc)) {
+          return Math.min(Math.max(0, loc), max);
+        }
+      } catch { /* fall through */ }
+      try {
+        const pct = this.epubBook.locations.percentageFromCfi(cfi) as unknown;
+        const p = typeof pct === 'number' ? pct : Number(pct);
+        if (typeof p === 'number' && !Number.isNaN(p) && max > 0) {
+          return Math.min(Math.max(0, Math.round(p * max)), max);
+        }
+      } catch { /* fall through */ }
+    }
+    const fallback = location?.start?.location ?? 0;
+    return Math.min(Math.max(0, Number(fallback) || 0), max);
+  }
+
+  /** Wheel + keydown on iframe contents (paginated iframes swallow host listeners). */
+  private bindContentsInput(contents: any): void {
+    const doc: Document | undefined = contents?.document;
+    const win: Window | undefined = contents?.window;
+    if (!doc) return;
+
+    const onWheel = (ev: WheelEvent) => this.handleWheel(ev);
+    const onKey = (ev: KeyboardEvent) => this.onKeydown(ev);
+
+    doc.addEventListener('wheel', onWheel, { passive: false });
+    doc.addEventListener('keydown', onKey);
+    win?.addEventListener?.('wheel', onWheel, { passive: false } as AddEventListenerOptions);
+
+    this.contentCleanups.push(() => {
+      doc.removeEventListener('wheel', onWheel);
+      doc.removeEventListener('keydown', onKey);
+      try {
+        win?.removeEventListener?.('wheel', onWheel);
+      } catch { /* ignore */ }
     });
   }
 
@@ -1588,9 +2046,10 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
 
     const onDown = (ev: PointerEvent) => {
       if (ev.button !== 0 || this.loading()) return;
-      // Allow native text selection at default zoom; pan only when zoomed
-      if (this.zoom() === 1) return;
       this.didDrag = false;
+      this.overscrollX = 0;
+      this.overscrollY = 0;
+      this.syncOverscrollSignals(false);
       this.panning.set(true);
       this.panPointerId = ev.pointerId;
       this.panLastX = ev.clientX;
@@ -1606,9 +2065,11 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       const dy = ev.clientY - this.panLastY;
       this.panLastX = ev.clientX;
       this.panLastY = ev.clientY;
-      if (Math.abs(dx) + Math.abs(dy) > DRAG_THRESHOLD_PX) {
-        this.didDrag = true;
+      if (Math.abs(dx) + Math.abs(dy) <= DRAG_THRESHOLD_PX && !this.didDrag) {
+        return; // allow native text selection until drag threshold
       }
+      this.didDrag = true;
+
       try {
         if (this.isContinuousScrollMode()) {
           const container = this.continuousScrollContainer();
@@ -1617,9 +2078,49 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
           } else {
             win.scrollBy(-dx, -dy);
           }
-        } else {
-          win.scrollBy(-dx, -dy);
+          return;
         }
+
+        // Paginated: scroll internal content first; at edge, rubber-band overscroll
+        if (this.isPaginatedMode()) {
+          const horizontal = this.isHorizontalMode();
+          if (horizontal) {
+            // Prefer vertical scroll inside page when content overflows
+            if (Math.abs(dy) >= Math.abs(dx) && this.canScrollContents(dy > 0 ? 1 : -1)) {
+              win.scrollBy(0, -dy);
+              this.overscrollX = 0;
+              this.overscrollY = 0;
+              this.syncOverscrollSignals(false);
+              return;
+            }
+            // Horizontal overscroll toward next/prev page
+            const towardNext = this.isRtl() ? dx > 0 : dx < 0;
+            const towardPrev = this.isRtl() ? dx < 0 : dx > 0;
+            if (towardNext || towardPrev) {
+              // Dampen rubber-band
+              this.overscrollX += dx * 0.45;
+              this.overscrollY = 0;
+              this.syncOverscrollSignals(false);
+              return;
+            }
+          } else {
+            // Vertical pagination
+            if (this.canScrollContents(dy > 0 ? 1 : -1)) {
+              win.scrollBy(0, -dy);
+              this.overscrollX = 0;
+              this.overscrollY = 0;
+              this.syncOverscrollSignals(false);
+              return;
+            }
+            this.overscrollY += dy * 0.45;
+            this.overscrollX = 0;
+            this.syncOverscrollSignals(false);
+            return;
+          }
+        }
+
+        // Zoom pan fallback
+        win.scrollBy(-dx, -dy);
       } catch { /* ignore */ }
     };
 
@@ -1630,6 +2131,12 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       try {
         doc.body.style.cursor = 'grab';
       } catch { /* ignore */ }
+
+      if (this.isPaginatedMode() && this.didDrag) {
+        this.commitOrSnapOverscroll();
+      } else {
+        this.resetOverscroll(true);
+      }
     };
 
     doc.addEventListener('pointerdown', onDown);
@@ -1645,6 +2152,56 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
+  private syncOverscrollSignals(animating: boolean): void {
+    this.overscrollAnimatingSignal.set(animating);
+    this.overscrollXSignal.set(this.overscrollX);
+    this.overscrollYSignal.set(this.overscrollY);
+  }
+
+  private resetOverscroll(animate: boolean): void {
+    this.overscrollX = 0;
+    this.overscrollY = 0;
+    this.syncOverscrollSignals(animate);
+    if (animate) {
+      setTimeout(() => this.overscrollAnimatingSignal.set(false), 200);
+    }
+  }
+
+  /** On pointerup: turn page if past threshold, else snap back (anchor). */
+  private commitOrSnapOverscroll(): void {
+    const host = this.viewerHostRef?.nativeElement;
+    const viewportSize = this.isHorizontalMode()
+      ? (host?.clientWidth || window.innerWidth)
+      : (host?.clientHeight || window.innerHeight);
+    const threshold = Math.max(
+      OVERSCROLL_PAGE_THRESHOLD,
+      viewportSize * OVERSCROLL_VIEWPORT_FRACTION
+    );
+
+    if (this.isHorizontalMode()) {
+      const amount = this.overscrollX;
+      if (Math.abs(amount) >= threshold) {
+        // Finger dragged right → content moves right → previous (LTR)
+        const forward = this.isRtl() ? amount > 0 : amount < 0;
+        this.resetOverscroll(false);
+        if (forward) this.goNext();
+        else this.goPrev();
+        return;
+      }
+    } else {
+      const amount = this.overscrollY;
+      if (Math.abs(amount) >= threshold) {
+        // Finger dragged up → content moves up → next
+        const forward = amount < 0;
+        this.resetOverscroll(false);
+        if (forward) this.goNext();
+        else this.goPrev();
+        return;
+      }
+    }
+    this.resetOverscroll(true);
+  }
+
   /** Active epub.js Contents for the visible view (if any). */
   private activeContents(): any | null {
     if (!this.rendition) return null;
@@ -1657,7 +2214,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  /** Scroll container used by continuous manager (Vertical / Tira). */
+  /** Scroll container used by continuous manager (Tira). */
   private continuousScrollContainer(): HTMLElement | null {
     try {
       const container = (this.rendition as any)?.manager?.container as HTMLElement | undefined;
@@ -1668,8 +2225,8 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   /**
-   * Scroll ~90% of viewport in continuous modes.
-   * Falls back to prev/next at strip edges if manager cannot advance by scroll alone.
+   * Scroll ~90% of viewport in continuous (tira) mode.
+   * Does NOT call rendition.prev/next at edges (avoids bounce to page 3/4).
    */
   private scrollContinuousBy(dir: 1 | -1): void {
     const viewportH = this.viewerRef?.nativeElement?.clientHeight || window.innerHeight;
@@ -1677,16 +2234,10 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     const container = this.continuousScrollContainer();
 
     if (container) {
-      const maxScroll = container.scrollHeight - container.clientHeight;
+      const maxScroll = Math.max(0, container.scrollHeight - container.clientHeight);
       const top = container.scrollTop;
-      if (dir > 0 && top >= maxScroll - 2) {
-        void this.rendition?.next();
-        return;
-      }
-      if (dir < 0 && top <= 2) {
-        void this.rendition?.prev();
-        return;
-      }
+      if (dir > 0 && top >= maxScroll - 2) return;
+      if (dir < 0 && top <= 2) return;
       container.scrollBy({ top: dir * step, behavior: 'smooth' });
       return;
     }
@@ -1704,17 +2255,10 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       );
       const clientHeight = win.innerHeight || docEl.clientHeight;
       const maxScroll = scrollHeight - clientHeight;
-      if (dir > 0 && scrollTop < maxScroll - 2) {
-        win.scrollBy({ top: step, behavior: 'smooth' });
-        return;
-      }
-      if (dir < 0 && scrollTop > 2) {
-        win.scrollBy({ top: -step, behavior: 'smooth' });
-        return;
-      }
+      if (dir > 0 && scrollTop >= maxScroll - 2) return;
+      if (dir < 0 && scrollTop <= 2) return;
+      win.scrollBy({ top: dir * step, behavior: 'smooth' });
     }
-
-    dir > 0 ? this.nextPage() : this.prevPage();
   }
 
   private canScrollContents(deltaY: number): boolean {
@@ -1746,7 +2290,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /** @returns true if scrolled within the current page contents */
   private tryScrollContents(dir: 1 | -1): boolean {
-    if (!this.isPaginatedWheelMode()) return false;
+    if (!this.isPaginatedMode()) return false;
     const contents = this.activeContents();
     const win: Window | undefined = contents?.window;
     if (!win) return false;
@@ -1795,7 +2339,9 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     try {
       try {
         this.rendition?.off?.('click', this.onRenditionClick);
+        this.rendition?.off?.('dblclick', this.onRenditionDblClick);
         this.rendition?.off?.('selected', this.onRenditionSelected);
+        this.rendition?.off?.('touchend', this.onRenditionTouchEnd);
       } catch {}
       this.clearContentPanListeners();
       this.rendition?.destroy();
@@ -1817,44 +2363,62 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!this.rendition) return;
     const pad = MARGIN_PX[this.margin()];
     const lh = SPACING_LH[this.spacing()] ?? this.settings.bookLineHeight();
+    const textAlign = this.align();
+    let imgMarginLeft = '0';
+    let imgMarginRight = 'auto';
+    if (textAlign === 'center') {
+      imgMarginLeft = 'auto';
+      imgMarginRight = 'auto';
+    } else if (textAlign === 'right') {
+      imgMarginLeft = 'auto';
+      imgMarginRight = '0';
+    }
+    const imgMl = imgMarginLeft + ' !important';
+    const imgMr = imgMarginRight + ' !important';
     this.rendition.themes.default({
       body: {
         'font-family': this.fontFamily() + ' !important',
-        'font-size': `${this.fontSize()}px !important`,
-        'line-height': `${lh} !important`,
-        'text-align': `${this.align()} !important`,
-        'padding': `${pad}px !important`,
+        'font-size': this.fontSize() + 'px !important',
+        'line-height': lh + ' !important',
+        'text-align': textAlign + ' !important',
+        'padding': pad + 'px !important',
         'background': '#0f172a !important',
         'color': '#e2e8f0 !important'
       },
       p: {
-        'text-align': `${this.align()} !important`,
-        'line-height': `${lh} !important`
+        'text-align': textAlign + ' !important',
+        'line-height': lh + ' !important'
       },
       a: {
         color: '#a5b4fc !important'
       },
       'img, svg, image, video': {
         'max-width': '100% !important',
-        'width': '100% !important',
+        'width': 'auto !important',
         'height': 'auto !important',
         'display': 'block !important',
-        'margin-inline': 'auto !important',
+        'margin-left': imgMl,
+        'margin-right': imgMr,
         'object-fit': 'contain'
       },
       figure: {
         'max-width': '100% !important',
-        'margin': '0.5em 0 !important',
+        'margin-left': imgMl,
+        'margin-right': imgMr,
+        'margin-top': '0.5em !important',
+        'margin-bottom': '0.5em !important',
         'display': 'block !important'
       },
       'p img, div img, figure img': {
-        'width': '100% !important',
+        'width': 'auto !important',
         'max-width': '100% !important',
         'height': 'auto !important',
-        'display': 'block !important'
+        'display': 'block !important',
+        'margin-left': imgMl,
+        'margin-right': imgMr
       }
     });
-    this.rendition.themes.fontSize(`${Math.round((this.fontSize() / 16) * 100)}%`);
+    this.rendition.themes.fontSize(Math.round((this.fontSize() / 16) * 100) + '%');
   }
 
   private async buildToc(book: EpubBook): Promise<void> {
@@ -1954,8 +2518,10 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       this.rendition?.off?.('click', this.onRenditionClick);
       this.rendition?.off?.('dblclick', this.onRenditionDblClick);
       this.rendition?.off?.('selected', this.onRenditionSelected);
+      this.rendition?.off?.('touchend', this.onRenditionTouchEnd);
     } catch {}
     this.clearContentPanListeners();
+    this.resetOverscroll(false);
     try {
       this.rendition?.destroy();
     } catch {}
