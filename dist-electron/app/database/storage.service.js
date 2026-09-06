@@ -45,6 +45,7 @@ const migrations_1 = require("./migrations");
 const manga_repository_1 = require("./manga.repository");
 const book_repository_1 = require("./book.repository");
 const book_configuration_repository_1 = require("./book-configuration.repository");
+const book_annotation_repository_1 = require("./book-annotation.repository");
 const kanji_repository_1 = require("./kanji.repository");
 const kanjax_repository_1 = require("./kanjax.repository");
 const vocabulary_repository_1 = require("./vocabulary.repository");
@@ -55,6 +56,7 @@ class StorageService {
     mangaRepository;
     bookRepository;
     bookConfigurationRepository;
+    bookAnnotationRepository;
     kanjiRepository;
     kanjaxRepository;
     vocabularyRepository;
@@ -77,6 +79,7 @@ class StorageService {
         this.mangaRepository = new manga_repository_1.MangaRepository(this.db);
         this.bookRepository = new book_repository_1.BookRepository(this.db);
         this.bookConfigurationRepository = new book_configuration_repository_1.BookConfigurationRepository(this.db);
+        this.bookAnnotationRepository = new book_annotation_repository_1.BookAnnotationRepository(this.db);
         this.kanjiRepository = new kanji_repository_1.KanjiRepository(this.db);
         this.kanjaxRepository = new kanjax_repository_1.KanjaxRepository(this.db);
         this.vocabularyRepository = new vocabulary_repository_1.VocabularyRepository(this.db);
@@ -144,6 +147,18 @@ class StorageService {
     }
     saveBookConfiguration(config) {
         return this.bookConfigurationRepository.upsert(config);
+    }
+    listBookAnnotations(bookId) {
+        return this.bookAnnotationRepository.listByBook(bookId);
+    }
+    saveBookAnnotation(annotation) {
+        return this.bookAnnotationRepository.save(annotation);
+    }
+    getBookAnnotation(id) {
+        return this.bookAnnotationRepository.getById(id);
+    }
+    deleteBookAnnotation(id) {
+        return this.bookAnnotationRepository.delete(id);
     }
     listBooksDeleted(libraryId) {
         return this.bookRepository.listDeleted(libraryId);

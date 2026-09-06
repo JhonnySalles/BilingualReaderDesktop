@@ -9,8 +9,30 @@
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "compile:electron": "tsc -p tsconfig.electron.json",
+    "generate:icons": "powershell -ExecutionPolicy Bypass -File ./scripts/generate-icons.ps1",
     "electron:dev": "concurrently \"ng serve\" \"tsc -p tsconfig.electron.json --watch\" \"wait-on http://localhost:4200 && electron .\"",
     "build:electron": "yarn compile:electron && yarn build && electron-builder"
+  },
+  "build": {
+    "appId": "com.bilingualreader.desktop",
+    "productName": "Bilingual Reader",
+    "directories": {
+      "output": "release"
+    },
+    "win": {
+      "icon": "app/assets/icons/icon.ico",
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "app/assets/**/*",
+      "public/**/*",
+      "package.json"
+    ]
   },
   "private": true,
   "dependencies": {

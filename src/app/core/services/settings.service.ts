@@ -5,7 +5,10 @@ import {
   BookScrollingMode,
   BookSpacingSize,
   MangaFitMode,
-  MangaScrollingMode
+  MangaScrollingMode,
+  TouchPosition,
+  TouchScreen,
+  TouchZoneMap
 } from '../models';
 
 export interface CustomLibrary {
@@ -18,6 +21,28 @@ export interface CustomLibrary {
 }
 
 const SETTINGS_KEY = 'bilingual_reader_settings';
+
+const MANGA_TOUCH_DEFAULT: TouchZoneMap = {
+  [TouchPosition.TOP]: TouchScreen.SHARE_IMAGE,
+  [TouchPosition.CORNER_TOP_LEFT]: TouchScreen.FIT_WIDTH,
+  [TouchPosition.CORNER_TOP_RIGHT]: TouchScreen.ASPECT_FIT,
+  [TouchPosition.LEFT]: TouchScreen.PREVIOUS_PAGE,
+  [TouchPosition.RIGHT]: TouchScreen.NEXT_PAGE,
+  [TouchPosition.BOTTOM]: TouchScreen.CHAPTER_LIST,
+  [TouchPosition.CORNER_BOTTOM_LEFT]: TouchScreen.PREVIOUS_FILE,
+  [TouchPosition.CORNER_BOTTOM_RIGHT]: TouchScreen.NEXT_FILE
+};
+
+const BOOK_TOUCH_DEFAULT: TouchZoneMap = {
+  [TouchPosition.TOP]: TouchScreen.PAGE_MARK,
+  [TouchPosition.CORNER_TOP_LEFT]: TouchScreen.PREVIOUS_PAGE,
+  [TouchPosition.CORNER_TOP_RIGHT]: TouchScreen.NEXT_PAGE,
+  [TouchPosition.LEFT]: TouchScreen.PREVIOUS_PAGE,
+  [TouchPosition.RIGHT]: TouchScreen.NEXT_PAGE,
+  [TouchPosition.BOTTOM]: TouchScreen.CHAPTER_LIST,
+  [TouchPosition.CORNER_BOTTOM_LEFT]: TouchScreen.PREVIOUS_FILE,
+  [TouchPosition.CORNER_BOTTOM_RIGHT]: TouchScreen.NEXT_FILE
+};
 
 interface SettingsData {
   mangaBasePath: string;
@@ -32,6 +57,10 @@ interface SettingsData {
   bookMargin?: BookMarginSize;
   bookAlign?: BookAlign;
   bookSpacing?: BookSpacingSize;
+  mangaTouchMap?: Partial<TouchZoneMap>;
+  bookTouchMap?: Partial<TouchZoneMap>;
+  mangaTouchDemoShown?: boolean;
+  bookTouchDemoShown?: boolean;
 }
 
 @Injectable({
@@ -52,6 +81,11 @@ export class SettingsService {
   bookAlign = signal<BookAlign>('justify');
   bookSpacing = signal<BookSpacingSize>('medium');
 
+  mangaTouchMap = signal<TouchZoneMap>({ ...MANGA_TOUCH_DEFAULT });
+  bookTouchMap = signal<TouchZoneMap>({ ...BOOK_TOUCH_DEFAULT });
+  mangaTouchDemoShown = signal(false);
+  bookTouchDemoShown = signal(false);
+
   constructor() {
     this.loadSettings();
 
@@ -68,7 +102,11 @@ export class SettingsService {
         bookLineHeight: this.bookLineHeight(),
         bookMargin: this.bookMargin(),
         bookAlign: this.bookAlign(),
-        bookSpacing: this.bookSpacing()
+        bookSpacing: this.bookSpacing(),
+        mangaTouchMap: this.mangaTouchMap(),
+        bookTouchMap: this.bookTouchMap(),
+        mangaTouchDemoShown: this.mangaTouchDemoShown(),
+        bookTouchDemoShown: this.bookTouchDemoShown()
       };
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(data));
       if (typeof window !== 'undefined' && window.electronAPI?.setSetting) {
@@ -114,10 +152,33 @@ export class SettingsService {
         if (data.bookSpacing && ['small', 'medium', 'large'].includes(data.bookSpacing)) {
           this.bookSpacing.set(data.bookSpacing);
         }
+        if (data.mangaTouchMap) {
+          this.mangaTouchMap.set(this.mergeTouchMap(MANGA_TOUCH_DEFAULT, data.mangaTouchMap));
+        }
+        if (data.bookTouchMap) {
+          this.bookTouchMap.set(this.mergeTouchMap(BOOK_TOUCH_DEFAULT, data.bookTouchMap));
+        }
+        if (typeof data.mangaTouchDemoShown === 'boolean') {
+          this.mangaTouchDemoShown.set(data.mangaTouchDemoShown);
+        }
+        if (typeof data.bookTouchDemoShown === 'boolean') {
+          this.bookTouchDemoShown.set(data.bookTouchDemoShown);
+        }
       } catch (e) {
         console.error('Failed to parse settings', e);
       }
     }
+  }
+
+  private mergeTouchMap(defaults: TouchZoneMap, raw: Partial<TouchZoneMap>): TouchZoneMap {
+    const result = { ...defaults };
+    for (const key of Object.keys(defaults) as (keyof TouchZoneMap)[]) {
+      const value = raw[key];
+      if (value && Object.values(TouchScreen).includes(value) && value !== TouchScreen.NOT_IMPLEMENTED) {
+        result[key] = value;
+      }
+    }
+    return result;
   }
 
   addLibrary(library: CustomLibrary): void {

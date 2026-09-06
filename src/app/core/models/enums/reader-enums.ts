@@ -79,8 +79,35 @@ export enum ImageLoadType {
   ORIGINAL = 'ORIGINAL'
 }
 
+/** Configurable click-zone actions (Android TouchScreen). CENTER is fixed chrome toggle. */
 export enum TouchScreen {
-  NONE = 'NONE',
-  TAP_NEXT = 'TAP_NEXT',
-  SWIPE = 'SWIPE'
+  NOT_IMPLEMENTED = 'NOT_IMPLEMENTED',
+  NOT_ASSIGNED = 'NOT_ASSIGNED',
+  ASPECT_FIT = 'ASPECT_FIT',
+  FIT_WIDTH = 'FIT_WIDTH',
+  CHAPTER_LIST = 'CHAPTER_LIST',
+  NEXT_FILE = 'NEXT_FILE',
+  PREVIOUS_FILE = 'PREVIOUS_FILE',
+  NEXT_PAGE = 'NEXT_PAGE',
+  PREVIOUS_PAGE = 'PREVIOUS_PAGE',
+  SHARE_IMAGE = 'SHARE_IMAGE',
+  PAGE_MARK = 'PAGE_MARK'
 }
+
+/** 3×3 grid positions for reader click zones. */
+export enum TouchPosition {
+  TOP = 'TOP',
+  BOTTOM = 'BOTTOM',
+  RIGHT = 'RIGHT',
+  LEFT = 'LEFT',
+  CORNER_TOP_RIGHT = 'CORNER_TOP_RIGHT',
+  CORNER_TOP_LEFT = 'CORNER_TOP_LEFT',
+  CORNER_BOTTOM_RIGHT = 'CORNER_BOTTOM_RIGHT',
+  CORNER_BOTTOM_LEFT = 'CORNER_BOTTOM_LEFT',
+  CENTER = 'CENTER'
+}
+
+export type ReaderTouchType = 'manga' | 'book';
+
+/** Persisted map of outer zones (CENTER is never stored). */
+export type TouchZoneMap = Record<Exclude<TouchPosition, TouchPosition.CENTER>, TouchScreen>;

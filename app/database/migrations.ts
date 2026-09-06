@@ -13,7 +13,7 @@ export class MigrationsManager {
     if (currentVersion === 0) {
       this.createInitialSchema();
       this.seedInitialData();
-      this.db.pragma('user_version = 17');
+      this.db.pragma('user_version = 18');
       return;
     }
 
@@ -43,6 +43,10 @@ export class MigrationsManager {
     if (currentVersion < 17) {
       this.migrate16To17();
       this.db.pragma('user_version = 17');
+    }
+    if (currentVersion < 18) {
+      this.migrate17To18();
+      this.db.pragma('user_version = 18');
     }
   }
 
@@ -157,6 +161,28 @@ export class MigrationsManager {
         font_type TEXT NOT NULL,
         font_size REAL NOT NULL
       );
+
+      CREATE TABLE IF NOT EXISTS BookAnnotation (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id_book INTEGER NOT NULL,
+        page INTEGER NOT NULL DEFAULT 0,
+        pages INTEGER NOT NULL DEFAULT 0,
+        font_size REAL NOT NULL DEFAULT 0,
+        type TEXT NOT NULL DEFAULT 'Annotation',
+        chapter_number REAL NOT NULL DEFAULT 0,
+        chapter TEXT DEFAULT '',
+        text TEXT NOT NULL DEFAULT '',
+        range TEXT DEFAULT '',
+        annotation TEXT DEFAULT '',
+        favorite INTEGER NOT NULL DEFAULT 0,
+        color TEXT DEFAULT 'Yellow',
+        cfi_range TEXT DEFAULT '',
+        created TEXT,
+        alteration TEXT,
+        FOREIGN KEY (id_book) REFERENCES Book (id) ON DELETE CASCADE
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_book_annotation_book ON BookAnnotation (id_book, page);
 
       CREATE TABLE IF NOT EXISTS AssistantHistory (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -409,5 +435,31 @@ export class MigrationsManager {
     } catch (e) {
       // Column may already exist
     }
+  }
+
+  private migrate17To18(): void {
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS BookAnnotation (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id_book INTEGER NOT NULL,
+        page INTEGER NOT NULL DEFAULT 0,
+        pages INTEGER NOT NULL DEFAULT 0,
+        font_size REAL NOT NULL DEFAULT 0,
+        type TEXT NOT NULL DEFAULT 'Annotation',
+        chapter_number REAL NOT NULL DEFAULT 0,
+        chapter TEXT DEFAULT '',
+        text TEXT NOT NULL DEFAULT '',
+        range TEXT DEFAULT '',
+        annotation TEXT DEFAULT '',
+        favorite INTEGER NOT NULL DEFAULT 0,
+        color TEXT DEFAULT 'Yellow',
+        cfi_range TEXT DEFAULT '',
+        created TEXT,
+        alteration TEXT,
+        FOREIGN KEY (id_book) REFERENCES Book (id) ON DELETE CASCADE
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_book_annotation_book ON BookAnnotation (id_book, page);
+    `);
   }
 }

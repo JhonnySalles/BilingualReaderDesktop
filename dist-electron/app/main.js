@@ -35,6 +35,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 const electron_1 = require("electron");
 const path = __importStar(require("path"));
+const fs = __importStar(require("fs"));
 const url_1 = require("url");
 const storage_service_1 = require("./database/storage.service");
 const scanner_manga_service_1 = require("./scanner/scanner-manga.service");
@@ -46,6 +47,7 @@ const statistics_controller_1 = require("./controllers/statistics.controller");
 const library_controller_1 = require("./controllers/library.controller");
 const manga_reader_controller_1 = require("./controllers/manga-reader.controller");
 const book_reader_controller_1 = require("./controllers/book-reader.controller");
+const tray_service_1 = require("./services/tray.service");
 const LOCAL_SCHEME_PRIVILEGES = {
     standard: true,
     secure: true,
@@ -65,13 +67,30 @@ let scannerMangaService;
 let scannerBookService;
 let mangaReaderController;
 let bookReaderController;
+function getWindowIconPath() {
+    const candidates = [
+        path.join(__dirname, '../assets/icons/icon.ico'),
+        path.join(__dirname, 'assets/icons/icon.ico'),
+        path.join(electron_1.app.getAppPath(), 'app/assets/icons/icon.ico'),
+        path.join(electron_1.app.getAppPath(), 'public/assets/icons/icon.png'),
+        path.join(electron_1.app.getAppPath(), 'app/assets/icons/icon.png')
+    ];
+    for (const candidate of candidates) {
+        if (fs.existsSync(candidate)) {
+            return candidate;
+        }
+    }
+    return path.join(electron_1.app.getAppPath(), 'app/assets/icons/icon.ico');
+}
 function createWindow() {
+    const iconPath = getWindowIconPath();
     mainWindow = new electron_1.BrowserWindow({
         width: 1280,
         height: 800,
         minWidth: 900,
         minHeight: 600,
         title: 'Bilingual Reader Desktop',
+        icon: iconPath,
         backgroundColor: '#0f172a',
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
@@ -160,6 +179,7 @@ electron_1.app.on('ready', () => {
             }
         });
         createWindow();
+        tray_service_1.TrayService.instance.init(() => mainWindow);
         menu_controller_1.MenuController.instance.setServices(() => mainWindow, storageService, scannerMangaService, scannerBookService);
         menu_controller_1.MenuController.instance.buildMenu();
         electron_1.ipcMain.handle('app:ping', async () => {
@@ -239,6 +259,9 @@ electron_1.app.on('ready', () => {
     catch (err) {
         console.error('[main] Failed during app ready / IPC registration:', err);
     }
+});
+electron_1.app.on('before-quit', () => {
+    tray_service_1.TrayService.instance.destroy();
 });
 electron_1.app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') {

@@ -7,6 +7,7 @@ import {
   HistoryContentType,
   Manga,
   Book,
+  BookAnnotation,
   BookConfiguration
 } from '../models';
 
@@ -97,6 +98,9 @@ declare global {
       toggleBookFavorite: (bookId: number) => Promise<Book | null>;
       getBookConfiguration: (bookId: number) => Promise<BookConfiguration | null>;
       saveBookConfiguration: (config: BookConfiguration) => Promise<BookConfiguration | null>;
+      listBookAnnotations: (bookId: number) => Promise<BookAnnotation[]>;
+      saveBookAnnotation: (annotation: BookAnnotation) => Promise<BookAnnotation | null>;
+      deleteBookAnnotation: (id: number) => Promise<boolean>;
       send: (channel: string, data: any) => void;
       on: (channel: string, func: (...args: any[]) => void) => () => void;
     };
@@ -355,6 +359,27 @@ export class ElectronService {
       return await window.electronAPI.saveBookConfiguration(config);
     }
     return null;
+  }
+
+  async listBookAnnotations(bookId: number): Promise<BookAnnotation[]> {
+    if (this.isElectron && window.electronAPI?.listBookAnnotations) {
+      return await window.electronAPI.listBookAnnotations(bookId);
+    }
+    return [];
+  }
+
+  async saveBookAnnotation(annotation: BookAnnotation): Promise<BookAnnotation | null> {
+    if (this.isElectron && window.electronAPI?.saveBookAnnotation) {
+      return await window.electronAPI.saveBookAnnotation(annotation);
+    }
+    return null;
+  }
+
+  async deleteBookAnnotation(id: number): Promise<boolean> {
+    if (this.isElectron && window.electronAPI?.deleteBookAnnotation) {
+      return await window.electronAPI.deleteBookAnnotation(id);
+    }
+    return false;
   }
 
   onExtractProgress(handler: (progress: { current: number; total: number }) => void): () => void {

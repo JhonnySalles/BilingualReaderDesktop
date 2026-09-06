@@ -16,21 +16,45 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { ElectronService } from '../../core/services/electron.service';
 import { NavigationStackService } from '../../core/services/navigation-stack.service';
 import { SettingsService } from '../../core/services/settings.service';
+import {
+  TOUCH_DOUBLE_CLICK_MS,
+  TouchZoneService
+} from '../../core/services/touch-zone.service';
 import { Manga, MangaFitMode, MangaScrollingMode } from '../../core/models';
+import { ReaderTouchOverlayComponent } from '../reader-shared/reader-touch-overlay.component';
+import { ReaderTouchConfigComponent } from '../reader-shared/reader-touch-config.component';
+import { handleReaderTouchTap, TouchActionHandlers } from '../reader-shared/touch-action.util';
 
 const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 3;
 const ZOOM_STEP_WHEEL = 0.1;
 const ZOOM_STEP_BUTTON = 0.25;
+const ZOOM_DOUBLE_TAP = 2;
 const WHEEL_PAGE_THRESHOLD = 200;
-const PROGRAMMATIC_SCROLL_MS = 420;
+const PROGRAMMATIC_SCROLL_FALLBACK_MS = 1000;
 const DRAG_THRESHOLD_PX = 5;
+const PAN_STRIP_FACTOR = 2.5;
+const PAN_VERTICAL_FACTOR = 1.5;
 
 @Component({
   selector: 'app-reader-image',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ReaderTouchOverlayComponent, ReaderTouchConfigComponent],
   host: { class: 'block h-screen w-screen' },
+  styles: [`
+    .reader-zoom-img {
+      -webkit-user-drag: none;
+      user-drag: none;
+    }
+    .reader-zoom-scale {
+      transform: scale(var(--reader-zoom, 1));
+      transform-origin: center center;
+    }
+    .reader-zoom-strip {
+      width: calc(100% * var(--reader-zoom, 1));
+      max-width: none;
+    }
+  `],
   template: `
     <div class="h-screen w-screen relative bg-black text-slate-100 overflow-hidden select-none">
       <!-- Loading overlay -->
@@ -80,10 +104,9 @@ const DRAG_THRESHOLD_PX = 5;
         (pointerup)="onPointerUp($event)"
         (pointercancel)="onPointerUp($event)">
         @if (isLongStrip()) {
-            <div class="flex flex-col items-center w-full mx-auto"
+          <div class="reader-zoom-strip flex flex-col items-center mx-auto"
             [class.gap-6]="scrollingMode() === MangaScrollingMode.LongStripGap"
-            [class.max-w-5xl]="fitMode() !== MangaFitMode.Original"
-            [style.zoom]="zoom()">
+            [style.--reader-zoom]="zoom()">
             @for (url of pages(); track $index; let i = $index) {
               @if (scrollingMode() === MangaScrollingMode.LongStripGap && i > 0) {
                 <div class="text-[10px] uppercase tracking-wider text-slate-500 py-2">{{ i }} / {{ pageCount() }}</div>
@@ -93,8 +116,9 @@ const DRAG_THRESHOLD_PX = 5;
                 [src]="url"
                 [alt]="'Página ' + (i + 1)"
                 [loading]="eagerNear(i) ? 'eager' : 'lazy'"
-                class="block object-contain"
+                draggable="false"
                 [class]="pageImageClasses()"
+                (dragstart)="$event.preventDefault()"
                 (error)="onPageImageError(url, $event)" />
             }
           </div>
@@ -108,9 +132,12 @@ const DRAG_THRESHOLD_PX = 5;
                 [src]="url"
                 [alt]="'Página ' + (i + 1)"
                 [loading]="eagerNear(i) ? 'eager' : 'lazy'"
-                class="block object-contain"
+                draggable="false"
                 [class]="pageImageClasses()"
-                [style.zoom]="zoom()"
+                [style.width.%]="zoomWidthPercent()"
+                [style.height.%]="zoomHeightPercent()"
+                [style.--reader-zoom]="zoom()"
+                (dragstart)="$event.preventDefault()"
                 (error)="onPageImageError(url, $event)" />
             </div>
           }
@@ -122,7 +149,8 @@ const DRAG_THRESHOLD_PX = 5;
         class="absolute top-0 inset-x-0 z-30 transition-all duration-300"
         [class.opacity-0]="!chromeVisible()"
         [class.-translate-y-full]="!chromeVisible()"
-        [class.pointer-events-none]="!chromeVisible()">
+        [class.pointer-events-none]="!chromeVisible()"
+        (click)="$event.stopPropagation()">
         <div class="h-14 px-4 sm:px-6 flex items-center justify-between gap-3 bg-slate-900/70 backdrop-blur-md border-b border-slate-800/50">
           <div class="flex items-center gap-2 min-w-0">
             <button type="button" (click)="goBack()"
@@ -212,6 +240,28 @@ const DRAG_THRESHOLD_PX = 5;
                 </svg>
               }
             </button>
+
+            <div class="relative">
+              <button type="button" (click)="toggleTouchMenu()"
+                class="p-2 text-slate-300 hover:text-white rounded-lg transition-colors cursor-pointer"
+                title="Mais opções">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                  <circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/>
+                </svg>
+              </button>
+              @if (touchMenuOpen()) {
+                <div class="absolute right-0 top-full mt-1 w-56 rounded-xl bg-slate-900/95 backdrop-blur-md border border-slate-700 shadow-2xl py-1 z-50">
+                  <button type="button" (click)="showTouchDemoManual()"
+                    class="w-full px-3 py-2.5 text-left text-xs font-medium text-slate-200 hover:bg-slate-800 cursor-pointer">
+                    Ver funções de clique
+                  </button>
+                  <button type="button" (click)="openTouchConfig()"
+                    class="w-full px-3 py-2.5 text-left text-xs font-medium text-slate-200 hover:bg-slate-800 cursor-pointer">
+                    Configurar funções de clique
+                  </button>
+                </div>
+              }
+            </div>
           </div>
         </div>
       </header>
@@ -221,13 +271,14 @@ const DRAG_THRESHOLD_PX = 5;
         class="absolute inset-x-0 bottom-20 z-30 px-14 sm:px-20 transition-all duration-300"
         [class.opacity-0]="!chromeVisible()"
         [class.translate-y-4]="!chromeVisible()"
-        [class.pointer-events-none]="!chromeVisible()">
+        [class.pointer-events-none]="!chromeVisible()"
+        (click)="$event.stopPropagation()">
         <div class="mx-auto max-w-3xl bg-slate-900/70 backdrop-blur-md border border-slate-800/50 rounded-xl px-4 pt-2 pb-3">
           <div class="flex items-center justify-between mb-1">
             <span class="text-[10px] font-semibold text-slate-300 tabular-nums">
               {{ currentPage() + 1 }} / {{ pageCount() }}
             </span>
-            <button type="button" (click)="showChapters.set(!showChapters())"
+            <button type="button" (click)="toggleChapters()"
               class="text-[10px] font-semibold text-indigo-300 hover:text-indigo-200 cursor-pointer">
               Capítulos
             </button>
@@ -237,9 +288,8 @@ const DRAG_THRESHOLD_PX = 5;
               type="range"
               min="0"
               [max]="Math.max(0, pageCount() - 1)"
-              [ngModel]="currentPage()"
-              [ngModelOptions]="{ updateOn: 'change' }"
-              (ngModelChange)="seekTo($event)"
+              [value]="currentPage()"
+              (change)="onSeekCommit($event)"
               class="w-full accent-indigo-500 cursor-pointer" />
             @for (ch of chapters(); track ch) {
               <span
@@ -255,7 +305,8 @@ const DRAG_THRESHOLD_PX = 5;
         class="absolute bottom-0 inset-x-0 z-30 transition-all duration-300"
         [class.opacity-0]="!chromeVisible()"
         [class.translate-y-full]="!chromeVisible()"
-        [class.pointer-events-none]="!chromeVisible()">
+        [class.pointer-events-none]="!chromeVisible()"
+        (click)="$event.stopPropagation()">
         <div class="h-14 px-3 sm:px-6 flex items-center justify-center gap-1 sm:gap-2 bg-slate-900/70 backdrop-blur-md border-t border-slate-800/50">
           <button type="button" disabled title="Arquivo anterior (em breve)"
             class="p-2.5 rounded-xl text-slate-600 cursor-not-allowed opacity-50">
@@ -271,7 +322,7 @@ const DRAG_THRESHOLD_PX = 5;
             </svg>
           </button>
 
-          <button type="button" (click)="showChapters.set(!showChapters())"
+          <button type="button" (click)="toggleChapters()"
             class="p-2.5 rounded-xl text-slate-200 hover:bg-slate-800 cursor-pointer" title="Capítulos">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -316,7 +367,8 @@ const DRAG_THRESHOLD_PX = 5;
       <!-- Chapters panel -->
       @if (showChapters() && chromeVisible()) {
         <div class="absolute bottom-16 left-1/2 -translate-x-1/2 z-40 w-[min(90vw,28rem)] max-h-64 overflow-y-auto
-          bg-slate-900/90 backdrop-blur-md border border-slate-700 rounded-xl shadow-2xl p-3">
+          bg-slate-900/90 backdrop-blur-md border border-slate-700 rounded-xl shadow-2xl p-3"
+          (click)="$event.stopPropagation()">
           <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Capítulos</p>
           @if (chapters().length === 0) {
             <p class="text-xs text-slate-500 py-4 text-center">Nenhum capítulo detectado neste arquivo</p>
@@ -333,6 +385,23 @@ const DRAG_THRESHOLD_PX = 5;
           }
         </div>
       }
+
+      <app-reader-touch-overlay
+        [open]="showTouchDemo()"
+        type="manga"
+        (dismiss)="showTouchDemo.set(false)" />
+
+      <app-reader-touch-config
+        [open]="showTouchConfig()"
+        type="manga"
+        [coverUrl]="coverUrl()"
+        (close)="showTouchConfig.set(false)" />
+
+      @if (stubToast()) {
+        <div class="absolute bottom-20 left-1/2 -translate-x-1/2 z-[65] px-3 py-1.5 rounded-lg bg-slate-800/95 border border-slate-600 text-[11px] text-slate-200 pointer-events-none">
+          {{ stubToast() }}
+        </div>
+      }
     </div>
   `
 })
@@ -344,6 +413,7 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
   private electron = inject(ElectronService);
   private nav = inject(NavigationStackService);
   private settings = inject(SettingsService);
+  private touchZones = inject(TouchZoneService);
 
   MangaScrollingMode = MangaScrollingMode;
   MangaFitMode = MangaFitMode;
@@ -367,6 +437,11 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
   brokenPages = signal(0);
   zoom = signal(1);
   panning = signal(false);
+  showTouchDemo = signal(false);
+  showTouchConfig = signal(false);
+  touchMenuOpen = signal(false);
+  stubToast = signal<string | null>(null);
+  coverUrl = signal<string | null>(null);
 
   scrollingMode = signal<MangaScrollingMode>(this.settings.mangaScrollingMode());
   fitMode = signal<MangaFitMode>(this.settings.mangaFitMode());
@@ -379,6 +454,7 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
   private pendingJump: number | null = null;
   private scrollSyncLock = false;
   private scrollLockTimer: ReturnType<typeof setTimeout> | null = null;
+  private scrollEndHandler: (() => void) | null = null;
   private mangaMeta: Manga | null = null;
   private wheelAccum = 0;
   private didDrag = false;
@@ -386,6 +462,8 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
   private panLastX = 0;
   private panLastY = 0;
   private panTarget: HTMLElement | null = null;
+  private clickTimer: ReturnType<typeof setTimeout> | null = null;
+  private stubToastTimer: ReturnType<typeof setTimeout> | null = null;
 
   readonly extractPercent = computed(() => {
     const t = this.extractTotal();
@@ -426,7 +504,9 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
 
   ngOnDestroy(): void {
     document.removeEventListener('fullscreenchange', this.onFsChange);
-    if (this.scrollLockTimer) clearTimeout(this.scrollLockTimer);
+    this.clearProgrammaticScrollListeners();
+    if (this.clickTimer) clearTimeout(this.clickTimer);
+    if (this.stubToastTimer) clearTimeout(this.stubToastTimer);
     this.unsubProgress?.();
     void this.cleanup();
   }
@@ -498,21 +578,45 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
   }
 
   pagedSlotClasses(): string {
+    const zoomed = this.zoom() !== 1;
     if (this.isHorizontal()) {
-      return 'w-full h-full min-w-full overflow-y-auto overflow-x-hidden';
+      return zoomed
+        ? 'w-full h-full min-w-full overflow-y-auto overflow-x-auto'
+        : 'w-full h-full min-w-full overflow-y-auto overflow-x-hidden';
     }
-    return 'w-full min-h-full h-full overflow-y-auto overflow-x-hidden';
+    return zoomed
+      ? 'w-full min-h-full h-full overflow-y-auto overflow-x-auto'
+      : 'w-full min-h-full h-full overflow-y-auto overflow-x-hidden';
   }
 
   pageImageClasses(): string {
+    const base = 'reader-zoom-img block object-contain [-webkit-user-drag:none]';
+    if (this.isLongStrip()) {
+      return `${base} w-full h-auto`;
+    }
     const fit = this.fitMode();
     if (fit === MangaFitMode.FitHeight) {
-      return 'h-full w-auto max-w-full';
+      return `${base} w-auto max-w-full`;
     }
     if (fit === MangaFitMode.Original) {
-      return 'w-auto h-auto';
+      return `${base} reader-zoom-scale w-auto h-auto`;
     }
-    return 'w-full h-auto';
+    // FitWidth — width set via zoomWidthPercent() for layout-affecting zoom
+    return `${base} h-auto max-w-none`;
+  }
+
+  /** Layout zoom for FitWidth (null = leave CSS class width). */
+  zoomWidthPercent(): number | null {
+    if (this.isLongStrip()) return null;
+    if (this.fitMode() !== MangaFitMode.FitWidth) return null;
+    return 100 * this.zoom();
+  }
+
+  /** Layout zoom for FitHeight. */
+  zoomHeightPercent(): number | null {
+    if (this.isLongStrip()) return null;
+    if (this.fitMode() !== MangaFitMode.FitHeight) return null;
+    return 100 * this.zoom();
   }
 
   eagerNear(index: number): boolean {
@@ -555,17 +659,86 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
       this.didDrag = false;
       return;
     }
+    if (this.showTouchDemo() || this.showTouchConfig()) return;
+    if (this.touchMenuOpen()) {
+      this.touchMenuOpen.set(false);
+      return;
+    }
+
     const el = this.viewportRef?.nativeElement;
     if (!el) return;
     const rect = el.getBoundingClientRect();
-    const x = (ev.clientX - rect.left) / rect.width;
-    if (x < 0.28) {
-      this.isRtl() ? this.goNext() : this.goPrev();
-    } else if (x > 0.72) {
-      this.isRtl() ? this.goPrev() : this.goNext();
-    } else {
-      this.chromeVisible.update(v => !v);
+    const localX = ev.clientX - rect.left;
+    const localY = ev.clientY - rect.top;
+
+    if (this.clickTimer) {
+      clearTimeout(this.clickTimer);
+      this.clickTimer = null;
+      // Double click: toggle zoom (image)
+      this.setZoom(this.zoom() === 1 ? ZOOM_DOUBLE_TAP : 1);
+      return;
     }
+
+    this.clickTimer = setTimeout(() => {
+      this.clickTimer = null;
+      this.dispatchTouchTap(localX, localY, rect.width, rect.height);
+    }, TOUCH_DOUBLE_CLICK_MS);
+  }
+
+  private dispatchTouchTap(localX: number, localY: number, width: number, height: number): void {
+    const handlers: TouchActionHandlers = {
+      showChrome: () => this.chromeVisible.set(true),
+      hideChrome: () => {
+        this.chromeVisible.set(false);
+        this.showChapters.set(false);
+        this.touchMenuOpen.set(false);
+      },
+      isChromeVisible: () => this.chromeVisible(),
+      goPrevPage: () => this.goPrev(),
+      goNextPage: () => this.goNext(),
+      openChapters: () => {
+        this.chromeVisible.set(true);
+        this.showChapters.set(true);
+      },
+      markPage: () => void this.markPage(),
+      fitWidth: () => this.setFitMode(MangaFitMode.FitWidth),
+      aspectFit: () => this.setFitMode(MangaFitMode.FitHeight),
+      previousFile: () => this.showStub('Arquivo anterior (em breve)'),
+      nextFile: () => this.showStub('Próximo arquivo (em breve)'),
+      shareImage: () => this.showStub('Compartilhar imagem (em breve)')
+    };
+    handleReaderTouchTap(this.touchZones, 'manga', localX, localY, width, height, handlers);
+  }
+
+  showTouchDemoManual(): void {
+    this.touchMenuOpen.set(false);
+    this.showTouchDemo.set(true);
+  }
+
+  openTouchConfig(): void {
+    this.touchMenuOpen.set(false);
+    this.showTouchConfig.set(true);
+  }
+
+  toggleTouchMenu(): void {
+    this.touchMenuOpen.update(v => !v);
+  }
+
+  toggleChapters(): void {
+    this.showChapters.update(v => !v);
+  }
+
+  private showStub(message: string): void {
+    this.stubToast.set(message);
+    if (this.stubToastTimer) clearTimeout(this.stubToastTimer);
+    this.stubToastTimer = setTimeout(() => this.stubToast.set(null), 2000);
+  }
+
+  private maybeShowFirstTouchDemo(): void {
+    if (this.touchZones.isDemoShown('manga')) return;
+    this.touchZones.markDemoShown('manga');
+    // After cover/chrome settle
+    setTimeout(() => this.showTouchDemo.set(true), 500);
   }
 
   onViewportWheel(ev: WheelEvent): void {
@@ -613,6 +786,7 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
     this.panLastX = ev.clientX;
     this.panLastY = ev.clientY;
     this.panTarget = this.currentPageSlot() || el;
+    ev.preventDefault();
     try {
       el.setPointerCapture(ev.pointerId);
     } catch { /* ignore */ }
@@ -644,9 +818,19 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
       if (this.zoom() === 1 || !slot || slot.scrollWidth <= slot.clientWidth + 1) {
         viewport.scrollLeft -= dx;
       }
+    } else if (this.isLongStrip()) {
+      viewport.scrollTop -= dy * PAN_STRIP_FACTOR;
+      viewport.scrollLeft -= dx * PAN_STRIP_FACTOR;
     } else {
-      viewport.scrollLeft -= dx;
-      viewport.scrollTop -= dy;
+      // Vertical — scroll current page first, then push viewport toward next/prev
+      if (slot && this.canScrollSlot(slot, -dy)) {
+        slot.scrollTop -= dy;
+        if (this.zoom() !== 1) {
+          slot.scrollLeft -= dx;
+        }
+      } else {
+        viewport.scrollTop -= dy * PAN_VERTICAL_FACTOR;
+      }
     }
   }
 
@@ -658,9 +842,19 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
         el.releasePointerCapture(this.panPointerId);
       } catch { /* ignore */ }
     }
+    const wasDrag = this.didDrag;
     this.panPointerId = null;
     this.panTarget = null;
     this.panning.set(false);
+
+    if (wasDrag && this.scrollingMode() === MangaScrollingMode.Vertical && el) {
+      const nearest = this.nearestPageFromDom(el);
+      if (nearest !== this.currentPage()) {
+        this.scrollToPage(nearest, true);
+      } else {
+        this.syncCurrentPageFromDom();
+      }
+    }
   }
 
   onViewportScroll(): void {
@@ -678,6 +872,14 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
   goNext(): void {
     if (this.tryScrollCurrentPage(1)) return;
     this.seekTo(this.currentPage() + 1);
+  }
+
+  onSeekCommit(ev: Event): void {
+    const input = ev.target as HTMLInputElement;
+    const target = Number(input.value);
+    // Keep thumb on current page until smooth scroll finishes
+    input.value = String(this.currentPage());
+    this.seekTo(target);
   }
 
   seekTo(page: number): void {
@@ -743,6 +945,7 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
       if (manga) {
         this.title.set(manga.title || manga.name || 'Mangá');
         this.favorite.set(!!manga.favorite);
+        this.coverUrl.set(manga.coverPath ? `local-cover:///${manga.coverPath}` : null);
       }
 
       const opened = await this.electron.openMangaReader(this.mangaId);
@@ -771,6 +974,7 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
       });
 
       setTimeout(() => this.chromeVisible.set(false), 400);
+      this.maybeShowFirstTouchDemo();
     } catch (e: any) {
       console.error(e);
       this.error.set(e?.message || 'Erro ao abrir o mangá');
@@ -781,16 +985,36 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
 
   private beginProgrammaticScroll(smooth: boolean): void {
     this.scrollSyncLock = true;
-    if (this.scrollLockTimer) clearTimeout(this.scrollLockTimer);
+    this.clearProgrammaticScrollListeners();
+
+    const el = this.viewportRef?.nativeElement;
+    if (smooth && el) {
+      this.scrollEndHandler = () => this.endProgrammaticScroll();
+      el.addEventListener('scrollend', this.scrollEndHandler, { once: true });
+    }
+
     this.scrollLockTimer = setTimeout(() => {
       this.endProgrammaticScroll();
-    }, smooth ? PROGRAMMATIC_SCROLL_MS : 50);
+    }, smooth ? PROGRAMMATIC_SCROLL_FALLBACK_MS : 50);
   }
 
   private endProgrammaticScroll(): void {
+    if (!this.scrollSyncLock) return;
+    this.clearProgrammaticScrollListeners();
     this.scrollSyncLock = false;
-    this.scrollLockTimer = null;
     this.syncCurrentPageFromDom();
+  }
+
+  private clearProgrammaticScrollListeners(): void {
+    if (this.scrollLockTimer) {
+      clearTimeout(this.scrollLockTimer);
+      this.scrollLockTimer = null;
+    }
+    const el = this.viewportRef?.nativeElement;
+    if (el && this.scrollEndHandler) {
+      el.removeEventListener('scrollend', this.scrollEndHandler);
+      this.scrollEndHandler = null;
+    }
   }
 
   private syncCurrentPageFromDom(): void {
@@ -844,7 +1068,7 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
     setTimeout(() => {
       const slot = el.querySelector(`[data-page="${page}"]`) as HTMLElement | null;
       if (slot) slot.scrollTop = 0;
-    }, smooth ? PROGRAMMATIC_SCROLL_MS : 0);
+    }, smooth ? PROGRAMMATIC_SCROLL_FALLBACK_MS : 0);
   }
 
   private currentPageSlot(): HTMLElement | null {

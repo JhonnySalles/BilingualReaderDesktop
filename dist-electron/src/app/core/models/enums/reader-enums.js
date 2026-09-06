@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.TouchScreen = exports.ImageLoadType = exports.PaginationType = exports.ScrollingType = exports.LibraryBookType = exports.LibraryMangaType = exports.BookScrollingMode = exports.BookLayout = exports.MangaFitMode = exports.MangaScrollingMode = exports.ReaderMode = void 0;
+exports.TouchPosition = exports.TouchScreen = exports.ImageLoadType = exports.PaginationType = exports.ScrollingType = exports.LibraryBookType = exports.LibraryMangaType = exports.BookScrollingMode = exports.BookLayout = exports.MangaFitMode = exports.MangaScrollingMode = exports.ReaderMode = void 0;
 var ReaderMode;
 (function (ReaderMode) {
     ReaderMode["DEFAULT"] = "DEFAULT";
@@ -78,9 +78,31 @@ var ImageLoadType;
     ImageLoadType["FIT_HEIGHT"] = "FIT_HEIGHT";
     ImageLoadType["ORIGINAL"] = "ORIGINAL";
 })(ImageLoadType || (exports.ImageLoadType = ImageLoadType = {}));
+/** Configurable click-zone actions (Android TouchScreen). CENTER is fixed chrome toggle. */
 var TouchScreen;
 (function (TouchScreen) {
-    TouchScreen["NONE"] = "NONE";
-    TouchScreen["TAP_NEXT"] = "TAP_NEXT";
-    TouchScreen["SWIPE"] = "SWIPE";
+    TouchScreen["NOT_IMPLEMENTED"] = "NOT_IMPLEMENTED";
+    TouchScreen["NOT_ASSIGNED"] = "NOT_ASSIGNED";
+    TouchScreen["ASPECT_FIT"] = "ASPECT_FIT";
+    TouchScreen["FIT_WIDTH"] = "FIT_WIDTH";
+    TouchScreen["CHAPTER_LIST"] = "CHAPTER_LIST";
+    TouchScreen["NEXT_FILE"] = "NEXT_FILE";
+    TouchScreen["PREVIOUS_FILE"] = "PREVIOUS_FILE";
+    TouchScreen["NEXT_PAGE"] = "NEXT_PAGE";
+    TouchScreen["PREVIOUS_PAGE"] = "PREVIOUS_PAGE";
+    TouchScreen["SHARE_IMAGE"] = "SHARE_IMAGE";
+    TouchScreen["PAGE_MARK"] = "PAGE_MARK";
 })(TouchScreen || (exports.TouchScreen = TouchScreen = {}));
+/** 3×3 grid positions for reader click zones. */
+var TouchPosition;
+(function (TouchPosition) {
+    TouchPosition["TOP"] = "TOP";
+    TouchPosition["BOTTOM"] = "BOTTOM";
+    TouchPosition["RIGHT"] = "RIGHT";
+    TouchPosition["LEFT"] = "LEFT";
+    TouchPosition["CORNER_TOP_RIGHT"] = "CORNER_TOP_RIGHT";
+    TouchPosition["CORNER_TOP_LEFT"] = "CORNER_TOP_LEFT";
+    TouchPosition["CORNER_BOTTOM_RIGHT"] = "CORNER_BOTTOM_RIGHT";
+    TouchPosition["CORNER_BOTTOM_LEFT"] = "CORNER_BOTTOM_LEFT";
+    TouchPosition["CENTER"] = "CENTER";
+})(TouchPosition || (exports.TouchPosition = TouchPosition = {}));

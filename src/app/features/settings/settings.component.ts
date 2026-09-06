@@ -4,7 +4,8 @@ import { FormsModule } from '@angular/forms';
 import { ElectronService } from '../../core/services/electron.service';
 import { ThemeService, ThemeMode, AccentColor } from '../../core/services/theme.service';
 import { SettingsService, CustomLibrary } from '../../core/services/settings.service';
-import { MangaFitMode, MangaScrollingMode } from '../../core/models';
+import { MangaFitMode, MangaScrollingMode, ReaderTouchType } from '../../core/models';
+import { ReaderTouchConfigComponent } from '../reader-shared/reader-touch-config.component';
 export type { CustomLibrary };
 
 type SettingTab = 'manga' | 'book' | 'system' | 'ai';
@@ -12,9 +13,9 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai';
 @Component({
   selector: 'app-settings',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ReaderTouchConfigComponent],
   template: `
-    <div class="h-full flex flex-col bg-slate-950 text-slate-100 overflow-hidden select-none">
+    <div class="h-full flex flex-col bg-slate-950 text-slate-100 overflow-hidden select-none relative">
       <!-- Settings Layout (Left Navigation, Right Scrollable Content) -->
       <div class="flex-1 flex overflow-hidden">
         <!-- Categories Side Nav -->
@@ -226,6 +227,20 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai';
                   </label>
                 </div>
               </div>
+
+              <!-- Touch / click zones -->
+              <div class="bg-slate-900/80 rounded-xl p-5 border border-slate-800 space-y-3">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Funções de Clique do Leitor</h3>
+                <p class="text-[11px] text-slate-500">Configure as ações das zonas 3×3 (topo, centro e rodapé) usadas no leitor de mangá.</p>
+                <button type="button" (click)="openTouchConfig('manga')"
+                  class="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white transition-colors cursor-pointer inline-flex items-center gap-2">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"/>
+                  </svg>
+                  Configurar funções de clique
+                </button>
+              </div>
             </section>
           }
 
@@ -371,6 +386,20 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai';
                   </div>
                   <input type="range" min="12" max="32" step="1" [value]="fontSize()" (input)="updateFontSize($event)" class="w-full accent-indigo-600 cursor-pointer">
                 </div>
+              </div>
+
+              <!-- Touch / click zones -->
+              <div class="bg-slate-900/80 rounded-xl p-5 border border-slate-800 space-y-3">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Funções de Clique do Leitor</h3>
+                <p class="text-[11px] text-slate-500">Configure as ações das zonas 3×3 usadas no leitor de livros (EPUB).</p>
+                <button type="button" (click)="openTouchConfig('book')"
+                  class="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white transition-colors cursor-pointer inline-flex items-center gap-2">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"/>
+                  </svg>
+                  Configurar funções de clique
+                </button>
               </div>
             </section>
           }
@@ -662,6 +691,12 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai';
           </div>
         </div>
       }
+
+      <app-reader-touch-config
+        [open]="showTouchConfig()"
+        [type]="touchConfigType()"
+        [coverUrl]="null"
+        (close)="showTouchConfig.set(false)" />
     </div>
   `
 })
@@ -674,6 +709,8 @@ export class SettingsComponent {
   MangaScrollingMode = MangaScrollingMode;
 
   activeTab = signal<SettingTab>('manga');
+  showTouchConfig = signal(false);
+  touchConfigType = signal<ReaderTouchType>('manga');
 
   // Base Directory Signals
   mangaBasePath = computed(() => this.settingsService.mangaBasePath());
@@ -698,6 +735,11 @@ export class SettingsComponent {
 
   selectAccent(accent: AccentColor): void {
     this.themeService.setAccent(accent);
+  }
+
+  openTouchConfig(type: ReaderTouchType): void {
+    this.touchConfigType.set(type);
+    this.showTouchConfig.set(true);
   }
 
   // EPUB / TTS Signals

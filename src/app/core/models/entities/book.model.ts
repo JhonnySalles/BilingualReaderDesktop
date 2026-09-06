@@ -43,13 +43,39 @@ export interface Book extends BaseEntity<number>, HistoryInterface {
   coverPath?: string;
 }
 
+/** Highlight colors — names match Android Color enum; hex from Color.getHtmlColor(). */
+export enum BookAnnotationColor {
+  Yellow = 'Yellow',
+  Green = 'Green',
+  Blue = 'Blue',
+  Red = 'Red'
+}
+
+export const BOOK_ANNOTATION_COLOR_HEX: Record<BookAnnotationColor, string> = {
+  [BookAnnotationColor.Yellow]: '#e6b800',
+  [BookAnnotationColor.Green]: '#00e600',
+  [BookAnnotationColor.Blue]: '#668cff',
+  [BookAnnotationColor.Red]: '#ff4d4d'
+};
+
 export interface BookAnnotation extends BaseEntity<number> {
   fkBook: number;
   page: number;
+  pages: number;
   text: string;
   note?: string;
   color?: string;
+  chapter?: string;
+  chapterNumber?: number;
+  /** Character offsets [start, end] for mobile parity — not used for desktop rendering. */
+  range?: number[];
+  markType?: string;
+  favorite?: boolean;
+  /** EPUB CFI range — desktop highlight anchor. */
+  cfiRange?: string;
+  fontSize?: number;
   dateCreate?: string;
+  alteration?: string;
 }
 
 export interface BookConfiguration {

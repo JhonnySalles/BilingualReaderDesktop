@@ -18,18 +18,35 @@ import { ElectronService } from '../../core/services/electron.service';
 import { NavigationStackService } from '../../core/services/navigation-stack.service';
 import { SettingsService } from '../../core/services/settings.service';
 import {
+  TOUCH_DOUBLE_CLICK_MS,
+  TouchZoneService
+} from '../../core/services/touch-zone.service';
+import {
   Book,
   BookAlign,
+  BookAnnotation,
+  BookAnnotationColor,
+  BOOK_ANNOTATION_COLOR_HEX,
   BookConfiguration,
   BookMarginSize,
   BookScrollingMode,
   BookSpacingSize
 } from '../../core/models';
+import { ReaderTouchOverlayComponent } from '../reader-shared/reader-touch-overlay.component';
+import { ReaderTouchConfigComponent } from '../reader-shared/reader-touch-config.component';
+import { handleReaderTouchTap, TouchActionHandlers } from '../reader-shared/touch-action.util';
+import { AnnotationPopupComponent } from './annotation-popup.component';
+import { TextSelectPopupComponent } from './text-select-popup.component';
 
 interface TocEntry {
   label: string;
   href: string;
   location: number;
+}
+
+interface TextSelectPos {
+  left: number;
+  top: number;
 }
 
 const MARGIN_PX: Record<BookMarginSize, number> = {
@@ -44,10 +61,24 @@ const SPACING_LH: Record<BookSpacingSize, number> = {
   large: 1.8
 };
 
+const ZOOM_MIN = 0.5;
+const ZOOM_MAX = 3;
+const ZOOM_STEP_WHEEL = 0.1;
+const ZOOM_STEP_BUTTON = 0.25;
+const WHEEL_PAGE_THRESHOLD = 200;
+const DRAG_THRESHOLD_PX = 5;
+
 @Component({
   selector: 'app-reader-text',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [
+    CommonModule,
+    FormsModule,
+    ReaderTouchOverlayComponent,
+    ReaderTouchConfigComponent,
+    AnnotationPopupComponent,
+    TextSelectPopupComponent
+  ],
   host: { class: 'block h-screen w-screen' },
   template: `
     <div class="h-screen w-screen relative bg-slate-950 text-slate-100 overflow-hidden select-none">
@@ -69,9 +100,13 @@ const SPACING_LH: Record<BookSpacingSize, number> = {
         </div>
       }
 
-      <!-- EPUB viewport (clicks come from rendition.on('click') — iframe does not bubble) -->
-      <div #viewerHost class="absolute inset-0 outline-none z-0">
-        <div #viewer class="w-full h-full"></div>
+      <!-- EPUB viewport (clicks/pan via iframe hooks — does not bubble to Angular) -->
+      <div
+        #viewerHost
+        class="absolute inset-0 outline-none z-0 touch-none"
+        [class.cursor-grab]="!panning()"
+        [class.cursor-grabbing]="panning()">
+        <div #viewer class="w-full h-full origin-top" [style.zoom]="zoom()"></div>
       </div>
 
       <!-- Always-visible thin progress strip -->
@@ -155,13 +190,13 @@ const SPACING_LH: Record<BookSpacingSize, number> = {
             </button>
 
             <div class="hidden sm:flex items-center gap-0.5 bg-slate-950/80 border border-slate-700 rounded-lg px-1">
-              <button type="button" (click)="adjustFontSize(-1)"
-                class="p-1.5 text-slate-300 hover:text-white rounded cursor-pointer" title="Diminuir fonte">
+              <button type="button" (click)="zoomOut()"
+                class="p-1.5 text-slate-300 hover:text-white rounded cursor-pointer" title="Diminuir zoom">
                 <span class="text-sm font-bold leading-none">−</span>
               </button>
-              <span class="text-[10px] tabular-nums text-slate-400 min-w-[2.75rem] text-center">{{ fontSize() }}px</span>
-              <button type="button" (click)="adjustFontSize(1)"
-                class="p-1.5 text-slate-300 hover:text-white rounded cursor-pointer" title="Aumentar fonte">
+              <span class="text-[10px] tabular-nums text-slate-400 min-w-[2.75rem] text-center">{{ zoomPercent() }}%</span>
+              <button type="button" (click)="zoomIn()"
+                class="p-1.5 text-slate-300 hover:text-white rounded cursor-pointer" title="Aumentar zoom">
                 <span class="text-sm font-bold leading-none">+</span>
               </button>
             </div>
@@ -200,6 +235,28 @@ const SPACING_LH: Record<BookSpacingSize, number> = {
                 </svg>
               }
             </button>
+
+            <div class="relative">
+              <button type="button" (click)="toggleTouchMenu()"
+                class="p-2 text-slate-300 hover:text-white rounded-lg transition-colors cursor-pointer"
+                title="Mais opções">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                  <circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/>
+                </svg>
+              </button>
+              @if (touchMenuOpen()) {
+                <div class="absolute right-0 top-full mt-1 w-56 rounded-xl bg-slate-900/95 backdrop-blur-md border border-slate-700 shadow-2xl py-1 z-50">
+                  <button type="button" (click)="showTouchDemoManual()"
+                    class="w-full px-3 py-2.5 text-left text-xs font-medium text-slate-200 hover:bg-slate-800 cursor-pointer">
+                    Ver funções de clique
+                  </button>
+                  <button type="button" (click)="openTouchConfig()"
+                    class="w-full px-3 py-2.5 text-left text-xs font-medium text-slate-200 hover:bg-slate-800 cursor-pointer">
+                    Configurar funções de clique
+                  </button>
+                </div>
+              }
+            </div>
           </div>
         </div>
       </header>
@@ -257,7 +314,7 @@ const SPACING_LH: Record<BookSpacingSize, number> = {
             </svg>
           </button>
 
-          <button type="button" (click)="prevPage()"
+          <button type="button" (click)="goPrev()"
             class="p-2.5 rounded-xl text-slate-200 hover:bg-slate-800 cursor-pointer" title="Anterior">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
@@ -308,7 +365,7 @@ const SPACING_LH: Record<BookSpacingSize, number> = {
             </svg>
           </button>
 
-          <button type="button" (click)="nextPage()"
+          <button type="button" (click)="goNext()"
             class="p-2.5 rounded-xl text-slate-200 hover:bg-slate-800 cursor-pointer" title="Próxima">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
@@ -418,6 +475,41 @@ const SPACING_LH: Record<BookSpacingSize, number> = {
           </select>
         </aside>
       }
+
+      <app-reader-touch-overlay
+        [open]="showTouchDemo()"
+        type="book"
+        (dismiss)="showTouchDemo.set(false)" />
+
+      <app-reader-touch-config
+        [open]="showTouchConfig()"
+        type="book"
+        [coverUrl]="coverUrl()"
+        (close)="showTouchConfig.set(false)" />
+
+      @if (stubToast()) {
+        <div class="absolute bottom-24 left-1/2 -translate-x-1/2 z-[65] px-3 py-1.5 rounded-lg bg-slate-800/95 border border-slate-600 text-[11px] text-slate-200 pointer-events-none">
+          {{ stubToast() }}
+        </div>
+      }
+
+      <app-text-select-popup
+        [visible]="textSelectVisible()"
+        [left]="textSelectPos().left"
+        [top]="textSelectPos().top"
+        (color)="onTextSelectColor($event)"
+        (erase)="onTextSelectErase()"
+        (copy)="onTextSelectCopy()"
+        (selectAll)="onTextSelectAll()"
+        (dismiss)="dismissTextSelect()" />
+
+      @if (editingAnnotation(); as draft) {
+        <app-annotation-popup
+          [annotation]="draft"
+          (save)="onAnnotationSave($event)"
+          (delete)="onAnnotationDelete()"
+          (cancel)="onAnnotationCancel()" />
+      }
     </div>
   `
 })
@@ -430,6 +522,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
   private electron = inject(ElectronService);
   private nav = inject(NavigationStackService);
   private settings = inject(SettingsService);
+  private touchZones = inject(TouchZoneService);
 
   BookScrollingMode = BookScrollingMode;
   Math = Math;
@@ -451,6 +544,18 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
   showToc = signal(false);
   showTypography = signal(false);
   toc = signal<TocEntry[]>([]);
+  zoom = signal(1);
+  panning = signal(false);
+  showTouchDemo = signal(false);
+  showTouchConfig = signal(false);
+  touchMenuOpen = signal(false);
+  stubToast = signal<string | null>(null);
+  coverUrl = signal<string | null>(null);
+  annotations = signal<BookAnnotation[]>([]);
+  editingAnnotation = signal<BookAnnotation | null>(null);
+  textSelectVisible = signal(false);
+  textSelectPos = signal<TextSelectPos>({ left: 0, top: 0 });
+  pendingSelection = signal<BookAnnotation | null>(null);
 
   scrollingMode = signal<BookScrollingMode>(this.settings.bookScrollingMode());
   fontSize = signal<number>(this.settings.bookFontSize());
@@ -471,12 +576,23 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
   private pendingOpen: { epubUrl: string; bookMark: number; bookMarkCfi: string } | null = null;
   private relocating = false;
   private wheelAccum = 0;
+  private didDrag = false;
+  private panPointerId: number | null = null;
+  private panLastX = 0;
+  private panLastY = 0;
+  private contentCleanups: Array<() => void> = [];
+  private pendingSelectContents: any | null = null;
+  private textSelectPageAtOpen = -1;
+  private clickTimer: ReturnType<typeof setTimeout> | null = null;
+  private stubToastTimer: ReturnType<typeof setTimeout> | null = null;
 
   readonly progressPercent = computed(() => {
     const total = this.pageCount();
     if (total <= 0) return 0;
     return Math.min(100, Math.round(((this.currentPage() + 1) / total) * 100));
   });
+
+  readonly zoomPercent = computed(() => Math.round(this.zoom() * 100));
 
   readonly isRtl = computed(() => this.scrollingMode() === BookScrollingMode.PaginationRtl);
 
@@ -485,13 +601,12 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     return m === BookScrollingMode.Pagination || m === BookScrollingMode.PaginationRtl;
   });
 
-  readonly isPaginatedWheelMode = computed(() => {
+  /** Horizontal paginated only — wheel page-turn; Vertical/Tira use native continuous scroll. */
+  readonly isPaginatedWheelMode = computed(() => this.isHorizontalMode());
+
+  readonly isContinuousScrollMode = computed(() => {
     const m = this.scrollingMode();
-    return (
-      m === BookScrollingMode.Pagination ||
-      m === BookScrollingMode.PaginationRtl ||
-      m === BookScrollingMode.PaginationVertical
-    );
+    return m === BookScrollingMode.Continuous || m === BookScrollingMode.PaginationVertical;
   });
 
   ngOnInit(): void {
@@ -512,12 +627,21 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
   ngOnDestroy(): void {
     document.removeEventListener('fullscreenchange', this.onFsChange);
     window.removeEventListener('wheel', this.onWindowWheel);
+    if (this.clickTimer) clearTimeout(this.clickTimer);
+    if (this.stubToastTimer) clearTimeout(this.stubToastTimer);
     void this.cleanup();
   }
 
   @HostListener('window:keydown', ['$event'])
   onKeydown(ev: KeyboardEvent): void {
     if (this.loading() || this.error()) return;
+    if (this.editingAnnotation()) return;
+    if (ev.key === 'Escape' && this.textSelectVisible()) {
+      ev.preventDefault();
+      this.dismissTextSelect();
+      return;
+    }
+    if (this.textSelectVisible()) return;
     const target = ev.target as HTMLElement | null;
     if (target && (target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.tagName === 'TEXTAREA')) {
       return;
@@ -528,32 +652,32 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     if (key === 'ArrowLeft') {
       if (!horizontal) return;
       ev.preventDefault();
-      this.isRtl() ? this.nextPage() : this.prevPage();
+      this.isRtl() ? this.goNext() : this.goPrev();
     } else if (key === 'ArrowRight') {
       if (!horizontal) return;
       ev.preventDefault();
-      this.isRtl() ? this.prevPage() : this.nextPage();
+      this.isRtl() ? this.goPrev() : this.goNext();
     } else if (key === 'ArrowUp') {
       if (horizontal) return;
       ev.preventDefault();
-      this.prevPage();
+      this.scrollContinuousBy(-1);
     } else if (key === 'ArrowDown') {
       if (horizontal) return;
       ev.preventDefault();
-      this.nextPage();
+      this.scrollContinuousBy(1);
     } else if (key === 'PageUp') {
       ev.preventDefault();
       if (horizontal) {
-        this.isRtl() ? this.nextPage() : this.prevPage();
+        this.isRtl() ? this.goNext() : this.goPrev();
       } else {
-        this.prevPage();
+        this.scrollContinuousBy(-1);
       }
     } else if (key === 'PageDown' || key === ' ') {
       ev.preventDefault();
       if (horizontal) {
-        this.isRtl() ? this.prevPage() : this.nextPage();
+        this.isRtl() ? this.goPrev() : this.goNext();
       } else {
-        this.nextPage();
+        this.scrollContinuousBy(1);
       }
     } else if (key === 'Home') {
       ev.preventDefault();
@@ -572,10 +696,10 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       this.toggleFullscreen();
     } else if (key === '+' || key === '=') {
       ev.preventDefault();
-      this.adjustFontSize(1);
+      this.zoomIn();
     } else if (key === '-' || key === '_') {
       ev.preventDefault();
-      this.adjustFontSize(-1);
+      this.zoomOut();
     }
   }
 
@@ -584,9 +708,24 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     return (location / max) * 100;
   }
 
-  /** Tap zones from epub.js iframe events (clientX is viewport-relative). */
-  handleReaderTap(clientX: number): void {
+  /** Tap zones from epub.js iframe events (client coords are viewport-relative). */
+  handleReaderTap(clientX: number, clientY?: number): void {
     if (this.loading() || this.error()) return;
+    if (this.editingAnnotation()) return;
+    if (this.textSelectVisible()) {
+      this.dismissTextSelect();
+      return;
+    }
+    if (this.showTouchDemo() || this.showTouchConfig()) return;
+    if (this.didDrag) {
+      this.didDrag = false;
+      return;
+    }
+    if (this.hasActiveTextSelection()) return;
+    if (this.touchMenuOpen()) {
+      this.touchMenuOpen.set(false);
+      return;
+    }
     if (this.showTypography() || this.showToc()) {
       this.showTypography.set(false);
       this.showToc.set(false);
@@ -598,15 +737,71 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
     const rect = el.getBoundingClientRect();
-    const width = rect.width || 1;
-    const x = (clientX - rect.left) / width;
-    if (x < 0.28) {
-      this.isRtl() ? this.nextPage() : this.prevPage();
-    } else if (x > 0.72) {
-      this.isRtl() ? this.prevPage() : this.nextPage();
-    } else {
-      this.chromeVisible.update(v => !v);
+    const localX = clientX - rect.left;
+    const localY = typeof clientY === 'number' ? clientY - rect.top : rect.height / 2;
+
+    if (this.clickTimer) {
+      clearTimeout(this.clickTimer);
+      this.clickTimer = null;
+      // Double click on book: reset zoom only
+      this.setZoom(1);
+      return;
     }
+
+    this.clickTimer = setTimeout(() => {
+      this.clickTimer = null;
+      this.dispatchTouchTap(localX, localY, rect.width, rect.height);
+    }, TOUCH_DOUBLE_CLICK_MS);
+  }
+
+  private dispatchTouchTap(localX: number, localY: number, width: number, height: number): void {
+    const handlers: TouchActionHandlers = {
+      showChrome: () => this.chromeVisible.set(true),
+      hideChrome: () => {
+        this.chromeVisible.set(false);
+        this.showToc.set(false);
+        this.showTypography.set(false);
+        this.touchMenuOpen.set(false);
+      },
+      isChromeVisible: () => this.chromeVisible(),
+      goPrevPage: () => this.goPrev(),
+      goNextPage: () => this.goNext(),
+      openChapters: () => {
+        this.chromeVisible.set(true);
+        this.showTypography.set(false);
+        this.showToc.set(true);
+      },
+      markPage: () => void this.markPage(),
+      previousFile: () => this.showStub('Arquivo anterior (em breve)'),
+      nextFile: () => this.showStub('Próximo arquivo (em breve)')
+    };
+    handleReaderTouchTap(this.touchZones, 'book', localX, localY, width, height, handlers);
+  }
+
+  showTouchDemoManual(): void {
+    this.touchMenuOpen.set(false);
+    this.showTouchDemo.set(true);
+  }
+
+  openTouchConfig(): void {
+    this.touchMenuOpen.set(false);
+    this.showTouchConfig.set(true);
+  }
+
+  toggleTouchMenu(): void {
+    this.touchMenuOpen.update(v => !v);
+  }
+
+  private showStub(message: string): void {
+    this.stubToast.set(message);
+    if (this.stubToastTimer) clearTimeout(this.stubToastTimer);
+    this.stubToastTimer = setTimeout(() => this.stubToast.set(null), 2000);
+  }
+
+  private maybeShowFirstTouchDemo(): void {
+    if (this.touchZones.isDemoShown('book')) return;
+    this.touchZones.markDemoShown('book');
+    setTimeout(() => this.showTouchDemo.set(true), 1400);
   }
 
   toggleToc(): void {
@@ -621,6 +816,26 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     this.showTypography.update(v => !v);
   }
 
+  /** Navigate previous with continuous scroll or internal page scroll first. */
+  goPrev(): void {
+    if (this.isContinuousScrollMode()) {
+      this.scrollContinuousBy(-1);
+      return;
+    }
+    if (this.tryScrollContents(-1)) return;
+    this.prevPage();
+  }
+
+  /** Navigate next with continuous scroll or internal page scroll first. */
+  goNext(): void {
+    if (this.isContinuousScrollMode()) {
+      this.scrollContinuousBy(1);
+      return;
+    }
+    if (this.tryScrollContents(1)) return;
+    this.nextPage();
+  }
+
   prevPage(): void {
     if (!this.rendition) return;
     void this.rendition.prev();
@@ -629,6 +844,14 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
   nextPage(): void {
     if (!this.rendition) return;
     void this.rendition.next();
+  }
+
+  zoomIn(): void {
+    this.setZoom(this.zoom() + ZOOM_STEP_BUTTON);
+  }
+
+  zoomOut(): void {
+    this.setZoom(this.zoom() - ZOOM_STEP_BUTTON);
   }
 
   seekTo(page: number): void {
@@ -704,6 +927,11 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     this.setFontSize(this.fontSize() + delta);
   }
 
+  private setZoom(value: number): void {
+    const next = Math.round(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, value)) * 100) / 100;
+    this.zoom.set(next);
+  }
+
   setFontFamily(family: string): void {
     this.fontFamily.set(family);
     this.settings.bookFontFamily.set(family);
@@ -747,37 +975,64 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     if (ev.ctrlKey) {
       ev.preventDefault();
       const dir = ev.deltaY > 0 ? -1 : 1;
-      this.adjustFontSize(dir);
+      this.setZoom(this.zoom() + dir * ZOOM_STEP_WHEEL);
       return;
     }
 
+    // Continuous strip: let native scroll work
     if (!this.isPaginatedWheelMode()) return;
 
     ev.preventDefault();
+
+    if (this.canScrollContents(ev.deltaY)) {
+      this.scrollContentsBy(ev.deltaY);
+      this.wheelAccum = 0;
+      return;
+    }
+
     this.wheelAccum += ev.deltaY;
-    if (Math.abs(this.wheelAccum) < 200) return;
+    if (Math.abs(this.wheelAccum) < WHEEL_PAGE_THRESHOLD) return;
 
     const forward = this.wheelAccum > 0;
     this.wheelAccum = 0;
 
     if (this.isHorizontalMode()) {
       if (this.isRtl()) {
-        forward ? this.prevPage() : this.nextPage();
+        forward ? this.goPrev() : this.goNext();
       } else {
-        forward ? this.nextPage() : this.prevPage();
+        forward ? this.goNext() : this.goPrev();
       }
     } else {
-      forward ? this.nextPage() : this.prevPage();
+      forward ? this.goNext() : this.goPrev();
     }
   };
 
   private onRenditionClick = (event: MouseEvent): void => {
+    if (this.editingAnnotation()) return;
+    if (this.textSelectVisible()) {
+      this.dismissTextSelect();
+      return;
+    }
+    if (this.didDrag) {
+      this.didDrag = false;
+      return;
+    }
+    if (this.hasActiveTextSelection()) return;
     const clientX = event?.clientX;
     if (typeof clientX !== 'number') {
       this.chromeVisible.update(v => !v);
       return;
     }
-    this.handleReaderTap(clientX);
+    this.handleReaderTap(clientX, event?.clientY);
+  };
+
+  private onRenditionDblClick = (_event: MouseEvent): void => {
+    // epub.js may also fire dblclick; ensure zoom reset without zone action
+    if (this.clickTimer) {
+      clearTimeout(this.clickTimer);
+      this.clickTimer = null;
+    }
+    this.setZoom(1);
   };
 
   private async openReader(): Promise<void> {
@@ -795,6 +1050,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
         this.title.set(book.title || book.name || 'Livro');
         this.author.set(book.author || '');
         this.favorite.set(!!book.favorite);
+        this.coverUrl.set(book.coverPath ? `local-cover:///${book.coverPath}` : null);
       }
 
       this.loadingMessage.set('Preparando EPUB…');
@@ -808,6 +1064,13 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       this.author.set(opened.author || '');
       this.favorite.set(opened.favorite);
       this.applyConfiguration(opened.configuration);
+
+      try {
+        this.annotations.set(await this.electron.listBookAnnotations(this.bookId));
+      } catch (e) {
+        console.warn('[reader-text] list annotations failed', e);
+        this.annotations.set([]);
+      }
 
       if (this.viewReady) {
         await this.mountEpub(opened.epubUrl, opened.bookMark, opened.bookMarkCfi);
@@ -847,6 +1110,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.destroyEpub();
     el.innerHTML = '';
+    this.zoom.set(1);
 
     const book = ePub(epubUrl);
     this.epubBook = book;
@@ -859,6 +1123,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
 
     await this.buildToc(book);
     this.createRendition(el);
+    this.applyAnnotations();
 
     const startCfi = bookMarkCfi
       || (bookMark > 0 ? book.locations.cfiFromLocation(bookMark) : undefined)
@@ -897,31 +1162,57 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
         this.chromeVisible.set(false);
       }
     }, 1200);
+    this.maybeShowFirstTouchDemo();
   }
 
   private createRendition(el: HTMLElement): void {
     if (!this.epubBook) return;
     const mode = this.scrollingMode();
-    const flow =
-      mode === BookScrollingMode.Continuous || mode === BookScrollingMode.PaginationVertical
-        ? 'scrolled-doc'
-        : 'paginated';
+    const continuous =
+      mode === BookScrollingMode.Continuous || mode === BookScrollingMode.PaginationVertical;
 
-    const rendition = this.epubBook.renderTo(el, {
-      width: '100%',
-      height: '100%',
-      flow,
-      allowScriptedContent: false,
-      defaultDirection: mode === BookScrollingMode.PaginationRtl ? 'rtl' : 'ltr'
-    });
+    const rendition = this.epubBook.renderTo(el, continuous
+      ? {
+          width: '100%',
+          height: '100%',
+          manager: 'continuous',
+          flow: 'scrolled',
+          allowScriptedContent: false
+        }
+      : {
+          width: '100%',
+          height: '100%',
+          flow: 'paginated',
+          allowScriptedContent: false,
+          defaultDirection: mode === BookScrollingMode.PaginationRtl ? 'rtl' : 'ltr'
+        });
     this.rendition = rendition;
     this.applyTypography();
 
     // epub.js iframes swallow DOM clicks — listen via rendition passEvents
     rendition.on('click', this.onRenditionClick);
+    rendition.on('dblclick', this.onRenditionDblClick);
+    rendition.on('selected', this.onRenditionSelected);
     rendition.on('touchend', (event: TouchEvent) => {
+      if (this.editingAnnotation()) return;
+      if (this.textSelectVisible()) {
+        // Keep floating toolbar; ignore tap zones while selecting
+        if (this.hasActiveTextSelection()) return;
+        this.dismissTextSelect();
+        return;
+      }
+      if (this.didDrag) {
+        this.didDrag = false;
+        return;
+      }
+      if (this.hasActiveTextSelection()) return;
       const touch = event?.changedTouches?.[0];
-      if (touch) this.handleReaderTap(touch.clientX);
+      if (touch) this.handleReaderTap(touch.clientX, touch.clientY);
+    });
+
+    // Pan + hand cursor inside iframe documents
+    rendition.hooks.content.register((contents: any) => {
+      this.attachContentPan(contents);
     });
 
     rendition.on('relocated', (location: any) => {
@@ -940,7 +1231,557 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       this.currentPage.set(loc);
       this.updateChapterFromHref(location?.start?.href);
       this.scheduleProgressUpdate();
+      if (this.textSelectVisible() && this.textSelectPageAtOpen >= 0 && loc !== this.textSelectPageAtOpen) {
+        this.dismissTextSelect();
+      }
     });
+  }
+
+  private onRenditionSelected = (cfiRange: string, contents: any): void => {
+    if (this.loading() || this.error() || this.editingAnnotation()) return;
+    const sel = contents?.window?.getSelection?.();
+    const text = (sel?.toString() || '').trim();
+    if (!text || !cfiRange) return;
+
+    let range: number[] | undefined;
+    let domRange: Range | null = null;
+    try {
+      if (sel?.rangeCount && contents?.document) {
+        domRange = sel.getRangeAt(0);
+        if (domRange) {
+          range = this.charRange(contents.document, domRange);
+        }
+      }
+    } catch { /* ignore */ }
+
+    this.showTextSelectPopup(cfiRange, text, range, contents, domRange);
+  };
+
+  private charRange(doc: Document, r: Range): number[] {
+    const pre = doc.createRange();
+    pre.selectNodeContents(doc.body);
+    pre.setEnd(r.startContainer, r.startOffset);
+    const start = pre.toString().length;
+    return [start, start + r.toString().length];
+  }
+
+  private buildDraftAnnotation(cfiRange: string, text: string, range?: number[]): BookAnnotation {
+    let page = this.currentPage();
+    try {
+      const raw = this.epubBook?.locations.locationFromCfi(cfiRange) as unknown;
+      const loc = typeof raw === 'number' ? raw : Number(raw);
+      if (!Number.isNaN(loc)) page = Math.max(0, loc);
+    } catch { /* keep current */ }
+
+    return {
+      fkBook: this.bookId,
+      page,
+      pages: this.pageCount(),
+      text,
+      note: '',
+      color: BookAnnotationColor.Yellow,
+      chapter: this.chapterTitle() || '',
+      chapterNumber: 0,
+      range,
+      markType: 'Annotation',
+      favorite: false,
+      cfiRange,
+      fontSize: this.fontSize()
+    };
+  }
+
+  private showTextSelectPopup(
+    cfiRange: string,
+    text: string,
+    range: number[] | undefined,
+    contents: any,
+    domRange: Range | null
+  ): void {
+    this.showToc.set(false);
+    this.showTypography.set(false);
+    this.chromeVisible.set(false);
+
+    const draft = this.buildDraftAnnotation(cfiRange, text, range);
+    this.pendingSelection.set(draft);
+    this.pendingSelectContents = contents;
+    this.textSelectPageAtOpen = draft.page;
+    this.textSelectPos.set(this.computeTextSelectPos(contents, domRange));
+    this.textSelectVisible.set(true);
+  }
+
+  private computeTextSelectPos(contents: any, domRange: Range | null): TextSelectPos {
+    const host = this.viewerHostRef?.nativeElement;
+    const hostRect = host?.getBoundingClientRect();
+    const popupW = 220;
+    const popupH = 92;
+    const pad = 8;
+
+    let selLeft = 0;
+    let selTop = 0;
+    let selBottom = 40;
+    let selWidth = 40;
+
+    try {
+      if (domRange && contents?.document) {
+        const r = domRange.getBoundingClientRect();
+        const iframe = contents.document.defaultView?.frameElement as HTMLElement | null;
+        const iframeRect = iframe?.getBoundingClientRect();
+        const ox = iframeRect?.left ?? 0;
+        const oy = iframeRect?.top ?? 0;
+        selLeft = ox + r.left;
+        selTop = oy + r.top;
+        selBottom = oy + r.bottom;
+        selWidth = Math.max(r.width, 1);
+      }
+    } catch { /* fallback below */ }
+
+    if (!hostRect) {
+      return { left: pad, top: pad };
+    }
+
+    // Convert viewport coords → host-local
+    let left = selLeft - hostRect.left + selWidth / 2 - popupW / 2;
+    let top = selTop - hostRect.top - popupH - pad;
+    if (top < pad) {
+      top = selBottom - hostRect.top + pad;
+    }
+
+    const maxLeft = Math.max(pad, hostRect.width - popupW - pad);
+    const maxTop = Math.max(pad, hostRect.height - popupH - pad);
+    left = Math.min(Math.max(pad, left), maxLeft);
+    top = Math.min(Math.max(pad, top), maxTop);
+    return { left, top };
+  }
+
+  dismissTextSelect(): void {
+    this.textSelectVisible.set(false);
+    this.pendingSelection.set(null);
+    this.textSelectPageAtOpen = -1;
+    try {
+      this.pendingSelectContents?.window?.getSelection?.()?.removeAllRanges?.();
+    } catch { /* ignore */ }
+    this.pendingSelectContents = null;
+  }
+
+  async onTextSelectColor(color: BookAnnotationColor): Promise<void> {
+    const pending = this.pendingSelection();
+    if (!pending?.cfiRange) {
+      this.dismissTextSelect();
+      return;
+    }
+    const saved = await this.electron.saveBookAnnotation({
+      ...pending,
+      color,
+      note: '',
+      markType: 'Annotation',
+      fkBook: this.bookId
+    });
+    this.dismissTextSelect();
+    if (!saved) return;
+
+    const list = [...this.annotations()];
+    const idx = list.findIndex(a => a.id === saved.id);
+    if (idx >= 0) list[idx] = saved;
+    else list.unshift(saved);
+    this.annotations.set(list);
+
+    if (saved.cfiRange) {
+      this.removeHighlight(saved.cfiRange);
+      this.addHighlight(saved);
+    }
+  }
+
+  async onTextSelectErase(): Promise<void> {
+    const pending = this.pendingSelection();
+    if (!pending) {
+      this.dismissTextSelect();
+      return;
+    }
+
+    const targets = this.annotations().filter(a => this.annotationOverlapsSelection(a, pending));
+    for (const a of targets) {
+      if (a.id) {
+        await this.electron.deleteBookAnnotation(a.id);
+      }
+      if (a.cfiRange) this.removeHighlight(a.cfiRange);
+    }
+    if (targets.length) {
+      const removed = new Set(targets.map(t => t.id));
+      this.annotations.set(this.annotations().filter(a => !removed.has(a.id)));
+    }
+    this.dismissTextSelect();
+  }
+
+  private annotationOverlapsSelection(a: BookAnnotation, pending: BookAnnotation): boolean {
+    if (a.cfiRange && pending.cfiRange && a.cfiRange === pending.cfiRange) return true;
+    if (
+      a.range &&
+      a.range.length >= 2 &&
+      pending.range &&
+      pending.range.length >= 2 &&
+      a.page === pending.page
+    ) {
+      const [as, ae] = a.range;
+      const [ps, pe] = pending.range;
+      if (as < pe && ps < ae) return true;
+    }
+    if (a.text && pending.text && pending.text.includes(a.text)) return true;
+    return false;
+  }
+
+  async onTextSelectCopy(): Promise<void> {
+    const text = this.pendingSelection()?.text || '';
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      this.showStub('Texto copiado');
+    } catch {
+      this.showStub('Falha ao copiar');
+    }
+  }
+
+  onTextSelectAll(): void {
+    const contents = this.pendingSelectContents;
+    const doc: Document | undefined = contents?.document;
+    const win: Window | undefined = contents?.window;
+    if (!doc?.body || !win) return;
+    try {
+      const sel = win.getSelection();
+      if (!sel) return;
+      sel.removeAllRanges();
+      const r = doc.createRange();
+      r.selectNodeContents(doc.body);
+      sel.addRange(r);
+      const text = (sel.toString() || '').trim();
+      if (!text) return;
+
+      const range = this.charRange(doc, r);
+      let cfiRange = this.pendingSelection()?.cfiRange || '';
+      try {
+        if (typeof contents.cfiFromRange === 'function') {
+          cfiRange = contents.cfiFromRange(r) || cfiRange;
+        }
+      } catch { /* keep previous */ }
+
+      const draft = this.buildDraftAnnotation(cfiRange, text, range);
+      this.pendingSelection.set(draft);
+      this.textSelectPos.set(this.computeTextSelectPos(contents, r));
+      this.textSelectVisible.set(true);
+    } catch (e) {
+      console.warn('[reader-text] select all failed', e);
+    }
+  }
+
+  private openAnnotationPopup(annotation: BookAnnotation): void {
+    this.dismissTextSelect();
+    this.showToc.set(false);
+    this.showTypography.set(false);
+    this.chromeVisible.set(false);
+    this.editingAnnotation.set(annotation);
+  }
+
+  async onAnnotationSave(updated: BookAnnotation): Promise<void> {
+    const previousCfi = this.editingAnnotation()?.cfiRange || updated.cfiRange;
+    const saved = await this.electron.saveBookAnnotation({
+      ...updated,
+      markType: updated.markType || 'Annotation',
+      fkBook: this.bookId
+    });
+    this.editingAnnotation.set(null);
+    if (!saved) return;
+
+    const list = [...this.annotations()];
+    const idx = list.findIndex(a => a.id === saved.id);
+    if (idx >= 0) {
+      list[idx] = saved;
+    } else {
+      list.unshift(saved);
+    }
+    this.annotations.set(list);
+
+    if (previousCfi && previousCfi !== saved.cfiRange) {
+      this.removeHighlight(previousCfi);
+    }
+    if (saved.cfiRange) {
+      this.removeHighlight(saved.cfiRange);
+      this.addHighlight(saved);
+    }
+  }
+
+  async onAnnotationDelete(): Promise<void> {
+    const current = this.editingAnnotation();
+    this.editingAnnotation.set(null);
+    if (!current?.id) return;
+
+    const ok = await this.electron.deleteBookAnnotation(current.id);
+    if (!ok) return;
+
+    this.annotations.set(this.annotations().filter(a => a.id !== current.id));
+    if (current.cfiRange) this.removeHighlight(current.cfiRange);
+  }
+
+  onAnnotationCancel(): void {
+    this.editingAnnotation.set(null);
+  }
+
+  private annotationColorHex(color?: string): string {
+    const key = (color as BookAnnotationColor) || BookAnnotationColor.Yellow;
+    return BOOK_ANNOTATION_COLOR_HEX[key] || BOOK_ANNOTATION_COLOR_HEX[BookAnnotationColor.Yellow];
+  }
+
+  private applyAnnotations(): void {
+    if (!this.rendition) return;
+    for (const a of this.annotations()) {
+      if (a.cfiRange) this.addHighlight(a);
+    }
+  }
+
+  private addHighlight(annotation: BookAnnotation): void {
+    if (!this.rendition || !annotation.cfiRange) return;
+    try {
+      this.rendition.annotations.highlight(
+        annotation.cfiRange,
+        { id: annotation.id },
+        () => {
+          const found =
+            this.annotations().find(a => a.id === annotation.id) ||
+            this.annotations().find(a => a.cfiRange === annotation.cfiRange) ||
+            annotation;
+          this.openAnnotationPopup({ ...found });
+        },
+        'br-annotation',
+        {
+          fill: this.annotationColorHex(annotation.color),
+          'fill-opacity': '0.35',
+          'mix-blend-mode': 'multiply'
+        }
+      );
+    } catch (e) {
+      console.warn('[reader-text] highlight failed', e);
+    }
+  }
+
+  private removeHighlight(cfiRange: string): void {
+    if (!this.rendition || !cfiRange) return;
+    try {
+      this.rendition.annotations.remove(cfiRange, 'highlight');
+    } catch { /* ignore */ }
+  }
+
+  private hasActiveTextSelection(): boolean {
+    try {
+      const contents = this.activeContents();
+      const sel = contents?.window?.getSelection?.();
+      if (sel && !sel.isCollapsed && (sel.toString() || '').trim()) return true;
+    } catch { /* ignore */ }
+    return false;
+  }
+
+  private attachContentPan(contents: any): void {
+    const doc: Document | undefined = contents?.document;
+    const win: Window | undefined = contents?.window;
+    if (!doc || !win) return;
+
+    try {
+      doc.body.style.cursor = 'grab';
+    } catch { /* ignore */ }
+
+    const onDown = (ev: PointerEvent) => {
+      if (ev.button !== 0 || this.loading()) return;
+      // Allow native text selection at default zoom; pan only when zoomed
+      if (this.zoom() === 1) return;
+      this.didDrag = false;
+      this.panning.set(true);
+      this.panPointerId = ev.pointerId;
+      this.panLastX = ev.clientX;
+      this.panLastY = ev.clientY;
+      try {
+        doc.body.style.cursor = 'grabbing';
+      } catch { /* ignore */ }
+    };
+
+    const onMove = (ev: PointerEvent) => {
+      if (this.panPointerId !== ev.pointerId || !this.panning()) return;
+      const dx = ev.clientX - this.panLastX;
+      const dy = ev.clientY - this.panLastY;
+      this.panLastX = ev.clientX;
+      this.panLastY = ev.clientY;
+      if (Math.abs(dx) + Math.abs(dy) > DRAG_THRESHOLD_PX) {
+        this.didDrag = true;
+      }
+      try {
+        if (this.isContinuousScrollMode()) {
+          const container = this.continuousScrollContainer();
+          if (container) {
+            container.scrollBy(-dx, -dy);
+          } else {
+            win.scrollBy(-dx, -dy);
+          }
+        } else {
+          win.scrollBy(-dx, -dy);
+        }
+      } catch { /* ignore */ }
+    };
+
+    const onUp = (ev: PointerEvent) => {
+      if (this.panPointerId !== ev.pointerId) return;
+      this.panPointerId = null;
+      this.panning.set(false);
+      try {
+        doc.body.style.cursor = 'grab';
+      } catch { /* ignore */ }
+    };
+
+    doc.addEventListener('pointerdown', onDown);
+    doc.addEventListener('pointermove', onMove);
+    doc.addEventListener('pointerup', onUp);
+    doc.addEventListener('pointercancel', onUp);
+
+    this.contentCleanups.push(() => {
+      doc.removeEventListener('pointerdown', onDown);
+      doc.removeEventListener('pointermove', onMove);
+      doc.removeEventListener('pointerup', onUp);
+      doc.removeEventListener('pointercancel', onUp);
+    });
+  }
+
+  /** Active epub.js Contents for the visible view (if any). */
+  private activeContents(): any | null {
+    if (!this.rendition) return null;
+    try {
+      const list = this.rendition.getContents();
+      if (Array.isArray(list) && list.length > 0) return list[0];
+      return list || null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** Scroll container used by continuous manager (Vertical / Tira). */
+  private continuousScrollContainer(): HTMLElement | null {
+    try {
+      const container = (this.rendition as any)?.manager?.container as HTMLElement | undefined;
+      return container ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Scroll ~90% of viewport in continuous modes.
+   * Falls back to prev/next at strip edges if manager cannot advance by scroll alone.
+   */
+  private scrollContinuousBy(dir: 1 | -1): void {
+    const viewportH = this.viewerRef?.nativeElement?.clientHeight || window.innerHeight;
+    const step = viewportH * 0.9;
+    const container = this.continuousScrollContainer();
+
+    if (container) {
+      const maxScroll = container.scrollHeight - container.clientHeight;
+      const top = container.scrollTop;
+      if (dir > 0 && top >= maxScroll - 2) {
+        void this.rendition?.next();
+        return;
+      }
+      if (dir < 0 && top <= 2) {
+        void this.rendition?.prev();
+        return;
+      }
+      container.scrollBy({ top: dir * step, behavior: 'smooth' });
+      return;
+    }
+
+    const contents = this.activeContents();
+    const win: Window | undefined = contents?.window;
+    if (win) {
+      const docEl = win.document.documentElement;
+      const body = win.document.body;
+      const scrollTop = win.scrollY || docEl.scrollTop || body?.scrollTop || 0;
+      const scrollHeight = Math.max(
+        contents.scrollHeight?.() ?? 0,
+        docEl.scrollHeight,
+        body?.scrollHeight ?? 0
+      );
+      const clientHeight = win.innerHeight || docEl.clientHeight;
+      const maxScroll = scrollHeight - clientHeight;
+      if (dir > 0 && scrollTop < maxScroll - 2) {
+        win.scrollBy({ top: step, behavior: 'smooth' });
+        return;
+      }
+      if (dir < 0 && scrollTop > 2) {
+        win.scrollBy({ top: -step, behavior: 'smooth' });
+        return;
+      }
+    }
+
+    dir > 0 ? this.nextPage() : this.prevPage();
+  }
+
+  private canScrollContents(deltaY: number): boolean {
+    const contents = this.activeContents();
+    const win: Window | undefined = contents?.window;
+    if (!win) return false;
+    const docEl = win.document.documentElement;
+    const body = win.document.body;
+    const scrollTop = win.scrollY || docEl.scrollTop || body?.scrollTop || 0;
+    const scrollHeight = Math.max(
+      contents.scrollHeight?.() ?? 0,
+      docEl.scrollHeight,
+      body?.scrollHeight ?? 0
+    );
+    const clientHeight = win.innerHeight || docEl.clientHeight;
+    const maxScroll = scrollHeight - clientHeight;
+    if (maxScroll <= 2) return false;
+    if (deltaY > 0 && scrollTop < maxScroll - 1) return true;
+    if (deltaY < 0 && scrollTop > 1) return true;
+    return false;
+  }
+
+  private scrollContentsBy(deltaY: number): void {
+    const contents = this.activeContents();
+    const win: Window | undefined = contents?.window;
+    if (!win) return;
+    win.scrollBy(0, deltaY);
+  }
+
+  /** @returns true if scrolled within the current page contents */
+  private tryScrollContents(dir: 1 | -1): boolean {
+    if (!this.isPaginatedWheelMode()) return false;
+    const contents = this.activeContents();
+    const win: Window | undefined = contents?.window;
+    if (!win) return false;
+
+    const docEl = win.document.documentElement;
+    const body = win.document.body;
+    const scrollTop = win.scrollY || docEl.scrollTop || body?.scrollTop || 0;
+    const scrollHeight = Math.max(
+      contents.scrollHeight?.() ?? 0,
+      docEl.scrollHeight,
+      body?.scrollHeight ?? 0
+    );
+    const clientHeight = win.innerHeight || docEl.clientHeight;
+    const maxScroll = scrollHeight - clientHeight;
+    if (maxScroll <= 2) return false;
+
+    const step = clientHeight * 0.9;
+    if (dir > 0 && scrollTop + clientHeight < scrollHeight - 2) {
+      win.scrollBy({ top: step, behavior: 'smooth' });
+      return true;
+    }
+    if (dir < 0 && scrollTop > 2) {
+      win.scrollBy({ top: -step, behavior: 'smooth' });
+      return true;
+    }
+    return false;
+  }
+
+  private clearContentPanListeners(): void {
+    for (const cleanup of this.contentCleanups) {
+      try {
+        cleanup();
+      } catch { /* ignore */ }
+    }
+    this.contentCleanups = [];
   }
 
   private async rebuildRendition(resume: string | number): Promise<void> {
@@ -954,11 +1795,14 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     try {
       try {
         this.rendition?.off?.('click', this.onRenditionClick);
+        this.rendition?.off?.('selected', this.onRenditionSelected);
       } catch {}
+      this.clearContentPanListeners();
       this.rendition?.destroy();
       this.rendition = null;
       el.innerHTML = '';
       this.createRendition(el);
+      this.applyAnnotations();
       if (cfi) {
         await this.rendition!.display(cfi);
       } else {
@@ -989,6 +1833,25 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       },
       a: {
         color: '#a5b4fc !important'
+      },
+      'img, svg, image, video': {
+        'max-width': '100% !important',
+        'width': '100% !important',
+        'height': 'auto !important',
+        'display': 'block !important',
+        'margin-inline': 'auto !important',
+        'object-fit': 'contain'
+      },
+      figure: {
+        'max-width': '100% !important',
+        'margin': '0.5em 0 !important',
+        'display': 'block !important'
+      },
+      'p img, div img, figure img': {
+        'width': '100% !important',
+        'max-width': '100% !important',
+        'height': 'auto !important',
+        'display': 'block !important'
       }
     });
     this.rendition.themes.fontSize(`${Math.round((this.fontSize() / 16) * 100)}%`);
@@ -1089,7 +1952,10 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
   private destroyEpub(): void {
     try {
       this.rendition?.off?.('click', this.onRenditionClick);
+      this.rendition?.off?.('dblclick', this.onRenditionDblClick);
+      this.rendition?.off?.('selected', this.onRenditionSelected);
     } catch {}
+    this.clearContentPanListeners();
     try {
       this.rendition?.destroy();
     } catch {}

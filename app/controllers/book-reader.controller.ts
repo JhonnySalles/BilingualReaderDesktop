@@ -1,7 +1,7 @@
 import { BrowserWindow, ipcMain } from 'electron';
 import { StorageService } from '../database/storage.service';
 import { BookReaderSessionService } from '../services/book-reader-session.service';
-import { BookConfiguration } from '../../src/app/core/models/entities/book.model';
+import { BookAnnotation, BookConfiguration } from '../../src/app/core/models/entities/book.model';
 
 export class BookReaderController {
   private sessionService = new BookReaderSessionService();
@@ -93,6 +93,29 @@ export class BookReaderController {
       if (!config?.fkBook) return null;
       this.storage.saveBookConfiguration(config);
       return this.storage.getBookConfiguration(config.fkBook) || null;
+    });
+
+    ipcMain.handle('book:list-annotations', async (_event, bookId: number) => {
+      if (!bookId) return [];
+      return this.storage.listBookAnnotations(bookId);
+    });
+
+    ipcMain.handle('book:save-annotation', async (_event, annotation: BookAnnotation) => {
+      if (!annotation?.fkBook) return null;
+      const payload: BookAnnotation = {
+        ...annotation,
+        markType: annotation.markType || 'Annotation',
+        pages: annotation.pages ?? 0,
+        page: annotation.page ?? 0,
+        text: annotation.text || ''
+      };
+      const id = this.storage.saveBookAnnotation(payload);
+      return this.storage.getBookAnnotation(id) || null;
+    });
+
+    ipcMain.handle('book:delete-annotation', async (_event, id: number) => {
+      if (!id) return false;
+      return this.storage.deleteBookAnnotation(id);
     });
   }
 }

@@ -1,5 +1,6 @@
 import { app, BrowserWindow, ipcMain, dialog, protocol, net } from 'electron';
 import * as path from 'path';
+import * as fs from 'fs';
 import { pathToFileURL } from 'url';
 import { StorageService } from './database/storage.service';
 import { ScannerMangaService } from './scanner/scanner-manga.service';
@@ -11,6 +12,7 @@ import { StatisticsController } from './controllers/statistics.controller';
 import { LibraryController } from './controllers/library.controller';
 import { MangaReaderController } from './controllers/manga-reader.controller';
 import { BookReaderController } from './controllers/book-reader.controller';
+import { TrayService } from './services/tray.service';
 
 const LOCAL_SCHEME_PRIVILEGES = {
   standard: true,
@@ -34,13 +36,33 @@ let scannerBookService: ScannerBookService;
 let mangaReaderController: MangaReaderController;
 let bookReaderController: BookReaderController;
 
+function getWindowIconPath(): string {
+  const candidates = [
+    path.join(__dirname, '../assets/icons/icon.ico'),
+    path.join(__dirname, 'assets/icons/icon.ico'),
+    path.join(app.getAppPath(), 'app/assets/icons/icon.ico'),
+    path.join(app.getAppPath(), 'public/assets/icons/icon.png'),
+    path.join(app.getAppPath(), 'app/assets/icons/icon.png')
+  ];
+
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {
+      return candidate;
+    }
+  }
+
+  return path.join(app.getAppPath(), 'app/assets/icons/icon.ico');
+}
+
 function createWindow(): void {
+  const iconPath = getWindowIconPath();
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
     minWidth: 900,
     minHeight: 600,
     title: 'Bilingual Reader Desktop',
+    icon: iconPath,
     backgroundColor: '#0f172a',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -136,6 +158,8 @@ app.on('ready', () => {
     });
 
     createWindow();
+    TrayService.instance.init(() => mainWindow);
+
     MenuController.instance.setServices(
       () => mainWindow,
       storageService,
@@ -229,6 +253,10 @@ app.on('ready', () => {
   } catch (err) {
     console.error('[main] Failed during app ready / IPC registration:', err);
   }
+});
+
+app.on('before-quit', () => {
+  TrayService.instance.destroy();
 });
 
 app.on('window-all-closed', () => {

@@ -40,6 +40,9 @@ electron_1.contextBridge.exposeInMainWorld('electronAPI', {
     toggleBookFavorite: (bookId) => electron_1.ipcRenderer.invoke('book:toggle-favorite', bookId),
     getBookConfiguration: (bookId) => electron_1.ipcRenderer.invoke('book:get-configuration', bookId),
     saveBookConfiguration: (config) => electron_1.ipcRenderer.invoke('book:save-configuration', config),
+    listBookAnnotations: (bookId) => electron_1.ipcRenderer.invoke('book:list-annotations', bookId),
+    saveBookAnnotation: (annotation) => electron_1.ipcRenderer.invoke('book:save-annotation', annotation),
+    deleteBookAnnotation: (id) => electron_1.ipcRenderer.invoke('book:delete-annotation', id),
     send: (channel, data) => electron_1.ipcRenderer.send(channel, data),
     on: (channel, func) => {
         const subscription = (_event, ...args) => func(...args);

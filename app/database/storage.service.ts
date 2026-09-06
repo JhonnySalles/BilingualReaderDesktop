@@ -6,19 +6,21 @@ import { MigrationsManager } from './migrations';
 import { MangaRepository } from './manga.repository';
 import { BookRepository } from './book.repository';
 import { BookConfigurationRepository } from './book-configuration.repository';
+import { BookAnnotationRepository } from './book-annotation.repository';
 import { KanjiRepository } from './kanji.repository';
 import { KanjaxRepository } from './kanjax.repository';
 import { VocabularyRepository } from './vocabulary.repository';
 import { HistoryRepository, HistoryContentType, HistorySessionInput, HistorySessionUpdate } from './history.repository';
 import { StatisticsRepository } from './statistics.repository';
 import { Manga } from '../../src/app/core/models/entities/manga.model';
-import { Book, BookConfiguration } from '../../src/app/core/models/entities/book.model';
+import { Book, BookAnnotation, BookConfiguration } from '../../src/app/core/models/entities/book.model';
 
 export class StorageService {
   private db!: Database.Database;
   public mangaRepository!: MangaRepository;
   public bookRepository!: BookRepository;
   public bookConfigurationRepository!: BookConfigurationRepository;
+  public bookAnnotationRepository!: BookAnnotationRepository;
   public kanjiRepository!: KanjiRepository;
   public kanjaxRepository!: KanjaxRepository;
   public vocabularyRepository!: VocabularyRepository;
@@ -47,6 +49,7 @@ export class StorageService {
     this.mangaRepository = new MangaRepository(this.db);
     this.bookRepository = new BookRepository(this.db);
     this.bookConfigurationRepository = new BookConfigurationRepository(this.db);
+    this.bookAnnotationRepository = new BookAnnotationRepository(this.db);
     this.kanjiRepository = new KanjiRepository(this.db);
     this.kanjaxRepository = new KanjaxRepository(this.db);
     this.vocabularyRepository = new VocabularyRepository(this.db);
@@ -136,6 +139,22 @@ export class StorageService {
 
   public saveBookConfiguration(config: BookConfiguration): number {
     return this.bookConfigurationRepository.upsert(config);
+  }
+
+  public listBookAnnotations(bookId: number): BookAnnotation[] {
+    return this.bookAnnotationRepository.listByBook(bookId);
+  }
+
+  public saveBookAnnotation(annotation: BookAnnotation): number {
+    return this.bookAnnotationRepository.save(annotation);
+  }
+
+  public getBookAnnotation(id: number): BookAnnotation | undefined {
+    return this.bookAnnotationRepository.getById(id);
+  }
+
+  public deleteBookAnnotation(id: number): boolean {
+    return this.bookAnnotationRepository.delete(id);
   }
 
   public listBooksDeleted(libraryId?: number): Book[] {

@@ -65,6 +65,29 @@ class BookReaderController {
             this.storage.saveBookConfiguration(config);
             return this.storage.getBookConfiguration(config.fkBook) || null;
         });
+        electron_1.ipcMain.handle('book:list-annotations', async (_event, bookId) => {
+            if (!bookId)
+                return [];
+            return this.storage.listBookAnnotations(bookId);
+        });
+        electron_1.ipcMain.handle('book:save-annotation', async (_event, annotation) => {
+            if (!annotation?.fkBook)
+                return null;
+            const payload = {
+                ...annotation,
+                markType: annotation.markType || 'Annotation',
+                pages: annotation.pages ?? 0,
+                page: annotation.page ?? 0,
+                text: annotation.text || ''
+            };
+            const id = this.storage.saveBookAnnotation(payload);
+            return this.storage.getBookAnnotation(id) || null;
+        });
+        electron_1.ipcMain.handle('book:delete-annotation', async (_event, id) => {
+            if (!id)
+                return false;
+            return this.storage.deleteBookAnnotation(id);
+        });
     }
 }
 exports.BookReaderController = BookReaderController;
