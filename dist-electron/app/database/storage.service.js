@@ -48,6 +48,7 @@ const book_configuration_repository_1 = require("./book-configuration.repository
 const book_annotation_repository_1 = require("./book-annotation.repository");
 const manga_annotation_repository_1 = require("./manga-annotation.repository");
 const book_search_repository_1 = require("./book-search.repository");
+const file_link_repository_1 = require("./file-link.repository");
 const kanji_repository_1 = require("./kanji.repository");
 const kanjax_repository_1 = require("./kanjax.repository");
 const vocabulary_repository_1 = require("./vocabulary.repository");
@@ -61,6 +62,7 @@ class StorageService {
     bookAnnotationRepository;
     mangaAnnotationRepository;
     bookSearchRepository;
+    fileLinkRepository;
     kanjiRepository;
     kanjaxRepository;
     vocabularyRepository;
@@ -86,6 +88,7 @@ class StorageService {
         this.bookAnnotationRepository = new book_annotation_repository_1.BookAnnotationRepository(this.db);
         this.mangaAnnotationRepository = new manga_annotation_repository_1.MangaAnnotationRepository(this.db);
         this.bookSearchRepository = new book_search_repository_1.BookSearchRepository(this.db);
+        this.fileLinkRepository = new file_link_repository_1.FileLinkRepository(this.db);
         this.kanjiRepository = new kanji_repository_1.KanjiRepository(this.db);
         this.kanjaxRepository = new kanjax_repository_1.KanjaxRepository(this.db);
         this.vocabularyRepository = new vocabulary_repository_1.VocabularyRepository(this.db);
@@ -198,6 +201,26 @@ class StorageService {
     }
     deleteAllBookSearchHistory(bookId) {
         return this.bookSearchRepository.deleteAllHistory(bookId);
+    }
+    // --- File link (bilingual manga pages) ---
+    getFileLinkByManga(mangaId) {
+        return this.fileLinkRepository.getByManga(mangaId);
+    }
+    findFileLinkByName(mangaId, name, pages) {
+        return this.fileLinkRepository.findByFileName(mangaId, name, pages);
+    }
+    saveFileLink(file) {
+        if (file.id) {
+            this.fileLinkRepository.update(file);
+            return file.id;
+        }
+        return this.fileLinkRepository.save(file);
+    }
+    deleteFileLinkByManga(mangaId) {
+        this.fileLinkRepository.deleteByManga(mangaId);
+    }
+    deleteFileLink(file) {
+        this.fileLinkRepository.delete(file);
     }
     listBooksDeleted(libraryId) {
         return this.bookRepository.listDeleted(libraryId);

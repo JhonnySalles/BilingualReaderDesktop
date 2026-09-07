@@ -132,3 +132,52 @@ export function isMangaFile(filePath: string): boolean {
   return ext in MANGA_EXTENSIONS;
 }
 
+/** Comic / manga archive and related formats (Android FileType.getManga). */
+export function getMangaFileTypes(): FileType[] {
+  return [
+    FileType.CBZ,
+    FileType.CBR,
+    FileType.CB7,
+    FileType.CBT,
+    FileType.ZIP,
+    FileType.RAR,
+    FileType.SEVENZ,
+    FileType.TAR,
+    FileType.DIRECTORY,
+    FileType.EPUB,
+    FileType.EPUB3
+  ];
+}
+
+/** Book / ebook formats (Android FileType.getBook). */
+export function getBookFileTypes(): FileType[] {
+  return [
+    FileType.EPUB,
+    FileType.EPUB3,
+    FileType.PDF,
+    FileType.MOBI,
+    FileType.DJVU,
+    FileType.FB2,
+    FileType.TXT,
+    FileType.RTF,
+    FileType.AZW,
+    FileType.AZW3,
+    FileType.HTML,
+    FileType.DOC,
+    FileType.DOCX,
+    FileType.OPDS,
+    FileType.TIFF,
+    FileType.ODT,
+    FileType.MD,
+    FileType.MHT
+  ];
+}
+
+/** True when free-text looks like a file extension for this type. */
+export function compareFileTypeExtension(fileType: string | FileType | undefined | null, query: string): boolean {
+  if (!fileType || !query) return false;
+  const type = String(fileType).toLowerCase();
+  const q = query.toLowerCase().replace(/^\./, '');
+  return type.includes(q) || type === q;
+}
+

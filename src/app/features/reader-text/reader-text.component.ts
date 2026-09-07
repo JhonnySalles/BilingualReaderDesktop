@@ -34,6 +34,7 @@ import {
   BookSearchListItem,
   BookSpacingSize
 } from '../../core/models';
+import { reconcileAnnotationPageAndCfi } from '../../core/utils/share-annotation-reconcile';
 import { ReaderTouchOverlayComponent } from '../reader-shared/reader-touch-overlay.component';
 import { ReaderTouchConfigComponent } from '../reader-shared/reader-touch-config.component';
 import { handleReaderTouchTap, TouchActionHandlers } from '../reader-shared/touch-action.util';
@@ -2187,6 +2188,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
 
     await this.buildToc(book);
     this.createRendition(el);
+    await this.hydrateAnnotationCfis();
     this.applyAnnotations();
 
     let resolvedCfi = startCfi || undefined;
@@ -2445,13 +2447,15 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     try {
       const raw = this.epubBook?.locations.locationFromCfi(cfiRange) as unknown;
       const loc = typeof raw === 'number' ? raw : Number(raw);
-      if (!Number.isNaN(loc)) page = Math.max(0, loc);
+      if (!Number.isNaN(loc)) page = Math.max(0, Math.floor(loc));
     } catch { /* keep current */ }
+
+    const pages = Math.max(1, this.pageCount() || 1);
 
     return {
       fkBook: this.bookId,
       page,
-      pages: this.pageCount(),
+      pages,
       text,
       note: '',
       color: BookAnnotationColor.Yellow,
@@ -2716,6 +2720,72 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
   private annotationColorHex(color?: string): string {
     const key = (color as BookAnnotationColor) || BookAnnotationColor.Yellow;
     return BOOK_ANNOTATION_COLOR_HEX[key] || BOOK_ANNOTATION_COLOR_HEX[BookAnnotationColor.Yellow];
+  }
+
+  /**
+   * After locations.generate: fill missing cfiRange from page, and reconcile
+   * page vs CFI when they diverge by >= ANNOTATION_PAGE_CFI_DIFF_THRESHOLD.
+   */
+  private async hydrateAnnotationCfis(): Promise<void> {
+    const book = this.epubBook;
+    if (!book?.locations) return;
+
+    const localPages = Math.max(1, book.locations.length());
+    const list = [...this.annotations()];
+    let changedAny = false;
+
+    for (let i = 0; i < list.length; i++) {
+      const a = list[i];
+      if (!a.id) continue;
+
+      const cfi = (a.cfiRange || '').trim();
+      let pageFromCfi: number | null = null;
+      let cfiFromPage: string | null = null;
+
+      if (cfi) {
+        try {
+          const raw = book.locations.locationFromCfi(cfi) as unknown;
+          const loc = typeof raw === 'number' ? raw : Number(raw);
+          if (!Number.isNaN(loc)) pageFromCfi = Math.max(0, Math.floor(loc));
+        } catch { /* ignore */ }
+      }
+
+      if (!cfi || pageFromCfi == null) {
+        try {
+          const page = Math.min(Math.max(0, a.page ?? 0), Math.max(0, localPages - 1));
+          const generated = book.locations.cfiFromLocation(page) as string;
+          if (typeof generated === 'string' && generated.trim()) {
+            cfiFromPage = generated.trim();
+          }
+        } catch { /* ignore */ }
+      }
+
+      const result = reconcileAnnotationPageAndCfi({
+        page: a.page ?? 0,
+        pages: a.pages ?? localPages,
+        cfiRange: cfi,
+        pageFromCfi,
+        cfiFromPage,
+        localPages
+      });
+
+      if (!result.changed) continue;
+
+      const saved = await this.electron.saveBookAnnotation({
+        ...a,
+        page: result.page,
+        pages: result.pages,
+        cfiRange: result.cfiRange
+      });
+      if (saved) {
+        list[i] = saved;
+        changedAny = true;
+      }
+    }
+
+    if (changedAny) {
+      this.annotations.set(list);
+    }
   }
 
   private applyAnnotations(): void {

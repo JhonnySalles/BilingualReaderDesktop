@@ -5,6 +5,7 @@ import {
   LibraryOption,
   HistoryStatisticsItem,
   HistoryContentType,
+  HistorySearchFilter,
   HomeRecentItem,
   HeatmapDay,
   Manga,
@@ -12,14 +13,31 @@ import {
   BookAnnotation,
   MangaAnnotation,
   BookConfiguration,
-  BookSearchHistory
+  BookSearchHistory,
+  LinkedFile
 } from '../models';
+
+export interface OpenFileLinkResult {
+  sessionId: string;
+  path: string;
+  name: string;
+  type: string;
+  folder: string;
+  pageCount: number;
+  pages: string[];
+  pageNames: string[];
+  pagePaths: string[];
+  chapters: number[];
+  chaptersPages?: Record<number, string>;
+  cacheDir: string;
+}
 
 declare global {
   interface Window {
     electronAPI?: {
       ping: () => Promise<string>;
       selectDirectory: () => Promise<string | null>;
+      openMangaFile: () => Promise<string | null>;
       listMangas: (folderPath?: string) => Promise<any[]>;
       scanLibrary: (folderPath: string) => Promise<boolean>;
       listBooks: (folderPath?: string) => Promise<any[]>;
@@ -48,6 +66,7 @@ declare global {
         year?: number | null;
         libraryId?: number | null;
         search?: string | null;
+        filters?: HistorySearchFilter[] | null;
       }) => Promise<HistoryStatisticsItem[]>;
       listRecentReads: (limit?: number) => Promise<HomeRecentItem[]>;
       getReadingActivityHeatmap: (weeks?: number) => Promise<HeatmapDay[]>;
@@ -73,7 +92,10 @@ declare global {
         title: string;
         pageCount: number;
         pages: string[];
+        pageNames?: string[];
+        pagePaths?: string[];
         chapters: number[];
+        chaptersPages?: Record<number, string>;
         bookMark: number;
         favorite: boolean;
         cacheDir: string;
@@ -87,6 +109,12 @@ declare global {
       >;
       saveMangaAnnotation: (annotation: MangaAnnotation) => Promise<MangaAnnotation | null>;
       deleteMangaAnnotation: (id: number) => Promise<boolean>;
+      getFileLink: (mangaId: number) => Promise<LinkedFile | null>;
+      findFileLink: (mangaId: number, name: string, pages: number) => Promise<LinkedFile | null>;
+      saveFileLink: (file: LinkedFile) => Promise<LinkedFile | null>;
+      deleteFileLink: (mangaId: number) => Promise<boolean>;
+      openFileLink: (filePath: string, mangaId?: number) => Promise<OpenFileLinkResult>;
+      closeFileLink: (sessionId: string) => Promise<boolean>;
       openBookReader: (bookId: number) => Promise<{
         sessionId: string;
         bookId: number;
@@ -121,6 +149,13 @@ declare global {
       saveBookSearchHistory: (bookId: number, search: string) => Promise<BookSearchHistory | null>;
       deleteBookSearchHistory: (id: number) => Promise<boolean>;
       deleteAllBookSearchHistory: (bookId: number) => Promise<boolean>;
+      shareMarkStatus: () => Promise<any>;
+      shareMarkSignIn: () => Promise<any>;
+      shareMarkSignOut: () => Promise<any>;
+      shareMarkSetEnabled: (enabled: boolean) => Promise<any>;
+      shareMarkSetCloud: (cloud: string) => Promise<any>;
+      shareMarkClearLastSync: (type: 'MANGA' | 'BOOK') => Promise<any>;
+      shareMarkSync: (type: 'MANGA' | 'BOOK') => Promise<any>;
       send: (channel: string, data: any) => void;
       on: (channel: string, func: (...args: any[]) => void) => () => void;
     };
@@ -147,6 +182,20 @@ export class ElectronService {
       return await window.electronAPI.selectDirectory();
     }
     return prompt('Digite o caminho da pasta:');
+  }
+
+  async listMangas(folderPath?: string): Promise<Manga[]> {
+    if (this.isElectron && window.electronAPI?.listMangas) {
+      return (await window.electronAPI.listMangas(folderPath)) as Manga[];
+    }
+    return [];
+  }
+
+  async openMangaFile(): Promise<string | null> {
+    if (this.isElectron && window.electronAPI?.openMangaFile) {
+      return await window.electronAPI.openMangaFile();
+    }
+    return prompt('Digite o caminho do arquivo de mangá:');
   }
 
   async getLibraryCount(libraryId: number, type: 'MANGA' | 'BOOK'): Promise<number> {
@@ -270,6 +319,7 @@ export class ElectronService {
     year?: number | null;
     libraryId?: number | null;
     search?: string | null;
+    filters?: HistorySearchFilter[] | null;
   }): Promise<HistoryStatisticsItem[]> {
     if (this.isElectron && window.electronAPI?.listHistoryAggregated) {
       return await window.electronAPI.listHistoryAggregated(options);
@@ -382,6 +432,48 @@ export class ElectronService {
     return false;
   }
 
+  async getFileLink(mangaId: number): Promise<LinkedFile | null> {
+    if (this.isElectron && window.electronAPI?.getFileLink) {
+      return await window.electronAPI.getFileLink(mangaId);
+    }
+    return null;
+  }
+
+  async findFileLink(mangaId: number, name: string, pages: number): Promise<LinkedFile | null> {
+    if (this.isElectron && window.electronAPI?.findFileLink) {
+      return await window.electronAPI.findFileLink(mangaId, name, pages);
+    }
+    return null;
+  }
+
+  async saveFileLink(file: LinkedFile): Promise<LinkedFile | null> {
+    if (this.isElectron && window.electronAPI?.saveFileLink) {
+      return await window.electronAPI.saveFileLink(file);
+    }
+    return null;
+  }
+
+  async deleteFileLink(mangaId: number): Promise<boolean> {
+    if (this.isElectron && window.electronAPI?.deleteFileLink) {
+      return await window.electronAPI.deleteFileLink(mangaId);
+    }
+    return false;
+  }
+
+  async openFileLink(filePath: string, mangaId?: number): Promise<OpenFileLinkResult | null> {
+    if (this.isElectron && window.electronAPI?.openFileLink) {
+      return await window.electronAPI.openFileLink(filePath, mangaId);
+    }
+    return null;
+  }
+
+  async closeFileLink(sessionId: string): Promise<boolean> {
+    if (this.isElectron && window.electronAPI?.closeFileLink) {
+      return await window.electronAPI.closeFileLink(sessionId);
+    }
+    return false;
+  }
+
   async openBookReader(bookId: number) {
     if (this.isElectron && window.electronAPI?.openBookReader) {
       return await window.electronAPI.openBookReader(bookId);
@@ -486,6 +578,55 @@ export class ElectronService {
       return await window.electronAPI.deleteAllBookSearchHistory(bookId);
     }
     return false;
+  }
+
+  async shareMarkStatus(): Promise<any | null> {
+    if (this.isElectron && window.electronAPI?.shareMarkStatus) {
+      return await window.electronAPI.shareMarkStatus();
+    }
+    return null;
+  }
+
+  async shareMarkSignIn(): Promise<any | null> {
+    if (this.isElectron && window.electronAPI?.shareMarkSignIn) {
+      return await window.electronAPI.shareMarkSignIn();
+    }
+    return { ok: false, error: 'Electron IPC indisponível' };
+  }
+
+  async shareMarkSignOut(): Promise<any | null> {
+    if (this.isElectron && window.electronAPI?.shareMarkSignOut) {
+      return await window.electronAPI.shareMarkSignOut();
+    }
+    return null;
+  }
+
+  async shareMarkSetEnabled(enabled: boolean): Promise<any | null> {
+    if (this.isElectron && window.electronAPI?.shareMarkSetEnabled) {
+      return await window.electronAPI.shareMarkSetEnabled(enabled);
+    }
+    return null;
+  }
+
+  async shareMarkSetCloud(cloud: string): Promise<any | null> {
+    if (this.isElectron && window.electronAPI?.shareMarkSetCloud) {
+      return await window.electronAPI.shareMarkSetCloud(cloud);
+    }
+    return null;
+  }
+
+  async shareMarkClearLastSync(type: 'MANGA' | 'BOOK'): Promise<any | null> {
+    if (this.isElectron && window.electronAPI?.shareMarkClearLastSync) {
+      return await window.electronAPI.shareMarkClearLastSync(type);
+    }
+    return null;
+  }
+
+  async shareMarkSync(type: 'MANGA' | 'BOOK'): Promise<any | null> {
+    if (this.isElectron && window.electronAPI?.shareMarkSync) {
+      return await window.electronAPI.shareMarkSync(type);
+    }
+    return null;
   }
 
   onExtractProgress(handler: (progress: { current: number; total: number }) => void): () => void {

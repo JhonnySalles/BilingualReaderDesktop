@@ -12,7 +12,9 @@ import { StatisticsController } from './controllers/statistics.controller';
 import { LibraryController } from './controllers/library.controller';
 import { MangaReaderController } from './controllers/manga-reader.controller';
 import { BookReaderController } from './controllers/book-reader.controller';
+import { FileLinkController } from './controllers/file-link.controller';
 import { TrayService } from './services/tray.service';
+import { ShareMarkController } from './controllers/sharemark.controller';
 
 const LOCAL_SCHEME_PRIVILEGES = {
   standard: true,
@@ -35,6 +37,7 @@ let scannerMangaService: ScannerMangaService;
 let scannerBookService: ScannerBookService;
 let mangaReaderController: MangaReaderController;
 let bookReaderController: BookReaderController;
+let fileLinkController: FileLinkController;
 
 function getWindowIconPath(): string {
   const candidates = [
@@ -105,6 +108,12 @@ app.on('ready', () => {
     mangaReaderController.registerIpcHandlers(() => mainWindow);
     bookReaderController = new BookReaderController(storageService);
     bookReaderController.registerIpcHandlers(() => mainWindow);
+    fileLinkController = new FileLinkController(
+      storageService,
+      mangaReaderController.getSessionService()
+    );
+    fileLinkController.registerIpcHandlers(() => mainWindow);
+    new ShareMarkController(storageService, () => mainWindow).registerIpcHandlers();
 
     // Same pattern as local-cover — absolute path after scheme, no privileged registration
     let localPageServeLogged = false;

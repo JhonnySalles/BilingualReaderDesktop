@@ -19,21 +19,37 @@ class MangaReaderController {
                 throw new Error('Mangá não encontrado');
             }
             const result = await this.sessionService.open(manga.id, manga.path, manga.title || manga.name || 'Mangá', manga.bookMark ?? 0, !!manga.favorite, getWindow());
-            // Persist chapters discovered at open if DB was empty
-            if ((!manga.chapters || manga.chapters.length === 0) && result.chapters.length > 0) {
+            const dbChaptersPages = manga.chaptersPages || {};
+            const dbHasPages = Object.keys(dbChaptersPages).length > 0;
+            let chaptersPages = result.chaptersPages || {};
+            if (Object.keys(chaptersPages).length === 0) {
+                if (dbHasPages) {
+                    chaptersPages = dbChaptersPages;
+                }
+                else {
+                    chaptersPages = await this.sessionService.loadChaptersPages(manga.path);
+                }
+            }
+            let chapters = result.chapters || [];
+            if (chapters.length === 0 && Object.keys(chaptersPages).length > 0) {
+                chapters = this.sessionService.resolveChapters([], chaptersPages);
+            }
+            const shouldPersistPages = Object.keys(chaptersPages).length > 0 &&
+                (!dbHasPages || !manga.chapters || manga.chapters.length === 0);
+            const shouldPersistChapters = (!manga.chapters || manga.chapters.length === 0) && chapters.length > 0;
+            if (shouldPersistPages || shouldPersistChapters || manga.pages !== result.pageCount) {
                 this.storage.saveManga({
                     ...manga,
-                    chapters: result.chapters,
+                    ...(shouldPersistChapters || shouldPersistPages ? { chapters } : {}),
+                    ...(shouldPersistPages ? { chaptersPages } : {}),
                     pages: result.pageCount
                 });
             }
-            else if (manga.pages !== result.pageCount) {
-                this.storage.saveManga({
-                    ...manga,
-                    pages: result.pageCount
-                });
-            }
-            return result;
+            return {
+                ...result,
+                chapters,
+                chaptersPages
+            };
         });
         electron_1.ipcMain.handle('manga-reader:close', async (_event, sessionId) => {
             return this.sessionService.close(sessionId);

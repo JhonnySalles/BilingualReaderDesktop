@@ -1,26 +1,19 @@
+/**
+ * Legacy Android export/import DB stubs — not used by cloud ShareMark sync.
+ * Cloud payloads live in share-item.model.ts.
+ */
 import { BaseEntity } from '../interfaces/base-entity.model';
-import { ShareMarkType, ShareMarkCloud } from '../enums/annotation-enums';
 
-export interface ShareItem extends BaseEntity<number> {
+export interface SharingExportItem extends BaseEntity<number> {
   title: string;
   type: string;
   payload: string;
   dateCreated: string;
 }
 
-export interface ShareMark extends BaseEntity<number> {
+export interface SharingSyncRecord extends BaseEntity<number> {
   fkId: number;
-  type: ShareMarkType;
-  cloudProvider: ShareMarkCloud;
+  type: string;
+  cloudProvider: string;
   syncedAt?: string;
-}
-
-export interface ShareAnnotation extends BaseEntity<number> {
-  fkShareItem: number;
-  note: string;
-}
-
-export interface ShareHistory extends BaseEntity<number> {
-  fkShareItem: number;
-  syncedDate: string;
 }

@@ -48,7 +48,7 @@ class MigrationsManager {
         if (currentVersion === 0) {
             this.createInitialSchema();
             this.seedInitialData();
-            this.db.pragma('user_version = 19');
+            this.db.pragma('user_version = 20');
             return;
         }
         if (currentVersion < 2) {
@@ -85,6 +85,10 @@ class MigrationsManager {
         if (currentVersion < 19) {
             this.migrate18To19();
             this.db.pragma('user_version = 19');
+        }
+        if (currentVersion < 20) {
+            this.migrate19To20();
+            this.db.pragma('user_version = 20');
         }
     }
     createInitialSchema() {
@@ -324,6 +328,45 @@ class MigrationsManager {
 
       CREATE INDEX IF NOT EXISTS index_History_reference_library ON History(id_reference, id_library);
       CREATE INDEX IF NOT EXISTS index_History_type_start ON History(type, date_time_start);
+
+      CREATE TABLE IF NOT EXISTS FileLink (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id_manga INTEGER NOT NULL,
+        pages INTEGER NOT NULL DEFAULT 0,
+        path TEXT NOT NULL,
+        name TEXT NOT NULL,
+        type TEXT NOT NULL,
+        folder TEXT,
+        language TEXT DEFAULT 'pt',
+        date_create TEXT,
+        last_access TEXT,
+        last_alteration TEXT
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_file_link_manga_name ON FileLink(id_manga, name);
+
+      CREATE TABLE IF NOT EXISTS PagesLink (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id_file INTEGER NOT NULL,
+        manga_page INTEGER NOT NULL,
+        manga_pages INTEGER NOT NULL,
+        manga_page_name TEXT,
+        manga_page_path TEXT,
+        file_link_page INTEGER DEFAULT -1,
+        file_link_pages INTEGER DEFAULT 0,
+        file_link_page_name TEXT,
+        file_link_page_path TEXT,
+        file_right_link_page INTEGER DEFAULT -1,
+        file_right_link_page_name TEXT,
+        file_right_link_page_path TEXT,
+        not_linked INTEGER DEFAULT 0,
+        dual_image INTEGER DEFAULT 0,
+        manga_dual_page INTEGER DEFAULT 0,
+        file_left_dual_page INTEGER DEFAULT 0,
+        file_right_dual_page INTEGER DEFAULT 0
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_pages_link_file ON PagesLink(id_file);
     `);
     }
     seedInitialData() {
@@ -506,6 +549,48 @@ class MigrationsManager {
       );
 
       CREATE INDEX IF NOT EXISTS idx_book_search_history_book ON BookSearchHistory(id_book);
+    `);
+    }
+    migrate19To20() {
+        this.db.exec(`
+      CREATE TABLE IF NOT EXISTS FileLink (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id_manga INTEGER NOT NULL,
+        pages INTEGER NOT NULL DEFAULT 0,
+        path TEXT NOT NULL,
+        name TEXT NOT NULL,
+        type TEXT NOT NULL,
+        folder TEXT,
+        language TEXT DEFAULT 'pt',
+        date_create TEXT,
+        last_access TEXT,
+        last_alteration TEXT
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_file_link_manga_name ON FileLink(id_manga, name);
+
+      CREATE TABLE IF NOT EXISTS PagesLink (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id_file INTEGER NOT NULL,
+        manga_page INTEGER NOT NULL,
+        manga_pages INTEGER NOT NULL,
+        manga_page_name TEXT,
+        manga_page_path TEXT,
+        file_link_page INTEGER DEFAULT -1,
+        file_link_pages INTEGER DEFAULT 0,
+        file_link_page_name TEXT,
+        file_link_page_path TEXT,
+        file_right_link_page INTEGER DEFAULT -1,
+        file_right_link_page_name TEXT,
+        file_right_link_page_path TEXT,
+        not_linked INTEGER DEFAULT 0,
+        dual_image INTEGER DEFAULT 0,
+        manga_dual_page INTEGER DEFAULT 0,
+        file_left_dual_page INTEGER DEFAULT 0,
+        file_right_dual_page INTEGER DEFAULT 0
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_pages_link_file ON PagesLink(id_file);
     `);
     }
 }

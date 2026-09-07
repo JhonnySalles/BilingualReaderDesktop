@@ -6,11 +6,15 @@ import { ElectronService } from '../../core/services/electron.service';
 import { HistoryUiStateService } from '../../core/services/history-ui-state.service';
 import { LibraryStateService } from '../../core/services/library-state.service';
 import { NavigationStackService } from '../../core/services/navigation-stack.service';
+import { LibrarySearchService } from '../../core/services/library-search.service';
+import { MangaLibraryService } from '../../core/services/manga-library.service';
+import { BookLibraryService } from '../../core/services/book-library.service';
 import { HistoryStatisticsItem, LibraryViewType, OrderType } from '../../core/models';
 import { HistoryStatsCardComponent } from './components/history-stats-card.component';
 import { HistoryStatsListItemComponent } from './components/history-stats-list-item.component';
 import { MangaFilterModalComponent } from '../library/manga-library/components/manga-filter-modal/manga-filter-modal.component';
 import { formatShortDuration } from '../../core/services/statistics.service';
+import { parseLibrarySearch } from '../../core/utils/library-search.parser';
 
 interface HistoryDayGroup {
   date: string;
@@ -88,6 +92,9 @@ export class StatisticsHistoryComponent implements OnInit, OnDestroy {
   readonly historyUi = inject(HistoryUiStateService);
   readonly libraryState = inject(LibraryStateService);
   private nav = inject(NavigationStackService);
+  private librarySearch = inject(LibrarySearchService);
+  private mangaLibrary = inject(MangaLibraryService);
+  private bookLibrary = inject(BookLibraryService);
 
   readonly items = signal<HistoryStatisticsItem[]>([]);
   readonly loading = signal(false);
@@ -151,6 +158,7 @@ export class StatisticsHistoryComponent implements OnInit, OnDestroy {
       const token = this.historyUi.reloadToken();
       const activeType = this.historyUi.activeType();
       this.libraryState.activeContext.set(activeType === 'BOOK' ? 'history-book' : 'history-manga');
+      this.librarySearch.historyContentType.set(activeType);
       if (!this.ready) return;
       void token;
       if (this.searchTimer) clearTimeout(this.searchTimer);
@@ -182,6 +190,9 @@ export class StatisticsHistoryComponent implements OnInit, OnDestroy {
     }
 
     await this.reloadFilterOptions();
+    // Ensure suggestion catalogs are populated even if libraries were never opened
+    void this.mangaLibrary.loadMangas();
+    void this.bookLibrary.loadBooks();
     await this.loadItems();
     this.ready = true;
   }
@@ -246,11 +257,14 @@ export class StatisticsHistoryComponent implements OnInit, OnDestroy {
   private async loadItems(): Promise<void> {
     this.loading.set(true);
     try {
+      const raw = this.historyUi.committedSearch() || '';
+      const parsed = parseLibrarySearch(raw, 'history');
       const items = await this.stats.loadHistory({
         type: this.historyUi.activeType(),
         year: this.historyUi.year(),
         libraryId: this.historyUi.libraryId(),
-        search: this.historyUi.search() || null
+        search: parsed.freeText || null,
+        filters: parsed.tokens.map(t => ({ kind: t.kind, value: t.value }))
       });
       this.items.set(items);
     } finally {

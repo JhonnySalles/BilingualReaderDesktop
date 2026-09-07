@@ -3,6 +3,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.MANGA_EXTENSIONS = exports.FontType = exports.Color = exports.Themes = exports.ThemeMode = exports.Order = exports.ListMode = exports.Libraries = exports.Languages = exports.FileType = void 0;
 exports.getMangaFileType = getMangaFileType;
 exports.isMangaFile = isMangaFile;
+exports.getMangaFileTypes = getMangaFileTypes;
+exports.getBookFileTypes = getBookFileTypes;
+exports.compareFileTypeExtension = compareFileTypeExtension;
 var FileType;
 (function (FileType) {
     FileType["UNKNOWN"] = "UNKNOWN";
@@ -130,4 +133,51 @@ function getMangaFileType(filePath) {
 function isMangaFile(filePath) {
     const ext = filePath.split('.').pop()?.toLowerCase() || '';
     return ext in exports.MANGA_EXTENSIONS;
+}
+/** Comic / manga archive and related formats (Android FileType.getManga). */
+function getMangaFileTypes() {
+    return [
+        FileType.CBZ,
+        FileType.CBR,
+        FileType.CB7,
+        FileType.CBT,
+        FileType.ZIP,
+        FileType.RAR,
+        FileType.SEVENZ,
+        FileType.TAR,
+        FileType.DIRECTORY,
+        FileType.EPUB,
+        FileType.EPUB3
+    ];
+}
+/** Book / ebook formats (Android FileType.getBook). */
+function getBookFileTypes() {
+    return [
+        FileType.EPUB,
+        FileType.EPUB3,
+        FileType.PDF,
+        FileType.MOBI,
+        FileType.DJVU,
+        FileType.FB2,
+        FileType.TXT,
+        FileType.RTF,
+        FileType.AZW,
+        FileType.AZW3,
+        FileType.HTML,
+        FileType.DOC,
+        FileType.DOCX,
+        FileType.OPDS,
+        FileType.TIFF,
+        FileType.ODT,
+        FileType.MD,
+        FileType.MHT
+    ];
+}
+/** True when free-text looks like a file extension for this type. */
+function compareFileTypeExtension(fileType, query) {
+    if (!fileType || !query)
+        return false;
+    const type = String(fileType).toLowerCase();
+    const q = query.toLowerCase().replace(/^\./, '');
+    return type.includes(q) || type === q;
 }

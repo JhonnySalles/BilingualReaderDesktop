@@ -11,7 +11,10 @@ import { HistoryUiStateService } from '../services/history-ui-state.service';
 import { AnnotationsUiStateService } from '../services/annotations-ui-state.service';
 import { HomeDashboardService } from '../services/home-dashboard.service';
 import { NavigationStackService } from '../services/navigation-stack.service';
+import { LibrarySearchService } from '../services/library-search.service';
 import { LibraryViewType } from '../models';
+import { SearchSuggestFieldComponent } from '../../shared/search-suggest-field/search-suggest-field.component';
+import { LibrarySearchScope } from '../models/library-search.model';
 
 interface NavLibrary {
   id: string;
@@ -26,7 +29,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'settings' | 
 @Component({
   selector: 'app-main-layout',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule, SearchSuggestFieldComponent],
   template: `
     <div class="h-screen w-screen flex bg-slate-950 text-slate-100 overflow-hidden font-sans">
       <aside
@@ -203,7 +206,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'settings' | 
       </aside>
 
       <div class="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
-        <header class="h-16 px-6 bg-slate-900/60 backdrop-blur border-b border-slate-800/80 flex items-center justify-between gap-4 select-none">
+        <header class="relative z-40 h-16 px-6 bg-slate-900/60 backdrop-blur border-b border-slate-800/80 flex items-center justify-between gap-4 select-none overflow-visible">
 
           <div class="flex items-center gap-3 min-w-0">
             @if (headerMode() === 'history' && historyUi.fromStatistics()) {
@@ -262,17 +265,12 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'settings' | 
 
           @if (headerMode() === 'library') {
             <div class="flex items-center gap-3 shrink-0">
-              <div class="relative w-48 sm:w-64">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-                <input
-                  type="text"
-                  [ngModel]="libraryStateService.searchQuery()"
-                  (ngModelChange)="libraryStateService.searchQuery.set($event)"
-                  placeholder="Pesquisar..."
-                  class="w-full pl-9 pr-4 py-1.5 bg-slate-900/90 border border-slate-800 rounded-xl text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500/80 focus:ring-1 focus:ring-indigo-500/80 transition-all" />
-              </div>
+              <app-search-suggest-field
+                [value]="libraryStateService.searchQuery()"
+                [scope]="librarySearchScope()"
+                placeholder="Pesquisar ou @Autor:"
+                (rawChange)="onLibrarySearchRaw($event)"
+                (valueChange)="onLibrarySearchCommit($event)" />
 
               <button
                 (click)="libraryStateService.toggleViewMode()"
@@ -357,17 +355,12 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'settings' | 
 
           @if (headerMode() === 'history') {
             <div class="flex items-center gap-2 sm:gap-3 shrink-0 flex-wrap justify-end">
-              <div class="relative w-40 sm:w-52">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-                <input
-                  type="text"
-                  [ngModel]="historyUi.search()"
-                  (ngModelChange)="onHistorySearch($event)"
-                  placeholder="Pesquisar..."
-                  class="w-full pl-9 pr-3 py-1.5 bg-slate-900/90 border border-slate-800 rounded-xl text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500/80 transition-all" />
-              </div>
+              <app-search-suggest-field
+                [value]="historyUi.search()"
+                scope="history"
+                placeholder="Pesquisar ou @Autor:"
+                (rawChange)="onHistorySearchRaw($event)"
+                (valueChange)="onHistorySearchCommit($event)" />
 
               <select
                 class="bg-slate-900 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-slate-200"
@@ -563,6 +556,7 @@ export class MainLayoutComponent implements OnInit {
   public historyUi = inject(HistoryUiStateService);
   public annotationsUi = inject(AnnotationsUiStateService);
   public home = inject(HomeDashboardService);
+  private librarySearch = inject(LibrarySearchService);
 
   isExpanded = signal<boolean>(true);
   LibraryViewType = LibraryViewType;
@@ -572,6 +566,10 @@ export class MainLayoutComponent implements OnInit {
   defaultBookLibrary = signal<NavLibrary>({ id: 'book-default', name: 'Biblioteca de Livros', type: 'book', icon: 'ico_book', count: 0 });
   customMangaLibraries = signal<NavLibrary[]>([]);
   customBookLibraries = signal<NavLibrary[]>([]);
+
+  readonly librarySearchScope = computed<LibrarySearchScope>(() =>
+    this.libraryStateService.activeLibrary().type === 'book' ? 'book' : 'manga'
+  );
 
   readonly headerTitle = computed(() => {
     const mode = this.headerMode();
@@ -628,6 +626,7 @@ export class MainLayoutComponent implements OnInit {
       this.libraryStateService.activeContext.set(
         this.historyUi.activeType() === 'BOOK' ? 'history-book' : 'history-manga'
       );
+      this.librarySearch.historyContentType.set(this.historyUi.activeType());
       return;
     }
     if (path.startsWith('/annotations')) {
@@ -656,8 +655,20 @@ export class MainLayoutComponent implements OnInit {
     );
   }
 
-  onHistorySearch(value: string): void {
+  onLibrarySearchRaw(value: string): void {
+    this.libraryStateService.searchQuery.set(value);
+  }
+
+  onLibrarySearchCommit(value: string): void {
+    this.libraryStateService.filterQuery.set(value);
+  }
+
+  onHistorySearchRaw(value: string): void {
     this.historyUi.setSearch(value);
+  }
+
+  onHistorySearchCommit(value: string): void {
+    this.historyUi.setCommittedSearch(value);
   }
 
   onAnnotationsSearch(value: string): void {

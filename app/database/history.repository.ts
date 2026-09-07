@@ -44,9 +44,13 @@ export interface HistoryStatisticsItem {
   fkReference: number;
   fkLibrary: number;
   title: string;
+  name?: string;
   author: string;
   series: string;
   publisher: string;
+  volume?: string;
+  fileType?: string;
+  tags?: string;
   coverPath: string | null;
   favorite: boolean;
   hasSubtitle: boolean;
@@ -58,6 +62,11 @@ export interface HistoryStatisticsItem {
   timeRead: number;
   sessionDate: string;
   lastAccess: string;
+}
+
+export interface HistorySearchFilter {
+  kind: 'Author' | 'Publisher' | 'Series' | 'Type' | 'Volume' | 'Tag';
+  value: string;
 }
 
 /** Unique recent reads for home screen (cross manga + book). */
@@ -163,6 +172,58 @@ export class HistoryRepository extends BaseRepository<HistoryRow, number> {
     return row ? this.mapRow(row) : undefined;
   }
 
+  public listByReference(type: HistoryContentType, fkReference: number): HistoryRow[] {
+    const stmt = this.db.prepare(`
+      SELECT * FROM History
+      WHERE type = ? AND id_reference = ?
+      ORDER BY date_time_start ASC
+    `);
+    return (stmt.all(type, fkReference) as any[]).map((row) => this.mapRow(row));
+  }
+
+  /** Insert a completed session received from cloud sync (notified = 0). */
+  public insertSharedSession(input: {
+    fkLibrary: number;
+    fkReference: number;
+    type: HistoryContentType;
+    pageStart: number;
+    pageEnd: number;
+    pages: number;
+    completed: boolean;
+    volume: string;
+    chaptersRead: number;
+    dateTimeStart: string;
+    dateTimeEnd: string;
+    secondsRead: number;
+    averageTimeByPage: number;
+    useTTS: boolean;
+  }): number {
+    const stmt = this.db.prepare(`
+      INSERT INTO History (
+        id_library, id_reference, type, page_start, page_end, pages, completed,
+        volume, chapters_read, date_time_start, date_time_end, seconds_read,
+        average_time_page, use_tts, notified
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+    `);
+    const result = stmt.run(
+      input.fkLibrary ?? 0,
+      input.fkReference,
+      input.type,
+      input.pageStart ?? 0,
+      input.pageEnd ?? 0,
+      input.pages ?? 1,
+      input.completed ? 1 : 0,
+      input.volume ?? '',
+      input.chaptersRead ?? 0,
+      input.dateTimeStart,
+      input.dateTimeEnd,
+      input.secondsRead ?? 0,
+      input.averageTimeByPage ?? 0,
+      input.useTTS ? 1 : 0
+    );
+    return Number(result.lastInsertRowid);
+  }
+
   public listYears(type: HistoryContentType): number[] {
     const stmt = this.db.prepare(`
       SELECT DISTINCT CAST(SUBSTR(date_time_start, 1, 4) AS INTEGER) AS year
@@ -180,10 +241,15 @@ export class HistoryRepository extends BaseRepository<HistoryRow, number> {
     year?: number | null;
     libraryId?: number | null;
     search?: string | null;
+    filters?: HistorySearchFilter[] | null;
   }): HistoryStatisticsItem[] {
-    const { type, year, libraryId, search } = options;
+    const { type, year, libraryId, search, filters } = options;
     const table = type === 'MANGA' ? 'Manga' : 'Book';
     const hasSubtitleSelect = type === 'MANGA' ? 'COALESCE(I.has_subtitle, 0)' : '0';
+    const tagsSelect = type === 'BOOK' ? `COALESCE(I.tags, '')` : `''`;
+    const volumeSelect = `COALESCE(I.volume, '')`;
+    const typeSelect = `COALESCE(I.type, '')`;
+    const nameSelect = `COALESCE(I.name, '')`;
 
     let sql = `
       SELECT
@@ -192,9 +258,13 @@ export class HistoryRepository extends BaseRepository<HistoryRow, number> {
         H.id_reference AS fkReference,
         H.id_library AS fkLibrary,
         I.title AS title,
+        ${nameSelect} AS name,
         COALESCE(I.author, '') AS author,
         COALESCE(I.series, '') AS series,
         COALESCE(I.publisher, '') AS publisher,
+        ${volumeSelect} AS volume,
+        ${typeSelect} AS fileType,
+        ${tagsSelect} AS tags,
         I.cover_path AS coverPath,
         COALESCE(I.favorite, 0) AS favorite,
         ${hasSubtitleSelect} AS hasSubtitle,
@@ -225,9 +295,52 @@ export class HistoryRepository extends BaseRepository<HistoryRow, number> {
     }
 
     if (search && search.trim()) {
-      sql += ` AND (I.title LIKE ? OR COALESCE(I.author, '') LIKE ? OR COALESCE(I.series, '') LIKE ?)`;
+      sql += ` AND (
+        I.title LIKE ? OR
+        COALESCE(I.name, '') LIKE ? OR
+        COALESCE(I.type, '') LIKE ?
+      )`;
       const like = `%${search.trim()}%`;
       params.push(like, like, like);
+    }
+
+    if (filters && filters.length > 0) {
+      for (const f of filters) {
+        const value = (f.value || '').trim();
+        if (!value) continue;
+        const like = `%${value}%`;
+        switch (f.kind) {
+          case 'Author':
+            sql += ` AND COALESCE(I.author, '') LIKE ?`;
+            params.push(like);
+            break;
+          case 'Publisher':
+            sql += ` AND COALESCE(I.publisher, '') LIKE ?`;
+            params.push(like);
+            break;
+          case 'Series':
+            sql += ` AND COALESCE(I.series, '') LIKE ?`;
+            params.push(like);
+            break;
+          case 'Volume':
+            sql += ` AND COALESCE(I.volume, '') LIKE ?`;
+            params.push(like);
+            break;
+          case 'Type':
+            sql += ` AND COALESCE(I.type, '') LIKE ?`;
+            params.push(like);
+            break;
+          case 'Tag':
+            if (type === 'BOOK') {
+              sql += ` AND COALESCE(I.tags, '') LIKE ?`;
+              params.push(like);
+            } else {
+              // Manga has no tags — never match Tag filters
+              sql += ` AND 0`;
+            }
+            break;
+        }
+      }
     }
 
     sql += `
@@ -242,9 +355,13 @@ export class HistoryRepository extends BaseRepository<HistoryRow, number> {
       fkReference: row.fkReference,
       fkLibrary: row.fkLibrary,
       title: row.title,
+      name: row.name ?? '',
       author: row.author,
       series: row.series,
       publisher: row.publisher,
+      volume: row.volume ?? '',
+      fileType: row.fileType ?? '',
+      tags: row.tags ?? '',
       coverPath: row.coverPath,
       favorite: Boolean(row.favorite),
       hasSubtitle: Boolean(row.hasSubtitle),

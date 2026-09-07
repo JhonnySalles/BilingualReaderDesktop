@@ -1,9 +1,11 @@
-import { Component, signal, computed, inject } from '@angular/core';
+import { Component, signal, computed, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ElectronService } from '../../core/services/electron.service';
 import { ThemeService, ThemeMode, AccentColor } from '../../core/services/theme.service';
 import { SettingsService, CustomLibrary } from '../../core/services/settings.service';
+import { ShareMarkUiService } from '../../core/services/sharemark/share-mark-ui.service';
+import { ShareMarkCloud } from '../../core/models/enums/sharemark.enum';
 import { MangaFitMode, MangaScrollingMode, ReaderTouchType } from '../../core/models';
 import { ReaderTouchConfigComponent } from '../reader-shared/reader-touch-config.component';
 export type { CustomLibrary };
@@ -540,6 +542,104 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai';
                 </div>
               </div>
 
+              <!-- ShareMark Cloud Sync -->
+              <div class="bg-slate-900/80 rounded-xl p-5 border border-slate-800 space-y-4">
+                <div class="flex items-start justify-between gap-4">
+                  <div>
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Sincronização de Bookmarks (ShareMark)</h3>
+                    <p class="text-[11px] text-slate-500 mt-0.5">Mesmos arquivos/coleções do app Android — progresso, favoritos, histórico e anotações</p>
+                  </div>
+                  <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer shrink-0">
+                    <span>Ativar</span>
+                    <input
+                      type="checkbox"
+                      class="w-4 h-4 accent-indigo-600 rounded"
+                      [checked]="shareMark.status().enabled"
+                      (change)="onShareMarkEnabled($event)">
+                  </label>
+                </div>
+
+                @if (!shareMark.status().oauthConfigured) {
+                  <div class="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-200">
+                    Configure <code class="text-amber-100">GOOGLE_OAUTH_CLIENT_ID</code> e
+                    <code class="text-amber-100">GOOGLE_OAUTH_CLIENT_SECRET</code> no arquivo
+                    <code class="text-amber-100">.env</code> na raiz do projeto (veja <code class="text-amber-100">.env.example</code>).
+                  </div>
+                }
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-xs text-slate-300 mb-1 font-medium">Provedor na nuvem</label>
+                    <select
+                      class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200"
+                      [ngModel]="shareMark.status().cloud"
+                      (ngModelChange)="onShareMarkCloud($event)"
+                      [disabled]="!shareMark.status().enabled">
+                      <option value="GOOGLE_DRIVE">Google Drive</option>
+                      <option value="FIRESTORE">Firestore (Firebase)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-xs text-slate-300 mb-1 font-medium">Conta Google</label>
+                    @if (shareMark.status().signedIn) {
+                      <div class="flex gap-2">
+                        <button
+                          type="button"
+                          class="flex-1 px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-indigo-300 text-left truncate"
+                          [title]="shareMark.status().email || ''">
+                          {{ shareMark.status().email || 'Conta conectada' }}
+                        </button>
+                        <button
+                          type="button"
+                          (click)="shareMark.signOut()"
+                          class="px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold rounded-lg text-slate-300 transition-colors cursor-pointer">
+                          Sair
+                        </button>
+                      </div>
+                    } @else {
+                      <button
+                        type="button"
+                        (click)="shareMark.signIn()"
+                        [disabled]="shareMark.signingIn() || !shareMark.status().oauthConfigured"
+                        class="w-full px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-xs font-semibold rounded-lg text-white transition-colors cursor-pointer flex items-center justify-center gap-2">
+                        @if (shareMark.signingIn()) {
+                          <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Abrindo navegador...
+                        } @else {
+                          Entrar com Google
+                        }
+                      </button>
+                    }
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <button
+                    type="button"
+                    (click)="shareMark.clearLastSync('MANGA')"
+                    class="flex items-center justify-between px-3 py-2.5 bg-slate-950 hover:bg-slate-900/80 border border-slate-800 rounded-lg text-left transition-colors cursor-pointer">
+                    <div>
+                      <div class="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Última sync — Mangás</div>
+                      <div class="text-xs text-slate-300 mt-0.5">{{ formatLastSync(shareMark.status().lastSyncManga) }}</div>
+                    </div>
+                    <span class="text-[10px] text-slate-500">Limpar</span>
+                  </button>
+                  <button
+                    type="button"
+                    (click)="shareMark.clearLastSync('BOOK')"
+                    class="flex items-center justify-between px-3 py-2.5 bg-slate-950 hover:bg-slate-900/80 border border-slate-800 rounded-lg text-left transition-colors cursor-pointer">
+                    <div>
+                      <div class="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Última sync — Livros</div>
+                      <div class="text-xs text-slate-300 mt-0.5">{{ formatLastSync(shareMark.status().lastSyncBook) }}</div>
+                    </div>
+                    <span class="text-[10px] text-slate-500">Limpar</span>
+                  </button>
+                </div>
+              </div>
+
               <!-- General Options & Date Formatting -->
               <div class="bg-slate-900/80 rounded-xl p-5 border border-slate-800 space-y-4">
                 <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Preferências Gerais de Sistema</h3>
@@ -550,14 +650,6 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai';
                       <option>DD/MM/YYYY (29/08/2026)</option>
                       <option>YYYY-MM-DD (2026-08-29)</option>
                       <option>Relativo (Há 2 horas, Ontem)</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label class="block text-xs text-slate-300 mb-1 font-medium">Sincronização em Nuvem (Google Drive / Mark)</label>
-                    <select class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200">
-                      <option>Ativado (Automático)</option>
-                      <option>Apenas via Wi-Fi</option>
-                      <option>Desativado (Offline)</option>
                     </select>
                   </div>
                 </div>
@@ -621,6 +713,21 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai';
                 </div>
               </div>
             </section>
+          }
+
+          @if (shareMark.toastMessage()) {
+            <div
+              class="fixed bottom-6 right-8 z-50 max-w-sm px-4 py-3 rounded-xl border shadow-xl text-xs font-medium flex items-center gap-3"
+              [ngClass]="{
+                'bg-slate-900 border-slate-700 text-slate-200': shareMark.toastKind() === 'info',
+                'bg-emerald-950 border-emerald-700/50 text-emerald-200': shareMark.toastKind() === 'success',
+                'bg-red-950 border-red-700/50 text-red-200': shareMark.toastKind() === 'error'
+              }">
+              <span class="flex-1">{{ shareMark.toastMessage() }}</span>
+              <button type="button" (click)="shareMark.dismissToast()" class="text-[10px] uppercase tracking-wider opacity-70 hover:opacity-100 cursor-pointer">
+                Fechar
+              </button>
+            </div>
           }
         </div>
       </div>
@@ -700,10 +807,11 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai';
     </div>
   `
 })
-export class SettingsComponent {
+export class SettingsComponent implements OnInit {
   private electronService = inject(ElectronService);
   themeService = inject(ThemeService);
   settingsService = inject(SettingsService);
+  shareMark = inject(ShareMarkUiService);
 
   MangaFitMode = MangaFitMode;
   MangaScrollingMode = MangaScrollingMode;
@@ -728,6 +836,31 @@ export class SettingsComponent {
   accentColor = computed(() => this.themeService.accentColor());
   enableGlassmorphism = true;
   enable3DCovers = true;
+
+  ngOnInit(): void {
+    void this.shareMark.refreshStatus();
+  }
+
+  async onShareMarkEnabled(event: Event): Promise<void> {
+    const checked = (event.target as HTMLInputElement).checked;
+    await this.shareMark.setEnabled(checked);
+  }
+
+  async onShareMarkCloud(value: string): Promise<void> {
+    const cloud = value === ShareMarkCloud.FIRESTORE ? ShareMarkCloud.FIRESTORE : ShareMarkCloud.GOOGLE_DRIVE;
+    await this.shareMark.setCloud(cloud);
+  }
+
+  formatLastSync(value: string | null): string {
+    if (!value) return 'Nunca';
+    try {
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return value;
+      return d.toLocaleString();
+    } catch {
+      return value;
+    }
+  }
 
   selectTheme(mode: ThemeMode): void {
     this.themeService.setTheme(mode);

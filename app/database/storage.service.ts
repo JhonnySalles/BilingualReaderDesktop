@@ -9,6 +9,7 @@ import { BookConfigurationRepository } from './book-configuration.repository';
 import { BookAnnotationRepository } from './book-annotation.repository';
 import { MangaAnnotationRepository } from './manga-annotation.repository';
 import { BookSearchRepository } from './book-search.repository';
+import { FileLinkRepository } from './file-link.repository';
 import { KanjiRepository } from './kanji.repository';
 import { KanjaxRepository } from './kanjax.repository';
 import { VocabularyRepository } from './vocabulary.repository';
@@ -16,6 +17,7 @@ import { HistoryRepository, HistoryContentType, HistorySessionInput, HistorySess
 import { StatisticsRepository } from './statistics.repository';
 import { Manga, MangaAnnotation } from '../../src/app/core/models/entities/manga.model';
 import { Book, BookAnnotation, BookConfiguration, BookSearchHistory } from '../../src/app/core/models/entities/book.model';
+import { LinkedFile } from '../../src/app/core/models/entities/linked-file.model';
 
 export class StorageService {
   private db!: Database.Database;
@@ -25,6 +27,7 @@ export class StorageService {
   public bookAnnotationRepository!: BookAnnotationRepository;
   public mangaAnnotationRepository!: MangaAnnotationRepository;
   public bookSearchRepository!: BookSearchRepository;
+  public fileLinkRepository!: FileLinkRepository;
   public kanjiRepository!: KanjiRepository;
   public kanjaxRepository!: KanjaxRepository;
   public vocabularyRepository!: VocabularyRepository;
@@ -56,6 +59,7 @@ export class StorageService {
     this.bookAnnotationRepository = new BookAnnotationRepository(this.db);
     this.mangaAnnotationRepository = new MangaAnnotationRepository(this.db);
     this.bookSearchRepository = new BookSearchRepository(this.db);
+    this.fileLinkRepository = new FileLinkRepository(this.db);
     this.kanjiRepository = new KanjiRepository(this.db);
     this.kanjaxRepository = new KanjaxRepository(this.db);
     this.vocabularyRepository = new VocabularyRepository(this.db);
@@ -207,6 +211,32 @@ export class StorageService {
     return this.bookSearchRepository.deleteAllHistory(bookId);
   }
 
+  // --- File link (bilingual manga pages) ---
+
+  public getFileLinkByManga(mangaId: number): LinkedFile | undefined {
+    return this.fileLinkRepository.getByManga(mangaId);
+  }
+
+  public findFileLinkByName(mangaId: number, name: string, pages: number): LinkedFile | undefined {
+    return this.fileLinkRepository.findByFileName(mangaId, name, pages);
+  }
+
+  public saveFileLink(file: LinkedFile): number {
+    if (file.id) {
+      this.fileLinkRepository.update(file);
+      return file.id;
+    }
+    return this.fileLinkRepository.save(file);
+  }
+
+  public deleteFileLinkByManga(mangaId: number): void {
+    this.fileLinkRepository.deleteByManga(mangaId);
+  }
+
+  public deleteFileLink(file: LinkedFile): void {
+    this.fileLinkRepository.delete(file);
+  }
+
   public listBooksDeleted(libraryId?: number): Book[] {
     return this.bookRepository.listDeleted(libraryId);
   }
@@ -234,6 +264,7 @@ export class StorageService {
     year?: number | null;
     libraryId?: number | null;
     search?: string | null;
+    filters?: import('./history.repository').HistorySearchFilter[] | null;
   }) {
     return this.historyRepository.listAggregated(options);
   }

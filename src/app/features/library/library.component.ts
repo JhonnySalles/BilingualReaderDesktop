@@ -7,11 +7,14 @@ import { BookLibraryService } from '../../core/services/book-library.service';
 import { SettingsService } from '../../core/services/settings.service';
 import { NavigationStackService } from '../../core/services/navigation-stack.service';
 import { HomeDashboardService } from '../../core/services/home-dashboard.service';
+import { LibrarySearchService } from '../../core/services/library-search.service';
+import { ShareMarkUiService } from '../../core/services/sharemark/share-mark-ui.service';
 import { SharedListComponent } from './components/shared-list/shared-list.component';
 import { MangaFilterModalComponent } from './manga-library/components/manga-filter-modal/manga-filter-modal.component';
 import { HomeRecentCardComponent } from './components/home-recent-card/home-recent-card.component';
 import { HomeReadingHeatmapComponent } from './components/home-reading-heatmap/home-reading-heatmap.component';
 import { Manga, Book, OrderType, HomeRecentItem } from '../../core/models';
+import { ShareMarkType } from '../../core/models/enums/sharemark.enum';
 
 @Component({
   selector: 'app-library',
@@ -155,23 +158,44 @@ import { Manga, Book, OrderType, HomeRecentItem } from '../../core/models';
               </span>
             </div>
 
-            <button 
-              (click)="onScanClick()" 
-              [disabled]="isCurrentlyScanning()"
-              class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-xl text-xs font-medium transition-all shadow-lg shadow-indigo-600/20 flex items-center gap-2">
-              @if (isCurrentlyScanning()) {
-                <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Escaneando...
-              } @else {
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                Escanear Pasta
-              }
-            </button>
+            <div class="flex items-center gap-2">
+              <button
+                (click)="onSyncClick()"
+                [disabled]="!canSyncBookmarks() || shareMark.syncing()"
+                class="px-4 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-200 border border-slate-700 rounded-xl text-xs font-medium transition-all flex items-center gap-2 cursor-pointer"
+                title="Sincronizar bookmarks com a nuvem">
+                @if (shareMark.syncing()) {
+                  <svg class="animate-spin h-4 w-4 text-indigo-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Sincronizando...
+                } @else {
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
+                  </svg>
+                  Sincronizar bookmarks
+                }
+              </button>
+
+              <button 
+                (click)="onScanClick()" 
+                [disabled]="isCurrentlyScanning()"
+                class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-xl text-xs font-medium transition-all shadow-lg shadow-indigo-600/20 flex items-center gap-2">
+                @if (isCurrentlyScanning()) {
+                  <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Escaneando...
+                } @else {
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Escanear Pasta
+                }
+              </button>
+            </div>
           </div>
 
           @if (filteredItems().length === 0 && !isCurrentlyScanning()) {
@@ -199,9 +223,24 @@ import { Manga, Book, OrderType, HomeRecentItem } from '../../core/models';
         </div>
       }
 
-      @if (isCurrentlyScanning()) {
+      @if (isCurrentlyScanning() || shareMark.syncing()) {
         <div class="absolute bottom-0 left-0 right-0 h-1 bg-slate-900 overflow-hidden z-50">
           <div class="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500 animate-indeterminate"></div>
+        </div>
+      }
+
+      @if (shareMark.toastMessage()) {
+        <div
+          class="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 max-w-md px-4 py-3 rounded-xl border shadow-xl text-xs font-medium flex items-center gap-3"
+          [ngClass]="{
+            'bg-slate-900 border-slate-700 text-slate-200': shareMark.toastKind() === 'info',
+            'bg-emerald-950 border-emerald-700/50 text-emerald-200': shareMark.toastKind() === 'success',
+            'bg-red-950 border-red-700/50 text-red-200': shareMark.toastKind() === 'error'
+          }">
+          <span class="flex-1">{{ shareMark.toastMessage() }}</span>
+          <button type="button" (click)="shareMark.dismissToast()" class="text-[10px] uppercase tracking-wider opacity-70 hover:opacity-100 cursor-pointer">
+            Fechar
+          </button>
         </div>
       }
 
@@ -217,6 +256,8 @@ export class LibraryComponent implements OnInit {
   public bookLibraryService = inject(BookLibraryService);
   public settingsService = inject(SettingsService);
   public home = inject(HomeDashboardService);
+  private librarySearch = inject(LibrarySearchService);
+  public shareMark = inject(ShareMarkUiService);
 
   activeLibId = signal<string>('home');
   activeLibType = signal<'manga' | 'book'>('manga');
@@ -235,6 +276,7 @@ export class LibraryComponent implements OnInit {
   );
 
   ngOnInit(): void {
+    void this.shareMark.refreshStatus();
     this.route.queryParams.subscribe(async params => {
       const libId = params['lib'] || 'home';
       this.activeLibId.set(libId);
@@ -301,6 +343,39 @@ export class LibraryComponent implements OnInit {
     });
   }
 
+  canSyncBookmarks = computed(() => {
+    const s = this.shareMark.status();
+    return s.enabled && s.signedIn && !s.inSync;
+  });
+
+  async onSyncClick(): Promise<void> {
+    const type = this.activeLibType() === 'book' ? 'BOOK' : 'MANGA';
+    const result = await this.shareMark.sync(type);
+    if (!result) return;
+
+    const ok =
+      result.result === ShareMarkType.SUCCESS ||
+      result.result === ShareMarkType.NOT_ALTERATION ||
+      result.result === ShareMarkType.NOTIFY_DATA_SET;
+
+    if (ok && (result.receive ?? 0) > 0) {
+      // Reload list so received bookmarks appear
+      const libId = this.activeLibId();
+      let pathToScan = '';
+      if (libId === 'manga-default') pathToScan = this.settingsService.mangaBasePath();
+      else if (libId === 'book-default') pathToScan = this.settingsService.bookBasePath();
+      else {
+        const found = this.settingsService.libraries().find(l => l.id === libId);
+        if (found) pathToScan = found.path;
+      }
+      if (type === 'MANGA') {
+        await this.mangaLibraryService.loadMangas(pathToScan);
+      } else {
+        await this.bookLibraryService.loadBooks(pathToScan);
+      }
+    }
+  }
+
   onScanClick(): void {
     let pathToScan = '';
     const libId = this.activeLibId();
@@ -328,20 +403,17 @@ export class LibraryComponent implements OnInit {
       return this.customOrderItems()!;
     }
 
-    let list: (Manga | Book)[] = this.activeLibType() === 'manga'
+    const scope = this.activeLibType();
+    let list: (Manga | Book)[] = scope === 'manga'
       ? [...this.mangaLibraryService.mangas()]
       : [...this.bookLibraryService.books()];
 
-    const query = this.libraryStateService.searchQuery().toLowerCase().trim();
+    const query = this.libraryStateService.filterQuery();
     const order = this.libraryStateService.currentOrder();
     const isAsc = this.libraryStateService.isAscending();
 
-    if (query) {
-      list = list.filter(item =>
-        item.title.toLowerCase().includes(query) ||
-        (item.author && item.author.toLowerCase().includes(query)) ||
-        (item.series && item.series.toLowerCase().includes(query))
-      );
+    if (query.trim()) {
+      list = this.librarySearch.filterItems(list, query, scope);
     }
 
     list.sort((a, b) => {

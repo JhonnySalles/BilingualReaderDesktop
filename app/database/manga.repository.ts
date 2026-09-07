@@ -95,6 +95,21 @@ export class MangaRepository extends BaseRepository<Manga, number> {
     return row ? this.mapRowToManga(row) : undefined;
   }
 
+  /** Items changed since last cloud sync (Android MangaRepository.listSync). */
+  public listSync(since: Date): Manga[] {
+    const sinceIso = since.toISOString();
+    const stmt = this.db.prepare(`
+      SELECT * FROM Manga
+      WHERE excluded = 0
+        AND (
+          (last_access IS NOT NULL AND last_access >= ?)
+          OR (last_alteration IS NOT NULL AND last_alteration > ?)
+        )
+      ORDER BY title ASC
+    `);
+    return stmt.all(sinceIso, sinceIso).map((row) => this.mapRowToManga(row));
+  }
+
   public getByPath(filePath: string): Manga | undefined {
     if (!filePath) return undefined;
     const normalized = path.normalize(filePath);

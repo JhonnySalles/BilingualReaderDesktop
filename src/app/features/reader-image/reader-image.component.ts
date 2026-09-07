@@ -24,6 +24,9 @@ import { Manga, MangaAnnotation, MangaFitMode, MangaScrollingMode } from '../../
 import { ReaderTouchOverlayComponent } from '../reader-shared/reader-touch-overlay.component';
 import { ReaderTouchConfigComponent } from '../reader-shared/reader-touch-config.component';
 import { handleReaderTouchTap, TouchActionHandlers } from '../reader-shared/touch-action.util';
+import { PagesLinkOverlayComponent } from './pages-link/pages-link-overlay.component';
+import { LinkedFile } from '../../core/models/entities/linked-file.model';
+import { PAGE_EMPTY } from '../../core/models/enums/page-link-enums';
 import {
   applyColumnAction,
   canScrollSlot,
@@ -46,7 +49,13 @@ const PROGRAMMATIC_SCROLL_FALLBACK_MS = 1000;
 @Component({
   selector: 'app-reader-image',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReaderTouchOverlayComponent, ReaderTouchConfigComponent],
+  imports: [
+    CommonModule,
+    FormsModule,
+    ReaderTouchOverlayComponent,
+    ReaderTouchConfigComponent,
+    PagesLinkOverlayComponent
+  ],
   host: { class: 'block h-screen w-screen' },
   styles: [`
     .reader-zoom-img {
@@ -190,15 +199,32 @@ const PROGRAMMATIC_SCROLL_FALLBACK_MS = 1000;
               @if (scrollingMode() === MangaScrollingMode.LongStripGap && i > 0) {
                 <div class="text-[10px] uppercase tracking-wider text-slate-500 py-2">{{ i }} / {{ pageCount() }}</div>
               }
-              <img
-                [attr.data-page]="i"
-                [src]="url"
-                [alt]="'Página ' + (i + 1)"
-                [loading]="eagerNear(i) ? 'eager' : 'lazy'"
-                draggable="false"
-                [class]="pageImageClasses()"
-                (dragstart)="$event.preventDefault()"
-                (error)="onPageImageError(url, $event)" />
+              @if (isShowingLinked(i) && linkedUrlsFor(i).length > 1) {
+                <div class="flex items-start justify-center gap-0.5 w-full" [attr.data-page]="i">
+                  @for (lu of linkedUrlsFor(i); track $index) {
+                    <img
+                      [src]="lu"
+                      [alt]="'Tradução ' + (i + 1)"
+                      [loading]="eagerNear(i) ? 'eager' : 'lazy'"
+                      draggable="false"
+                      [class]="pageImageClasses()"
+                      (dragstart)="$event.preventDefault()"
+                      (load)="onLinkedImageLoad(i)"
+                      (error)="onPageImageError(lu, $event)" />
+                  }
+                </div>
+              } @else {
+                <img
+                  [attr.data-page]="i"
+                  [src]="displayUrl(i)"
+                  [alt]="'Página ' + (i + 1)"
+                  [loading]="eagerNear(i) ? 'eager' : 'lazy'"
+                  draggable="false"
+                  [class]="pageImageClasses()"
+                  (dragstart)="$event.preventDefault()"
+                  (load)="onPageImgLoad(i)"
+                  (error)="onPageImageError(displayUrl(i), $event)" />
+              }
             }
           </div>
         } @else {
@@ -207,17 +233,37 @@ const PROGRAMMATIC_SCROLL_FALLBACK_MS = 1000;
               class="reader-page snap-center shrink-0 flex items-center justify-center"
               [attr.data-page]="i"
               [class]="pagedSlotClasses()">
-              <img
-                [src]="url"
-                [alt]="'Página ' + (i + 1)"
-                [loading]="eagerNear(i) ? 'eager' : 'lazy'"
-                draggable="false"
-                [class]="pageImageClasses()"
-                [style.width.%]="zoomWidthPercent()"
-                [style.height.%]="zoomHeightPercent()"
-                [style.--reader-zoom]="zoom()"
-                (dragstart)="$event.preventDefault()"
-                (error)="onPageImageError(url, $event)" />
+              @if (isShowingLinked(i) && linkedUrlsFor(i).length > 1) {
+                <div class="flex items-center justify-center gap-0.5 h-full"
+                  [style.width.%]="zoomWidthPercent()"
+                  [style.height.%]="zoomHeightPercent()"
+                  [style.--reader-zoom]="zoom()">
+                  @for (lu of linkedUrlsFor(i); track $index) {
+                    <img
+                      [src]="lu"
+                      [alt]="'Tradução ' + (i + 1)"
+                      [loading]="eagerNear(i) ? 'eager' : 'lazy'"
+                      draggable="false"
+                      [class]="pageImageClasses()"
+                      (dragstart)="$event.preventDefault()"
+                      (load)="onLinkedImageLoad(i)"
+                      (error)="onPageImageError(lu, $event)" />
+                  }
+                </div>
+              } @else {
+                <img
+                  [src]="displayUrl(i)"
+                  [alt]="'Página ' + (i + 1)"
+                  [loading]="eagerNear(i) ? 'eager' : 'lazy'"
+                  draggable="false"
+                  [class]="pageImageClasses()"
+                  [style.width.%]="zoomWidthPercent()"
+                  [style.height.%]="zoomHeightPercent()"
+                  [style.--reader-zoom]="zoom()"
+                  (dragstart)="$event.preventDefault()"
+                  (load)="onPageImgLoad(i)"
+                  (error)="onPageImageError(displayUrl(i), $event)" />
+              }
             </div>
           }
         }
@@ -243,6 +289,9 @@ const PROGRAMMATIC_SCROLL_FALLBACK_MS = 1000;
               <h1 class="text-sm font-bold truncate">{{ title() }}</h1>
               <p class="text-[10px] text-slate-400 tabular-nums">
                 Página {{ currentPage() + 1 }} / {{ pageCount() || '—' }}
+                @if (isShowingLinked(currentPage())) {
+                  <span class="ml-1 text-indigo-300 font-semibold">· Tradução</span>
+                }
               </p>
             </div>
           </div>
@@ -267,6 +316,29 @@ const PROGRAMMATIC_SCROLL_FALLBACK_MS = 1000;
               <svg class="w-5 h-5" [attr.fill]="favorite() ? 'currentColor' : 'none'" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                   d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
+              </svg>
+            </button>
+
+            <button type="button" (click)="openPagesLink()"
+              class="p-2 rounded-lg transition-colors cursor-pointer"
+              [class.text-indigo-300]="hasFileLink()"
+              [class.text-slate-300]="!hasFileLink()"
+              title="Vincular páginas">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+              </svg>
+            </button>
+
+            <button type="button" (click)="toggleLinkedPage()"
+              class="p-2 rounded-lg transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              [disabled]="!hasLinkedPage(currentPage())"
+              [class.text-indigo-300]="isShowingLinked(currentPage())"
+              [class.text-slate-300]="!isShowingLinked(currentPage())"
+              title="Trocar imagem vinculada (L)">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
               </svg>
             </button>
 
@@ -330,6 +402,15 @@ const PROGRAMMATIC_SCROLL_FALLBACK_MS = 1000;
               </button>
               @if (touchMenuOpen()) {
                 <div class="absolute right-0 top-full mt-1 w-56 rounded-xl bg-slate-900/95 backdrop-blur-md border border-slate-700 shadow-2xl py-1 z-50">
+                  <button type="button" (click)="openPagesLink(); touchMenuOpen.set(false)"
+                    class="w-full px-3 py-2.5 text-left text-xs font-medium text-slate-200 hover:bg-slate-800 cursor-pointer">
+                    Vincular páginas
+                  </button>
+                  <button type="button" (click)="toggleLinkedPage(); touchMenuOpen.set(false)"
+                    class="w-full px-3 py-2.5 text-left text-xs font-medium text-slate-200 hover:bg-slate-800 cursor-pointer disabled:opacity-40"
+                    [disabled]="!hasLinkedPage(currentPage())">
+                    Trocar imagem vinculada
+                  </button>
                   <button type="button" (click)="showTouchDemoManual()"
                     class="w-full px-3 py-2.5 text-left text-xs font-medium text-slate-200 hover:bg-slate-800 cursor-pointer">
                     Ver funções de clique
@@ -460,7 +541,7 @@ const PROGRAMMATIC_SCROLL_FALLBACK_MS = 1000;
                 <button type="button"
                   (click)="seekTo(ch); showChapters.set(false)"
                   class="px-2 py-2 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-indigo-600 text-slate-200 cursor-pointer">
-                  {{ i + 1 }} · p.{{ ch + 1 }}
+                  {{ chapterLabel(ch, i) }}
                 </button>
               }
             </div>
@@ -483,6 +564,19 @@ const PROGRAMMATIC_SCROLL_FALLBACK_MS = 1000;
         <div class="absolute bottom-20 left-1/2 -translate-x-1/2 z-[65] px-3 py-1.5 rounded-lg bg-slate-800/95 border border-slate-600 text-[11px] text-slate-200 pointer-events-none">
           {{ stubToast() }}
         </div>
+      }
+
+      @if (showPagesLink()) {
+        <app-pages-link-overlay
+          [mangaId]="mangaId"
+          [mangaTitle]="title()"
+          [mangaPath]="mangaPath()"
+          [pageCount]="pageCount()"
+          [pages]="pages()"
+          [pageNames]="pageNames()"
+          [pagePaths]="pagePaths()"
+          (close)="closePagesLink()"
+          (saved)="onFileLinkSaved($event)" />
       }
     </div>
   `
@@ -509,6 +603,7 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
   /** Progress UI mark (thumb + seek counter); may lead currentPage during smooth scroll. */
   seekBarPage = signal(0);
   chapters = signal<number[]>([]);
+  chaptersPages = signal<Record<number, string>>({});
   favorite = signal(false);
   annotations = signal<MangaAnnotation[]>([]);
   readonly marked = computed(() =>
@@ -531,11 +626,27 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
   touchMenuOpen = signal(false);
   stubToast = signal<string | null>(null);
   coverUrl = signal<string | null>(null);
+  showPagesLink = signal(false);
+  mangaPath = signal('');
+  pageNames = signal<string[]>([]);
+  pagePaths = signal<string[]>([]);
+  hasFileLink = signal(false);
+  /** Pages currently showing the linked (translation) image. */
+  linkedVisiblePages = signal<Record<number, boolean>>({});
+  /** mangaPage index → linked image URL(s). */
+  linkedPageMap = signal<Record<number, string[]>>({});
 
   scrollingMode = signal<MangaScrollingMode>(this.settings.mangaScrollingMode());
   fitMode = signal<MangaFitMode>(this.settings.mangaFitMode());
 
   private sessionId: string | null = null;
+  private linkedSessionId: string | null = null;
+  private pendingScrollRestore: {
+    page: number;
+    xRatio: number;
+    yRatio: number;
+    zoom: number;
+  } | null = null;
   private historySessionId: number | null = null;
   private updateTimer: ReturnType<typeof setTimeout> | null = null;
   private ended = false;
@@ -615,7 +726,7 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
 
   @HostListener('window:keydown', ['$event'])
   onKeydown(ev: KeyboardEvent): void {
-    if (this.loading()) return;
+    if (this.loading() || this.showPagesLink()) return;
     const key = ev.key;
     const horizontal = this.isHorizontal();
 
@@ -663,6 +774,16 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
     } else if (key === '-' || key === '_') {
       ev.preventDefault();
       this.zoomOut();
+    } else if (key === 'l' || key === 'L') {
+      if (ev.ctrlKey || ev.metaKey) {
+        ev.preventDefault();
+        this.openPagesLink();
+      } else if (!ev.altKey) {
+        ev.preventDefault();
+        this.toggleLinkedPage();
+      }
+    } else if (key === 'Escape' && this.showPagesLink()) {
+      // overlay handles Escape; ignore here
     }
   }
 
@@ -837,6 +958,26 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
 
   toggleChapters(): void {
     this.showChapters.update(v => !v);
+  }
+
+  chapterLabel(page: number, index: number): string {
+    const map = this.chaptersPages();
+    const title = map[page] ?? (map as Record<string, string>)[String(page)];
+    if (typeof title === 'string' && title.trim()) return title.trim();
+    return `${index + 1} · p.${page + 1}`;
+  }
+
+  private normalizeChaptersPages(
+    raw: Record<number, string> | Record<string, string> | undefined | null
+  ): Record<number, string> {
+    const out: Record<number, string> = {};
+    if (!raw || typeof raw !== 'object') return out;
+    for (const [k, v] of Object.entries(raw)) {
+      const page = Number(k);
+      if (!Number.isFinite(page) || typeof v !== 'string' || !v.trim()) continue;
+      out[page] = v.trim();
+    }
+    return out;
   }
 
   private showStub(message: string): void {
@@ -1117,6 +1258,169 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
     }
   }
 
+  openPagesLink(): void {
+    this.showChapters.set(false);
+    this.touchMenuOpen.set(false);
+    this.chromeVisible.set(true);
+    this.showPagesLink.set(true);
+  }
+
+  closePagesLink(): void {
+    this.showPagesLink.set(false);
+  }
+
+  async onFileLinkSaved(file: LinkedFile | null): Promise<void> {
+    if (!file?.path) {
+      this.hasFileLink.set(false);
+      this.linkedPageMap.set({});
+      this.linkedVisiblePages.set({});
+      await this.closeLinkedSession();
+      return;
+    }
+    await this.loadFileLinkRuntime(file);
+  }
+
+  hasLinkedPage(page: number): boolean {
+    const urls = this.linkedPageMap()[page];
+    return !!(urls && urls.length > 0);
+  }
+
+  isShowingLinked(page: number): boolean {
+    return !!this.linkedVisiblePages()[page];
+  }
+
+  linkedUrlsFor(page: number): string[] {
+    return this.linkedPageMap()[page] || [];
+  }
+
+  displayUrl(page: number): string {
+    if (this.isShowingLinked(page)) {
+      const urls = this.linkedUrlsFor(page);
+      if (urls.length) return urls[0];
+    }
+    return this.pages()[page] || '';
+  }
+
+  toggleLinkedPage(): void {
+    const page = this.currentPage();
+    if (!this.hasLinkedPage(page)) {
+      this.showStub('Nenhuma página vinculada');
+      return;
+    }
+    this.captureScrollPercent(page);
+    const next = !this.isShowingLinked(page);
+    this.linkedVisiblePages.update(map => ({ ...map, [page]: next }));
+    this.showStub(next ? 'Tradução' : 'Original');
+  }
+
+  onLinkedImageLoad(page: number): void {
+    if (this.pendingScrollRestore?.page === page) {
+      this.restoreScrollPercent(this.pendingScrollRestore);
+      this.pendingScrollRestore = null;
+    }
+  }
+
+  onPageImgLoad(page: number): void {
+    if (this.isShowingLinked(page)) {
+      this.onLinkedImageLoad(page);
+    }
+  }
+
+  private captureScrollPercent(page: number): void {
+    const slot = this.currentPageSlot();
+    const viewport = this.viewportRef?.nativeElement;
+    const el = slot || viewport;
+    if (!el) {
+      this.pendingScrollRestore = { page, xRatio: 0, yRatio: 0, zoom: this.zoom() };
+      return;
+    }
+    const maxX = Math.max(1, el.scrollWidth - el.clientWidth);
+    const maxY = Math.max(1, el.scrollHeight - el.clientHeight);
+    this.pendingScrollRestore = {
+      page,
+      xRatio: el.scrollLeft / maxX,
+      yRatio: el.scrollTop / maxY,
+      zoom: this.zoom()
+    };
+  }
+
+  private restoreScrollPercent(state: {
+    page: number;
+    xRatio: number;
+    yRatio: number;
+    zoom: number;
+  }): void {
+    requestAnimationFrame(() => {
+      this.zoom.set(state.zoom);
+      const slot = this.pageSlotAt(state.page);
+      const viewport = this.viewportRef?.nativeElement;
+      const el = slot || viewport;
+      if (!el) return;
+      const maxX = Math.max(0, el.scrollWidth - el.clientWidth);
+      const maxY = Math.max(0, el.scrollHeight - el.clientHeight);
+      el.scrollLeft = state.xRatio * maxX;
+      el.scrollTop = state.yRatio * maxY;
+    });
+  }
+
+  private pageSlotAt(page: number): HTMLElement | null {
+    const root = this.viewportRef?.nativeElement;
+    if (!root) return null;
+    return root.querySelector(`[data-page="${page}"]`) as HTMLElement | null;
+  }
+
+  private async loadFileLinkRuntime(file?: LinkedFile | null): Promise<void> {
+    try {
+      const linked = file ?? (await this.electron.getFileLink(this.mangaId));
+      if (!linked?.path || !linked.pagesLink?.length) {
+        this.hasFileLink.set(false);
+        this.linkedPageMap.set({});
+        return;
+      }
+
+      await this.closeLinkedSession();
+      const opened = await this.electron.openFileLink(linked.path, this.mangaId);
+      if (!opened) {
+        this.hasFileLink.set(false);
+        return;
+      }
+      this.linkedSessionId = opened.sessionId;
+      this.hasFileLink.set(true);
+
+      const map: Record<number, string[]> = {};
+      for (const row of linked.pagesLink) {
+        if (row.fileLinkLeftPage == null || row.fileLinkLeftPage <= PAGE_EMPTY) continue;
+        const urls: string[] = [];
+        if (opened.pages[row.fileLinkLeftPage]) {
+          urls.push(opened.pages[row.fileLinkLeftPage]);
+        }
+        if (
+          row.isDualImage &&
+          row.fileLinkRightPage != null &&
+          row.fileLinkRightPage > PAGE_EMPTY &&
+          opened.pages[row.fileLinkRightPage]
+        ) {
+          urls.push(opened.pages[row.fileLinkRightPage]);
+        }
+        if (urls.length) map[row.mangaPage] = urls;
+      }
+      this.linkedPageMap.set(map);
+    } catch (e) {
+      console.warn('[reader-image] load file link failed', e);
+      this.hasFileLink.set(false);
+      this.linkedPageMap.set({});
+    }
+  }
+
+  private async closeLinkedSession(): Promise<void> {
+    if (this.linkedSessionId) {
+      try {
+        await this.electron.closeFileLink(this.linkedSessionId);
+      } catch {}
+      this.linkedSessionId = null;
+    }
+  }
+
   toggleFullscreen(): void {
     if (!document.fullscreenElement) {
       void document.documentElement.requestFullscreen();
@@ -1154,6 +1458,7 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
         this.title.set(manga.title || manga.name || 'Mangá');
         this.favorite.set(!!manga.favorite);
         this.coverUrl.set(manga.coverPath ? `local-cover:///${manga.coverPath}` : null);
+        this.mangaPath.set(manga.path || '');
       }
 
       const opened = await this.electron.openMangaReader(this.mangaId);
@@ -1165,13 +1470,17 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
       this.title.set(opened.title);
       this.pages.set(opened.pages);
       this.pageCount.set(opened.pageCount);
+      this.pageNames.set((opened as any).pageNames || opened.pages.map((_: string, i: number) => String(i)));
+      this.pagePaths.set((opened as any).pagePaths || opened.pages.map(() => ''));
       this.chapters.set(opened.chapters || []);
+      this.chaptersPages.set(this.normalizeChaptersPages(opened.chaptersPages));
       this.favorite.set(opened.favorite);
       this.currentPage.set(opened.bookMark);
       this.seekBarPage.set(opened.bookMark);
       this.pendingJump = opened.bookMark;
       this.brokenPages.set(0);
       this.zoom.set(1);
+      this.linkedVisiblePages.set({});
 
       try {
         this.annotations.set(await this.electron.listMangaAnnotations(this.mangaId));
@@ -1179,6 +1488,8 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
         console.warn('[reader-image] list annotations failed', e);
         this.annotations.set([]);
       }
+
+      void this.loadFileLinkRuntime();
 
       this.historySessionId = await this.electron.startHistorySession({
         fkLibrary: manga?.fkLibrary ?? 0,
@@ -1376,6 +1687,8 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
       await this.electron.closeMangaReader(this.sessionId);
       this.sessionId = null;
     }
+
+    await this.closeLinkedSession();
 
     if (document.fullscreenElement) {
       try {

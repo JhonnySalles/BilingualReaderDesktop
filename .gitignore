@@ -44,3 +44,10 @@ Thumbs.db
 public/assets/system_small.dic
 /book_cover
 /manga_cover
+
+# Secrets (never commit)
+.env
+.env.*
+!.env.example
+secrets.properties
+google-oauth.json

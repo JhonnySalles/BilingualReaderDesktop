@@ -118,6 +118,20 @@ class BookRepository extends base_repository_1.BaseRepository {
         const row = stmt.get(name);
         return row ? this.mapRowToBook(row) : undefined;
     }
+    /** Items changed since last cloud sync (Android BookRepository.listSync). */
+    listSync(since) {
+        const sinceIso = since.toISOString();
+        const stmt = this.db.prepare(`
+      SELECT * FROM Book
+      WHERE excluded = 0
+        AND (
+          (last_access IS NOT NULL AND last_access >= ?)
+          OR (last_alteration IS NOT NULL AND last_alteration > ?)
+        )
+      ORDER BY title ASC
+    `);
+        return stmt.all(sinceIso, sinceIso).map((row) => this.mapRowToBook(row));
+    }
     getByPath(filePath) {
         if (!filePath)
             return undefined;

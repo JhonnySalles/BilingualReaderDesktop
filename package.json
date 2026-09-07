@@ -48,6 +48,8 @@
     "better-sqlite3": "^13.0.3",
     "chokidar": "^5.0.0",
     "epubjs": "^0.3.93",
+    "google-auth-library": "^11.0.2",
+    "googleapis": "^178.0.0",
     "node-unrar-js": "^2.0.2",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",

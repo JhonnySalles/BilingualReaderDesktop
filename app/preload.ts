@@ -3,6 +3,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 contextBridge.exposeInMainWorld('electronAPI', {
   ping: () => ipcRenderer.invoke('app:ping'),
   selectDirectory: () => ipcRenderer.invoke('dialog:openDirectory'),
+  openMangaFile: () => ipcRenderer.invoke('dialog:openMangaFile'),
   listMangas: (folderPath?: string) => ipcRenderer.invoke('manga:list', folderPath),
   scanLibrary: (folderPath: string) => ipcRenderer.invoke('manga:scan', folderPath),
   listBooks: (folderPath?: string) => ipcRenderer.invoke('book:list', folderPath),
@@ -33,6 +34,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     year?: number | null;
     libraryId?: number | null;
     search?: string | null;
+    filters?: Array<{ kind: string; value: string }> | null;
   }) => ipcRenderer.invoke('history:listAggregated', options),
   listRecentReads: (limit?: number) => ipcRenderer.invoke('history:listRecent', limit),
   getReadingActivityHeatmap: (weeks?: number) => ipcRenderer.invoke('statistics:heatmap', weeks),
@@ -63,6 +65,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveMangaAnnotation: (annotation: any) => ipcRenderer.invoke('manga:save-annotation', annotation),
   deleteMangaAnnotation: (id: number) => ipcRenderer.invoke('manga:delete-annotation', id),
 
+  getFileLink: (mangaId: number) => ipcRenderer.invoke('file-link:get', mangaId),
+  findFileLink: (mangaId: number, name: string, pages: number) =>
+    ipcRenderer.invoke('file-link:find', mangaId, name, pages),
+  saveFileLink: (file: any) => ipcRenderer.invoke('file-link:save', file),
+  deleteFileLink: (mangaId: number) => ipcRenderer.invoke('file-link:delete', mangaId),
+  openFileLink: (filePath: string, mangaId?: number) =>
+    ipcRenderer.invoke('file-link:open-file', filePath, mangaId),
+  closeFileLink: (sessionId: string) => ipcRenderer.invoke('file-link:close-file', sessionId),
+
   openBookReader: (bookId: number) => ipcRenderer.invoke('book-reader:open', bookId),
   closeBookReader: (sessionId: string) => ipcRenderer.invoke('book-reader:close', sessionId),
   setBookBookmark: (payload: {
@@ -86,6 +97,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   deleteBookSearchHistory: (id: number) => ipcRenderer.invoke('book:search-history-delete', id),
   deleteAllBookSearchHistory: (bookId: number) =>
     ipcRenderer.invoke('book:search-history-delete-all', bookId),
+
+  shareMarkStatus: () => ipcRenderer.invoke('sharemark:status'),
+  shareMarkSignIn: () => ipcRenderer.invoke('sharemark:sign-in'),
+  shareMarkSignOut: () => ipcRenderer.invoke('sharemark:sign-out'),
+  shareMarkSetEnabled: (enabled: boolean) => ipcRenderer.invoke('sharemark:set-enabled', enabled),
+  shareMarkSetCloud: (cloud: string) => ipcRenderer.invoke('sharemark:set-cloud', cloud),
+  shareMarkClearLastSync: (type: 'MANGA' | 'BOOK') =>
+    ipcRenderer.invoke('sharemark:clear-last-sync', type),
+  shareMarkSync: (type: 'MANGA' | 'BOOK') => ipcRenderer.invoke('sharemark:sync', type),
 
   send: (channel: string, data: any) => ipcRenderer.send(channel, data),
   on: (channel: string, func: (...args: any[]) => void) => {

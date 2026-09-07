@@ -10,5 +10,10 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["app/**/*", "src/app/core/models/**/*"]
+  "include": [
+    "app/**/*",
+    "src/app/core/models/**/*",
+    "src/app/core/utils/share-mark-compare.ts",
+    "src/app/core/utils/share-annotation-reconcile.ts"
+  ]
 }

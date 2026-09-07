@@ -33,8 +33,12 @@ export class SettingsController {
           return secrets.getMyAnimeListClientId();
         case 'GOOGLE_ID_TOKEN':
           return secrets.getGoogleIdToken();
+        case 'GOOGLE_OAUTH_CLIENT_ID':
+          return secrets.getGoogleOAuthClientId();
         case 'OPENROUTER_API_KEY':
           return secrets.getOpenRouterApiKey();
+        case 'FIREBASE_PROJECT_ID':
+          return secrets.getFirebaseProjectId();
         default:
           return null;
       }

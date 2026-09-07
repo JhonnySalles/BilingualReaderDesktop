@@ -163,14 +163,15 @@ export class MangaDetailComponent implements OnInit {
     if (!m?.chapters?.length) return [];
     return m.chapters.map((ch, index) => {
       const key = String(ch);
-      const pageFromMap = m.chaptersPages?.[ch] ?? m.chaptersPages?.[key as any];
-      const page = typeof pageFromMap === 'number'
-        ? pageFromMap
-        : (typeof pageFromMap === 'string' ? parseInt(pageFromMap, 10) || ch : ch);
+      const titleRaw = m.chaptersPages?.[ch] ?? (m.chaptersPages as Record<string, string> | undefined)?.[key];
+      const label =
+        typeof titleRaw === 'string' && titleRaw.trim()
+          ? titleRaw.trim()
+          : `Capítulo ${index + 1}`;
       return {
         index,
-        label: `Capítulo ${index + 1}`,
-        page: Number.isFinite(page) ? page : 0
+        label,
+        page: ch
       };
     });
   });

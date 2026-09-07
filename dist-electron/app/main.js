@@ -47,7 +47,9 @@ const statistics_controller_1 = require("./controllers/statistics.controller");
 const library_controller_1 = require("./controllers/library.controller");
 const manga_reader_controller_1 = require("./controllers/manga-reader.controller");
 const book_reader_controller_1 = require("./controllers/book-reader.controller");
+const file_link_controller_1 = require("./controllers/file-link.controller");
 const tray_service_1 = require("./services/tray.service");
+const sharemark_controller_1 = require("./controllers/sharemark.controller");
 const LOCAL_SCHEME_PRIVILEGES = {
     standard: true,
     secure: true,
@@ -67,6 +69,7 @@ let scannerMangaService;
 let scannerBookService;
 let mangaReaderController;
 let bookReaderController;
+let fileLinkController;
 function getWindowIconPath() {
     const candidates = [
         path.join(__dirname, '../assets/icons/icon.ico'),
@@ -129,6 +132,9 @@ electron_1.app.on('ready', () => {
         mangaReaderController.registerIpcHandlers(() => mainWindow);
         bookReaderController = new book_reader_controller_1.BookReaderController(storageService);
         bookReaderController.registerIpcHandlers(() => mainWindow);
+        fileLinkController = new file_link_controller_1.FileLinkController(storageService, mangaReaderController.getSessionService());
+        fileLinkController.registerIpcHandlers(() => mainWindow);
+        new sharemark_controller_1.ShareMarkController(storageService, () => mainWindow).registerIpcHandlers();
         // Same pattern as local-cover — absolute path after scheme, no privileged registration
         let localPageServeLogged = false;
         electron_1.protocol.handle('local-page', (request) => {

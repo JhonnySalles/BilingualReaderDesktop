@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as crypto from 'crypto';
 import { app, BrowserWindow } from 'electron';
 import { ParseFactory } from '../parser/manga/parse-factory';
+import { ParseUtil } from '../parser/manga/parse-util';
 
 const CACHE_SLOTS = ['a', 'b', 'c'] as const;
 const MAX_SESSIONS_PER_SLOT = 4;
@@ -13,7 +14,13 @@ export interface MangaPagesMeta {
   path: string;
   pageCount: number;
   files: string[];
+  /** Original archive entry names (basename). */
+  pageNames?: string[];
+  /** Original archive folder paths. */
+  pagePaths?: string[];
   chapters: number[];
+  /** Page index → chapter title from ComicInfo bookmarks. */
+  chaptersPages?: Record<number, string>;
   createdAt: number;
 }
 
@@ -23,10 +30,14 @@ export interface OpenMangaReaderResult {
   title: string;
   pageCount: number;
   pages: string[];
+  pageNames: string[];
+  pagePaths: string[];
   chapters: number[];
+  chaptersPages: Record<number, string>;
   bookMark: number;
   favorite: boolean;
   cacheDir: string;
+  path: string;
 }
 
 interface ActiveSession {
@@ -65,53 +76,121 @@ export class MangaReaderSessionService {
     favorite: boolean,
     sender?: BrowserWindow | null
   ): Promise<OpenMangaReaderResult> {
-    if (!fs.existsSync(mangaPath)) {
-      throw new Error(`Arquivo não encontrado: ${mangaPath}`);
+    const opened = await this.openByPath(mangaPath, mangaId, sender);
+    return {
+      ...opened,
+      mangaId,
+      title,
+      bookMark: Math.min(Math.max(0, bookMark || 0), Math.max(0, opened.pageCount - 1)),
+      favorite: !!favorite
+    };
+  }
+
+  /**
+   * Open/extract any manga archive or folder by path (primary or linked file).
+   * mangaId may be 0 for ad-hoc / linked files not in the library.
+   */
+  async openByPath(
+    filePath: string,
+    mangaId = 0,
+    sender?: BrowserWindow | null
+  ): Promise<OpenMangaReaderResult> {
+    if (!fs.existsSync(filePath)) {
+      throw new Error(`Arquivo não encontrado: ${filePath}`);
     }
 
-    const hash = this.fileHash(mangaPath);
+    const hash = this.fileHash(filePath);
     let cacheDir = this.findExistingCache(hash);
 
-    if (!cacheDir) {
+    if (!cacheDir || !this.metaHasNames(cacheDir)) {
+      if (cacheDir) {
+        try {
+          fs.rmSync(cacheDir, { recursive: true, force: true });
+        } catch {}
+      }
       const slot = CACHE_SLOTS[Math.floor(Math.random() * CACHE_SLOTS.length)];
       this.trimSlot(slot);
       cacheDir = path.join(this.getCacheRoot(), slot, hash);
       fs.mkdirSync(cacheDir, { recursive: true });
-      await this.extractPages(mangaId, mangaPath, cacheDir, sender);
+      await this.extractPages(mangaId, filePath, cacheDir, sender);
     }
 
-    const meta = this.readMeta(cacheDir);
+    let meta = this.readMeta(cacheDir);
     if (!meta || meta.pageCount < 1 || meta.files.length !== meta.pageCount) {
-      // corrupt cache — rebuild
       fs.rmSync(cacheDir, { recursive: true, force: true });
       const slot = CACHE_SLOTS[Math.floor(Math.random() * CACHE_SLOTS.length)];
       this.trimSlot(slot);
       cacheDir = path.join(this.getCacheRoot(), slot, hash);
       fs.mkdirSync(cacheDir, { recursive: true });
-      await this.extractPages(mangaId, mangaPath, cacheDir, sender);
+      await this.extractPages(mangaId, filePath, cacheDir, sender);
+      meta = this.readMeta(cacheDir);
     }
 
-    const finalMeta = this.readMeta(cacheDir)!;
+    const finalMeta = meta!;
     const sessionId = crypto.randomBytes(8).toString('hex');
     this.active.set(sessionId, { sessionId, mangaId, cacheDir });
 
     const pages = finalMeta.files.map(f => this.toLocalPageUrl(path.join(cacheDir, f)));
+    const pageNames = finalMeta.pageNames?.length === finalMeta.pageCount
+      ? finalMeta.pageNames
+      : finalMeta.files.map((_, i) => String(i));
+    const pagePaths = finalMeta.pagePaths?.length === finalMeta.pageCount
+      ? finalMeta.pagePaths
+      : finalMeta.files.map(() => '');
 
     return {
       sessionId,
       mangaId,
-      title,
+      title: path.basename(filePath),
       pageCount: finalMeta.pageCount,
       pages,
+      pageNames,
+      pagePaths,
       chapters: finalMeta.chapters || [],
-      bookMark: Math.min(Math.max(0, bookMark || 0), Math.max(0, finalMeta.pageCount - 1)),
-      favorite: !!favorite,
-      cacheDir
+      chaptersPages: finalMeta.chaptersPages || {},
+      bookMark: 0,
+      favorite: false,
+      cacheDir,
+      path: filePath
     };
+  }
+
+  /**
+   * Lightweight ComicInfo read when cache/meta lacks chaptersPages (old caches).
+   */
+  async loadChaptersPages(mangaPath: string): Promise<Record<number, string>> {
+    const parser = await ParseFactory.create(mangaPath);
+    if (!parser) return {};
+    try {
+      if (!parser.isComicInfo?.()) return {};
+      const info = parser.getComicInfo?.() ?? null;
+      return ParseUtil.buildChaptersPagesFromComicInfo(info);
+    } catch (e) {
+      console.warn('[MangaReaderSession] Failed to load ComicInfo chapters', e);
+      return {};
+    } finally {
+      try {
+        parser.destroy(false);
+      } catch {}
+    }
+  }
+
+  /** Folders win; else bookmark keys sorted. */
+  resolveChapters(folderChapters: number[], chaptersPages: Record<number, string>): number[] {
+    if (folderChapters.length > 0) return folderChapters;
+    return Object.keys(chaptersPages)
+      .map(Number)
+      .filter(n => Number.isFinite(n))
+      .sort((a, b) => a - b);
   }
 
   close(sessionId: string): boolean {
     return this.active.delete(sessionId);
+  }
+
+  private metaHasNames(cacheDir: string): boolean {
+    const meta = this.readMeta(cacheDir);
+    return !!(meta?.pageNames && meta.pageNames.length === meta.pageCount);
   }
 
   private fileHash(filePath: string): string {
@@ -197,8 +276,20 @@ export class MangaReaderSessionService {
         throw new Error('Arquivo sem páginas de imagem');
       }
 
-      const chapters = parser.getChapters?.() ?? [];
+      const folderChapters = parser.getChapters?.() ?? [];
+      let chaptersPages: Record<number, string> = {};
+      try {
+        if (parser.isComicInfo?.()) {
+          const info = parser.getComicInfo?.() ?? null;
+          chaptersPages = ParseUtil.buildChaptersPagesFromComicInfo(info);
+        }
+      } catch (e) {
+        console.warn('[MangaReaderSession] ComicInfo chapters failed', e);
+      }
+      const chapters = this.resolveChapters(folderChapters, chaptersPages);
       const files: string[] = [];
+      const pageNames: string[] = [];
+      const pagePaths: string[] = [];
 
       for (let i = 0; i < pageCount; i++) {
         const buf = parser.getPage(i);
@@ -210,6 +301,8 @@ export class MangaReaderSessionService {
         const name = `${String(i).padStart(4, '0')}${ext}`;
         fs.writeFileSync(path.join(cacheDir, name), buf);
         files.push(name);
+        pageNames.push(ParseUtil.getNameFromPath(sourcePath) || name);
+        pagePaths.push(ParseUtil.getFolderFromPath(sourcePath));
 
         if (sender && !sender.isDestroyed()) {
           sender.webContents.send('manga-reader:extract-progress', {
@@ -224,7 +317,10 @@ export class MangaReaderSessionService {
         path: mangaPath,
         pageCount,
         files,
+        pageNames,
+        pagePaths,
         chapters,
+        chaptersPages,
         createdAt: Date.now()
       };
       fs.writeFileSync(path.join(cacheDir, META_FILE), JSON.stringify(meta, null, 2), 'utf8');

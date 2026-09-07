@@ -1,5 +1,5 @@
 import * as path from 'path';
-import { ComicInfo } from '../../../src/app/core/models/entities/comic-info.model';
+import { ComicInfo, ComicInfoPage } from '../../../src/app/core/models/entities/comic-info.model';
 
 export class ParseUtil {
   public static readonly IMAGE_EXTENSIONS = new Set([
@@ -33,6 +33,20 @@ export class ParseUtil {
    */
   public static naturalSort(a: string, b: string): number {
     return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+  }
+
+  /**
+   * Kotlin parity: chaptersPages[index] = bookmark for each Page with Bookmark (withIndex).
+   */
+  public static buildChaptersPagesFromComicInfo(info: ComicInfo | null | undefined): Record<number, string> {
+    const out: Record<number, string> = {};
+    const pages = info?.pages;
+    if (!pages?.length) return out;
+    for (let index = 0; index < pages.length; index++) {
+      const bookmark = pages[index]?.bookmark?.trim();
+      if (bookmark) out[index] = bookmark;
+    }
+    return out;
   }
 
   /**
@@ -80,10 +94,39 @@ export class ParseUtil {
         ageRating: getTagValue('AgeRating'),
         year: getTagNumber('Year'),
         month: getTagNumber('Month'),
-        day: getTagNumber('Day')
+        day: getTagNumber('Day'),
+        pages: this.parseComicInfoPages(xmlContent)
       } as ComicInfo;
     } catch {
       return null;
     }
+  }
+
+  private static parseComicInfoPages(xmlContent: string): ComicInfoPage[] {
+    const pagesBlock = xmlContent.match(/<Pages\b[^>]*>([\s\S]*?)<\/Pages>/i);
+    if (!pagesBlock) return [];
+
+    const pages: ComicInfoPage[] = [];
+    const pageTagRe = /<Page\b([^>]*?)\/?>/gi;
+    let match: RegExpExecArray | null;
+    while ((match = pageTagRe.exec(pagesBlock[1])) !== null) {
+      const attrs = match[1] || '';
+      const bookmark = this.getXmlAttr(attrs, 'Bookmark');
+      const type = this.getXmlAttr(attrs, 'Type');
+      const imageRaw = this.getXmlAttr(attrs, 'Image');
+      const imageIndex = imageRaw !== '' && !Number.isNaN(Number(imageRaw)) ? Number(imageRaw) : pages.length;
+      pages.push({
+        imageIndex,
+        ...(type ? { type } : {}),
+        ...(bookmark ? { bookmark } : {})
+      });
+    }
+    return pages;
+  }
+
+  private static getXmlAttr(attrs: string, name: string): string {
+    const re = new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)')`, 'i');
+    const m = attrs.match(re);
+    return (m?.[1] ?? m?.[2] ?? '').trim();
   }
 }

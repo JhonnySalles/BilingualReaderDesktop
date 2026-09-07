@@ -100,6 +100,21 @@ export class BookRepository extends BaseRepository<Book, number> {
     return row ? this.mapRowToBook(row) : undefined;
   }
 
+  /** Items changed since last cloud sync (Android BookRepository.listSync). */
+  public listSync(since: Date): Book[] {
+    const sinceIso = since.toISOString();
+    const stmt = this.db.prepare(`
+      SELECT * FROM Book
+      WHERE excluded = 0
+        AND (
+          (last_access IS NOT NULL AND last_access >= ?)
+          OR (last_alteration IS NOT NULL AND last_alteration > ?)
+        )
+      ORDER BY title ASC
+    `);
+    return stmt.all(sinceIso, sinceIso).map((row) => this.mapRowToBook(row));
+  }
+
   public getByPath(filePath: string): Book | undefined {
     if (!filePath) return undefined;
     const normalized = path.normalize(filePath);

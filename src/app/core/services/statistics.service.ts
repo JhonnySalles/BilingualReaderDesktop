@@ -110,6 +110,7 @@ export class StatisticsService {
     year?: number | null;
     libraryId?: number | null;
     search?: string | null;
+    filters?: import('../models').HistorySearchFilter[] | null;
   }): Promise<HistoryStatisticsItem[]> {
     return this.electron.listHistoryAggregated(options);
   }

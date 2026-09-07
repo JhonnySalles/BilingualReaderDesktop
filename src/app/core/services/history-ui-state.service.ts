@@ -3,7 +3,10 @@ import { HistoryContentType, LibraryOption } from '../models';
 
 @Injectable({ providedIn: 'root' })
 export class HistoryUiStateService {
+  /** Raw search text shown in the header field. */
   readonly search = signal('');
+  /** Debounced query committed for SQL filtering. */
+  readonly committedSearch = signal('');
   readonly year = signal<number | null>(null);
   readonly libraryId = signal<number | null>(null);
   readonly activeType = signal<HistoryContentType>('MANGA');
@@ -18,6 +21,10 @@ export class HistoryUiStateService {
 
   setSearch(value: string): void {
     this.search.set(value);
+  }
+
+  setCommittedSearch(value: string): void {
+    this.committedSearch.set(value);
     this.bumpReload();
   }
 

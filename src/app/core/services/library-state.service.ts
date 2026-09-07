@@ -31,8 +31,10 @@ interface StoredViewPreferences {
   providedIn: 'root'
 })
 export class LibraryStateService {
-  // Global search query
+  // Global search query (raw input text)
   searchQuery = signal<string>('');
+  /** Debounced / committed query used for list filtering (pauses during incomplete @). */
+  filterQuery = signal<string>('');
 
   // Active Library Information (when browsing libraries)
   activeLibrary = signal<ActiveLibraryInfo>({

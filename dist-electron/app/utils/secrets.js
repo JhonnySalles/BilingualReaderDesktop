@@ -36,10 +36,17 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.Secrets = void 0;
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
+const electron_1 = require("electron");
 class Secrets {
     static _instance;
     animeListClientId = '';
     googleIdToken = '';
+    googleOAuthClientId = '';
+    googleOAuthClientSecret = '';
+    firebaseApiKey = '';
+    firebaseAuthDomain = '';
+    firebaseProjectId = '';
+    firebaseAppId = '';
     openRouterApiKey = '';
     static get instance() {
         if (!this._instance) {
@@ -50,63 +57,96 @@ class Secrets {
     constructor() {
         this.loadSecrets();
     }
+    candidateRoots() {
+        const roots = [process.cwd()];
+        try {
+            if (electron_1.app) {
+                roots.push(electron_1.app.getAppPath());
+                if (!electron_1.app.isPackaged) {
+                    roots.push(path.join(electron_1.app.getAppPath(), '..'));
+                }
+            }
+        }
+        catch {
+            // app may be unavailable in some test contexts
+        }
+        try {
+            roots.push(path.join(__dirname, '../..'));
+            roots.push(path.join(__dirname, '../../..'));
+        }
+        catch {
+            // ignore
+        }
+        return [...new Set(roots.filter(Boolean))];
+    }
     loadSecrets() {
         try {
-            // Look for .env or secrets.properties in process cwd or app root
-            const rootPath = process.cwd();
-            const envPath = path.join(rootPath, '.env');
-            const propsPath = path.join(rootPath, 'secrets.properties');
-            if (fs.existsSync(envPath)) {
-                const content = fs.readFileSync(envPath, 'utf-8');
-                this.parseEnv(content);
-            }
-            else if (fs.existsSync(propsPath)) {
-                const content = fs.readFileSync(propsPath, 'utf-8');
-                this.parseProperties(content);
+            for (const root of this.candidateRoots()) {
+                const envPath = path.join(root, '.env');
+                const propsPath = path.join(root, 'secrets.properties');
+                if (fs.existsSync(envPath)) {
+                    this.parseEnv(fs.readFileSync(envPath, 'utf-8'));
+                    return;
+                }
+                if (fs.existsSync(propsPath)) {
+                    this.parseProperties(fs.readFileSync(propsPath, 'utf-8'));
+                    return;
+                }
             }
         }
         catch (e) {
             console.error('Error reading secrets:', e);
         }
     }
+    applyKey(k, value) {
+        switch (k) {
+            case 'ANIME_LIST_CLIENT_ID':
+            case 'MY_ANIME_LIST_CLIENT_ID':
+                this.animeListClientId = value;
+                break;
+            case 'GOOGLE_ID_TOKEN':
+                this.googleIdToken = value;
+                break;
+            case 'GOOGLE_OAUTH_CLIENT_ID':
+                this.googleOAuthClientId = value;
+                break;
+            case 'GOOGLE_OAUTH_CLIENT_SECRET':
+                this.googleOAuthClientSecret = value;
+                break;
+            case 'FIREBASE_API_KEY':
+                this.firebaseApiKey = value;
+                break;
+            case 'FIREBASE_AUTH_DOMAIN':
+                this.firebaseAuthDomain = value;
+                break;
+            case 'FIREBASE_PROJECT_ID':
+                this.firebaseProjectId = value;
+                break;
+            case 'FIREBASE_APP_ID':
+                this.firebaseAppId = value;
+                break;
+            case 'OPENROUTER_API_KEY':
+                this.openRouterApiKey = value;
+                break;
+        }
+    }
     parseEnv(content) {
-        const lines = content.split('\n');
-        for (const line of lines) {
+        for (const line of content.split('\n')) {
             const trimmed = line.trim();
             if (!trimmed || trimmed.startsWith('#'))
                 continue;
             const [key, ...valueParts] = trimmed.split('=');
             const value = valueParts.join('=').trim().replace(/^["']|["']$/g, '');
-            const k = key.trim();
-            if (k === 'ANIME_LIST_CLIENT_ID' || k === 'MY_ANIME_LIST_CLIENT_ID') {
-                this.animeListClientId = value;
-            }
-            else if (k === 'GOOGLE_ID_TOKEN') {
-                this.googleIdToken = value;
-            }
-            else if (k === 'OPENROUTER_API_KEY') {
-                this.openRouterApiKey = value;
-            }
+            this.applyKey(key.trim(), value);
         }
     }
     parseProperties(content) {
-        const lines = content.split('\n');
-        for (const line of lines) {
+        for (const line of content.split('\n')) {
             const trimmed = line.trim();
             if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith('!'))
                 continue;
             const [key, ...valueParts] = trimmed.split('=');
-            const value = valueParts.join('=').trim();
-            const k = key.trim();
-            if (k === 'ANIME_LIST_CLIENT_ID') {
-                this.animeListClientId = value;
-            }
-            else if (k === 'GOOGLE_ID_TOKEN') {
-                this.googleIdToken = value;
-            }
-            else if (k === 'OPENROUTER_API_KEY') {
-                this.openRouterApiKey = value;
-            }
+            this.applyKey(key.trim(), valueParts.join('=').trim());
         }
     }
     getMyAnimeListClientId() {
@@ -114,6 +154,24 @@ class Secrets {
     }
     getGoogleIdToken() {
         return this.googleIdToken;
+    }
+    getGoogleOAuthClientId() {
+        return this.googleOAuthClientId || this.googleIdToken;
+    }
+    getGoogleOAuthClientSecret() {
+        return this.googleOAuthClientSecret;
+    }
+    getFirebaseApiKey() {
+        return this.firebaseApiKey;
+    }
+    getFirebaseAuthDomain() {
+        return this.firebaseAuthDomain;
+    }
+    getFirebaseProjectId() {
+        return this.firebaseProjectId;
+    }
+    getFirebaseAppId() {
+        return this.firebaseAppId;
     }
     getOpenRouterApiKey() {
         return this.openRouterApiKey;

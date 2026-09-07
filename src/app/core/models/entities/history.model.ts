@@ -46,9 +46,13 @@ export interface HistoryStatisticsItem {
   fkReference: number;
   fkLibrary: number;
   title: string;
+  name?: string;
   author: string;
   series: string;
   publisher: string;
+  volume?: string;
+  fileType?: string;
+  tags?: string;
   coverPath: string | null;
   favorite: boolean;
   hasSubtitle: boolean;
@@ -60,6 +64,12 @@ export interface HistoryStatisticsItem {
   timeRead: number;
   sessionDate: string;
   lastAccess: string;
+}
+
+/** Structured @ filter for history SQL (AND). */
+export interface HistorySearchFilter {
+  kind: 'Author' | 'Publisher' | 'Series' | 'Type' | 'Volume' | 'Tag';
+  value: string;
 }
 
 /** Unique recent reads for home screen (cross manga + book). */
