@@ -41,6 +41,7 @@ const googleapis_1 = require("googleapis");
 const share_mark_base_1 = require("./share-mark-base");
 const google_auth_service_1 = require("../google-auth.service");
 const sharemark_enum_1 = require("../../../src/app/core/models/enums/sharemark.enum");
+const telemetry_1 = require("../../utils/telemetry");
 const share_item_mapper_1 = require("./share-item.mapper");
 const FOLDER = 'BilingualReader';
 const MANGA_FILE = 'MangaMarks';
@@ -75,6 +76,7 @@ class ShareMarkGDriveService extends share_mark_base_1.ShareMarkBase {
         }
         catch (e) {
             console.error('[ShareMarkGDrive] initialize:', e);
+            telemetry_1.Telemetry.recordException(e, '[ShareMarkGDrive] initialize');
             if (e?.message === 'NOT_SIGN_IN')
                 return sharemark_enum_1.ShareMarkType.NOT_SIGN_IN;
             return sharemark_enum_1.ShareMarkType.NOT_CONNECT_DRIVE;
@@ -133,6 +135,7 @@ class ShareMarkGDriveService extends share_mark_base_1.ShareMarkBase {
         }
         catch (e) {
             console.error('[ShareMarkGDrive] getShareFiles:', e);
+            telemetry_1.Telemetry.recordException(e, '[ShareMarkGDrive] getShareFiles');
             if (e?.code === 'ENOTFOUND' || e?.code === 'ECONNREFUSED') {
                 return sharemark_enum_1.ShareMarkType.ERROR_NETWORK;
             }
@@ -236,6 +239,7 @@ class ShareMarkGDriveService extends share_mark_base_1.ShareMarkBase {
         }
         catch (e) {
             console.error('[ShareMarkGDrive] upload:', e);
+            telemetry_1.Telemetry.recordException(e, '[ShareMarkGDrive] upload');
             return sharemark_enum_1.ShareMarkType.ERROR_UPLOAD;
         }
     }

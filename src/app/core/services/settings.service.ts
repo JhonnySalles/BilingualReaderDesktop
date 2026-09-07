@@ -6,10 +6,13 @@ import {
   BookSpacingSize,
   MangaFitMode,
   MangaScrollingMode,
+  PageTransitionType,
+  isPageTransitionType,
   TouchPosition,
   TouchScreen,
   TouchZoneMap
 } from '../models';
+import { DEFAULT_JAPANESE_FONT_CSS } from '../../features/reader-text/book-fonts';
 
 export interface CustomLibrary {
   id: string;
@@ -21,6 +24,11 @@ export interface CustomLibrary {
 }
 
 const SETTINGS_KEY = 'bilingual_reader_settings';
+
+/** Android GeneralConsts.KEYS.READER.MANGA_PAGE_PAGINATION_TYPE */
+export const MANGA_PAGE_PAGINATION_TYPE_KEY = 'MANGA_PAGE_PAGINATION_TYPE';
+/** Android GeneralConsts.KEYS.READER.BOOK_PAGE_PAGINATION_TYPE */
+export const BOOK_PAGE_PAGINATION_TYPE_KEY = 'BOOK_PAGE_PAGINATION_TYPE';
 
 const MANGA_TOUCH_DEFAULT: TouchZoneMap = {
   [TouchPosition.TOP]: TouchScreen.SHARE_IMAGE,
@@ -50,7 +58,9 @@ interface SettingsData {
   libraries: CustomLibrary[];
   mangaScrollingMode?: MangaScrollingMode;
   mangaFitMode?: MangaFitMode;
+  mangaPageTransition?: PageTransitionType;
   bookScrollingMode?: BookScrollingMode;
+  bookPageTransition?: PageTransitionType;
   bookFontSize?: number;
   bookFontFamily?: string;
   bookLineHeight?: number;
@@ -61,6 +71,13 @@ interface SettingsData {
   bookTouchMap?: Partial<TouchZoneMap>;
   mangaTouchDemoShown?: boolean;
   bookTouchDemoShown?: boolean;
+  mangaProcessVocabulary?: boolean;
+  bookProcessVocabulary?: boolean;
+  bookProcessJapaneseText?: boolean;
+  bookGenerateFurigana?: boolean;
+  bookFontFamilyJapanese?: string;
+  subtitleLanguage?: string;
+  ocrLanguage?: string;
 }
 
 @Injectable({
@@ -72,8 +89,10 @@ export class SettingsService {
   libraries = signal<CustomLibrary[]>([]);
   mangaScrollingMode = signal<MangaScrollingMode>(MangaScrollingMode.Horizontal);
   mangaFitMode = signal<MangaFitMode>(MangaFitMode.FitWidth);
+  mangaPageTransition = signal<PageTransitionType>(PageTransitionType.Default);
 
   bookScrollingMode = signal<BookScrollingMode>(BookScrollingMode.Pagination);
+  bookPageTransition = signal<PageTransitionType>(PageTransitionType.Default);
   bookFontSize = signal<number>(18);
   bookFontFamily = signal<string>('Georgia, serif');
   bookLineHeight = signal<number>(1.6);
@@ -85,6 +104,15 @@ export class SettingsService {
   bookTouchMap = signal<TouchZoneMap>({ ...BOOK_TOUCH_DEFAULT });
   mangaTouchDemoShown = signal(false);
   bookTouchDemoShown = signal(false);
+  mangaProcessVocabulary = signal(true);
+  bookProcessVocabulary = signal(true);
+  bookProcessJapaneseText = signal(true);
+  bookGenerateFurigana = signal(true);
+  bookFontFamilyJapanese = signal<string>(DEFAULT_JAPANESE_FONT_CSS);
+  /** Android-style subtitle language key: JAPANESE | ENGLISH | PORTUGUESE */
+  subtitleLanguage = signal('JAPANESE');
+  /** Tesseract lang: jpn | jpn_vert | eng | por */
+  ocrLanguage = signal('jpn');
 
   constructor() {
     this.loadSettings();
@@ -96,7 +124,9 @@ export class SettingsService {
         libraries: this.libraries(),
         mangaScrollingMode: this.mangaScrollingMode(),
         mangaFitMode: this.mangaFitMode(),
+        mangaPageTransition: this.mangaPageTransition(),
         bookScrollingMode: this.bookScrollingMode(),
+        bookPageTransition: this.bookPageTransition(),
         bookFontSize: this.bookFontSize(),
         bookFontFamily: this.bookFontFamily(),
         bookLineHeight: this.bookLineHeight(),
@@ -106,13 +136,29 @@ export class SettingsService {
         mangaTouchMap: this.mangaTouchMap(),
         bookTouchMap: this.bookTouchMap(),
         mangaTouchDemoShown: this.mangaTouchDemoShown(),
-        bookTouchDemoShown: this.bookTouchDemoShown()
+        bookTouchDemoShown: this.bookTouchDemoShown(),
+        mangaProcessVocabulary: this.mangaProcessVocabulary(),
+        bookProcessVocabulary: this.bookProcessVocabulary(),
+        bookProcessJapaneseText: this.bookProcessJapaneseText(),
+        bookGenerateFurigana: this.bookGenerateFurigana(),
+        bookFontFamilyJapanese: this.bookFontFamilyJapanese(),
+        subtitleLanguage: this.subtitleLanguage(),
+        ocrLanguage: this.ocrLanguage()
       };
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(data));
       if (typeof window !== 'undefined' && window.electronAPI?.setSetting) {
         void window.electronAPI.setSetting('libraries', this.libraries());
         void window.electronAPI.setSetting('mangaBasePath', this.mangaBasePath());
         void window.electronAPI.setSetting('bookBasePath', this.bookBasePath());
+        void window.electronAPI.setSetting('MANGA_PROCESS_VOCABULARY', this.mangaProcessVocabulary());
+        void window.electronAPI.setSetting('BOOK_PROCESS_VOCABULARY', this.bookProcessVocabulary());
+        void window.electronAPI.setSetting('BOOK_PROCESS_JAPANESE_TEXT', this.bookProcessJapaneseText());
+        void window.electronAPI.setSetting('BOOK_GENERATE_FURIGANA_ON_TEXT', this.bookGenerateFurigana());
+        void window.electronAPI.setSetting('BOOK_PAGE_FONT_TYPE_JAPANESE', this.bookFontFamilyJapanese());
+        void window.electronAPI.setSetting('SUBTITLE_LANGUAGE', this.subtitleLanguage());
+        void window.electronAPI.setSetting('OCR_LANGUAGE', this.ocrLanguage());
+        void window.electronAPI.setSetting(MANGA_PAGE_PAGINATION_TYPE_KEY, this.mangaPageTransition());
+        void window.electronAPI.setSetting(BOOK_PAGE_PAGINATION_TYPE_KEY, this.bookPageTransition());
       }
     });
   }
@@ -131,8 +177,14 @@ export class SettingsService {
         if (data.mangaFitMode && Object.values(MangaFitMode).includes(data.mangaFitMode)) {
           this.mangaFitMode.set(data.mangaFitMode);
         }
+        if (isPageTransitionType(data.mangaPageTransition)) {
+          this.mangaPageTransition.set(data.mangaPageTransition);
+        }
         if (data.bookScrollingMode && Object.values(BookScrollingMode).includes(data.bookScrollingMode)) {
           this.bookScrollingMode.set(data.bookScrollingMode);
+        }
+        if (isPageTransitionType(data.bookPageTransition)) {
+          this.bookPageTransition.set(data.bookPageTransition);
         }
         if (typeof data.bookFontSize === 'number' && data.bookFontSize >= 10 && data.bookFontSize <= 40) {
           this.bookFontSize.set(data.bookFontSize);
@@ -163,6 +215,27 @@ export class SettingsService {
         }
         if (typeof data.bookTouchDemoShown === 'boolean') {
           this.bookTouchDemoShown.set(data.bookTouchDemoShown);
+        }
+        if (typeof data.mangaProcessVocabulary === 'boolean') {
+          this.mangaProcessVocabulary.set(data.mangaProcessVocabulary);
+        }
+        if (typeof data.bookProcessVocabulary === 'boolean') {
+          this.bookProcessVocabulary.set(data.bookProcessVocabulary);
+        }
+        if (typeof data.bookProcessJapaneseText === 'boolean') {
+          this.bookProcessJapaneseText.set(data.bookProcessJapaneseText);
+        }
+        if (typeof data.bookGenerateFurigana === 'boolean') {
+          this.bookGenerateFurigana.set(data.bookGenerateFurigana);
+        }
+        if (typeof data.bookFontFamilyJapanese === 'string' && data.bookFontFamilyJapanese.trim()) {
+          this.bookFontFamilyJapanese.set(data.bookFontFamilyJapanese);
+        }
+        if (typeof data.subtitleLanguage === 'string' && data.subtitleLanguage.trim()) {
+          this.subtitleLanguage.set(data.subtitleLanguage.trim().toUpperCase());
+        }
+        if (typeof data.ocrLanguage === 'string' && data.ocrLanguage.trim()) {
+          this.ocrLanguage.set(data.ocrLanguage.trim());
         }
       } catch (e) {
         console.error('Failed to parse settings', e);

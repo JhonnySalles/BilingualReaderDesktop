@@ -3,11 +3,16 @@ import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { DetailService } from '../../core/services/detail.service';
 import { NavigationStackService } from '../../core/services/navigation-stack.service';
+import { ElectronService } from '../../core/services/electron.service';
 import { Manga } from '../../core/models';
 import { DetailActionBarComponent } from './components/detail-action-bar.component';
 import { DetailMetaSectionComponent, DetailMetaField } from './components/detail-meta-section.component';
-import { DetailBookmarkDialogComponent } from './components/detail-bookmark-dialog.component';
 import { DetailChaptersListComponent, DetailChapterItem } from './components/detail-chapters-list.component';
+import {
+  LibraryBookmarkDialogComponent,
+  LibraryBookmarkPayload
+} from '../../shared/library-bookmark-dialog/library-bookmark-dialog.component';
+import { fromReaderIndex } from '../../core/utils/reading-progress.util';
 
 @Component({
   selector: 'app-manga-detail',
@@ -17,11 +22,11 @@ import { DetailChaptersListComponent, DetailChapterItem } from './components/det
     RouterModule,
     DetailActionBarComponent,
     DetailMetaSectionComponent,
-    DetailBookmarkDialogComponent,
+    LibraryBookmarkDialogComponent,
     DetailChaptersListComponent
   ],
   template: `
-    <div class="h-full flex flex-col bg-slate-950 text-slate-100 overflow-hidden select-none">
+    <div class="h-full flex flex-col bg-slate-950 text-slate-100 overflow-hidden select-none relative">
       <div class="h-14 px-6 bg-slate-900 border-b border-slate-800 flex items-center justify-between gap-3 shrink-0">
         <div class="flex items-center gap-3 min-w-0">
           <button type="button" (click)="goBack()" class="p-2 text-slate-400 hover:text-slate-200 rounded-lg transition-colors cursor-pointer">
@@ -107,6 +112,7 @@ import { DetailChaptersListComponent, DetailChapterItem } from './components/det
               (clearProgress)="onClearProgress()"
               (bookmark)="showBookmark.set(true)"
               (vocabulary)="goVocabulary()"
+              (importVocabulary)="onImportVocabulary()"
               (deleteItem)="onDelete()" />
 
             <app-detail-meta-section title="Detalhe" [fields]="metaFields()" />
@@ -116,13 +122,22 @@ import { DetailChaptersListComponent, DetailChapterItem } from './components/det
         </div>
       }
 
-      <app-detail-bookmark-dialog
+      <app-library-bookmark-dialog
         accent="indigo"
         [open]="showBookmark()"
+        [title]="manga()?.title || ''"
         [maxPages]="manga()?.pages || 1"
         [pageValue]="bookmarkPage()"
+        [lastAccess]="manga()?.lastAccess"
+        [completed]="!!manga()?.completed"
         (confirm)="onBookmarkSave($event)"
         (cancel)="showBookmark.set(false)" />
+
+      @if (importMessage()) {
+        <div class="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-xl bg-slate-800 border border-slate-600 text-xs text-slate-200 shadow-xl">
+          {{ importMessage() }}
+        </div>
+      }
     </div>
   `
 })
@@ -131,16 +146,18 @@ export class MangaDetailComponent implements OnInit {
   private router = inject(Router);
   private detail = inject(DetailService);
   private nav = inject(NavigationStackService);
+  private electron = inject(ElectronService);
 
   manga = signal<Manga | null>(null);
   loading = signal(true);
   showBookmark = signal(false);
   bookmarkPage = signal(0);
+  importMessage = signal<string | null>(null);
 
   progress = computed(() => {
     const m = this.manga();
     if (!m) return 0;
-    return this.detail.progressPercent(m.bookMark, m.pages);
+    return this.detail.progressPercent(m.bookMark, m.pages, m.completed);
   });
 
   lastAccess = computed(() => this.detail.formatLastAccess(this.manga()?.lastAccess));
@@ -202,7 +219,25 @@ export class MangaDetailComponent implements OnInit {
   }
 
   goVocabulary(): void {
-    this.router.navigate(['/vocabulary']);
+    const m = this.manga();
+    if (!m?.id) {
+      this.router.navigate(['/vocabulary']);
+      return;
+    }
+    this.router.navigate(['/vocabulary'], { queryParams: { mangaId: m.id } });
+  }
+
+  async onImportVocabulary(): Promise<void> {
+    const m = this.manga();
+    if (!m?.id) return;
+    this.importMessage.set('Importando vocabulário…');
+    const result = await this.electron.importMangaVocabulary(m.id, true);
+    this.importMessage.set(result.message || (result.ok ? 'Importação concluída' : 'Falha'));
+    setTimeout(() => this.importMessage.set(null), 3500);
+    if (result.ok) {
+      const refreshed = await this.detail.loadManga(m.id);
+      if (refreshed) this.manga.set(refreshed);
+    }
   }
 
   async onFavorite(): Promise<void> {
@@ -232,10 +267,10 @@ export class MangaDetailComponent implements OnInit {
     }
   }
 
-  async onBookmarkSave(page: number): Promise<void> {
+  async onBookmarkSave(payload: LibraryBookmarkPayload): Promise<void> {
     const m = this.manga();
     if (!m) return;
-    const updated = await this.detail.setMangaBookMark(m, page);
+    const updated = await this.detail.setMangaBookmarkEdit(m, payload);
     if (updated) {
       this.manga.set(updated);
       this.bookmarkPage.set(updated.bookMark);
@@ -254,7 +289,8 @@ export class MangaDetailComponent implements OnInit {
   async onChapter(ch: DetailChapterItem): Promise<void> {
     const m = this.manga();
     if (!m?.id) return;
-    const updated = await this.detail.setMangaBookMark(m, ch.page);
+    const bookMark = fromReaderIndex(ch.page, m.pages || 1);
+    const updated = await this.detail.setMangaBookMark(m, bookMark);
     if (updated) this.manga.set(updated);
     this.nav.openReader(this.router, 'image', m.id);
   }

@@ -38,7 +38,11 @@
             "styles": [
               "src/styles.scss"
             ],
-            "scripts": []
+            "scripts": [],
+            "allowedCommonJsDependencies": [
+              "@sentry/electron",
+              "@sentry/electron/renderer"
+            ]
           },
           "configurations": {
             "production": {

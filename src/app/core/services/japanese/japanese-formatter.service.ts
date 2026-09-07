@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { ElectronService } from '../electron.service';
 import { JapaneseTextUtil } from './japanese-text.util';
 
 export enum TokenizerMode {
@@ -31,16 +32,21 @@ export class JapaneseFormatterService {
     VOCABULARY: '#ff9900'
   };
 
-  constructor() {}
+  constructor(private electron: ElectronService) {}
 
-  public async initialize(mode: TokenizerMode = TokenizerMode.KUROMOJI): Promise<void> {
-    this.currentMode = mode;
-    // Initialization of Kuromoji / Sudachi dictionary engines
-    this.isInitialized = true;
+  public async initialize(_mode: TokenizerMode = TokenizerMode.KUROMOJI): Promise<void> {
+    const res = await this.electron.japaneseInit();
+    if (res.engine === 'SUDACHI') this.currentMode = TokenizerMode.SUDACHI;
+    else if (res.engine === 'KUROMOJI') this.currentMode = TokenizerMode.KUROMOJI;
+    this.isInitialized = !!res.ok;
   }
 
   public setMode(mode: TokenizerMode): void {
     this.currentMode = mode;
+  }
+
+  public getMode(): TokenizerMode {
+    return this.currentMode;
   }
 
   public isReady(): boolean {
@@ -50,12 +56,15 @@ export class JapaneseFormatterService {
   /**
    * Generates Furigana HTML (<ruby> kanji <rt> reading </rt> </ruby>) for a given text string.
    */
-  public generateFuriganaHtml(text: string): string {
+  public async generateFuriganaHtml(text: string, withFurigana = true): Promise<string> {
     if (!text) return '';
     if (text.includes('{') && text.includes('}')) {
       return JapaneseTextUtil.convertToRubyHtml(text);
     }
-    return text;
+    if (!this.isInitialized) {
+      await this.initialize();
+    }
+    return this.electron.japaneseToRubyHtml(text, withFurigana);
   }
 
   /**

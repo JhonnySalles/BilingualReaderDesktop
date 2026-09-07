@@ -7,6 +7,7 @@ const secrets_1 = require("../../utils/secrets");
 const sharemark_enum_1 = require("../../../src/app/core/models/enums/sharemark.enum");
 const share_item_mapper_1 = require("./share-item.mapper");
 const share_item_model_1 = require("../../../src/app/core/models/entities/share-item.model");
+const telemetry_1 = require("../../utils/telemetry");
 class ShareMarkFirebaseService extends share_mark_base_1.ShareMarkBase {
     notConnectErrorType = sharemark_enum_1.ShareMarkType.NOT_CONNECT_FIREBASE;
     userPrefix = '';
@@ -38,6 +39,7 @@ class ShareMarkFirebaseService extends share_mark_base_1.ShareMarkBase {
         }
         catch (e) {
             console.error('[ShareMarkFirebase] initialize:', e);
+            telemetry_1.Telemetry.recordException(e, '[ShareMarkFirebase] initialize');
             return sharemark_enum_1.ShareMarkType.NOT_CONNECT_FIREBASE;
         }
     }
@@ -225,6 +227,7 @@ class ShareMarkFirebaseService extends share_mark_base_1.ShareMarkBase {
         }
         catch (e) {
             console.error('[ShareMarkFirebase] download manga:', e);
+            telemetry_1.Telemetry.recordException(e, '[ShareMarkFirebase] download manga');
             return sharemark_enum_1.ShareMarkType.ERROR_DOWNLOAD;
         }
         const locals = this.storage.mangaRepository.listSync(lastSync);
@@ -289,6 +292,7 @@ class ShareMarkFirebaseService extends share_mark_base_1.ShareMarkBase {
             }
             catch (e) {
                 console.error('[ShareMarkFirebase] upload manga:', e);
+                telemetry_1.Telemetry.recordException(e, '[ShareMarkFirebase] upload manga');
                 result = sharemark_enum_1.ShareMarkType.ERROR_UPLOAD;
             }
         }
@@ -317,6 +321,7 @@ class ShareMarkFirebaseService extends share_mark_base_1.ShareMarkBase {
         }
         catch (e) {
             console.error('[ShareMarkFirebase] download book:', e);
+            telemetry_1.Telemetry.recordException(e, '[ShareMarkFirebase] download book');
             return sharemark_enum_1.ShareMarkType.ERROR_DOWNLOAD;
         }
         const locals = this.storage.bookRepository.listSync(lastSync);
@@ -381,6 +386,7 @@ class ShareMarkFirebaseService extends share_mark_base_1.ShareMarkBase {
             }
             catch (e) {
                 console.error('[ShareMarkFirebase] upload book:', e);
+                telemetry_1.Telemetry.recordException(e, '[ShareMarkFirebase] upload book');
                 result = sharemark_enum_1.ShareMarkType.ERROR_UPLOAD;
             }
         }

@@ -19,16 +19,4 @@ export enum LlmUse {
   CHAT = 'CHAT'
 }
 
-export enum TextSpeech {
-  OFF = 'OFF',
-  SYSTEM_TTS = 'SYSTEM_TTS',
-  ONLINE_TTS = 'ONLINE_TTS'
-}
-
-export enum AudioStatus {
-  IDLE = 'IDLE',
-  PLAYING = 'PLAYING',
-  PAUSED = 'PAUSED',
-  STOPPED = 'STOPPED',
-  ERROR = 'ERROR'
-}
+export { TextSpeech, AudioStatus } from './tts-enums';

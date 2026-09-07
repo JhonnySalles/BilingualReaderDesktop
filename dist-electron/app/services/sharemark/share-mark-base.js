@@ -39,6 +39,7 @@ const settings_service_1 = require("../settings.service");
 const google_auth_service_1 = require("../google-auth.service");
 const share_item_model_1 = require("../../../src/app/core/models/entities/share-item.model");
 const sharemark_enum_1 = require("../../../src/app/core/models/enums/sharemark.enum");
+const telemetry_1 = require("../../utils/telemetry");
 const share_item_mapper_1 = require("./share-item.mapper");
 const share_mark_compare_1 = require("../../../src/app/core/utils/share-mark-compare");
 const share_annotation_reconcile_1 = require("../../../src/app/core/utils/share-annotation-reconcile");
@@ -143,7 +144,7 @@ class ShareMarkBase {
             return result;
         }
         catch (e) {
-            console.error('[ShareMark] sync error:', e);
+            telemetry_1.Telemetry.recordException(e, '[ShareMark] sync error');
             return this.notConnectErrorType;
         }
         finally {
@@ -159,10 +160,13 @@ class ShareMarkBase {
         if ((!mangaAccessDate && !mangaAlterationDate) ||
             (mangaAlterationDate && mangaAlterationDate < syncDate) ||
             (mangaAccessDate && itemAccessDate > mangaAccessDate)) {
-            manga.bookMark = item.bookMark;
+            manga.bookMark =
+                item.completed || item.bookMark >= (item.pages || manga.pages || 1)
+                    ? Math.max(1, manga.pages || 1)
+                    : Math.min(Math.max(0, item.bookMark), Math.max(1, manga.pages || 1));
             manga.lastAccess = item.lastAccess;
             manga.favorite = item.favorite;
-            manga.completed = item.completed;
+            manga.completed = item.completed || manga.bookMark >= (manga.pages || 1);
             item.processed = true;
             item.received = true;
             return true;
@@ -196,7 +200,7 @@ class ShareMarkBase {
             else {
                 book.bookMark = (0, share_mark_compare_1.scaleBookBookmarkFromCloud)(book, item);
             }
-            book.completed = item.completed;
+            book.completed = item.completed || book.bookMark >= (book.pages || 1);
             book.lastAccess = item.lastAccess;
             book.favorite = item.favorite;
             item.processed = true;

@@ -45,11 +45,24 @@ const menu_controller_1 = require("./controllers/menu.controller");
 const settings_service_1 = require("./services/settings.service");
 const statistics_controller_1 = require("./controllers/statistics.controller");
 const library_controller_1 = require("./controllers/library.controller");
+const vocabulary_controller_1 = require("./controllers/vocabulary.controller");
 const manga_reader_controller_1 = require("./controllers/manga-reader.controller");
 const book_reader_controller_1 = require("./controllers/book-reader.controller");
 const file_link_controller_1 = require("./controllers/file-link.controller");
 const tray_service_1 = require("./services/tray.service");
 const sharemark_controller_1 = require("./controllers/sharemark.controller");
+const tts_controller_1 = require("./controllers/tts.controller");
+const ocr_controller_1 = require("./controllers/ocr.controller");
+const japanese_controller_1 = require("./controllers/japanese.controller");
+const telemetry_1 = require("./utils/telemetry");
+// Init Sentry/Telemetry as early as possible (no-op when TELEMETRY_ENABLED=false).
+telemetry_1.Telemetry.init();
+process.on('uncaughtException', (err) => {
+    telemetry_1.Telemetry.recordException(err, 'uncaughtException');
+});
+process.on('unhandledRejection', (reason) => {
+    telemetry_1.Telemetry.recordException(reason, 'unhandledRejection');
+});
 const LOCAL_SCHEME_PRIVILEGES = {
     standard: true,
     secure: true,
@@ -128,6 +141,7 @@ electron_1.app.on('ready', () => {
         settings_controller_1.SettingsController.instance.registerIpcHandlers();
         new statistics_controller_1.StatisticsController(storageService).registerIpcHandlers();
         new library_controller_1.LibraryController(storageService).registerIpcHandlers();
+        new vocabulary_controller_1.VocabularyController(storageService).registerIpcHandlers();
         mangaReaderController = new manga_reader_controller_1.MangaReaderController(storageService);
         mangaReaderController.registerIpcHandlers(() => mainWindow);
         bookReaderController = new book_reader_controller_1.BookReaderController(storageService);
@@ -135,6 +149,9 @@ electron_1.app.on('ready', () => {
         fileLinkController = new file_link_controller_1.FileLinkController(storageService, mangaReaderController.getSessionService());
         fileLinkController.registerIpcHandlers(() => mainWindow);
         new sharemark_controller_1.ShareMarkController(storageService, () => mainWindow).registerIpcHandlers();
+        new tts_controller_1.TtsController().registerIpcHandlers();
+        new ocr_controller_1.OcrController(mangaReaderController.getSessionService()).registerIpcHandlers();
+        new japanese_controller_1.JapaneseController().registerIpcHandlers();
         // Same pattern as local-cover — absolute path after scheme, no privileged registration
         let localPageServeLogged = false;
         electron_1.protocol.handle('local-page', (request) => {
@@ -156,7 +173,7 @@ electron_1.app.on('ready', () => {
                 return electron_1.net.fetch('file:///' + decodedPath);
             }
             catch (err) {
-                console.error('[local-page] failed to serve', request.url, err);
+                telemetry_1.Telemetry.recordException(err, `[local-page] failed to serve ${request.url}`);
                 return new Response('Not Found', { status: 404 });
             }
         });
@@ -180,7 +197,7 @@ electron_1.app.on('ready', () => {
                 return electron_1.net.fetch((0, url_1.pathToFileURL)(decodedPath).href);
             }
             catch (err) {
-                console.error('[local-book] failed to serve', request.url, err);
+                telemetry_1.Telemetry.recordException(err, `[local-book] failed to serve ${request.url}`);
                 return new Response('Not Found', { status: 404 });
             }
         });
@@ -226,6 +243,9 @@ electron_1.app.on('ready', () => {
         electron_1.ipcMain.handle('book:adjacent', async (_event, id) => {
             return storageService.getAdjacentBooks(id);
         });
+        electron_1.ipcMain.handle('manga:adjacent', async (_event, id) => {
+            return storageService.getAdjacentMangas(id);
+        });
         electron_1.ipcMain.handle('book:clear-progress', async (_event, id) => {
             return storageService.clearBookProgress(id) || null;
         });
@@ -266,7 +286,7 @@ electron_1.app.on('ready', () => {
         });
     }
     catch (err) {
-        console.error('[main] Failed during app ready / IPC registration:', err);
+        telemetry_1.Telemetry.recordException(err, '[main] Failed during app ready / IPC registration');
     }
 });
 electron_1.app.on('before-quit', () => {

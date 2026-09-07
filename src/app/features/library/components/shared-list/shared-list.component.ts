@@ -7,6 +7,7 @@ import { BookCardComponent } from '../book-card/book-card.component';
 import { MangaCardSkeletonComponent } from '../manga-card-skeleton/manga-card-skeleton.component';
 import { MangaListSkeletonComponent } from '../manga-list-skeleton/manga-list-skeleton.component';
 import { LibraryStateService } from '../../../../core/services/library-state.service';
+import { progressPercent } from '../../../../core/utils/reading-progress.util';
 
 @Component({
   selector: 'app-shared-list',
@@ -68,9 +69,17 @@ import { LibraryStateService } from '../../../../core/services/library-state.ser
                   class="cursor-pointer active:cursor-grabbing transition-all duration-200 rounded-xl overflow-hidden animate-fade-in-up">
 
                   @if (type === 'manga') {
-                    <app-manga-card [manga]="$any(item)" [cardStyle]="effectiveCardStyle"></app-manga-card>
+                    <app-manga-card
+                      [manga]="$any(item)"
+                      [cardStyle]="effectiveCardStyle"
+                      (setBookmark)="setBookmark.emit($event)">
+                    </app-manga-card>
                   } @else {
-                    <app-book-card [book]="$any(item)" [cardStyle]="effectiveCardStyle"></app-book-card>
+                    <app-book-card
+                      [book]="$any(item)"
+                      [cardStyle]="effectiveCardStyle"
+                      (setBookmark)="setBookmark.emit($event)">
+                    </app-book-card>
                   }
                 </div>
               }
@@ -172,6 +181,7 @@ export class SharedListComponent {
   @Output() reordered = new EventEmitter<(Manga | Book)[]>();
   @Output() open = new EventEmitter<Manga | Book>();
   @Output() openDetail = new EventEmitter<Manga | Book>();
+  @Output() setBookmark = new EventEmitter<Manga | Book>();
 
   public libraryStateService = inject(LibraryStateService);
   LibraryViewType = LibraryViewType;
@@ -224,8 +234,7 @@ export class SharedListComponent {
   }
 
   getBookProgressPercentage(book: any): number {
-    if (!book || !book.pages || book.pages <= 0) return 0;
-    return Math.min(100, Math.round(((book.bookMark || 0) / book.pages) * 100));
+    return progressPercent(book?.bookMark || 0, book?.pages || 0, book?.completed);
   }
 
   get groupedItems(): { title: string; items: (Manga | Book)[] }[] {

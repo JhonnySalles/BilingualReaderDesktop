@@ -7,6 +7,7 @@ const google_auth_service_1 = require("../services/google-auth.service");
 const share_mark_base_1 = require("../services/sharemark/share-mark-base");
 const secrets_1 = require("../utils/secrets");
 const sharemark_enum_1 = require("../../src/app/core/models/enums/sharemark.enum");
+const telemetry_1 = require("../utils/telemetry");
 class ShareMarkController {
     storage;
     getWindow;
@@ -23,6 +24,7 @@ class ShareMarkController {
             }
             catch (e) {
                 console.error('[ShareMark] sign-in:', e);
+                telemetry_1.Telemetry.recordException(e, '[ShareMark] sign-in');
                 return { ok: false, error: e?.message || String(e), status: this.getStatus() };
             }
         });
@@ -77,6 +79,7 @@ class ShareMarkController {
             }
             catch (e) {
                 console.error('[ShareMark] sync failed:', e);
+                telemetry_1.Telemetry.recordException(e, '[ShareMark] sync failed');
                 result = sharemark_enum_1.ShareMarkType.ERROR;
             }
             return {

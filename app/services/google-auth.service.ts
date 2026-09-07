@@ -4,6 +4,7 @@ import * as path from 'path';
 import { app, shell } from 'electron';
 import { OAuth2Client } from 'google-auth-library';
 import { Secrets } from '../utils/secrets';
+import { Telemetry } from '../utils/telemetry';
 
 export interface GoogleOAuthTokens {
   access_token?: string | null;
@@ -49,6 +50,7 @@ export class GoogleAuthService {
       }
     } catch (e) {
       console.error('[GoogleAuth] Failed to load tokens:', e);
+      Telemetry.recordException(e, '[GoogleAuth] Failed to load tokens');
       this.tokens = null;
     }
   }
@@ -59,6 +61,7 @@ export class GoogleAuthService {
       fs.writeFileSync(this.tokenPath, JSON.stringify(tokens, null, 2), 'utf-8');
     } catch (e) {
       console.error('[GoogleAuth] Failed to save tokens:', e);
+      Telemetry.recordException(e, '[GoogleAuth] Failed to save tokens');
     }
   }
 
@@ -191,6 +194,7 @@ export class GoogleAuthService {
       }
     } catch (e) {
       console.error('[GoogleAuth] Failed to delete tokens:', e);
+      Telemetry.recordException(e, '[GoogleAuth] Failed to delete tokens');
     }
   }
 

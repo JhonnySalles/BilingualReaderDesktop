@@ -48,6 +48,10 @@ class Secrets {
     firebaseProjectId = '';
     firebaseAppId = '';
     openRouterApiKey = '';
+    sentryDsn = '';
+    telemetryEnabled = false;
+    sentryEnvironment = '';
+    sentryTracesSampleRate = null;
     static get instance() {
         if (!this._instance) {
             this._instance = new Secrets();
@@ -57,8 +61,24 @@ class Secrets {
     constructor() {
         this.loadSecrets();
     }
+    isPackaged() {
+        try {
+            return !!electron_1.app?.isPackaged;
+        }
+        catch {
+            return false;
+        }
+    }
     candidateRoots() {
         const roots = [process.cwd()];
+        try {
+            if (typeof process.resourcesPath === 'string' && process.resourcesPath) {
+                roots.push(process.resourcesPath);
+            }
+        }
+        catch {
+            // ignore
+        }
         try {
             if (electron_1.app) {
                 roots.push(electron_1.app.getAppPath());
@@ -79,15 +99,25 @@ class Secrets {
         }
         return [...new Set(roots.filter(Boolean))];
     }
+    /** Preferred env filenames: packaged → .env.production first; dev → .env first. */
+    preferredEnvFiles() {
+        if (this.isPackaged()) {
+            return ['.env.production', '.env'];
+        }
+        return ['.env', '.env.production'];
+    }
     loadSecrets() {
         try {
+            const envNames = this.preferredEnvFiles();
             for (const root of this.candidateRoots()) {
-                const envPath = path.join(root, '.env');
-                const propsPath = path.join(root, 'secrets.properties');
-                if (fs.existsSync(envPath)) {
-                    this.parseEnv(fs.readFileSync(envPath, 'utf-8'));
-                    return;
+                for (const name of envNames) {
+                    const envPath = path.join(root, name);
+                    if (fs.existsSync(envPath)) {
+                        this.parseEnv(fs.readFileSync(envPath, 'utf-8'));
+                        return;
+                    }
                 }
+                const propsPath = path.join(root, 'secrets.properties');
                 if (fs.existsSync(propsPath)) {
                     this.parseProperties(fs.readFileSync(propsPath, 'utf-8'));
                     return;
@@ -97,6 +127,10 @@ class Secrets {
         catch (e) {
             console.error('Error reading secrets:', e);
         }
+    }
+    parseBool(value) {
+        const v = value.trim().toLowerCase();
+        return v === '1' || v === 'true' || v === 'yes' || v === 'on';
     }
     applyKey(k, value) {
         switch (k) {
@@ -128,6 +162,20 @@ class Secrets {
             case 'OPENROUTER_API_KEY':
                 this.openRouterApiKey = value;
                 break;
+            case 'SENTRY_DSN':
+                this.sentryDsn = value;
+                break;
+            case 'TELEMETRY_ENABLED':
+                this.telemetryEnabled = this.parseBool(value);
+                break;
+            case 'SENTRY_ENVIRONMENT':
+                this.sentryEnvironment = value;
+                break;
+            case 'SENTRY_TRACES_SAMPLE_RATE': {
+                const n = Number(value);
+                this.sentryTracesSampleRate = Number.isFinite(n) ? n : null;
+                break;
+            }
         }
     }
     parseEnv(content) {
@@ -175,6 +223,24 @@ class Secrets {
     }
     getOpenRouterApiKey() {
         return this.openRouterApiKey;
+    }
+    getSentryDsn() {
+        return this.sentryDsn;
+    }
+    /** True only when TELEMETRY_ENABLED is on and a DSN is present. */
+    isTelemetryEnabled() {
+        return this.telemetryEnabled && !!this.sentryDsn.trim();
+    }
+    getSentryEnvironment() {
+        if (this.sentryEnvironment.trim())
+            return this.sentryEnvironment.trim();
+        return this.isPackaged() ? 'production' : 'development';
+    }
+    getSentryTracesSampleRate() {
+        if (this.sentryTracesSampleRate != null) {
+            return Math.min(1, Math.max(0, this.sentryTracesSampleRate));
+        }
+        return this.isPackaged() ? 0.1 : 0;
     }
 }
 exports.Secrets = Secrets;

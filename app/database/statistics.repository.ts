@@ -49,10 +49,10 @@ export class StatisticsRepository {
     const table = type === 'MANGA' ? 'Manga' : 'Book';
     const counts = this.db.prepare(`
       SELECT
-        COALESCE(SUM(CASE WHEN book_mark > 0 AND book_mark < pages THEN 1 ELSE 0 END), 0) AS reading,
-        COALESCE(SUM(CASE WHEN book_mark <= 0 THEN 1 ELSE 0 END), 0) AS toRead,
+        COALESCE(SUM(CASE WHEN IFNULL(completed, 0) = 0 AND book_mark > 0 AND book_mark < pages THEN 1 ELSE 0 END), 0) AS reading,
+        COALESCE(SUM(CASE WHEN book_mark <= 0 AND IFNULL(completed, 0) = 0 THEN 1 ELSE 0 END), 0) AS toRead,
         COALESCE(SUM(CASE WHEN excluded = 0 THEN 1 ELSE 0 END), 0) AS library,
-        COALESCE(SUM(CASE WHEN book_mark > 0 AND book_mark >= pages THEN 1 ELSE 0 END), 0) AS read
+        COALESCE(SUM(CASE WHEN completed = 1 OR book_mark >= pages THEN 1 ELSE 0 END), 0) AS read
       FROM ${table}
       WHERE excluded = 0
     `).get() as any;

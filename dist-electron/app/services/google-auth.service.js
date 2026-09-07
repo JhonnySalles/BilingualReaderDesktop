@@ -40,6 +40,7 @@ const path = __importStar(require("path"));
 const electron_1 = require("electron");
 const google_auth_library_1 = require("google-auth-library");
 const secrets_1 = require("../utils/secrets");
+const telemetry_1 = require("../utils/telemetry");
 const SCOPES = [
     'openid',
     'email',
@@ -69,6 +70,7 @@ class GoogleAuthService {
         }
         catch (e) {
             console.error('[GoogleAuth] Failed to load tokens:', e);
+            telemetry_1.Telemetry.recordException(e, '[GoogleAuth] Failed to load tokens');
             this.tokens = null;
         }
     }
@@ -79,6 +81,7 @@ class GoogleAuthService {
         }
         catch (e) {
             console.error('[GoogleAuth] Failed to save tokens:', e);
+            telemetry_1.Telemetry.recordException(e, '[GoogleAuth] Failed to save tokens');
         }
     }
     isSignedIn() {
@@ -196,6 +199,7 @@ class GoogleAuthService {
         }
         catch (e) {
             console.error('[GoogleAuth] Failed to delete tokens:', e);
+            telemetry_1.Telemetry.recordException(e, '[GoogleAuth] Failed to delete tokens');
         }
     }
     async getFirebaseIdToken() {

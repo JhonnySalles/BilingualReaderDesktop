@@ -9,6 +9,7 @@ import {
   ShareMarkStatus,
   ShareMarkType
 } from '../../src/app/core/models/enums/sharemark.enum';
+import { Telemetry } from '../utils/telemetry';
 
 export interface ShareMarkStatusPayload {
   enabled: boolean;
@@ -36,6 +37,7 @@ export class ShareMarkController {
         return { ok: true, email: result.email, status: this.getStatus() };
       } catch (e: any) {
         console.error('[ShareMark] sign-in:', e);
+        Telemetry.recordException(e, '[ShareMark] sign-in');
         return { ok: false, error: e?.message || String(e), status: this.getStatus() };
       }
     });
@@ -98,6 +100,7 @@ export class ShareMarkController {
             : await share.bookShareMark(onUpdate);
       } catch (e) {
         console.error('[ShareMark] sync failed:', e);
+        Telemetry.recordException(e, '[ShareMark] sync failed');
         result = ShareMarkType.ERROR;
       }
 

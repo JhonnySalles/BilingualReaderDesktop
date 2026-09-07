@@ -1,6 +1,7 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HomeRecentItem } from '../../../../core/models';
+import { progressPageLabel } from '../../../../core/utils/reading-progress.util';
 
 @Component({
   selector: 'app-home-recent-card',
@@ -63,10 +64,6 @@ export class HomeRecentCardComponent {
   @Output() open = new EventEmitter<HomeRecentItem>();
 
   progressLabel(): string {
-    const pages = Math.max(1, this.item.pages || 1);
-    const mark = Math.max(0, this.item.bookMark || 0);
-    if (this.item.completed || mark >= pages) return 'Concluído';
-    if (mark <= 0) return 'Não iniciado';
-    return `${mark + 1} / ${pages}`;
+    return progressPageLabel(this.item.bookMark || 0, this.item.pages || 1, this.item.completed);
   }
 }

@@ -4,9 +4,11 @@ export * from './interfaces/base-entity.model';
 // Enums
 export * from './enums/app-enums';
 export * from './enums/reader-enums';
+export * from './enums/page-transition.enums';
 export * from './enums/annotation-enums';
 export * from './enums/page-link-enums';
 export * from './enums/ai-enums';
+export * from './enums/tts-enums';
 export * from './enums/sharemark.enum';
 
 // Entities

@@ -12,6 +12,7 @@ import {
   serializeShareItemForCloud
 } from './share-item.mapper';
 import { SHARE_ITEM_FIELDS } from '../../../src/app/core/models/entities/share-item.model';
+import { Telemetry } from '../../utils/telemetry';
 
 export class ShareMarkFirebaseService extends ShareMarkBase {
   readonly notConnectErrorType = ShareMarkType.NOT_CONNECT_FIREBASE;
@@ -45,6 +46,7 @@ export class ShareMarkFirebaseService extends ShareMarkBase {
       return ShareMarkType.SUCCESS;
     } catch (e) {
       console.error('[ShareMarkFirebase] initialize:', e);
+      Telemetry.recordException(e, '[ShareMarkFirebase] initialize');
       return ShareMarkType.NOT_CONNECT_FIREBASE;
     }
   }
@@ -227,6 +229,7 @@ export class ShareMarkFirebaseService extends ShareMarkBase {
       index = await this.getIndexDoc('manga');
     } catch (e) {
       console.error('[ShareMarkFirebase] download manga:', e);
+      Telemetry.recordException(e, '[ShareMarkFirebase] download manga');
       return ShareMarkType.ERROR_DOWNLOAD;
     }
 
@@ -289,6 +292,7 @@ export class ShareMarkFirebaseService extends ShareMarkBase {
         result = ShareMarkType.SUCCESS;
       } catch (e) {
         console.error('[ShareMarkFirebase] upload manga:', e);
+        Telemetry.recordException(e, '[ShareMarkFirebase] upload manga');
         result = ShareMarkType.ERROR_UPLOAD;
       }
     } else if (share.length > 0) {
@@ -317,6 +321,7 @@ export class ShareMarkFirebaseService extends ShareMarkBase {
       index = await this.getIndexDoc('book');
     } catch (e) {
       console.error('[ShareMarkFirebase] download book:', e);
+      Telemetry.recordException(e, '[ShareMarkFirebase] download book');
       return ShareMarkType.ERROR_DOWNLOAD;
     }
 
@@ -379,6 +384,7 @@ export class ShareMarkFirebaseService extends ShareMarkBase {
         result = ShareMarkType.SUCCESS;
       } catch (e) {
         console.error('[ShareMarkFirebase] upload book:', e);
+        Telemetry.recordException(e, '[ShareMarkFirebase] upload book');
         result = ShareMarkType.ERROR_UPLOAD;
       }
     } else if (share.length > 0) {

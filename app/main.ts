@@ -10,11 +10,26 @@ import { MenuController } from './controllers/menu.controller';
 import { SettingsService } from './services/settings.service';
 import { StatisticsController } from './controllers/statistics.controller';
 import { LibraryController } from './controllers/library.controller';
+import { VocabularyController } from './controllers/vocabulary.controller';
 import { MangaReaderController } from './controllers/manga-reader.controller';
 import { BookReaderController } from './controllers/book-reader.controller';
 import { FileLinkController } from './controllers/file-link.controller';
 import { TrayService } from './services/tray.service';
 import { ShareMarkController } from './controllers/sharemark.controller';
+import { TtsController } from './controllers/tts.controller';
+import { OcrController } from './controllers/ocr.controller';
+import { JapaneseController } from './controllers/japanese.controller';
+import { Telemetry } from './utils/telemetry';
+
+// Init Sentry/Telemetry as early as possible (no-op when TELEMETRY_ENABLED=false).
+Telemetry.init();
+
+process.on('uncaughtException', (err) => {
+  Telemetry.recordException(err, 'uncaughtException');
+});
+process.on('unhandledRejection', (reason) => {
+  Telemetry.recordException(reason, 'unhandledRejection');
+});
 
 const LOCAL_SCHEME_PRIVILEGES = {
   standard: true,
@@ -104,6 +119,7 @@ app.on('ready', () => {
     SettingsController.instance.registerIpcHandlers();
     new StatisticsController(storageService).registerIpcHandlers();
     new LibraryController(storageService).registerIpcHandlers();
+    new VocabularyController(storageService).registerIpcHandlers();
     mangaReaderController = new MangaReaderController(storageService);
     mangaReaderController.registerIpcHandlers(() => mainWindow);
     bookReaderController = new BookReaderController(storageService);
@@ -114,6 +130,9 @@ app.on('ready', () => {
     );
     fileLinkController.registerIpcHandlers(() => mainWindow);
     new ShareMarkController(storageService, () => mainWindow).registerIpcHandlers();
+    new TtsController().registerIpcHandlers();
+    new OcrController(mangaReaderController.getSessionService()).registerIpcHandlers();
+    new JapaneseController().registerIpcHandlers();
 
     // Same pattern as local-cover — absolute path after scheme, no privileged registration
     let localPageServeLogged = false;
@@ -135,7 +154,7 @@ app.on('ready', () => {
         }
         return net.fetch('file:///' + decodedPath);
       } catch (err) {
-        console.error('[local-page] failed to serve', request.url, err);
+        Telemetry.recordException(err, `[local-page] failed to serve ${request.url}`);
         return new Response('Not Found', { status: 404 });
       }
     });
@@ -161,7 +180,7 @@ app.on('ready', () => {
         }
         return net.fetch(pathToFileURL(decodedPath).href);
       } catch (err) {
-        console.error('[local-book] failed to serve', request.url, err);
+        Telemetry.recordException(err, `[local-book] failed to serve ${request.url}`);
         return new Response('Not Found', { status: 404 });
       }
     });
@@ -221,6 +240,9 @@ app.on('ready', () => {
     ipcMain.handle('book:adjacent', async (_event, id: number) => {
       return storageService.getAdjacentBooks(id);
     });
+    ipcMain.handle('manga:adjacent', async (_event, id: number) => {
+      return storageService.getAdjacentMangas(id);
+    });
 
     ipcMain.handle('book:clear-progress', async (_event, id: number) => {
       return storageService.clearBookProgress(id) || null;
@@ -264,7 +286,7 @@ app.on('ready', () => {
       return storageService.countMangas(targetLibraryId);
     });
   } catch (err) {
-    console.error('[main] Failed during app ready / IPC registration:', err);
+    Telemetry.recordException(err, '[main] Failed during app ready / IPC registration');
   }
 });
 

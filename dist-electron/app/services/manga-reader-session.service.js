@@ -40,9 +40,11 @@ const crypto = __importStar(require("crypto"));
 const electron_1 = require("electron");
 const parse_factory_1 = require("../parser/manga/parse-factory");
 const parse_util_1 = require("../parser/manga/parse-util");
+const subtitle_normalize_1 = require("../../src/app/core/utils/subtitle-normalize");
 const CACHE_SLOTS = ['a', 'b', 'c'];
 const MAX_SESSIONS_PER_SLOT = 4;
 const META_FILE = 'pages.json';
+const SUBTITLES_FILE = 'subtitles.json';
 class MangaReaderSessionService {
     active = new Map();
     getCacheRoot() {
@@ -67,7 +69,7 @@ class MangaReaderSessionService {
             ...opened,
             mangaId,
             title,
-            bookMark: Math.min(Math.max(0, bookMark || 0), Math.max(0, opened.pageCount - 1)),
+            bookMark: Math.min(Math.max(0, bookMark || 0), opened.pageCount),
             favorite: !!favorite
         };
     }
@@ -106,7 +108,18 @@ class MangaReaderSessionService {
         }
         const finalMeta = meta;
         const sessionId = crypto.randomBytes(8).toString('hex');
-        this.active.set(sessionId, { sessionId, mangaId, cacheDir });
+        let subtitles = this.readSubtitles(cacheDir);
+        if (!subtitles || subtitles.chapters.length === 0) {
+            subtitles = await this.loadSubtitlesFromPath(filePath);
+            this.writeSubtitles(cacheDir, subtitles);
+        }
+        this.active.set(sessionId, {
+            sessionId,
+            mangaId,
+            cacheDir,
+            filePath,
+            subtitles
+        });
         const pages = finalMeta.files.map(f => this.toLocalPageUrl(path.join(cacheDir, f)));
         const pageNames = finalMeta.pageNames?.length === finalMeta.pageCount
             ? finalMeta.pageNames
@@ -114,6 +127,17 @@ class MangaReaderSessionService {
         const pagePaths = finalMeta.pagePaths?.length === finalMeta.pageCount
             ? finalMeta.pagePaths
             : finalMeta.files.map(() => '');
+        let pageHashes = finalMeta.pageHashes?.length === finalMeta.pageCount
+            ? finalMeta.pageHashes
+            : [];
+        if (pageHashes.length === 0) {
+            pageHashes = finalMeta.files.map(f => this.hashFile(path.join(cacheDir, f)));
+            try {
+                const updated = { ...finalMeta, pageHashes };
+                fs.writeFileSync(path.join(cacheDir, META_FILE), JSON.stringify(updated, null, 2), 'utf8');
+            }
+            catch { }
+        }
         return {
             sessionId,
             mangaId,
@@ -122,13 +146,49 @@ class MangaReaderSessionService {
             pages,
             pageNames,
             pagePaths,
+            pageHashes,
             chapters: finalMeta.chapters || [],
             chaptersPages: finalMeta.chaptersPages || {},
             bookMark: 0,
             favorite: false,
             cacheDir,
-            path: filePath
+            path: filePath,
+            subtitles,
+            hasSubtitles: subtitles.chapters.length > 0
         };
+    }
+    getSessionSubtitles(sessionId) {
+        return this.active.get(sessionId)?.subtitles ?? null;
+    }
+    setSessionSubtitles(sessionId, catalog) {
+        const session = this.active.get(sessionId);
+        if (!session)
+            return false;
+        session.subtitles = catalog;
+        this.writeSubtitles(session.cacheDir, catalog);
+        return true;
+    }
+    async importExternalSubtitles(sessionId, jsonPath) {
+        const session = this.active.get(sessionId);
+        if (!session)
+            throw new Error('Sessão não encontrada');
+        if (!fs.existsSync(jsonPath))
+            throw new Error('Arquivo não encontrado');
+        const raw = fs.readFileSync(jsonPath, 'utf-8');
+        const catalog = (0, subtitle_normalize_1.buildSubtitleCatalog)([raw], 'external');
+        session.subtitles = catalog;
+        this.writeSubtitles(session.cacheDir, catalog);
+        return catalog;
+    }
+    resolvePageAbsolutePath(sessionId, pageIndex) {
+        const session = this.active.get(sessionId);
+        if (!session)
+            return null;
+        const meta = this.readMeta(session.cacheDir);
+        if (!meta || pageIndex < 0 || pageIndex >= meta.files.length)
+            return null;
+        const full = path.join(session.cacheDir, meta.files[pageIndex]);
+        return fs.existsSync(full) ? full : null;
     }
     /**
      * Lightweight ComicInfo read when cache/meta lacks chaptersPages (old caches).
@@ -262,6 +322,7 @@ class MangaReaderSessionService {
             const files = [];
             const pageNames = [];
             const pagePaths = [];
+            const pageHashes = [];
             for (let i = 0; i < pageCount; i++) {
                 const buf = parser.getPage(i);
                 if (!buf) {
@@ -274,6 +335,7 @@ class MangaReaderSessionService {
                 files.push(name);
                 pageNames.push(parse_util_1.ParseUtil.getNameFromPath(sourcePath) || name);
                 pagePaths.push(parse_util_1.ParseUtil.getFolderFromPath(sourcePath));
+                pageHashes.push(crypto.createHash('md5').update(buf).digest('hex'));
                 if (sender && !sender.isDestroyed()) {
                     sender.webContents.send('manga-reader:extract-progress', {
                         current: i + 1,
@@ -281,6 +343,16 @@ class MangaReaderSessionService {
                     });
                 }
             }
+            let subtitles = (0, subtitle_normalize_1.emptySubtitleCatalog)();
+            try {
+                if (parser.hasSubtitles?.()) {
+                    subtitles = (0, subtitle_normalize_1.buildSubtitleCatalog)(parser.getSubtitles() || [], 'embedded');
+                }
+            }
+            catch (e) {
+                console.warn('[MangaReaderSession] Failed to load subtitles', e);
+            }
+            this.writeSubtitles(cacheDir, subtitles);
             const meta = {
                 mangaId,
                 path: mangaPath,
@@ -288,6 +360,7 @@ class MangaReaderSessionService {
                 files,
                 pageNames,
                 pagePaths,
+                pageHashes,
                 chapters,
                 chaptersPages,
                 createdAt: Date.now()
@@ -299,6 +372,53 @@ class MangaReaderSessionService {
                 parser.destroy(false);
             }
             catch { }
+        }
+    }
+    async loadSubtitlesFromPath(mangaPath) {
+        const parser = await parse_factory_1.ParseFactory.create(mangaPath);
+        if (!parser)
+            return (0, subtitle_normalize_1.emptySubtitleCatalog)();
+        try {
+            if (!parser.hasSubtitles?.())
+                return (0, subtitle_normalize_1.emptySubtitleCatalog)();
+            return (0, subtitle_normalize_1.buildSubtitleCatalog)(parser.getSubtitles() || [], 'embedded');
+        }
+        catch (e) {
+            console.warn('[MangaReaderSession] loadSubtitlesFromPath failed', e);
+            return (0, subtitle_normalize_1.emptySubtitleCatalog)();
+        }
+        finally {
+            try {
+                parser.destroy(false);
+            }
+            catch { }
+        }
+    }
+    readSubtitles(cacheDir) {
+        const p = path.join(cacheDir, SUBTITLES_FILE);
+        if (!fs.existsSync(p))
+            return null;
+        try {
+            return JSON.parse(fs.readFileSync(p, 'utf8'));
+        }
+        catch {
+            return null;
+        }
+    }
+    writeSubtitles(cacheDir, catalog) {
+        try {
+            fs.writeFileSync(path.join(cacheDir, SUBTITLES_FILE), JSON.stringify(catalog, null, 2), 'utf8');
+        }
+        catch (e) {
+            console.warn('[MangaReaderSession] Failed to write subtitles cache', e);
+        }
+    }
+    hashFile(filePath) {
+        try {
+            return crypto.createHash('md5').update(fs.readFileSync(filePath)).digest('hex');
+        }
+        catch {
+            return '';
         }
     }
     resolveExtension(sourcePath, buf) {

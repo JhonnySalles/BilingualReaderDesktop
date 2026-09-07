@@ -22,17 +22,6 @@ var LlmUse;
     LlmUse["DICTIONARY"] = "DICTIONARY";
     LlmUse["CHAT"] = "CHAT";
 })(LlmUse || (exports.LlmUse = LlmUse = {}));
-var TextSpeech;
-(function (TextSpeech) {
-    TextSpeech["OFF"] = "OFF";
-    TextSpeech["SYSTEM_TTS"] = "SYSTEM_TTS";
-    TextSpeech["ONLINE_TTS"] = "ONLINE_TTS";
-})(TextSpeech || (exports.TextSpeech = TextSpeech = {}));
-var AudioStatus;
-(function (AudioStatus) {
-    AudioStatus["IDLE"] = "IDLE";
-    AudioStatus["PLAYING"] = "PLAYING";
-    AudioStatus["PAUSED"] = "PAUSED";
-    AudioStatus["STOPPED"] = "STOPPED";
-    AudioStatus["ERROR"] = "ERROR";
-})(AudioStatus || (exports.AudioStatus = AudioStatus = {}));
+var tts_enums_1 = require("./tts-enums");
+Object.defineProperty(exports, "TextSpeech", { enumerable: true, get: function () { return tts_enums_1.TextSpeech; } });
+Object.defineProperty(exports, "AudioStatus", { enumerable: true, get: function () { return tts_enums_1.AudioStatus; } });

@@ -12,6 +12,7 @@ import {
 import { ShareMarkType, ShareMarkStatus } from '../../../src/app/core/models/enums/sharemark.enum';
 import { Manga } from '../../../src/app/core/models/entities/manga.model';
 import { Book } from '../../../src/app/core/models/entities/book.model';
+import { Telemetry } from '../../utils/telemetry';
 import {
   formatShareMarkDate,
   parseFlexibleDate,
@@ -55,6 +56,7 @@ export class ShareMarkGDriveService extends ShareMarkBase {
       return await this.getShareFiles();
     } catch (e: any) {
       console.error('[ShareMarkGDrive] initialize:', e);
+      Telemetry.recordException(e, '[ShareMarkGDrive] initialize');
       if (e?.message === 'NOT_SIGN_IN') return ShareMarkType.NOT_SIGN_IN;
       return ShareMarkType.NOT_CONNECT_DRIVE;
     }
@@ -111,6 +113,7 @@ export class ShareMarkGDriveService extends ShareMarkBase {
       return ShareMarkType.SUCCESS;
     } catch (e: any) {
       console.error('[ShareMarkGDrive] getShareFiles:', e);
+      Telemetry.recordException(e, '[ShareMarkGDrive] getShareFiles');
       if (e?.code === 'ENOTFOUND' || e?.code === 'ECONNREFUSED') {
         return ShareMarkType.ERROR_NETWORK;
       }
@@ -226,6 +229,7 @@ export class ShareMarkGDriveService extends ShareMarkBase {
       return ShareMarkType.SUCCESS;
     } catch (e) {
       console.error('[ShareMarkGDrive] upload:', e);
+      Telemetry.recordException(e, '[ShareMarkGDrive] upload');
       return ShareMarkType.ERROR_UPLOAD;
     }
   }

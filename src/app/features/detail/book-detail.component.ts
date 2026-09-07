@@ -4,10 +4,14 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { DetailService } from '../../core/services/detail.service';
 import { NavigationStackService } from '../../core/services/navigation-stack.service';
+import { ElectronService } from '../../core/services/electron.service';
 import { Book } from '../../core/models';
 import { DetailActionBarComponent } from './components/detail-action-bar.component';
 import { DetailMetaSectionComponent, DetailMetaField } from './components/detail-meta-section.component';
-import { DetailBookmarkDialogComponent } from './components/detail-bookmark-dialog.component';
+import {
+  LibraryBookmarkDialogComponent,
+  LibraryBookmarkPayload
+} from '../../shared/library-bookmark-dialog/library-bookmark-dialog.component';
 
 @Component({
   selector: 'app-book-detail',
@@ -18,10 +22,10 @@ import { DetailBookmarkDialogComponent } from './components/detail-bookmark-dial
     RouterModule,
     DetailActionBarComponent,
     DetailMetaSectionComponent,
-    DetailBookmarkDialogComponent
+    LibraryBookmarkDialogComponent
   ],
   template: `
-    <div class="h-full flex flex-col bg-slate-950 text-slate-100 overflow-hidden select-none">
+    <div class="h-full flex flex-col bg-slate-950 text-slate-100 overflow-hidden select-none relative">
       <div class="h-14 px-6 bg-slate-900 border-b border-slate-800 flex items-center justify-between gap-3 shrink-0">
         <div class="flex items-center gap-3 min-w-0">
           <button type="button" (click)="goBack()" class="p-2 text-slate-400 hover:text-slate-200 rounded-lg transition-colors cursor-pointer">
@@ -107,6 +111,7 @@ import { DetailBookmarkDialogComponent } from './components/detail-bookmark-dial
               (bookmark)="showBookmark.set(true)"
               (addTag)="showTagInput.set(true)"
               (vocabulary)="goVocabulary()"
+              (importVocabulary)="onImportVocabulary()"
               (deleteItem)="onDelete()" />
 
             <section class="space-y-3">
@@ -160,13 +165,22 @@ import { DetailBookmarkDialogComponent } from './components/detail-bookmark-dial
         </div>
       }
 
-      <app-detail-bookmark-dialog
+      <app-library-bookmark-dialog
         accent="amber"
         [open]="showBookmark()"
+        [title]="book()?.title || ''"
         [maxPages]="book()?.pages || 1"
         [pageValue]="bookmarkPage()"
+        [lastAccess]="book()?.lastAccess"
+        [completed]="!!book()?.completed"
         (confirm)="onBookmarkSave($event)"
         (cancel)="showBookmark.set(false)" />
+
+      @if (importMessage()) {
+        <div class="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-xl bg-slate-800 border border-slate-600 text-xs text-slate-200 shadow-xl">
+          {{ importMessage() }}
+        </div>
+      }
     </div>
   `
 })
@@ -175,18 +189,20 @@ export class BookDetailComponent implements OnInit {
   private router = inject(Router);
   private detail = inject(DetailService);
   private nav = inject(NavigationStackService);
+  private electron = inject(ElectronService);
 
   book = signal<Book | null>(null);
   loading = signal(true);
   showBookmark = signal(false);
   showTagInput = signal(false);
   bookmarkPage = signal(0);
+  importMessage = signal<string | null>(null);
   newTag = '';
 
   progress = computed(() => {
     const b = this.book();
     if (!b) return 0;
-    return this.detail.progressPercent(b.bookMark, b.pages);
+    return this.detail.progressPercent(b.bookMark, b.pages, b.completed);
   });
 
   lastAccess = computed(() => this.detail.formatLastAccess(this.book()?.lastAccess));
@@ -236,7 +252,25 @@ export class BookDetailComponent implements OnInit {
   }
 
   goVocabulary(): void {
-    this.router.navigate(['/vocabulary']);
+    const b = this.book();
+    if (!b?.id) {
+      this.router.navigate(['/vocabulary']);
+      return;
+    }
+    this.router.navigate(['/vocabulary'], { queryParams: { bookId: b.id } });
+  }
+
+  async onImportVocabulary(): Promise<void> {
+    const b = this.book();
+    if (!b?.id) return;
+    this.importMessage.set('Importando vocabulário…');
+    const result = await this.electron.importBookVocabulary(b.id, true);
+    this.importMessage.set(result.message || (result.ok ? 'Importação concluída' : 'Falha'));
+    setTimeout(() => this.importMessage.set(null), 3500);
+    if (result.ok) {
+      const refreshed = await this.detail.loadBook(b.id);
+      if (refreshed) this.book.set(refreshed);
+    }
   }
 
   async onFavorite(): Promise<void> {
@@ -266,10 +300,10 @@ export class BookDetailComponent implements OnInit {
     }
   }
 
-  async onBookmarkSave(page: number): Promise<void> {
+  async onBookmarkSave(payload: LibraryBookmarkPayload): Promise<void> {
     const b = this.book();
     if (!b) return;
-    const updated = await this.detail.setBookBookMark(b, page);
+    const updated = await this.detail.setBookBookmarkEdit(b, payload);
     if (updated) {
       this.book.set(updated);
       this.bookmarkPage.set(updated.bookMark);

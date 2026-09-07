@@ -1,6 +1,12 @@
 import { Injectable } from '@angular/core';
 import { ElectronService } from './electron.service';
 import { Manga, Book } from '../models';
+import {
+  clampBookMark,
+  isCompleted,
+  progressPercent as calcProgressPercent,
+  progressPageLabel
+} from '../utils/reading-progress.util';
 
 @Injectable({ providedIn: 'root' })
 export class DetailService {
@@ -38,24 +44,83 @@ export class DetailService {
     return this.electron.clearBookProgress(id);
   }
 
+  /** `page` is 1-based (1…pages) from the bookmark dialog. */
   async setMangaBookMark(manga: Manga, page: number): Promise<Manga | null> {
     const pages = Math.max(1, manga.pages || 1);
-    const bookMark = Math.max(0, Math.min(page, pages));
+    const bookMark = clampBookMark(page, pages);
     return this.electron.saveManga({
       ...manga,
       bookMark,
-      completed: bookMark >= pages
+      completed: isCompleted(bookMark, pages)
     });
   }
 
+  /** Full bookmark edit from shared dialog (page + lastAccess + completed + History). */
+  async setMangaBookmarkEdit(
+    manga: Manga,
+    payload: { page: number; lastAccess: string; completed: boolean }
+  ): Promise<Manga | null> {
+    if (!manga.id) return null;
+    const pages = Math.max(1, manga.pages || 1);
+    const bookMark = clampBookMark(payload.page, pages);
+    const pageStart = manga.bookMark || 0;
+    const updated = await this.electron.saveManga({
+      ...manga,
+      bookMark,
+      completed: payload.completed,
+      lastAccess: payload.lastAccess
+    });
+    await this.electron.saveHistoryBookmarkEdit({
+      fkLibrary: manga.fkLibrary ?? 0,
+      fkReference: manga.id,
+      type: 'MANGA',
+      pageStart,
+      pageEnd: bookMark,
+      pages,
+      completed: payload.completed,
+      volume: manga.volume || '',
+      dateTime: payload.lastAccess
+    });
+    return updated;
+  }
+
+  /** `page` is 1-based (1…pages) from the bookmark dialog. */
   async setBookBookMark(book: Book, page: number): Promise<Book | null> {
     const pages = Math.max(1, book.pages || 1);
-    const bookMark = Math.max(0, Math.min(page, pages));
+    const bookMark = clampBookMark(page, pages);
     return this.electron.saveBook({
       ...book,
       bookMark,
-      completed: bookMark >= pages
+      completed: isCompleted(bookMark, pages)
     });
+  }
+
+  async setBookBookmarkEdit(
+    book: Book,
+    payload: { page: number; lastAccess: string; completed: boolean }
+  ): Promise<Book | null> {
+    if (!book.id) return null;
+    const pages = Math.max(1, book.pages || 1);
+    const bookMark = clampBookMark(payload.page, pages);
+    const pageStart = book.bookMark || 0;
+    const updated = await this.electron.saveBook({
+      ...book,
+      bookMark,
+      completed: payload.completed,
+      lastAccess: payload.lastAccess
+    });
+    await this.electron.saveHistoryBookmarkEdit({
+      fkLibrary: book.fkLibrary ?? 0,
+      fkReference: book.id,
+      type: 'BOOK',
+      pageStart,
+      pageEnd: bookMark,
+      pages,
+      completed: payload.completed,
+      volume: book.volume || '',
+      dateTime: payload.lastAccess
+    });
+    return updated;
   }
 
   deleteManga(id: number): Promise<boolean> {
@@ -87,9 +152,12 @@ export class DetailService {
     });
   }
 
-  progressPercent(bookMark: number, pages: number): number {
-    if (!pages || pages <= 0) return 0;
-    return Math.min(100, Math.round((bookMark / pages) * 100));
+  progressPercent(bookMark: number, pages: number, completed?: boolean | null): number {
+    return calcProgressPercent(bookMark, pages, completed);
+  }
+
+  progressLabel(bookMark: number, pages: number, completed?: boolean | null): string {
+    return progressPageLabel(bookMark, pages, completed);
   }
 
   parseTags(tags?: string | null): string[] {

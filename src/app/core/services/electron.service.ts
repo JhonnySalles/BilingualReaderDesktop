@@ -14,7 +14,13 @@ import {
   MangaAnnotation,
   BookConfiguration,
   BookSearchHistory,
-  LinkedFile
+  LinkedFile,
+  Vocabulary,
+  VocabularySearchOptions,
+  VocabularySearchPage,
+  VocabularyRelated,
+  VocabularyImportResult,
+  Kanjax
 } from '../models';
 
 export interface OpenFileLinkResult {
@@ -46,6 +52,7 @@ declare global {
       getManga: (id: number) => Promise<Manga | null>;
       getBook: (id: number) => Promise<Book | null>;
       getAdjacentBooks: (id: number) => Promise<{ prev: Book | null; next: Book | null }>;
+      getAdjacentMangas: (id: number) => Promise<{ prev: Manga | null; next: Manga | null }>;
       saveManga: (manga: Partial<Manga>) => Promise<Manga | null>;
       saveBook: (book: Partial<Book>) => Promise<Book | null>;
       deleteManga: (id: number) => Promise<boolean>;
@@ -57,6 +64,12 @@ declare global {
       getSetting: (key: string, defaultValue?: any) => Promise<any>;
       setSetting: (key: string, value: any) => Promise<any>;
       getSecret: (secretKey: string) => Promise<any>;
+      telemetryIsEnabled: () => Promise<boolean>;
+      telemetryRecord: (payload: {
+        error: { name?: string; message?: string; stack?: string };
+        message?: string;
+      }) => Promise<boolean>;
+      telemetrySetKey: (key: string, value: string) => Promise<boolean>;
       getStatistics: () => Promise<StatisticsOverview>;
       getStatisticsChart: (type: HistoryContentType, year: number, libraryId?: number | null) => Promise<ChartPoint[]>;
       getStatisticsYears: (type: HistoryContentType) => Promise<number[]>;
@@ -78,14 +91,39 @@ declare global {
         pages: number;
         volume?: string;
       }) => Promise<number>;
-      updateHistorySession: (update: { id: number; pageEnd: number; pages?: number }) => Promise<boolean>;
+      saveHistoryBookmarkEdit: (input: {
+        fkLibrary: number;
+        fkReference: number;
+        type: HistoryContentType;
+        pageStart: number;
+        pageEnd: number;
+        pages: number;
+        completed: boolean;
+        volume?: string;
+        dateTime: string;
+      }) => Promise<number>;
+      updateHistorySession: (update: { id: number; pageEnd: number; pages?: number; useTTS?: boolean }) => Promise<boolean>;
       endHistorySession: (payload: {
         id: number;
         pageEnd: number;
         pages?: number;
         type?: HistoryContentType;
         fkReference?: number;
+        useTTS?: boolean;
       }) => Promise<boolean>;
+      ttsSynthesize: (req: { text: string; voice: string; rate?: number }) => Promise<{
+        audioUrl: string;
+        cacheKey: string;
+        voice: string;
+        rate: number;
+      }>;
+      ttsPrefetch: (items: Array<{ text: string; voice: string; rate?: number }>) => Promise<Array<{
+        audioUrl: string;
+        cacheKey: string;
+        voice: string;
+        rate: number;
+      }>>;
+      ttsClearCache: () => Promise<boolean>;
       openMangaReader: (mangaId: number) => Promise<{
         sessionId: string;
         mangaId: number;
@@ -94,13 +132,35 @@ declare global {
         pages: string[];
         pageNames?: string[];
         pagePaths?: string[];
+        pageHashes?: string[];
         chapters: number[];
         chaptersPages?: Record<number, string>;
         bookMark: number;
         favorite: boolean;
         cacheDir: string;
+        subtitles?: import('../utils/subtitle-normalize').SubtitleCatalog;
+        hasSubtitles?: boolean;
       }>;
       closeMangaReader: (sessionId: string) => Promise<boolean>;
+      getSessionSubtitles: (
+        sessionId: string
+      ) => Promise<import('../utils/subtitle-normalize').SubtitleCatalog | null>;
+      importSubtitleJson: (
+        sessionId: string
+      ) => Promise<import('../utils/subtitle-normalize').SubtitleCatalog | null>;
+      ocrRecognize: (payload: {
+        sessionId: string;
+        pageIndex?: number;
+        dataUrl?: string;
+        lang: string;
+        mode: 'region' | 'page';
+        engine?: 'auto' | 'tesseract' | 'windows';
+      }) => Promise<{
+        fullText: string;
+        blocks: Array<{ text: string; x: number; y: number; width: number; height: number }>;
+        engine: 'tesseract' | 'windows';
+      }>;
+      ocrWindowsAvailable: () => Promise<boolean>;
       setMangaBookmark: (mangaId: number, page: number) => Promise<Manga | null>;
       toggleMangaFavorite: (mangaId: number) => Promise<Manga | null>;
       listMangaAnnotations: (mangaId: number) => Promise<MangaAnnotation[]>;
@@ -156,6 +216,23 @@ declare global {
       shareMarkSetCloud: (cloud: string) => Promise<any>;
       shareMarkClearLastSync: (type: 'MANGA' | 'BOOK') => Promise<any>;
       shareMarkSync: (type: 'MANGA' | 'BOOK') => Promise<any>;
+      searchVocabulary: (options: VocabularySearchOptions) => Promise<VocabularySearchPage>;
+      getVocabulary: (id: number) => Promise<Vocabulary | null>;
+      setVocabularyFavorite: (id: number, favorite: boolean) => Promise<Vocabulary | null>;
+      getVocabularyRelated: (vocabularyId: number, titleHint?: string | null) => Promise<VocabularyRelated>;
+      getKanjax: (kanji: string) => Promise<Kanjax | null>;
+      getKanjaxForWord: (word: string) => Promise<Kanjax[]>;
+      importMangaVocabulary: (mangaId: number, forced?: boolean) => Promise<VocabularyImportResult>;
+      importBookVocabulary: (bookId: number, forced?: boolean) => Promise<VocabularyImportResult>;
+      japaneseInit: () => Promise<{ ok: boolean; engine: string }>;
+      japaneseToRubyHtml: (text: string, withFurigana?: boolean) => Promise<string>;
+      japaneseTokenize: (text: string) => Promise<Array<{
+        surface: string;
+        readingHiragana: string;
+        dictionaryForm: string;
+        hasKanji: boolean;
+      }>>;
+      japaneseEngine: () => Promise<string>;
       send: (channel: string, data: any) => void;
       on: (channel: string, func: (...args: any[]) => void) => () => void;
     };
@@ -175,6 +252,42 @@ export class ElectronService {
       return await window.electronAPI.ping();
     }
     return 'Electron IPC não está ativo no navegador!';
+  }
+
+  async getSetting(key: string, defaultValue?: any): Promise<any> {
+    if (this.isElectron && window.electronAPI?.getSetting) {
+      return await window.electronAPI.getSetting(key, defaultValue);
+    }
+    return defaultValue;
+  }
+
+  async setSetting(key: string, value: any): Promise<any> {
+    if (this.isElectron && window.electronAPI?.setSetting) {
+      return await window.electronAPI.setSetting(key, value);
+    }
+    return value;
+  }
+
+  async telemetryIsEnabled(): Promise<boolean> {
+    if (this.isElectron && window.electronAPI?.telemetryIsEnabled) {
+      return !!(await window.electronAPI.telemetryIsEnabled());
+    }
+    return false;
+  }
+
+  async telemetryRecord(error: unknown, message?: string): Promise<void> {
+    if (!this.isElectron || !window.electronAPI?.telemetryRecord) return;
+    const err = error instanceof Error ? error : new Error(String(error));
+    await window.electronAPI.telemetryRecord({
+      error: { name: err.name, message: err.message, stack: err.stack },
+      message
+    });
+  }
+
+  async telemetrySetKey(key: string, value: string): Promise<void> {
+    if (this.isElectron && window.electronAPI?.telemetrySetKey) {
+      await window.electronAPI.telemetrySetKey(key, value);
+    }
   }
 
   async selectDirectory(): Promise<string | null> {
@@ -222,6 +335,13 @@ export class ElectronService {
   async getAdjacentBooks(bookId: number): Promise<{ prev: Book | null; next: Book | null }> {
     if (this.isElectron && window.electronAPI?.getAdjacentBooks) {
       return await window.electronAPI.getAdjacentBooks(bookId);
+    }
+    return { prev: null, next: null };
+  }
+
+  async getAdjacentMangas(mangaId: number): Promise<{ prev: Manga | null; next: Manga | null }> {
+    if (this.isElectron && window.electronAPI?.getAdjacentMangas) {
+      return await window.electronAPI.getAdjacentMangas(mangaId);
     }
     return { prev: null, next: null };
   }
@@ -355,7 +475,29 @@ export class ElectronService {
     return null;
   }
 
-  async updateHistorySession(update: { id: number; pageEnd: number; pages?: number }): Promise<boolean> {
+  async saveHistoryBookmarkEdit(input: {
+    fkLibrary: number;
+    fkReference: number;
+    type: HistoryContentType;
+    pageStart: number;
+    pageEnd: number;
+    pages: number;
+    completed: boolean;
+    volume?: string;
+    dateTime: string;
+  }): Promise<number | null> {
+    if (this.isElectron && window.electronAPI?.saveHistoryBookmarkEdit) {
+      return await window.electronAPI.saveHistoryBookmarkEdit(input);
+    }
+    return null;
+  }
+
+  async updateHistorySession(update: {
+    id: number;
+    pageEnd: number;
+    pages?: number;
+    useTTS?: boolean;
+  }): Promise<boolean> {
     if (this.isElectron && window.electronAPI?.updateHistorySession) {
       return await window.electronAPI.updateHistorySession(update);
     }
@@ -368,9 +510,37 @@ export class ElectronService {
     pages?: number;
     type?: HistoryContentType;
     fkReference?: number;
+    useTTS?: boolean;
   }): Promise<boolean> {
     if (this.isElectron && window.electronAPI?.endHistorySession) {
       return await window.electronAPI.endHistorySession(payload);
+    }
+    return false;
+  }
+
+  async ttsSynthesize(req: {
+    text: string;
+    voice: string;
+    rate?: number;
+  }): Promise<{ audioUrl: string; cacheKey: string; voice: string; rate: number } | null> {
+    if (this.isElectron && window.electronAPI?.ttsSynthesize) {
+      return await window.electronAPI.ttsSynthesize(req);
+    }
+    return null;
+  }
+
+  async ttsPrefetch(
+    items: Array<{ text: string; voice: string; rate?: number }>
+  ): Promise<Array<{ audioUrl: string; cacheKey: string; voice: string; rate: number }>> {
+    if (this.isElectron && window.electronAPI?.ttsPrefetch) {
+      return await window.electronAPI.ttsPrefetch(items);
+    }
+    return [];
+  }
+
+  async ttsClearCache(): Promise<boolean> {
+    if (this.isElectron && window.electronAPI?.ttsClearCache) {
+      return await window.electronAPI.ttsClearCache();
     }
     return false;
   }
@@ -385,6 +555,41 @@ export class ElectronService {
   async closeMangaReader(sessionId: string): Promise<boolean> {
     if (this.isElectron && window.electronAPI?.closeMangaReader) {
       return await window.electronAPI.closeMangaReader(sessionId);
+    }
+    return false;
+  }
+
+  async getSessionSubtitles(sessionId: string) {
+    if (this.isElectron && window.electronAPI?.getSessionSubtitles) {
+      return await window.electronAPI.getSessionSubtitles(sessionId);
+    }
+    return null;
+  }
+
+  async importSubtitleJson(sessionId: string) {
+    if (this.isElectron && window.electronAPI?.importSubtitleJson) {
+      return await window.electronAPI.importSubtitleJson(sessionId);
+    }
+    return null;
+  }
+
+  async ocrRecognize(payload: {
+    sessionId: string;
+    pageIndex?: number;
+    dataUrl?: string;
+    lang: string;
+    mode: 'region' | 'page';
+    engine?: 'auto' | 'tesseract' | 'windows';
+  }) {
+    if (this.isElectron && window.electronAPI?.ocrRecognize) {
+      return await window.electronAPI.ocrRecognize(payload);
+    }
+    return null;
+  }
+
+  async ocrWindowsAvailable(): Promise<boolean> {
+    if (this.isElectron && window.electronAPI?.ocrWindowsAvailable) {
+      return await window.electronAPI.ocrWindowsAvailable();
     }
     return false;
   }
@@ -627,6 +832,79 @@ export class ElectronService {
       return await window.electronAPI.shareMarkSync(type);
     }
     return null;
+  }
+
+  async searchVocabulary(options: VocabularySearchOptions): Promise<VocabularySearchPage> {
+    if (this.isElectron && window.electronAPI?.searchVocabulary) {
+      return await window.electronAPI.searchVocabulary(options);
+    }
+    return { items: [], total: 0, offset: 0, limit: options.limit ?? 40, hasMore: false };
+  }
+
+  async getVocabulary(id: number): Promise<Vocabulary | null> {
+    if (this.isElectron && window.electronAPI?.getVocabulary) {
+      return await window.electronAPI.getVocabulary(id);
+    }
+    return null;
+  }
+
+  async setVocabularyFavorite(id: number, favorite: boolean): Promise<Vocabulary | null> {
+    if (this.isElectron && window.electronAPI?.setVocabularyFavorite) {
+      return await window.electronAPI.setVocabularyFavorite(id, favorite);
+    }
+    return null;
+  }
+
+  async getVocabularyRelated(
+    vocabularyId: number,
+    titleHint?: string | null
+  ): Promise<VocabularyRelated> {
+    if (this.isElectron && window.electronAPI?.getVocabularyRelated) {
+      return await window.electronAPI.getVocabularyRelated(vocabularyId, titleHint);
+    }
+    return { mangas: [], books: [] };
+  }
+
+  async getKanjax(kanji: string): Promise<Kanjax | null> {
+    if (this.isElectron && window.electronAPI?.getKanjax) {
+      return await window.electronAPI.getKanjax(kanji);
+    }
+    return null;
+  }
+
+  async getKanjaxForWord(word: string): Promise<Kanjax[]> {
+    if (this.isElectron && window.electronAPI?.getKanjaxForWord) {
+      return await window.electronAPI.getKanjaxForWord(word);
+    }
+    return [];
+  }
+
+  async importMangaVocabulary(mangaId: number, forced = true): Promise<VocabularyImportResult> {
+    if (this.isElectron && window.electronAPI?.importMangaVocabulary) {
+      return await window.electronAPI.importMangaVocabulary(mangaId, forced);
+    }
+    return { ok: false, linked: 0, message: 'Electron IPC indisponível' };
+  }
+
+  async importBookVocabulary(bookId: number, forced = true): Promise<VocabularyImportResult> {
+    if (this.isElectron && window.electronAPI?.importBookVocabulary) {
+      return await window.electronAPI.importBookVocabulary(bookId, forced);
+    }
+    return { ok: false, linked: 0, message: 'Electron IPC indisponível' };
+  }
+
+  async japaneseInit(): Promise<{ ok: boolean; engine: string }> {
+    if (this.isElectron && window.electronAPI?.japaneseInit) {
+      return await window.electronAPI.japaneseInit();
+    }
+    return { ok: false, engine: 'NONE' };
+  }
+
+  async japaneseToRubyHtml(text: string, withFurigana = true): Promise<string> {
+    if (this.isElectron && window.electronAPI?.japaneseToRubyHtml) {
+      return await window.electronAPI.japaneseToRubyHtml(text, withFurigana);
+    }
+    return text;
   }
 
   onExtractProgress(handler: (progress: { current: number; total: number }) => void): () => void {

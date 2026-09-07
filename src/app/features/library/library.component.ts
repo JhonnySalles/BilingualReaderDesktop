@@ -13,6 +13,10 @@ import { SharedListComponent } from './components/shared-list/shared-list.compon
 import { MangaFilterModalComponent } from './manga-library/components/manga-filter-modal/manga-filter-modal.component';
 import { HomeRecentCardComponent } from './components/home-recent-card/home-recent-card.component';
 import { HomeReadingHeatmapComponent } from './components/home-reading-heatmap/home-reading-heatmap.component';
+import {
+  LibraryBookmarkDialogComponent,
+  LibraryBookmarkPayload
+} from '../../shared/library-bookmark-dialog/library-bookmark-dialog.component';
 import { Manga, Book, OrderType, HomeRecentItem } from '../../core/models';
 import { ShareMarkType } from '../../core/models/enums/sharemark.enum';
 
@@ -25,7 +29,8 @@ import { ShareMarkType } from '../../core/models/enums/sharemark.enum';
     SharedListComponent,
     MangaFilterModalComponent,
     HomeRecentCardComponent,
-    HomeReadingHeatmapComponent
+    HomeReadingHeatmapComponent,
+    LibraryBookmarkDialogComponent
   ],
   template: `
     <div class="h-full flex flex-col bg-slate-950 text-slate-100 overflow-hidden p-6 relative">
@@ -33,6 +38,17 @@ import { ShareMarkType } from '../../core/models/enums/sharemark.enum';
       @if (libraryStateService.showFilterModal()) {
         <app-manga-filter-modal (close)="libraryStateService.showFilterModal.set(false)"></app-manga-filter-modal>
       }
+
+      <app-library-bookmark-dialog
+        [open]="!!bookmarkTarget()"
+        [accent]="activeLibType() === 'book' ? 'amber' : 'indigo'"
+        [title]="bookmarkTarget()?.title || ''"
+        [maxPages]="bookmarkTarget()?.pages || 1"
+        [pageValue]="bookmarkTarget()?.bookMark || 0"
+        [lastAccess]="bookmarkTarget()?.lastAccess"
+        [completed]="!!bookmarkTarget()?.completed"
+        (confirm)="onBookmarkSave($event)"
+        (cancel)="bookmarkTarget.set(null)" />
 
       @if (activeLibId() === 'home') {
         <div class="flex-1 overflow-y-auto space-y-8 pb-4">
@@ -217,7 +233,8 @@ import { ShareMarkType } from '../../core/models/enums/sharemark.enum';
               [isLoading]="isCurrentlyScanning() && filteredItems().length === 0"
               (reordered)="onReordered($event)"
               (open)="onOpenItem($event)"
-              (openDetail)="onOpenDetail($event)">
+              (openDetail)="onOpenDetail($event)"
+              (setBookmark)="onSetBookmark($event)">
             </app-shared-list>
           }
         </div>
@@ -262,6 +279,7 @@ export class LibraryComponent implements OnInit {
   activeLibId = signal<string>('home');
   activeLibType = signal<'manga' | 'book'>('manga');
   customOrderItems = signal<(Manga | Book)[] | null>(null);
+  bookmarkTarget = signal<Manga | Book | null>(null);
 
   isCurrentlyScanning = computed(() => {
     return this.mangaLibraryService.isScanning() || this.bookLibraryService.isScanning();
@@ -470,5 +488,33 @@ export class LibraryComponent implements OnInit {
     } else {
       this.nav.openDetail(this.router, 'book', item.id);
     }
+  }
+
+  onSetBookmark(item: Manga | Book): void {
+    this.bookmarkTarget.set(item);
+  }
+
+  async onBookmarkSave(payload: LibraryBookmarkPayload): Promise<void> {
+    const item = this.bookmarkTarget();
+    if (!item?.id) {
+      this.bookmarkTarget.set(null);
+      return;
+    }
+    const updated =
+      this.activeLibType() === 'manga'
+        ? await this.mangaLibraryService.updateBookmark(item as Manga, payload)
+        : await this.bookLibraryService.updateBookmark(item as Book, payload);
+
+    if (updated) {
+      this.customOrderItems.update(list => {
+        if (!list) return list;
+        return list.map(i =>
+          i.id === updated.id
+            ? { ...i, bookMark: updated.bookMark, completed: updated.completed, lastAccess: updated.lastAccess }
+            : i
+        );
+      });
+    }
+    this.bookmarkTarget.set(null);
   }
 }

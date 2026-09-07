@@ -14,6 +14,7 @@ import {
 } from '../../../src/app/core/models/enums/sharemark.enum';
 import { Manga } from '../../../src/app/core/models/entities/manga.model';
 import { Book } from '../../../src/app/core/models/entities/book.model';
+import { Telemetry } from '../../utils/telemetry';
 import {
   buildShareItemFromBook,
   buildShareItemFromManga,
@@ -168,7 +169,7 @@ export abstract class ShareMarkBase {
       this.emitProgress('done', type);
       return result;
     } catch (e) {
-      console.error('[ShareMark] sync error:', e);
+      Telemetry.recordException(e, '[ShareMark] sync error');
       return this.notConnectErrorType;
     } finally {
       ShareMarkBase.inSync = false;
@@ -187,10 +188,13 @@ export abstract class ShareMarkBase {
       (mangaAlterationDate && mangaAlterationDate < syncDate) ||
       (mangaAccessDate && itemAccessDate > mangaAccessDate)
     ) {
-      manga.bookMark = item.bookMark;
+      manga.bookMark =
+        item.completed || item.bookMark >= (item.pages || manga.pages || 1)
+          ? Math.max(1, manga.pages || 1)
+          : Math.min(Math.max(0, item.bookMark), Math.max(1, manga.pages || 1));
       manga.lastAccess = item.lastAccess;
       manga.favorite = item.favorite;
-      manga.completed = item.completed;
+      manga.completed = item.completed || manga.bookMark >= (manga.pages || 1);
       item.processed = true;
       item.received = true;
       return true;
@@ -227,7 +231,7 @@ export abstract class ShareMarkBase {
         book.bookMark = scaleBookBookmarkFromCloud(book, item);
       }
 
-      book.completed = item.completed;
+      book.completed = item.completed || book.bookMark >= (book.pages || 1);
       book.lastAccess = item.lastAccess;
       book.favorite = item.favorite;
       item.processed = true;

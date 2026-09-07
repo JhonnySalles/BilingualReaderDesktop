@@ -49,6 +49,26 @@ export class StatisticsController {
     });
 
     ipcMain.handle(
+      'history:saveBookmarkEdit',
+      async (
+        _event,
+        input: {
+          fkLibrary: number;
+          fkReference: number;
+          type: HistoryContentType;
+          pageStart: number;
+          pageEnd: number;
+          pages: number;
+          completed: boolean;
+          volume?: string;
+          dateTime: string;
+        }
+      ) => {
+        return this.storage.saveHistoryBookmarkEdit(input);
+      }
+    );
+
+    ipcMain.handle(
       'history:start',
       async (
         _event,
@@ -88,7 +108,7 @@ export class StatisticsController {
 
     ipcMain.handle(
       'history:update',
-      async (_event, update: { id: number; pageEnd: number; pages?: number }) => {
+      async (_event, update: { id: number; pageEnd: number; pages?: number; useTTS?: boolean }) => {
         this.storage.updateHistorySession(update);
         return true;
       }
@@ -96,18 +116,27 @@ export class StatisticsController {
 
     ipcMain.handle(
       'history:end',
-      async (_event, payload: { id: number; pageEnd: number; pages?: number; type?: HistoryContentType; fkReference?: number }) => {
-        this.storage.endHistorySession(payload.id, payload.pageEnd, payload.pages);
+      async (_event, payload: {
+        id: number;
+        pageEnd: number;
+        pages?: number;
+        type?: HistoryContentType;
+        fkReference?: number;
+        useTTS?: boolean;
+      }) => {
+        this.storage.endHistorySession(payload.id, payload.pageEnd, payload.pages, payload.useTTS);
 
         if (payload.type && payload.fkReference != null) {
           const now = new Date().toISOString();
           if (payload.type === 'MANGA') {
             const manga = this.storage.findMangaById(payload.fkReference);
             if (manga) {
+              const pages = Math.max(1, payload.pages ?? manga.pages ?? 1);
+              const bookMark = Math.min(Math.max(0, Math.floor(payload.pageEnd)), pages);
               this.storage.saveManga({
                 ...manga,
-                bookMark: payload.pageEnd,
-                completed: payload.pages != null ? payload.pageEnd >= payload.pages : manga.completed,
+                bookMark,
+                completed: bookMark >= pages,
                 lastAccess: now,
                 lastAlteration: now
               });
@@ -115,10 +144,12 @@ export class StatisticsController {
           } else {
             const book = this.storage.findBookById(payload.fkReference);
             if (book) {
+              const pages = Math.max(1, payload.pages ?? book.pages ?? 1);
+              const bookMark = Math.min(Math.max(0, Math.floor(payload.pageEnd)), pages);
               this.storage.saveBook({
                 ...book,
-                bookMark: payload.pageEnd,
-                completed: payload.pages != null ? payload.pageEnd >= payload.pages : book.completed,
+                bookMark,
+                completed: bookMark >= pages,
                 lastAccess: now,
                 lastAlteration: now
               });

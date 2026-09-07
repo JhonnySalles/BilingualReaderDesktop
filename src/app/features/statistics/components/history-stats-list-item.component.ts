@@ -2,6 +2,7 @@ import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HistoryStatisticsItem } from '../../../core/models';
 import { formatShortDuration } from '../../../core/services/statistics.service';
+import { progressPercent as calcProgressPercent } from '../../../core/utils/reading-progress.util';
 
 @Component({
   selector: 'app-history-stats-list-item',
@@ -105,8 +106,7 @@ export class HistoryStatsListItemComponent {
   @Output() open = new EventEmitter<HistoryStatisticsItem>();
 
   progressPercent(): number {
-    if (!this.item.pages || this.item.pages <= 0) return 0;
-    return Math.min(100, Math.round((this.item.bookMark / this.item.pages) * 100));
+    return calcProgressPercent(this.item.bookMark || 0, this.item.pages || 0, this.item.completed);
   }
 
   formatTime(seconds: number): string {

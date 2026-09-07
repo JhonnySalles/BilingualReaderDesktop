@@ -40,6 +40,11 @@ import { CommonModule } from '@angular/common';
         Vocabulário
       </button>
 
+      <button type="button" (click)="importVocabulary.emit()"
+        class="px-3 py-2 rounded-xl text-xs font-semibold bg-slate-900 text-slate-300 border border-slate-700 hover:bg-slate-800 transition-colors cursor-pointer">
+        Importar vocabulário
+      </button>
+
       <button type="button" (click)="deleteItem.emit()"
         class="px-3 py-2 rounded-xl text-xs font-semibold bg-rose-950 text-rose-300 border border-rose-800 hover:bg-rose-900 transition-colors cursor-pointer">
         Excluir
@@ -58,6 +63,7 @@ export class DetailActionBarComponent {
   @Output() bookmark = new EventEmitter<void>();
   @Output() addTag = new EventEmitter<void>();
   @Output() vocabulary = new EventEmitter<void>();
+  @Output() importVocabulary = new EventEmitter<void>();
   @Output() deleteItem = new EventEmitter<void>();
 
   get favoriteBtnClass(): string {

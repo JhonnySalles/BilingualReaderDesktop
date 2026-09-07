@@ -1,5 +1,6 @@
 import { Injectable, signal } from '@angular/core';
 import { Manga, OrderType, LibraryViewType } from '../models';
+import { clampBookMark } from '../utils/reading-progress.util';
 
 @Injectable({
   providedIn: 'root'
@@ -74,6 +75,46 @@ export class MangaLibraryService {
     if (updated) {
       this.mangas.update(list => list.map(m => m.id === manga.id ? { ...m, bookMark: 0, completed: false } : m));
     }
+  }
+
+  /** Apply bookmark popup: page, completed, lastAccess + History session. */
+  public async updateBookmark(
+    manga: Manga,
+    payload: { page: number; lastAccess: string; completed: boolean }
+  ): Promise<Manga | null> {
+    if (!window.electronAPI?.saveManga || !manga.id) return null;
+    const pages = Math.max(1, manga.pages || 1);
+    const bookMark = clampBookMark(payload.page, pages);
+    const pageStart = manga.bookMark || 0;
+    const updated = await window.electronAPI.saveManga({
+      ...manga,
+      bookMark,
+      completed: payload.completed,
+      lastAccess: payload.lastAccess
+    });
+    if (window.electronAPI.saveHistoryBookmarkEdit) {
+      await window.electronAPI.saveHistoryBookmarkEdit({
+        fkLibrary: manga.fkLibrary ?? 0,
+        fkReference: manga.id,
+        type: 'MANGA',
+        pageStart,
+        pageEnd: bookMark,
+        pages,
+        completed: payload.completed,
+        volume: manga.volume || '',
+        dateTime: payload.lastAccess
+      });
+    }
+    if (updated) {
+      this.mangas.update(list =>
+        list.map(m =>
+          m.id === manga.id
+            ? { ...m, bookMark: updated.bookMark, completed: updated.completed, lastAccess: updated.lastAccess }
+            : m
+        )
+      );
+    }
+    return updated;
   }
 
   public async deleteManga(manga: Manga): Promise<void> {
