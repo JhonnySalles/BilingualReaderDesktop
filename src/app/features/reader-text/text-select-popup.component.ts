@@ -65,9 +65,10 @@ import {
           </button>
           <button
             type="button"
-            disabled
-            class="w-8 h-8 rounded-lg text-slate-600 cursor-not-allowed opacity-50 flex items-center justify-center"
-            title="TTS (em breve)">
+            class="w-8 h-8 rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white cursor-pointer
+              flex items-center justify-center"
+            title="Ler com TTS"
+            (click)="tts.emit()">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                 d="M15.536 8.464a5 5 0 010 7.072M17.657 6.343a8 8 0 010 11.314M11 5l-5 4H3v6h3l5 4V5z"/>
@@ -115,6 +116,7 @@ export class TextSelectPopupComponent {
   erase = output<void>();
   copy = output<void>();
   selectAll = output<void>();
+  tts = output<void>();
   dismiss = output<void>();
 
   readonly colors = [

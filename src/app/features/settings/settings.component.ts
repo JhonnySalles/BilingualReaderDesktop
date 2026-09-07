@@ -6,9 +6,22 @@ import { ThemeService, ThemeMode, AccentColor } from '../../core/services/theme.
 import { SettingsService, CustomLibrary } from '../../core/services/settings.service';
 import { ShareMarkUiService } from '../../core/services/sharemark/share-mark-ui.service';
 import { ShareMarkCloud } from '../../core/models/enums/sharemark.enum';
-import { MangaFitMode, MangaScrollingMode, ReaderTouchType } from '../../core/models';
+import { MangaFitMode, MangaScrollingMode, ReaderTouchType, Languages, PAGE_TRANSITION_LABELS_PT, PAGE_TRANSITION_OPTIONS, PageTransitionType } from '../../core/models';
+import {
+  TextSpeech,
+  activeTextSpeechVoices,
+  textSpeechDefault,
+  parseTextSpeech,
+  formatTtsSpeedLabel
+} from '../../core/models/enums/tts-enums';
 import { ReaderTouchConfigComponent } from '../reader-shared/reader-touch-config.component';
+import { japaneseFontOptions, westernFontOptions } from '../reader-text/book-fonts';
 export type { CustomLibrary };
+
+const TTS_VOICE_NORMAL_KEY = 'BOOK_READER_TTS_VOICE_NORMAL';
+const TTS_VOICE_JAPANESE_KEY = 'BOOK_READER_TTS_VOICE_JAPANESE';
+const TTS_SPEED_KEY = 'BOOK_READER_TTS_SPEED';
+const TTS_SPEED_DEFAULT = 0;
 
 type SettingTab = 'manga' | 'book' | 'system' | 'ai';
 
@@ -142,10 +155,26 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai';
 
                   <div>
                     <label class="block text-xs text-slate-300 mb-1 font-medium">Idioma de Legenda Padrão</label>
-                    <select class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200">
-                      <option>Japonês (Original)</option>
-                      <option>Inglês</option>
-                      <option>Português (Brasil)</option>
+                    <select
+                      class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200"
+                      [ngModel]="settingsService.subtitleLanguage()"
+                      (ngModelChange)="settingsService.subtitleLanguage.set($event)">
+                      <option value="JAPANESE">Japonês (Original)</option>
+                      <option value="ENGLISH">Inglês</option>
+                      <option value="PORTUGUESE">Português (Brasil)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label class="block text-xs text-slate-300 mb-1 font-medium">Idioma OCR (Tesseract)</label>
+                    <select
+                      class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200"
+                      [ngModel]="settingsService.ocrLanguage()"
+                      (ngModelChange)="settingsService.ocrLanguage.set($event)">
+                      <option value="jpn">Japonês (jpn)</option>
+                      <option value="jpn_vert">Japonês vertical</option>
+                      <option value="eng">Inglês</option>
+                      <option value="por">Português</option>
                     </select>
                   </div>
 
@@ -177,7 +206,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai';
                 <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Controles do Leitor & Comportamento</h3>
                 
                 <div class="grid grid-cols-2 gap-4">
-                  <div>
+                  <div class="col-span-2">
                     <label class="block text-xs text-slate-300 mb-1 font-medium">Sentido da Leitura</label>
                     <select
                       class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200"
@@ -185,18 +214,24 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai';
                       (ngModelChange)="settingsService.mangaScrollingMode.set($event)">
                       <option [ngValue]="MangaScrollingMode.Horizontal">Horizontal (Esquerda para direita)</option>
                       <option [ngValue]="MangaScrollingMode.HorizontalRtl">Horizontal (Direita para esquerda)</option>
+                      <option [ngValue]="MangaScrollingMode.HorizontalDual">Horizontal Dupla (Esquerda para direita)</option>
+                      <option [ngValue]="MangaScrollingMode.HorizontalDualRtl">Horizontal Dupla (Direita para esquerda)</option>
                       <option [ngValue]="MangaScrollingMode.Vertical">Vertical (página a página)</option>
+                      <option [ngValue]="MangaScrollingMode.VerticalDual">Vertical Dupla</option>
                       <option [ngValue]="MangaScrollingMode.LongStrip">Tira longa (rolagem contínua)</option>
                       <option [ngValue]="MangaScrollingMode.LongStripGap">Tira longa com espaçamento</option>
                     </select>
                   </div>
 
-                  <div>
-                    <label class="block text-xs text-slate-300 mb-1 font-medium">Tipo de Paginação</label>
-                    <select class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200">
-                      <option>Página Única</option>
-                      <option>Página Dupla (Smart Fit)</option>
-                      <option>Automático segundo a Orientação</option>
+                  <div class="col-span-2">
+                    <label class="block text-xs text-slate-300 mb-1 font-medium">Animação de transição de página</label>
+                    <select
+                      class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200"
+                      [ngModel]="settingsService.mangaPageTransition()"
+                      (ngModelChange)="settingsService.mangaPageTransition.set($event)">
+                      @for (opt of pageTransitionOptions; track opt) {
+                        <option [ngValue]="opt">{{ pageTransitionLabels[opt] }}</option>
+                      }
                     </select>
                   </div>
                 </div>
@@ -217,7 +252,10 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai';
                   </label>
                   <label class="flex items-center justify-between text-xs text-slate-300 cursor-pointer">
                     <span>Extrair e Processar Vocabulário Automaticamente</span>
-                    <input type="checkbox" class="w-4 h-4 accent-indigo-600 rounded">
+                    <input type="checkbox"
+                      class="w-4 h-4 accent-indigo-600 rounded"
+                      [ngModel]="settingsService.mangaProcessVocabulary()"
+                      (ngModelChange)="settingsService.mangaProcessVocabulary.set($event)">
                   </label>
                   <label class="flex items-center justify-between text-xs text-slate-300 cursor-pointer">
                     <span>Usar Nome da Pasta para Vincular Capítulos</span>
@@ -312,20 +350,29 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai';
                 <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Processamento de Texto & Furigana</h3>
                 <div class="space-y-3">
                   <label class="flex items-center justify-between text-xs text-slate-300 cursor-pointer">
-                    <span>Processar Texto em Japonês (Tokenizer MeCab / Kuromoji)</span>
-                    <input type="checkbox" checked class="w-4 h-4 accent-indigo-600 rounded">
+                    <span>Processar Texto em Japonês (Sudachi / Kuromoji)</span>
+                    <input type="checkbox"
+                      class="w-4 h-4 accent-indigo-600 rounded"
+                      [ngModel]="settingsService.bookProcessJapaneseText()"
+                      (ngModelChange)="settingsService.bookProcessJapaneseText.set($event)">
                   </label>
                   <label class="flex items-center justify-between text-xs text-slate-300 cursor-pointer">
                     <span>Exibir Lectura Furigana Acima dos Kanjis</span>
-                    <input type="checkbox" checked class="w-4 h-4 accent-indigo-600 rounded">
+                    <input type="checkbox"
+                      class="w-4 h-4 accent-indigo-600 rounded"
+                      [ngModel]="settingsService.bookGenerateFurigana()"
+                      (ngModelChange)="settingsService.bookGenerateFurigana.set($event)">
                   </label>
                   <label class="flex items-center justify-between text-xs text-slate-300 cursor-pointer">
                     <span>Extração Automática de Palavras do Vocabulário</span>
-                    <input type="checkbox" checked class="w-4 h-4 accent-indigo-600 rounded">
+                    <input type="checkbox"
+                      class="w-4 h-4 accent-indigo-600 rounded"
+                      [ngModel]="settingsService.bookProcessVocabulary()"
+                      (ngModelChange)="settingsService.bookProcessVocabulary.set($event)">
                   </label>
                   <label class="flex items-center justify-between text-xs text-slate-300 cursor-pointer">
                     <span>Habilitar Modo de Escrita Vertical Japonês (Tate-gaki)</span>
-                    <input type="checkbox" class="w-4 h-4 accent-indigo-600 rounded">
+                    <input type="checkbox" class="w-4 h-4 accent-indigo-600 rounded" disabled title="Em breve">
                   </label>
                 </div>
               </div>
@@ -333,50 +380,88 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai';
               <!-- TTS Audio Reading -->
               <div class="bg-slate-900/80 rounded-xl p-5 border border-slate-800 space-y-4">
                 <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Voz e Leitura em Áudio (TTS)</h3>
+                <p class="text-[11px] text-slate-500">Vozes neurais gratuitas (Edge / Azure Neural), sem chave de API.</p>
                 <div class="grid grid-cols-2 gap-4">
                   <div>
-                    <label class="block text-xs text-slate-300 mb-1 font-medium">Voz Padrão (Português/Inglês)</label>
-                    <select class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200">
-                      <option>Microsoft Daniel (Portuguese)</option>
-                      <option>Microsoft Zira (English)</option>
+                    <label class="block text-xs text-slate-300 mb-1 font-medium">Voz padrão (PT / EN)</label>
+                    <select
+                      class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200 cursor-pointer"
+                      [ngModel]="ttsVoiceNormal()"
+                      (ngModelChange)="onTtsVoiceNormal($event)">
+                      @for (v of ttsVoicesNormal; track v.id) {
+                        <option [ngValue]="v.id">{{ v.label }}</option>
+                      }
                     </select>
                   </div>
                   <div>
-                    <label class="block text-xs text-slate-300 mb-1 font-medium">Voz em Japonês</label>
-                    <select class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200">
-                      <option>Microsoft Haruka (Japanese)</option>
+                    <label class="block text-xs text-slate-300 mb-1 font-medium">Voz em japonês</label>
+                    <select
+                      class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200 cursor-pointer"
+                      [ngModel]="ttsVoiceJapanese()"
+                      (ngModelChange)="onTtsVoiceJapanese($event)">
+                      @for (v of ttsVoicesJapanese; track v.id) {
+                        <option [ngValue]="v.id">{{ v.label }}</option>
+                      }
                     </select>
                   </div>
                 </div>
 
                 <div>
                   <div class="flex justify-between text-xs text-slate-300 mb-1 font-medium">
-                    <span>Velocidade de Leitura (TTS Speed)</span>
-                    <span class="text-indigo-400 font-bold">{{ ttsSpeed() }}x</span>
+                    <span>Velocidade de leitura</span>
+                    <span class="text-indigo-400 font-bold tabular-nums">{{ ttsSpeedLabel() }}</span>
                   </div>
-                  <input type="range" min="0.5" max="2.0" step="0.1" [value]="ttsSpeed()" (input)="updateTtsSpeed($event)" class="w-full accent-indigo-600 cursor-pointer">
+                  <input
+                    type="range"
+                    min="-50"
+                    max="50"
+                    step="5"
+                    [value]="ttsSpeed()"
+                    (input)="updateTtsSpeed($event)"
+                    class="w-full accent-indigo-600 cursor-pointer">
+                  <div class="flex justify-between text-[10px] text-slate-500 mt-1">
+                    <span>−50%</span>
+                    <span>0</span>
+                    <span>+50%</span>
+                  </div>
                 </div>
               </div>
 
               <!-- Fonts & Typography -->
               <div class="bg-slate-900/80 rounded-xl p-5 border border-slate-800 space-y-4">
                 <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Tipografia & Tamanho da Fonte</h3>
+                <div>
+                  <label class="block text-xs text-slate-300 mb-1 font-medium">Animação de transição de página</label>
+                  <select
+                    class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200"
+                    [ngModel]="settingsService.bookPageTransition()"
+                    (ngModelChange)="settingsService.bookPageTransition.set($event)">
+                    @for (opt of pageTransitionOptions; track opt) {
+                      <option [ngValue]="opt">{{ pageTransitionLabels[opt] }}</option>
+                    }
+                  </select>
+                </div>
                 <div class="grid grid-cols-2 gap-4">
                   <div>
                     <label class="block text-xs text-slate-300 mb-1 font-medium">Fonte para Textos Ocidentais</label>
-                    <select class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200">
-                      <option>Inter / System Sans</option>
-                      <option>Roboto</option>
-                      <option>Merriweather (Serif)</option>
-                      <option>Fira Code (Mono)</option>
+                    <select
+                      class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200 cursor-pointer"
+                      [ngModel]="settingsService.bookFontFamily()"
+                      (ngModelChange)="settingsService.bookFontFamily.set($event)">
+                      @for (f of westernFonts; track f.id) {
+                        <option [ngValue]="f.css">{{ f.label }}</option>
+                      }
                     </select>
                   </div>
                   <div>
                     <label class="block text-xs text-slate-300 mb-1 font-medium">Fonte para Textos Japoneses</label>
-                    <select class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200">
-                      <option>Noto Sans JP</option>
-                      <option>Yu Gothic / Meiryo</option>
-                      <option>Sawarabi Mincho</option>
+                    <select
+                      class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200 cursor-pointer"
+                      [ngModel]="settingsService.bookFontFamilyJapanese()"
+                      (ngModelChange)="settingsService.bookFontFamilyJapanese.set($event)">
+                      @for (f of japaneseFonts; track f.id) {
+                        <option [ngValue]="f.css">{{ f.label }}</option>
+                      }
                     </select>
                   </div>
                 </div>
@@ -815,6 +900,10 @@ export class SettingsComponent implements OnInit {
 
   MangaFitMode = MangaFitMode;
   MangaScrollingMode = MangaScrollingMode;
+  pageTransitionOptions = PAGE_TRANSITION_OPTIONS;
+  pageTransitionLabels = PAGE_TRANSITION_LABELS_PT;
+  westernFonts = westernFontOptions();
+  japaneseFonts = japaneseFontOptions();
 
   activeTab = signal<SettingTab>('manga');
   showTouchConfig = signal(false);
@@ -836,10 +925,6 @@ export class SettingsComponent implements OnInit {
   accentColor = computed(() => this.themeService.accentColor());
   enableGlassmorphism = true;
   enable3DCovers = true;
-
-  ngOnInit(): void {
-    void this.shareMark.refreshStatus();
-  }
 
   async onShareMarkEnabled(event: Event): Promise<void> {
     const checked = (event.target as HTMLInputElement).checked;
@@ -876,7 +961,16 @@ export class SettingsComponent implements OnInit {
   }
 
   // EPUB / TTS Signals
-  ttsSpeed = signal<number>(1.0);
+  ttsSpeed = signal<number>(TTS_SPEED_DEFAULT);
+  ttsVoiceNormal = signal<TextSpeech>(textSpeechDefault(false));
+  ttsVoiceJapanese = signal<TextSpeech>(textSpeechDefault(true));
+  ttsSpeedLabel = computed(() => formatTtsSpeedLabel(this.ttsSpeed()));
+  readonly ttsVoicesNormal = activeTextSpeechVoices().filter(
+    v => v.language !== Languages.JAPANESE
+  );
+  readonly ttsVoicesJapanese = activeTextSpeechVoices().filter(
+    v => v.language === Languages.JAPANESE
+  );
   fontSize = signal<number>(18);
 
   // Modal State
@@ -889,6 +983,37 @@ export class SettingsComponent implements OnInit {
     path: '',
     type: 'manga'
   };
+
+  ngOnInit(): void {
+    void this.shareMark.refreshStatus();
+    void this.loadTtsSettings();
+  }
+
+  private async loadTtsSettings(): Promise<void> {
+    const normal = await this.electronService.getSetting(
+      TTS_VOICE_NORMAL_KEY,
+      textSpeechDefault(false)
+    );
+    const japanese = await this.electronService.getSetting(
+      TTS_VOICE_JAPANESE_KEY,
+      textSpeechDefault(true)
+    );
+    const speed = await this.electronService.getSetting(TTS_SPEED_KEY, TTS_SPEED_DEFAULT);
+    this.ttsVoiceNormal.set(parseTextSpeech(normal, textSpeechDefault(false)));
+    this.ttsVoiceJapanese.set(parseTextSpeech(japanese, textSpeechDefault(true)));
+    const n = Number(speed);
+    this.ttsSpeed.set(Number.isFinite(n) ? Math.max(-50, Math.min(50, Math.round(n / 5) * 5)) : 0);
+  }
+
+  async onTtsVoiceNormal(value: TextSpeech): Promise<void> {
+    this.ttsVoiceNormal.set(value);
+    await this.electronService.setSetting(TTS_VOICE_NORMAL_KEY, value);
+  }
+
+  async onTtsVoiceJapanese(value: TextSpeech): Promise<void> {
+    this.ttsVoiceJapanese.set(value);
+    await this.electronService.setSetting(TTS_VOICE_JAPANESE_KEY, value);
+  }
 
   // Browse Directory Actions
   async browseMangaBasePath(): Promise<void> {
@@ -960,9 +1085,11 @@ export class SettingsComponent implements OnInit {
   }
 
   // Range Slider Handlers
-  updateTtsSpeed(event: Event): void {
-    const val = parseFloat((event.target as HTMLInputElement).value);
-    this.ttsSpeed.set(val);
+  async updateTtsSpeed(event: Event): Promise<void> {
+    const val = parseInt((event.target as HTMLInputElement).value, 10);
+    const n = Number.isFinite(val) ? Math.max(-50, Math.min(50, Math.round(val / 5) * 5)) : 0;
+    this.ttsSpeed.set(n);
+    await this.electronService.setSetting(TTS_SPEED_KEY, n);
   }
 
   updateFontSize(event: Event): void {
