@@ -39,6 +39,7 @@ const path = __importStar(require("path"));
 const app_enums_1 = require("../../src/app/core/models/enums/app-enums");
 const parse_factory_1 = require("../parser/manga/parse-factory");
 const manga_image_cover_controller_1 = require("../controllers/manga-image-cover.controller");
+const telemetry_1 = require("../utils/telemetry");
 const MANGA_EXTENSIONS = new Set(['.cbz', '.cbr', '.cb7', '.cbt', '.zip', '.rar', '.7z', '.tar']);
 class ScannerMangaService {
     storageService;
@@ -128,6 +129,7 @@ class ScannerMangaService {
         }
         catch (err) {
             console.error('Error scanning folder:', err);
+            telemetry_1.Telemetry.recordException(err, 'Error scanning manga folder');
         }
         finally {
             this.isScanning = false;
@@ -304,6 +306,7 @@ class ScannerMangaService {
         }
         catch (e) {
             console.error('Failed to process single manga file:', filePath, e);
+            telemetry_1.Telemetry.recordException(e, `Failed to process single manga file: ${filePath}`);
             return null;
         }
     }

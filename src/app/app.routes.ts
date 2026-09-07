@@ -42,7 +42,8 @@ export const routes: Routes = [
       },
       {
         path: 'vocabulary',
-        loadComponent: () => import('./features/detail/vocabulary-stub.component').then(m => m.VocabularyStubComponent)
+        loadComponent: () =>
+          import('./features/vocabulary/vocabulary.component').then(m => m.VocabularyComponent)
       }
     ]
   },

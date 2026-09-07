@@ -138,8 +138,50 @@ class MangaRepository extends base_repository_1.BaseRepository {
         return row ? this.mapRowToManga(row) : undefined;
     }
     listByFolder(folder) {
-        const stmt = this.db.prepare(`SELECT * FROM Manga WHERE excluded = 0 AND folder = ? ORDER BY title`);
+        const stmt = this.db.prepare(`SELECT * FROM Manga WHERE excluded = 0 AND folder = ? ORDER BY path COLLATE NOCASE, name COLLATE NOCASE`);
         return stmt.all(folder).map(row => this.mapRowToManga(row));
+    }
+    listOrderByPath(libraryId) {
+        if (libraryId !== undefined && libraryId !== null) {
+            const stmt = this.db.prepare(`SELECT * FROM Manga WHERE id_library = ? AND excluded = 0 ORDER BY path COLLATE NOCASE, name COLLATE NOCASE`);
+            return stmt.all(libraryId).map(row => this.mapRowToManga(row));
+        }
+        const stmt = this.db.prepare(`SELECT * FROM Manga WHERE excluded = 0 ORDER BY path COLLATE NOCASE, name COLLATE NOCASE`);
+        return stmt.all().map(row => this.mapRowToManga(row));
+    }
+    /**
+     * Adjacent mangas: same folder by path first, then same library by path (book parity).
+     */
+    getAdjacentMangas(mangaId) {
+        const manga = this.getById(mangaId);
+        if (!manga)
+            return { prev: null, next: null };
+        const neighborsIn = (list) => {
+            const idx = list.findIndex(m => m.id === manga.id);
+            if (idx < 0)
+                return { prev: null, next: null };
+            return {
+                prev: idx > 0 ? list[idx - 1] : null,
+                next: idx < list.length - 1 ? list[idx + 1] : null
+            };
+        };
+        let prev = null;
+        let next = null;
+        if (manga.folder) {
+            const folderList = this.listByFolder(manga.folder);
+            const fromFolder = neighborsIn(folderList);
+            prev = fromFolder.prev;
+            next = fromFolder.next;
+        }
+        if (prev == null || next == null) {
+            const libraryList = this.listOrderByPath(manga.fkLibrary);
+            const fromLib = neighborsIn(libraryList);
+            if (prev == null)
+                prev = fromLib.prev;
+            if (next == null)
+                next = fromLib.next;
+        }
+        return { prev, next };
     }
     listOrderByTitle(libraryId) {
         if (libraryId !== undefined && libraryId !== null) {

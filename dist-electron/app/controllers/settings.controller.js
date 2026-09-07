@@ -4,6 +4,7 @@ exports.SettingsController = void 0;
 const electron_1 = require("electron");
 const settings_service_1 = require("../services/settings.service");
 const secrets_1 = require("../utils/secrets");
+const telemetry_1 = require("../utils/telemetry");
 const menu_controller_1 = require("./menu.controller");
 class SettingsController {
     static _instance;
@@ -40,6 +41,16 @@ class SettingsController {
                 default:
                     return null;
             }
+        });
+        electron_1.ipcMain.handle('telemetry:is-enabled', async () => telemetry_1.Telemetry.isEnabled);
+        electron_1.ipcMain.handle('telemetry:record', async (_event, payload) => {
+            const err = telemetry_1.Telemetry.fromSerialized(payload?.error || {});
+            telemetry_1.Telemetry.recordException(err, payload?.message);
+            return true;
+        });
+        electron_1.ipcMain.handle('telemetry:set-key', async (_event, key, value) => {
+            telemetry_1.Telemetry.setCustomKey(String(key || ''), String(value ?? ''));
+            return true;
         });
     }
 }

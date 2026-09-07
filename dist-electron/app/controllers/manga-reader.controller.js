@@ -60,11 +60,11 @@ class MangaReaderController {
                 return null;
             const now = new Date().toISOString();
             const pages = Math.max(1, manga.pages || 1);
-            const bookMark = Math.min(Math.max(0, page), pages - 1);
+            const bookMark = Math.min(Math.max(0, Math.floor(page)), pages);
             const id = this.storage.saveManga({
                 ...manga,
                 bookMark,
-                completed: bookMark >= pages - 1,
+                completed: bookMark >= pages,
                 lastAccess: now,
                 lastAlteration: now
             });
@@ -109,6 +109,20 @@ class MangaReaderController {
             if (!id)
                 return false;
             return this.storage.deleteMangaAnnotation(id);
+        });
+        electron_1.ipcMain.handle('subtitle:getForSession', async (_event, sessionId) => {
+            return this.sessionService.getSessionSubtitles(sessionId);
+        });
+        electron_1.ipcMain.handle('subtitle:importJson', async (_event, sessionId) => {
+            const win = getWindow();
+            const result = await electron_1.dialog.showOpenDialog(win ?? undefined, {
+                title: 'Importar legenda JSON',
+                properties: ['openFile'],
+                filters: [{ name: 'JSON', extensions: ['json'] }]
+            });
+            if (result.canceled || !result.filePaths[0])
+                return null;
+            return this.sessionService.importExternalSubtitles(sessionId, result.filePaths[0]);
         });
     }
 }

@@ -43,6 +43,19 @@ class HistoryRepository extends base_repository_1.BaseRepository {
         const result = stmt.run(input.fkLibrary ?? 0, input.fkReference, input.type, input.pageStart ?? 0, input.pageStart ?? 0, input.pages ?? 1, input.volume ?? '', now, now);
         return Number(result.lastInsertRowid);
     }
+    /** Manual bookmark edit from library/detail popup (Android PopupBookMark parity). */
+    saveBookmarkEdit(input) {
+        const when = input.dateTime || new Date().toISOString();
+        const stmt = this.db.prepare(`
+      INSERT INTO History (
+        id_library, id_reference, type, page_start, page_end, pages, completed,
+        volume, chapters_read, date_time_start, date_time_end, seconds_read,
+        average_time_page, use_tts, notified
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, 0, 0, 0, 0)
+    `);
+        const result = stmt.run(input.fkLibrary ?? 0, input.fkReference, input.type, input.pageStart ?? 0, input.pageEnd ?? 0, input.pages ?? 1, input.completed ? 1 : 0, input.volume ?? '', when, when);
+        return Number(result.lastInsertRowid);
+    }
     updateSession(update) {
         const existing = this.find(update.id);
         if (!existing)
@@ -59,10 +72,11 @@ class HistoryRepository extends base_repository_1.BaseRepository {
         const stmt = this.db.prepare(`
       UPDATE History SET
         page_end = ?, pages = ?, completed = ?,
-        date_time_end = ?, seconds_read = ?, average_time_page = ?
+        date_time_end = ?, seconds_read = ?, average_time_page = ?,
+        use_tts = CASE WHEN ? = 1 THEN 1 ELSE use_tts END
       WHERE id = ?
     `);
-        stmt.run(pageEnd, pages, completed, now, secondsRead, averageTimePage, update.id);
+        stmt.run(pageEnd, pages, completed, now, secondsRead, averageTimePage, update.useTTS ? 1 : 0, update.id);
     }
     findOpenSession(type, fkReference) {
         const stmt = this.db.prepare(`

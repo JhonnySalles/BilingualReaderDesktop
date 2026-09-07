@@ -29,6 +29,9 @@ class StatisticsController {
         electron_1.ipcMain.handle('statistics:heatmap', async (_event, _weeks) => {
             return this.storage.getReadingActivityHeatmap();
         });
+        electron_1.ipcMain.handle('history:saveBookmarkEdit', async (_event, input) => {
+            return this.storage.saveHistoryBookmarkEdit(input);
+        });
         electron_1.ipcMain.handle('history:start', async (_event, input) => {
             const sessionId = this.storage.startHistorySession(input);
             const now = new Date().toISOString();
@@ -59,16 +62,18 @@ class StatisticsController {
             return true;
         });
         electron_1.ipcMain.handle('history:end', async (_event, payload) => {
-            this.storage.endHistorySession(payload.id, payload.pageEnd, payload.pages);
+            this.storage.endHistorySession(payload.id, payload.pageEnd, payload.pages, payload.useTTS);
             if (payload.type && payload.fkReference != null) {
                 const now = new Date().toISOString();
                 if (payload.type === 'MANGA') {
                     const manga = this.storage.findMangaById(payload.fkReference);
                     if (manga) {
+                        const pages = Math.max(1, payload.pages ?? manga.pages ?? 1);
+                        const bookMark = Math.min(Math.max(0, Math.floor(payload.pageEnd)), pages);
                         this.storage.saveManga({
                             ...manga,
-                            bookMark: payload.pageEnd,
-                            completed: payload.pages != null ? payload.pageEnd >= payload.pages : manga.completed,
+                            bookMark,
+                            completed: bookMark >= pages,
                             lastAccess: now,
                             lastAlteration: now
                         });
@@ -77,10 +82,12 @@ class StatisticsController {
                 else {
                     const book = this.storage.findBookById(payload.fkReference);
                     if (book) {
+                        const pages = Math.max(1, payload.pages ?? book.pages ?? 1);
+                        const bookMark = Math.min(Math.max(0, Math.floor(payload.pageEnd)), pages);
                         this.storage.saveBook({
                             ...book,
-                            bookMark: payload.pageEnd,
-                            completed: payload.pages != null ? payload.pageEnd >= payload.pages : book.completed,
+                            bookMark,
+                            completed: bookMark >= pages,
                             lastAccess: now,
                             lastAlteration: now
                         });

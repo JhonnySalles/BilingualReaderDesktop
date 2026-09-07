@@ -39,6 +39,7 @@ const path = __importStar(require("path"));
 const app_enums_1 = require("../../src/app/core/models/enums/app-enums");
 const book_extractor_factory_1 = require("../parser/book/book-extractor.factory");
 const book_image_cover_controller_1 = require("../controllers/book-image-cover.controller");
+const telemetry_1 = require("../utils/telemetry");
 const BOOK_EXTENSIONS = new Set([
     '.epub', '.kepub', '.epub3', '.pdf', '.xps', '.mobi', '.azw', '.azw3', '.azw4',
     '.pdb', '.prc', '.djvu', '.fb2', '.txt', '.playlist', '.log', '.tcr', '.rtf',
@@ -108,6 +109,7 @@ class ScannerBookService {
         }
         catch (err) {
             console.error('Error scanning book folder:', err);
+            telemetry_1.Telemetry.recordException(err, 'Error scanning book folder');
         }
         finally {
             this.isScanning = false;
@@ -230,6 +232,7 @@ class ScannerBookService {
         }
         catch (e) {
             console.error('Failed to process single book file:', filePath, e);
+            telemetry_1.Telemetry.recordException(e, `Failed to process single book file: ${filePath}`);
             return null;
         }
     }
