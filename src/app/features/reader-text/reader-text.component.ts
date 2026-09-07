@@ -28,21 +28,51 @@ import {
   BookAnnotationColor,
   BOOK_ANNOTATION_COLOR_HEX,
   BookConfiguration,
+  BookLayout,
   BookMarginSize,
   BookScrollingMode,
   BookSearchHistory,
   BookSearchListItem,
-  BookSpacingSize
+  BookSpacingSize,
+  Languages,
+  PAGE_TRANSITION_LABELS_PT,
+  PAGE_TRANSITION_OPTIONS,
+  PageTransitionType,
+  isPageTransitionType,
+  prefersReducedMotion
 } from '../../core/models';
+import type { TurnAxis, TurnDir } from '../../core/models/enums/page-transition.enums';
 import { reconcileAnnotationPageAndCfi } from '../../core/utils/share-annotation-reconcile';
+import { fromReaderIndex, toReaderIndex } from '../../core/utils/reading-progress.util';
 import { ReaderTouchOverlayComponent } from '../reader-shared/reader-touch-overlay.component';
 import { ReaderTouchConfigComponent } from '../reader-shared/reader-touch-config.component';
 import { handleReaderTouchTap, TouchActionHandlers } from '../reader-shared/touch-action.util';
+import {
+  playCssCurlTurn,
+  playPageTurn
+} from '../reader-shared/page-transition/page-transition.player';
 import { AnnotationPopupComponent } from '../annotations/components/annotation-popup.component';
 import { AnnotationListOverlayComponent } from './annotation-list-overlay.component';
 import { TextSelectPopupComponent } from './text-select-popup.component';
+import { BookTtsBarComponent } from './book-tts-bar.component';
+import { BookTtsPopupComponent } from './book-tts-popup.component';
+import {
+  splitTtsSentences,
+  findSentenceIndexContaining,
+  extractContentsText,
+  cfiForSentence,
+  TtsSentence
+} from './book-tts.util';
+import {
+  AudioStatus,
+  TextSpeech,
+  textSpeechDefault,
+  parseTextSpeech,
+  textSpeechAzureName
+} from '../../core/models/enums/tts-enums';
 import { AnnotationItem } from '../../core/models';
-import { BOOK_FONT_OPTIONS, BookFontOption } from './book-fonts';
+import { BookFontOption, babelStoneFontFaceCss, japaneseFontOptions, westernFontOptions } from './book-fonts';
+import { JapaneseTextUtil } from '../../core/services/japanese/japanese-text.util';
 import { runBookSearch } from './book-search.util';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 
@@ -106,7 +136,9 @@ const TAP_DEDUPE_MS = 350;
     ReaderTouchConfigComponent,
     AnnotationPopupComponent,
     AnnotationListOverlayComponent,
-    TextSelectPopupComponent
+    TextSelectPopupComponent,
+    BookTtsBarComponent,
+    BookTtsPopupComponent
   ],
   host: { class: 'block h-screen w-screen' },
   styles: [`
@@ -483,11 +515,13 @@ const TAP_DEDUPE_MS = 350;
             </svg>
           </button>
 
-          <button type="button" disabled title="TTS (em breve)"
-            class="p-2.5 rounded-xl text-slate-600 cursor-not-allowed opacity-50">
+          <button type="button" (click)="toggleTts()"
+            class="p-2.5 rounded-xl text-slate-200 hover:bg-slate-800 cursor-pointer"
+            [class.text-indigo-300]="ttsActive()"
+            title="Leitura em áudio (TTS)">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M15.536 8.464a5 5 0 010 7.072M17.657 6.343a8 8 0 010 11.314M11 5l-5 4H3v6h3l5 4V5z"/>
+                d="M15.536 8.464a5 5 0 010 7.072m2.121-9.193a8 8 0 010 11.314M11 5L6 9H3v6h3l5 4V5z"/>
             </svg>
           </button>
 
@@ -551,7 +585,7 @@ const TAP_DEDUPE_MS = 350;
 
           <label class="block text-[11px] text-slate-400 mb-2">Fonte</label>
           <div class="flex gap-2 overflow-x-auto pb-2 mb-4 -mx-1 px-1 snap-x">
-            @for (font of bookFonts; track font.id) {
+            @for (font of typographyFonts(); track font.id) {
               <button type="button" (click)="setFontFamily(font.css)"
                 class="snap-start shrink-0 w-[4.5rem] flex flex-col items-center gap-1 rounded-xl border px-1.5 py-2 cursor-pointer transition-colors hover:border-slate-500"
                 [class.border-indigo-400]="fontFamily() === font.css"
@@ -698,6 +732,23 @@ const TAP_DEDUPE_MS = 350;
             <option [ngValue]="BookScrollingMode.PaginationRtl">Horizontal (Direita para esquerda)</option>
             <option [ngValue]="BookScrollingMode.PaginationVertical">Vertical</option>
             <option [ngValue]="BookScrollingMode.Continuous">Tira contínua</option>
+          </select>
+
+          <label class="block text-[11px] text-slate-400 mb-1">Layout de página</label>
+          <select class="w-full mb-2 bg-slate-950 border border-slate-700 rounded-lg px-2 py-2 text-xs text-slate-200"
+            [ngModel]="bookLayout()" (ngModelChange)="setBookLayout($event)"
+            [disabled]="isContinuousScrollMode()">
+            <option [ngValue]="BookLayout.SINGLE_PAGE">Página única</option>
+            <option [ngValue]="BookLayout.DOUBLE_PAGE">Página dupla</option>
+          </select>
+
+          <label class="block text-[11px] text-slate-400 mb-1">Animação de transição de página</label>
+          <select class="w-full mb-2 bg-slate-950 border border-slate-700 rounded-lg px-2 py-2 text-xs text-slate-200"
+            [ngModel]="pageTransition()" (ngModelChange)="setPageTransition($event)"
+            [disabled]="isContinuousScrollMode()">
+            @for (opt of pageTransitionOptions; track opt) {
+              <option [ngValue]="opt">{{ pageTransitionLabels[opt] }}</option>
+            }
           </select>
         </aside>
       }
@@ -866,7 +917,29 @@ const TAP_DEDUPE_MS = 350;
         (erase)="onTextSelectErase()"
         (copy)="onTextSelectCopy()"
         (selectAll)="onTextSelectAll()"
+        (tts)="onTextSelectTts()"
         (dismiss)="dismissTextSelect()" />
+
+      <app-book-tts-bar
+        [visible]="ttsActive()"
+        [status]="ttsStatus()"
+        [canPrev]="ttsCanPrev()"
+        [canNext]="ttsCanNext()"
+        [error]="ttsError()"
+        (config)="showTtsPopup.set(true)"
+        (previous)="ttsPrevious()"
+        (next)="ttsNext()"
+        (togglePlay)="ttsTogglePlay()"
+        (stop)="stopTts()"
+        (close)="stopTts()" />
+
+      <app-book-tts-popup
+        [open]="showTtsPopup()"
+        [voice]="ttsVoice()"
+        [speed]="ttsSpeed()"
+        [japaneseBook]="isJapaneseBook()"
+        (dismiss)="showTtsPopup.set(false)"
+        (apply)="onTtsConfigApply($event)" />
 
       @if (editingAnnotation(); as draft) {
         <app-annotation-popup
@@ -893,7 +966,6 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
 
   BookScrollingMode = BookScrollingMode;
   Math = Math;
-  bookFonts: BookFontOption[] = BOOK_FONT_OPTIONS;
   readonly pageBg = PAGE_BG;
 
   bookId = Number(this.route.snapshot.paramMap.get('id'));
@@ -941,7 +1013,21 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
   textSelectPos = signal<TextSelectPos>({ left: 0, top: 0 });
   pendingSelection = signal<BookAnnotation | null>(null);
 
+  ttsActive = signal(false);
+  ttsStatus = signal<AudioStatus>(AudioStatus.STOP);
+  ttsError = signal<string | null>(null);
+  ttsVoice = signal<TextSpeech>(textSpeechDefault(false));
+  ttsSpeed = signal(0);
+  showTtsPopup = signal(false);
+  ttsCanPrev = computed(() => this.ttsActive() && (this.ttsLineIndex > 0 || this.currentPage() > 0));
+  ttsCanNext = computed(() => this.ttsActive());
+
   scrollingMode = signal<BookScrollingMode>(this.settings.bookScrollingMode());
+  bookLayout = signal<BookLayout>(BookLayout.SINGLE_PAGE);
+  pageTransition = signal<PageTransitionType>(this.settings.bookPageTransition());
+  pageTransitionOptions = PAGE_TRANSITION_OPTIONS;
+  pageTransitionLabels = PAGE_TRANSITION_LABELS_PT;
+  BookLayout = BookLayout;
   fontSize = signal<number>(this.settings.bookFontSize());
   fontFamily = signal<string>(this.settings.bookFontFamily());
   align = signal<BookAlign>(this.settings.bookAlign());
@@ -950,12 +1036,22 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private readerSessionId: string | null = null;
   private historySessionId: number | null = null;
+  private historyUsedTts = false;
   private updateTimer: ReturnType<typeof setTimeout> | null = null;
   private configTimer: ReturnType<typeof setTimeout> | null = null;
+  private resizeTimer: ReturnType<typeof setTimeout> | null = null;
+  private typographyTimer: ReturnType<typeof setTimeout> | null = null;
+  private resizeObserver: ResizeObserver | null = null;
+  private turningPage = false;
   private ended = false;
   private bookMeta: Book | null = null;
   private epubBook: EpubBook | null = null;
   private rendition: Rendition | null = null;
+  private ttsLines: TtsSentence[] = [];
+  private ttsLineIndex = 0;
+  private ttsAudio: HTMLAudioElement | null = null;
+  private ttsHighlightCfi: string | null = null;
+  private ttsPlayToken = 0;
   /** Second rendition for adjacent-page peek during overscroll (same EpubBook). */
   private peekRendition: Rendition | null = null;
   /** 1 = next page, -1 = previous page, 0 = none. */
@@ -1084,6 +1180,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngAfterViewInit(): void {
     this.viewReady = true;
+    this.setupViewerResizeObserver();
     if (this.pendingOpen) {
       const pending = this.pendingOpen;
       this.pendingOpen = null;
@@ -1094,6 +1191,9 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
   ngOnDestroy(): void {
     document.removeEventListener('fullscreenchange', this.onFsChange);
     window.removeEventListener('wheel', this.onWindowWheel);
+    this.teardownViewerResizeObserver();
+    if (this.resizeTimer) clearTimeout(this.resizeTimer);
+    if (this.typographyTimer) clearTimeout(this.typographyTimer);
     if (this.clickTimer) clearTimeout(this.clickTimer);
     if (this.stubToastTimer) clearTimeout(this.stubToastTimer);
     void this.cleanup();
@@ -1143,7 +1243,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
         this.goPrev();
       } else if (continuous) {
         ev.preventDefault();
-        this.scrollContinuousBy(-1);
+        this.goPrev();
       }
     } else if (key === 'ArrowDown') {
       if (paginated) {
@@ -1151,21 +1251,21 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
         this.goNext();
       } else if (continuous) {
         ev.preventDefault();
-        this.scrollContinuousBy(1);
+        this.goNext();
       }
     } else if (key === 'PageUp') {
       ev.preventDefault();
       if (paginated) {
         this.isRtl() && this.isHorizontalMode() ? this.goNext() : this.goPrev();
       } else {
-        this.scrollContinuousBy(-1);
+        this.goPrev();
       }
     } else if (key === 'PageDown' || key === ' ') {
       ev.preventDefault();
       if (paginated) {
         this.isRtl() && this.isHorizontalMode() ? this.goPrev() : this.goNext();
       } else {
-        this.scrollContinuousBy(1);
+        this.goNext();
       }
     } else if (key === 'Home') {
       ev.preventDefault();
@@ -1324,6 +1424,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /** Ask to open previous/next book in the library (Android confirmSwitch). */
   requestAdjacentFile(direction: 'prev' | 'next'): void {
+    if (this.switchConfirm()) return;
     const book = direction === 'prev' ? this.adjacentPrev() : this.adjacentNext();
     if (!book?.id) {
       this.showStub(direction === 'prev' ? 'Não há arquivo anterior' : 'Não há próximo arquivo');
@@ -1681,17 +1782,19 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
     if (this.tryScrollContents(-1)) return;
-    this.prevPage();
+    void this.turnWithEffect(-1);
   }
 
   /** Navigate next with continuous scroll or internal page scroll first. */
   goNext(): void {
     if (this.isContinuousScrollMode()) {
-      this.scrollContinuousBy(1);
+      if (!this.scrollContinuousBy(1) && this.isAtBookEnd()) {
+        this.requestAdjacentFile('next');
+      }
       return;
     }
     if (this.tryScrollContents(1)) return;
-    this.nextPage();
+    void this.turnWithEffect(1);
   }
 
   prevPage(): void {
@@ -1701,7 +1804,18 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
 
   nextPage(): void {
     if (!this.rendition) return;
+    if (this.isAtBookEnd()) {
+      this.requestAdjacentFile('next');
+      return;
+    }
     void this.rendition.next();
+  }
+
+  /** True when EPUB location reports end or current page is the last location. */
+  private isAtBookEnd(): boolean {
+    if (this.rendition?.location?.atEnd) return true;
+    const max = Math.max(0, this.pageCount() - 1);
+    return this.currentPage() >= max;
   }
 
   zoomIn(): void {
@@ -1873,11 +1987,25 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     await this.rebuildRendition(cfi || page);
   }
 
+  setBookLayout(layout: BookLayout): void {
+    this.bookLayout.set(layout);
+    this.scheduleConfigSave();
+    const cfi = this.currentCfi();
+    const page = this.currentPage();
+    void this.rebuildRendition(cfi || page);
+  }
+
+  setPageTransition(effect: PageTransitionType): void {
+    this.pageTransition.set(effect);
+    this.settings.bookPageTransition.set(effect);
+    this.scheduleConfigSave();
+  }
+
   setFontSize(size: number): void {
     const next = Math.min(32, Math.max(12, Number(size) || 18));
     this.fontSize.set(next);
     this.settings.bookFontSize.set(next);
-    this.applyTypography();
+    this.scheduleTypographyReflow();
     this.scheduleConfigSave();
   }
 
@@ -1888,33 +2016,38 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
   private setZoom(value: number): void {
     const next = Math.round(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, value)) * 100) / 100;
     this.zoom.set(next);
+    this.scheduleRenditionResize();
   }
 
   setFontFamily(family: string): void {
     this.fontFamily.set(family);
-    this.settings.bookFontFamily.set(family);
-    this.applyTypography();
+    if (this.isJapaneseBook()) {
+      this.settings.bookFontFamilyJapanese.set(family);
+    } else {
+      this.settings.bookFontFamily.set(family);
+    }
+    this.scheduleTypographyReflow();
     this.scheduleConfigSave();
   }
 
   setAlign(align: BookAlign): void {
     this.align.set(align);
     this.settings.bookAlign.set(align);
-    this.applyTypography();
+    this.scheduleTypographyReflow();
     this.scheduleConfigSave();
   }
 
   setMargin(margin: BookMarginSize): void {
     this.margin.set(margin);
     this.settings.bookMargin.set(margin);
-    this.applyTypography();
+    this.scheduleTypographyReflow();
     this.scheduleConfigSave();
   }
 
   setSpacing(spacing: BookSpacingSize): void {
     this.spacing.set(spacing);
     this.settings.bookSpacing.set(spacing);
-    this.applyTypography();
+    this.scheduleTypographyReflow();
     this.scheduleConfigSave();
   }
 
@@ -1925,7 +2058,13 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private onFsChange = (): void => {
     this.isFullscreen.set(!!document.fullscreenElement);
+    this.scheduleRenditionResize();
   };
+
+  @HostListener('window:resize')
+  onWindowResize(): void {
+    this.scheduleRenditionResize();
+  }
 
   private onWindowWheel = (ev: WheelEvent): void => {
     this.handleWheel(ev);
@@ -2123,6 +2262,12 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       this.author.set(opened.author || '');
       this.favorite.set(opened.favorite);
       this.applyConfiguration(opened.configuration);
+      if (this.isJapaneseBook()) {
+        if (!opened.configuration?.fontType) {
+          this.fontFamily.set(this.settings.bookFontFamilyJapanese());
+        }
+        void this.electron.japaneseInit();
+      }
 
       try {
         this.annotations.set(await this.electron.listBookAnnotations(this.bookId));
@@ -2157,6 +2302,10 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     if (config.scrolling && Object.values(BookScrollingMode).includes(config.scrolling as BookScrollingMode)) {
       this.scrollingMode.set(config.scrolling as BookScrollingMode);
     }
+    if (isPageTransitionType(config.pagination)) {
+      this.pageTransition.set(config.pagination);
+      this.settings.bookPageTransition.set(config.pagination);
+    }
   }
 
   private async mountEpub(epubUrl: string, bookMark: number, bookMarkCfi: string): Promise<void> {
@@ -2164,7 +2313,6 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     const jumpCfi = qp.get('cfi') || '';
     const jumpPageRaw = qp.get('page');
     const jumpPage = jumpPageRaw != null ? Number(jumpPageRaw) : NaN;
-    const startMark = !Number.isNaN(jumpPage) && jumpPage >= 0 ? jumpPage : bookMark;
     const startCfi = jumpCfi || bookMarkCfi;
     this.loadingMessage.set('Carregando páginas…');
     const el = this.viewerRef?.nativeElement;
@@ -2190,6 +2338,12 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     this.createRendition(el);
     await this.hydrateAnnotationCfis();
     this.applyAnnotations();
+
+    // Query `page` is a 0-based reader index; stored bookMark is 1-based.
+    const startMark =
+      !Number.isNaN(jumpPage) && jumpPage >= 0
+        ? Math.min(Math.floor(jumpPage), locationCount - 1)
+        : toReaderIndex(bookMark, locationCount);
 
     let resolvedCfi = startCfi || undefined;
     if (!resolvedCfi && startMark > 0) {
@@ -2234,14 +2388,14 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       fkLibrary: this.bookMeta?.fkLibrary ?? 0,
       fkReference: this.bookId,
       type: 'BOOK',
-      pageStart: this.currentPage(),
+      pageStart: fromReaderIndex(this.currentPage(), locationCount),
       pages: locationCount,
       volume: this.bookMeta?.volume || ''
     });
 
     void this.electron.setBookBookmark({
       id: this.bookId,
-      bookMark: this.currentPage(),
+      bookMark: fromReaderIndex(this.currentPage(), locationCount),
       bookMarkCfi: this.currentCfi() || undefined,
       pages: locationCount
     });
@@ -2260,25 +2414,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private createRendition(el: HTMLElement): void {
     if (!this.epubBook) return;
-    const mode = this.scrollingMode();
-    // Only Tira uses continuous manager; Vertical is paginated (ViewPager2 parity)
-    const continuous = mode === BookScrollingMode.Continuous;
-
-    const rendition = this.epubBook.renderTo(el, continuous
-      ? {
-          width: '100%',
-          height: '100%',
-          manager: 'continuous',
-          flow: 'scrolled',
-          allowScriptedContent: false
-        }
-      : {
-          width: '100%',
-          height: '100%',
-          flow: 'paginated',
-          allowScriptedContent: false,
-          defaultDirection: mode === BookScrollingMode.PaginationRtl ? 'rtl' : 'ltr'
-        });
+    const rendition = this.epubBook.renderTo(el, this.buildRenditionOptions() as any);
     this.rendition = rendition;
     this.applyTypography();
 
@@ -2292,6 +2428,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     rendition.hooks.content.register((contents: any) => {
       this.bindContentsInput(contents);
       this.attachContentPan(contents);
+      void this.enhanceJapaneseContents(contents);
     });
 
     rendition.on('relocated', (location: any) => {
@@ -2321,6 +2458,36 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
         }
       }
     });
+
+    // Match column math to zoomed CSS box
+    queueMicrotask(() => this.scheduleRenditionResize());
+  }
+
+  private buildRenditionOptions(): Record<string, unknown> {
+    const mode = this.scrollingMode();
+    const continuous = mode === BookScrollingMode.Continuous;
+    if (continuous) {
+      return {
+        width: '100%',
+        height: '100%',
+        manager: 'continuous',
+        flow: 'scrolled',
+        allowScriptedContent: false
+      };
+    }
+    const opts: Record<string, unknown> = {
+      width: '100%',
+      height: '100%',
+      flow: 'paginated',
+      allowScriptedContent: false,
+      defaultDirection: mode === BookScrollingMode.PaginationRtl ? 'rtl' : 'ltr',
+      // Explicit spread — epub.js otherwise auto-enables two columns above minSpreadWidth
+      spread: this.bookLayout() === BookLayout.DOUBLE_PAGE ? 'auto' : 'none'
+    };
+    if (mode === BookScrollingMode.PaginationVertical) {
+      opts['axis'] = 'vertical';
+    }
+    return opts;
   }
 
   /** Resolve location index from CFI with percentage fallback. */
@@ -2662,6 +2829,280 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       this.textSelectVisible.set(true);
     } catch (e) {
       console.warn('[reader-text] select all failed', e);
+    }
+  }
+
+  onTextSelectTts(): void {
+    const text = (this.pendingSelection()?.text || '').trim();
+    this.dismissTextSelect();
+    void this.startTtsFromSelection(text);
+  }
+
+  isJapaneseBook(): boolean {
+    const lang = (this.bookMeta?.language || '').toLowerCase();
+    return lang.startsWith('ja') || lang.includes('japan') || lang === Languages.JAPANESE;
+  }
+
+  typographyFonts(): BookFontOption[] {
+    return this.isJapaneseBook()
+      ? [...japaneseFontOptions(), ...westernFontOptions()]
+      : westernFontOptions();
+  }
+
+  furiganaEnabled(): boolean {
+    return (
+      this.isJapaneseBook() &&
+      this.settings.bookProcessJapaneseText() &&
+      this.settings.bookGenerateFurigana()
+    );
+  }
+
+  async toggleTts(): Promise<void> {
+    if (this.ttsActive()) {
+      this.stopTts();
+      return;
+    }
+    await this.startTts(0);
+  }
+
+  async onTtsConfigApply(cfg: { voice: TextSpeech; speed: number }): Promise<void> {
+    this.ttsVoice.set(cfg.voice);
+    this.ttsSpeed.set(cfg.speed);
+    this.showTtsPopup.set(false);
+    const key = this.isJapaneseBook()
+      ? 'BOOK_READER_TTS_VOICE_JAPANESE'
+      : 'BOOK_READER_TTS_VOICE_NORMAL';
+    await this.electron.setSetting(key, cfg.voice);
+    await this.electron.setSetting('BOOK_READER_TTS_SPEED', cfg.speed);
+    if (this.ttsActive() && this.ttsStatus() !== AudioStatus.PAUSE) {
+      void this.playCurrentTtsLine();
+    }
+  }
+
+  ttsTogglePlay(): void {
+    if (!this.ttsActive()) {
+      void this.startTts(0);
+      return;
+    }
+    if (this.ttsStatus() === AudioStatus.PLAY && this.ttsAudio) {
+      this.ttsAudio.pause();
+      this.ttsStatus.set(AudioStatus.PAUSE);
+      return;
+    }
+    if (this.ttsStatus() === AudioStatus.PAUSE && this.ttsAudio) {
+      void this.ttsAudio.play();
+      this.ttsStatus.set(AudioStatus.PLAY);
+      return;
+    }
+    void this.playCurrentTtsLine();
+  }
+
+  ttsPrevious(): void {
+    if (!this.ttsActive()) return;
+    if (this.ttsLineIndex > 0) {
+      this.ttsLineIndex -= 1;
+      void this.playCurrentTtsLine();
+      return;
+    }
+    if (this.currentPage() <= 0) return;
+    this.prevPage();
+    void this.afterPageChangeForTts('end');
+  }
+
+  ttsNext(): void {
+    if (!this.ttsActive()) return;
+    void this.advanceTtsLine();
+  }
+
+  stopTts(): void {
+    this.ttsPlayToken += 1;
+    this.clearTtsAudio();
+    this.clearTtsHighlight();
+    this.ttsActive.set(false);
+    this.ttsStatus.set(AudioStatus.STOP);
+    this.ttsError.set(null);
+    this.ttsLines = [];
+    this.ttsLineIndex = 0;
+    this.showTtsPopup.set(false);
+  }
+
+  private async startTtsFromSelection(selectedText: string): Promise<void> {
+    await this.loadTtsPrefs();
+    this.reloadTtsLines();
+    const idx = findSentenceIndexContaining(this.ttsLines, selectedText);
+    await this.startTts(idx);
+  }
+
+  private async startTts(startIndex: number): Promise<void> {
+    await this.loadTtsPrefs();
+    this.reloadTtsLines();
+    if (this.ttsLines.length === 0) {
+      this.ttsError.set('Nenhum texto legível nesta página');
+      this.ttsActive.set(true);
+      this.ttsStatus.set(AudioStatus.ERROR);
+      return;
+    }
+    this.historyUsedTts = true;
+    if (this.historySessionId != null) {
+      void this.electron.updateHistorySession({
+        id: this.historySessionId,
+        pageEnd: this.storedBookMark(),
+        pages: this.pageCount(),
+        useTTS: true
+      });
+    }
+    this.ttsActive.set(true);
+    this.ttsError.set(null);
+    this.ttsLineIndex = Math.max(0, Math.min(startIndex, this.ttsLines.length - 1));
+    this.chromeVisible.set(true);
+    await this.playCurrentTtsLine();
+  }
+
+  private async loadTtsPrefs(): Promise<void> {
+    const isJp = this.isJapaneseBook();
+    const voiceKey = isJp ? 'BOOK_READER_TTS_VOICE_JAPANESE' : 'BOOK_READER_TTS_VOICE_NORMAL';
+    const voiceRaw = await this.electron.getSetting(voiceKey, textSpeechDefault(isJp));
+    const speedRaw = await this.electron.getSetting('BOOK_READER_TTS_SPEED', 0);
+    this.ttsVoice.set(parseTextSpeech(voiceRaw, textSpeechDefault(isJp)));
+    const n = Number(speedRaw);
+    this.ttsSpeed.set(Number.isFinite(n) ? Math.max(-50, Math.min(50, Math.round(n / 5) * 5)) : 0);
+  }
+
+  private reloadTtsLines(): void {
+    const text = extractContentsText(this.activeContents());
+    this.ttsLines = splitTtsSentences(text);
+  }
+
+  private async playCurrentTtsLine(): Promise<void> {
+    if (!this.ttsActive()) return;
+    const token = ++this.ttsPlayToken;
+    const line = this.ttsLines[this.ttsLineIndex];
+    if (!line?.text) {
+      await this.advanceTtsLine();
+      return;
+    }
+
+    this.ttsStatus.set(AudioStatus.PREPARE);
+    this.ttsError.set(null);
+    this.applyTtsHighlight(line.text);
+    this.prefetchUpcoming();
+
+    try {
+      const result = await this.electron.ttsSynthesize({
+        text: line.text,
+        voice: textSpeechAzureName(this.ttsVoice()),
+        rate: this.ttsSpeed()
+      });
+      if (token !== this.ttsPlayToken) return;
+      if (!result?.audioUrl) {
+        throw new Error('Áudio TTS indisponível');
+      }
+      this.clearTtsAudio();
+      const audio = new Audio(result.audioUrl);
+      this.ttsAudio = audio;
+      audio.onended = () => {
+        if (token !== this.ttsPlayToken) return;
+        void this.advanceTtsLine();
+      };
+      audio.onerror = () => {
+        if (token !== this.ttsPlayToken) return;
+        this.ttsStatus.set(AudioStatus.ERROR);
+        this.ttsError.set('Falha ao reproduzir áudio');
+      };
+      await audio.play();
+      if (token !== this.ttsPlayToken) return;
+      this.ttsStatus.set(AudioStatus.PLAY);
+    } catch (e: any) {
+      if (token !== this.ttsPlayToken) return;
+      console.warn('[reader-text] TTS failed', e);
+      this.ttsStatus.set(AudioStatus.ERROR);
+      this.ttsError.set(e?.message || 'Falha ao sintetizar TTS (verifique a rede)');
+    }
+  }
+
+  private prefetchUpcoming(): void {
+    const voice = textSpeechAzureName(this.ttsVoice());
+    const rate = this.ttsSpeed();
+    const items = this.ttsLines
+      .slice(this.ttsLineIndex + 1, this.ttsLineIndex + 4)
+      .map(s => ({ text: s.text, voice, rate }));
+    if (items.length) {
+      void this.electron.ttsPrefetch(items);
+    }
+  }
+
+  private async advanceTtsLine(): Promise<void> {
+    if (!this.ttsActive()) return;
+    if (this.ttsLineIndex < this.ttsLines.length - 1) {
+      this.ttsLineIndex += 1;
+      await this.playCurrentTtsLine();
+      return;
+    }
+
+    const before = this.currentPage();
+    if (before >= Math.max(0, this.pageCount() - 1)) {
+      this.ttsStatus.set(AudioStatus.ENDING);
+      this.stopTts();
+      return;
+    }
+
+    this.nextPage();
+    await this.afterPageChangeForTts('start');
+  }
+
+  private async afterPageChangeForTts(position: 'start' | 'end'): Promise<void> {
+    await new Promise(r => setTimeout(r, 180));
+    this.reloadTtsLines();
+    if (this.ttsLines.length === 0) {
+      this.ttsError.set('Sem texto nesta página');
+      this.ttsStatus.set(AudioStatus.ERROR);
+      return;
+    }
+    this.ttsLineIndex = position === 'end' ? Math.max(0, this.ttsLines.length - 1) : 0;
+    await this.playCurrentTtsLine();
+  }
+
+  private applyTtsHighlight(text: string): void {
+    this.clearTtsHighlight();
+    const contents = this.activeContents();
+    const cfi = cfiForSentence(contents, text);
+    if (!cfi || !this.rendition) return;
+    try {
+      this.rendition.annotations.highlight(
+        cfi,
+        {},
+        undefined,
+        'br-tts-hit',
+        {
+          fill: '#818cf8',
+          'fill-opacity': '0.4',
+          'mix-blend-mode': 'multiply'
+        }
+      );
+      this.ttsHighlightCfi = cfi;
+    } catch (e) {
+      console.warn('[reader-text] TTS highlight failed', e);
+    }
+  }
+
+  private clearTtsHighlight(): void {
+    if (this.ttsHighlightCfi && this.rendition) {
+      try {
+        this.rendition.annotations.remove(this.ttsHighlightCfi, 'highlight');
+      } catch {}
+    }
+    this.ttsHighlightCfi = null;
+  }
+
+  private clearTtsAudio(): void {
+    if (this.ttsAudio) {
+      try {
+        this.ttsAudio.onended = null;
+        this.ttsAudio.onerror = null;
+        this.ttsAudio.pause();
+        this.ttsAudio.src = '';
+      } catch {}
+      this.ttsAudio = null;
     }
   }
 
@@ -3091,16 +3532,13 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     this.peekStale = false;
     const token = ++this.peekLoadToken;
 
-    const mode = this.scrollingMode();
     try {
       // Do NOT use book.renderTo — it overwrites book.rendition and breaks the main viewer
-      const peek = new Rendition(this.epubBook, {
-        width: '100%',
-        height: '100%',
-        flow: 'paginated',
-        allowScriptedContent: false,
-        defaultDirection: mode === BookScrollingMode.PaginationRtl ? 'rtl' : 'ltr'
-      });
+      const peekOpts = this.buildRenditionOptions();
+      // Peek is always paginated (never continuous)
+      delete peekOpts['manager'];
+      peekOpts['flow'] = 'paginated';
+      const peek = new Rendition(this.epubBook, peekOpts as any);
       await peek.attachTo(peekEl);
       if (token !== this.peekLoadToken) {
         try {
@@ -3171,10 +3609,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
 
     if (dir !== 0 && (Math.abs(amount) >= threshold || fling)) {
       this.resetOverscroll(false);
-      this.invalidatePeek();
-      // Direct page turn — skip goNext/goPrev (would tryScrollContents first)
-      if (dir > 0) this.nextPage();
-      else this.prevPage();
+      void this.finishOverscrollWithEffect(dir);
       return;
     }
 
@@ -3184,6 +3619,26 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
         this.deactivatePeekLayer();
       }
     }, 200);
+  }
+
+  private async finishOverscrollWithEffect(dir: 1 | -1): Promise<void> {
+    const effect = this.effectiveBookTransition();
+    if (effect === PageTransitionType.Default || this.turningPage) {
+      this.invalidatePeek();
+      if (dir > 0) this.nextPage();
+      else this.prevPage();
+      return;
+    }
+    // Peek should already be loaded from the drag; ensure it exists
+    if (this.peekDirection !== dir || this.peekStale) {
+      await this.loadPeek(dir);
+    }
+    this.peekLayerActive.set(true);
+    await this.animateViewerTurn(dir, effect);
+    if (dir > 0) this.nextPage();
+    else this.prevPage();
+    this.destroyPeekRendition(true);
+    this.clearViewerAnimStyles();
   }
 
   /** Active epub.js Contents for the visible view (if any). */
@@ -3211,8 +3666,9 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
   /**
    * Scroll ~90% of viewport in continuous (tira) mode.
    * Does NOT call rendition.prev/next at edges (avoids bounce to page 3/4).
+   * @returns false when already at the scroll edge in that direction.
    */
-  private scrollContinuousBy(dir: 1 | -1): void {
+  private scrollContinuousBy(dir: 1 | -1): boolean {
     const viewportH = this.viewerRef?.nativeElement?.clientHeight || window.innerHeight;
     const step = viewportH * 0.9;
     const container = this.continuousScrollContainer();
@@ -3220,10 +3676,10 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     if (container) {
       const maxScroll = Math.max(0, container.scrollHeight - container.clientHeight);
       const top = container.scrollTop;
-      if (dir > 0 && top >= maxScroll - 2) return;
-      if (dir < 0 && top <= 2) return;
+      if (dir > 0 && top >= maxScroll - 2) return false;
+      if (dir < 0 && top <= 2) return false;
       container.scrollBy({ top: dir * step, behavior: 'smooth' });
-      return;
+      return true;
     }
 
     const contents = this.activeContents();
@@ -3239,10 +3695,12 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       );
       const clientHeight = win.innerHeight || docEl.clientHeight;
       const maxScroll = scrollHeight - clientHeight;
-      if (dir > 0 && scrollTop >= maxScroll - 2) return;
-      if (dir < 0 && scrollTop <= 2) return;
+      if (dir > 0 && scrollTop >= maxScroll - 2) return false;
+      if (dir < 0 && scrollTop <= 2) return false;
       win.scrollBy({ top: dir * step, behavior: 'smooth' });
+      return true;
     }
+    return false;
   }
 
   private canScrollContents(deltaY: number): boolean {
@@ -3355,7 +3813,10 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!targets.length) return;
 
     const pad = MARGIN_PX[this.margin()];
-    const lh = SPACING_LH[this.spacing()] ?? this.settings.bookLineHeight();
+    let lh = SPACING_LH[this.spacing()] ?? this.settings.bookLineHeight();
+    if (this.furiganaEnabled()) {
+      lh = Math.max(lh, Math.min(2.4, lh * 1.25));
+    }
     const textAlign = this.align();
     let imgMarginLeft = '0';
     let imgMarginRight = 'auto';
@@ -3368,12 +3829,15 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     }
     const imgMl = imgMarginLeft + ' !important';
     const imgMr = imgMarginRight + ' !important';
+    const family = this.isJapaneseBook()
+      ? (this.fontFamily() || this.settings.bookFontFamilyJapanese())
+      : this.fontFamily();
     const theme: Record<string, Record<string, string>> = {
       html: {
         background: PAGE_BG + ' !important'
       },
       body: {
-        'font-family': this.fontFamily() + ' !important',
+        'font-family': family + ' !important',
         'font-size': this.fontSize() + 'px !important',
         'line-height': lh + ' !important',
         'text-align': textAlign + ' !important',
@@ -3387,6 +3851,15 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       },
       a: {
         color: '#a5b4fc !important'
+      },
+      ruby: {
+        'ruby-position': 'over',
+        'ruby-align': 'center'
+      },
+      rt: {
+        'font-size': '0.75em',
+        'line-height': '1.1',
+        color: '#cbd5e1'
       },
       'img, svg, image, video': {
         'max-width': '100% !important',
@@ -3414,10 +3887,234 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
         'margin-right': imgMr
       }
     };
-    const fontPct = Math.round((this.fontSize() / 16) * 100) + '%';
     for (const r of targets) {
       r.themes.default(theme);
-      r.themes.fontSize(fontPct);
+      // Single source of truth: body font-size in px above — do NOT also call themes.fontSize
+      // (that would accumulate with the CSS rule).
+    }
+  }
+
+  private setupViewerResizeObserver(): void {
+    const host = this.viewerHostRef?.nativeElement;
+    if (!host || typeof ResizeObserver === 'undefined') return;
+    this.teardownViewerResizeObserver();
+    this.resizeObserver = new ResizeObserver(() => this.scheduleRenditionResize());
+    this.resizeObserver.observe(host);
+  }
+
+  private teardownViewerResizeObserver(): void {
+    try {
+      this.resizeObserver?.disconnect();
+    } catch {
+      /* ignore */
+    }
+    this.resizeObserver = null;
+  }
+
+  private scheduleRenditionResize(): void {
+    if (this.resizeTimer) clearTimeout(this.resizeTimer);
+    this.resizeTimer = setTimeout(() => {
+      void this.reflowAtCfi();
+    }, 150);
+  }
+
+  private scheduleTypographyReflow(): void {
+    this.applyTypography();
+    if (this.typographyTimer) clearTimeout(this.typographyTimer);
+    this.typographyTimer = setTimeout(() => {
+      void this.reflowAtCfi();
+    }, 200);
+  }
+
+  private async reflowAtCfi(): Promise<void> {
+    if (!this.rendition || this.relocating) return;
+    const cfi = this.currentCfi();
+    const host = this.viewerHostRef?.nativeElement;
+    const z = this.zoom() || 1;
+    try {
+      if (host) {
+        const w = Math.max(1, host.clientWidth / z);
+        const h = Math.max(1, host.clientHeight / z);
+        this.rendition.resize(w, h);
+        if (this.peekRendition) {
+          try {
+            this.peekRendition.resize(w, h);
+          } catch {
+            /* ignore */
+          }
+        }
+      } else {
+        this.rendition.resize(window.innerWidth / z, window.innerHeight / z);
+      }
+      if (cfi) {
+        this.relocating = true;
+        try {
+          await this.rendition.display(cfi);
+        } finally {
+          this.relocating = false;
+        }
+      }
+    } catch (e) {
+      console.warn('[reader-text] reflow failed', e);
+      this.relocating = false;
+    }
+  }
+
+  /** Effective page transition for book — forced Default when FX should not run. */
+  private effectiveBookTransition(): PageTransitionType {
+    if (prefersReducedMotion()) return PageTransitionType.Default;
+    if (this.isContinuousScrollMode()) return PageTransitionType.Default;
+    const t = this.pageTransition();
+    // Android disables curl on vertical pagination
+    if (
+      (t === PageTransitionType.CurlPage || t === PageTransitionType.Curl3DPage) &&
+      this.scrollingMode() === BookScrollingMode.PaginationVertical
+    ) {
+      return PageTransitionType.Default;
+    }
+    return t;
+  }
+
+  private async turnWithEffect(dir: 1 | -1): Promise<void> {
+    if (!this.rendition || this.turningPage) {
+      if (dir > 0) this.nextPage();
+      else this.prevPage();
+      return;
+    }
+    const effect = this.effectiveBookTransition();
+    if (effect === PageTransitionType.Default) {
+      if (dir > 0) this.nextPage();
+      else this.prevPage();
+      return;
+    }
+
+    this.turningPage = true;
+    try {
+      await this.loadPeek(dir);
+      this.peekLayerActive.set(true);
+      await this.animateViewerTurn(dir, effect);
+      if (dir > 0) this.nextPage();
+      else this.prevPage();
+    } finally {
+      this.destroyPeekRendition(true);
+      this.clearViewerAnimStyles();
+      this.turningPage = false;
+    }
+  }
+
+  private async animateViewerTurn(dir: 1 | -1, effect: PageTransitionType): Promise<void> {
+    const viewer = this.viewerRef?.nativeElement;
+    const peek = this.viewerPeekRef?.nativeElement;
+    if (!viewer || !peek) return;
+
+    this.overscrollAnimatingSignal.set(false);
+    // Clear overscroll translates so WAAPI owns the transform
+    this.overscrollXSignal.set(0);
+    this.overscrollYSignal.set(0);
+
+    const host = this.viewerHostRef?.nativeElement;
+    const axis: TurnAxis = this.isHorizontalMode() ? 'x' : 'y';
+    const size =
+      axis === 'x'
+        ? host?.clientWidth || window.innerWidth
+        : host?.clientHeight || window.innerHeight;
+    const turnDir = dir as TurnDir;
+
+    const isCurl =
+      effect === PageTransitionType.CurlPage || effect === PageTransitionType.Curl3DPage;
+
+    if (isCurl && this.isHorizontalMode()) {
+      // CSS 3D fold — iframe can't be cheaply rasterized for canvas curl
+      await playCssCurlTurn(viewer, turnDir);
+      return;
+    }
+
+    const playEffect = isCurl ? PageTransitionType.Fade : effect;
+    await playPageTurn({
+      outgoing: viewer,
+      incoming: peek,
+      effect: playEffect,
+      axis,
+      dir: turnDir,
+      size
+    });
+  }
+
+  private clearViewerAnimStyles(): void {
+    const viewer = this.viewerRef?.nativeElement;
+    const peek = this.viewerPeekRef?.nativeElement;
+    for (const el of [viewer, peek]) {
+      if (!el) continue;
+      el.style.transform = '';
+      el.style.opacity = '';
+      el.style.boxShadow = '';
+      el.style.zIndex = '';
+      el.style.transformOrigin = '';
+    }
+  }
+
+  /** Inject BabelStone @font-face + optional furigana ruby rewrite. */
+  private async enhanceJapaneseContents(contents: any): Promise<void> {
+    const doc: Document | undefined = contents?.document;
+    if (!doc?.head || !doc.body) return;
+
+    this.injectJapaneseFontFaces(doc);
+
+    if (!this.furiganaEnabled()) return;
+    if (doc.documentElement.getAttribute('data-br-furigana') === '1') return;
+
+    try {
+      await this.electron.japaneseInit();
+      await this.applyFuriganaToDocument(doc);
+      doc.documentElement.setAttribute('data-br-furigana', '1');
+    } catch (e) {
+      console.warn('[reader-text] furigana apply failed', e);
+    }
+  }
+
+  private injectJapaneseFontFaces(doc: Document): void {
+    if (doc.getElementById('br-jp-fonts')) return;
+    const style = doc.createElement('style');
+    style.id = 'br-jp-fonts';
+    style.textContent = babelStoneFontFaceCss('assets/fonts');
+    doc.head.appendChild(style);
+  }
+
+  private async applyFuriganaToDocument(doc: Document): Promise<void> {
+    const skip = new Set(['SCRIPT', 'STYLE', 'RUBY', 'RT', 'RP', 'CODE', 'PRE', 'SVG', 'MATH', 'TEXTAREA']);
+    const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT, {
+      acceptNode: (node: Node) => {
+        const parent = node.parentElement;
+        if (!parent) return NodeFilter.FILTER_REJECT;
+        if (skip.has(parent.tagName)) return NodeFilter.FILTER_REJECT;
+        if (parent.closest('ruby, rt, rp, script, style, code, pre')) return NodeFilter.FILTER_REJECT;
+        const text = node.textContent || '';
+        if (!text.trim() || !JapaneseTextUtil.isJapanese(text)) return NodeFilter.FILTER_REJECT;
+        return NodeFilter.FILTER_ACCEPT;
+      }
+    } as any);
+
+    const nodes: Text[] = [];
+    let current: Node | null;
+    while ((current = walker.nextNode())) {
+      nodes.push(current as Text);
+    }
+
+    const BATCH = 8;
+    for (let i = 0; i < nodes.length; i += BATCH) {
+      const slice = nodes.slice(i, i + BATCH);
+      await Promise.all(
+        slice.map(async textNode => {
+          if (!textNode.isConnected) return;
+          const raw = textNode.textContent || '';
+          const html = await this.electron.japaneseToRubyHtml(raw, true);
+          if (!html || !html.includes('<ruby')) return;
+          const wrap = doc.createElement('span');
+          wrap.className = 'br-furigana';
+          wrap.innerHTML = html;
+          textNode.parentNode?.replaceChild(wrap, textNode);
+        })
+      );
     }
   }
 
@@ -3558,18 +4255,23 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     }, 800);
   }
 
+  private storedBookMark(): number {
+    return fromReaderIndex(this.currentPage(), this.pageCount());
+  }
+
   private async persistBookmark(_force: boolean): Promise<Book | null> {
     if (!this.bookId) return null;
+    const bookMark = this.storedBookMark();
     if (this.historySessionId != null) {
       await this.electron.updateHistorySession({
         id: this.historySessionId,
-        pageEnd: this.currentPage(),
+        pageEnd: bookMark,
         pages: this.pageCount()
       });
     }
     return await this.electron.setBookBookmark({
       id: this.bookId,
-      bookMark: this.currentPage(),
+      bookMark,
       bookMarkCfi: this.currentCfi() || undefined,
       chapter: this.chapterTitle() || undefined,
       pages: this.pageCount()
@@ -3584,7 +4286,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       margin: this.margin(),
       spacing: this.spacing(),
       scrolling: this.scrollingMode(),
-      pagination: 'Default',
+      pagination: this.pageTransition(),
       fontType: this.fontFamily(),
       fontSize: this.fontSize()
     };
@@ -3619,16 +4321,19 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.updateTimer) clearTimeout(this.updateTimer);
     if (this.configTimer) clearTimeout(this.configTimer);
 
+    this.stopTts();
+
     await this.persistBookmark(true);
     await this.persistConfiguration();
 
     if (this.historySessionId != null) {
       await this.electron.endHistorySession({
         id: this.historySessionId,
-        pageEnd: this.currentPage(),
+        pageEnd: this.storedBookMark(),
         pages: this.pageCount(),
         type: 'BOOK',
-        fkReference: this.bookId
+        fkReference: this.bookId,
+        useTTS: this.historyUsedTts
       });
       this.historySessionId = null;
     }

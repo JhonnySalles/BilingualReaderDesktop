@@ -1,4 +1,4 @@
-import { BrowserWindow, ipcMain } from 'electron';
+import { BrowserWindow, ipcMain, dialog } from 'electron';
 import { StorageService } from '../database/storage.service';
 import { MangaReaderSessionService } from '../services/manga-reader-session.service';
 
@@ -74,11 +74,11 @@ export class MangaReaderController {
       if (!manga?.id) return null;
       const now = new Date().toISOString();
       const pages = Math.max(1, manga.pages || 1);
-      const bookMark = Math.min(Math.max(0, page), pages - 1);
+      const bookMark = Math.min(Math.max(0, Math.floor(page)), pages);
       const id = this.storage.saveManga({
         ...manga,
         bookMark,
-        completed: bookMark >= pages - 1,
+        completed: bookMark >= pages,
         lastAccess: now,
         lastAlteration: now
       });
@@ -124,6 +124,21 @@ export class MangaReaderController {
     ipcMain.handle('manga:delete-annotation', async (_event, id: number) => {
       if (!id) return false;
       return this.storage.deleteMangaAnnotation(id);
+    });
+
+    ipcMain.handle('subtitle:getForSession', async (_event, sessionId: string) => {
+      return this.sessionService.getSessionSubtitles(sessionId);
+    });
+
+    ipcMain.handle('subtitle:importJson', async (_event, sessionId: string) => {
+      const win = getWindow();
+      const result = await dialog.showOpenDialog(win ?? undefined!, {
+        title: 'Importar legenda JSON',
+        properties: ['openFile'],
+        filters: [{ name: 'JSON', extensions: ['json'] }]
+      });
+      if (result.canceled || !result.filePaths[0]) return null;
+      return this.sessionService.importExternalSubtitles(sessionId, result.filePaths[0]);
     });
   }
 }

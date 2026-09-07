@@ -20,9 +20,11 @@ __exportStar(require("./interfaces/base-entity.model"), exports);
 // Enums
 __exportStar(require("./enums/app-enums"), exports);
 __exportStar(require("./enums/reader-enums"), exports);
+__exportStar(require("./enums/page-transition.enums"), exports);
 __exportStar(require("./enums/annotation-enums"), exports);
 __exportStar(require("./enums/page-link-enums"), exports);
 __exportStar(require("./enums/ai-enums"), exports);
+__exportStar(require("./enums/tts-enums"), exports);
 __exportStar(require("./enums/sharemark.enum"), exports);
 // Entities
 __exportStar(require("./entities/book.model"), exports);

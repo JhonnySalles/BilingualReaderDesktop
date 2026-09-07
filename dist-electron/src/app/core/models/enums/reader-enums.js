@@ -1,6 +1,11 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TouchPosition = exports.TouchScreen = exports.ImageLoadType = exports.PaginationType = exports.ScrollingType = exports.LibraryBookType = exports.LibraryMangaType = exports.BookScrollingMode = exports.BookLayout = exports.MangaFitMode = exports.MangaScrollingMode = exports.ReaderMode = void 0;
+exports.isMangaDualMode = isMangaDualMode;
+exports.isMangaHorizontalMode = isMangaHorizontalMode;
+exports.isMangaRtlMode = isMangaRtlMode;
+exports.isMangaVerticalMode = isMangaVerticalMode;
+exports.isMangaLongStripMode = isMangaLongStripMode;
 var ReaderMode;
 (function (ReaderMode) {
     ReaderMode["DEFAULT"] = "DEFAULT";
@@ -14,7 +19,10 @@ var MangaScrollingMode;
 (function (MangaScrollingMode) {
     MangaScrollingMode["Horizontal"] = "Horizontal";
     MangaScrollingMode["HorizontalRtl"] = "HorizontalRtl";
+    MangaScrollingMode["HorizontalDual"] = "HorizontalDual";
+    MangaScrollingMode["HorizontalDualRtl"] = "HorizontalDualRtl";
     MangaScrollingMode["Vertical"] = "Vertical";
+    MangaScrollingMode["VerticalDual"] = "VerticalDual";
     MangaScrollingMode["LongStrip"] = "LongStrip";
     MangaScrollingMode["LongStripGap"] = "LongStripGap";
 })(MangaScrollingMode || (exports.MangaScrollingMode = MangaScrollingMode = {}));
@@ -24,6 +32,27 @@ var MangaFitMode;
     MangaFitMode["FitHeight"] = "FitHeight";
     MangaFitMode["Original"] = "Original";
 })(MangaFitMode || (exports.MangaFitMode = MangaFitMode = {}));
+function isMangaDualMode(m) {
+    return (m === MangaScrollingMode.HorizontalDual ||
+        m === MangaScrollingMode.HorizontalDualRtl ||
+        m === MangaScrollingMode.VerticalDual);
+}
+function isMangaHorizontalMode(m) {
+    return (m === MangaScrollingMode.Horizontal ||
+        m === MangaScrollingMode.HorizontalRtl ||
+        m === MangaScrollingMode.HorizontalDual ||
+        m === MangaScrollingMode.HorizontalDualRtl);
+}
+function isMangaRtlMode(m) {
+    return (m === MangaScrollingMode.HorizontalRtl ||
+        m === MangaScrollingMode.HorizontalDualRtl);
+}
+function isMangaVerticalMode(m) {
+    return m === MangaScrollingMode.Vertical || m === MangaScrollingMode.VerticalDual;
+}
+function isMangaLongStripMode(m) {
+    return m === MangaScrollingMode.LongStrip || m === MangaScrollingMode.LongStripGap;
+}
 var BookLayout;
 (function (BookLayout) {
     BookLayout["SINGLE_PAGE"] = "SINGLE_PAGE";

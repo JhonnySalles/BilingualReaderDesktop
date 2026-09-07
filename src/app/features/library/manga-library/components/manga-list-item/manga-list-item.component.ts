@@ -1,6 +1,7 @@
 import { Component, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Manga } from '../../../../../core/models';
+import { progressPercent } from '../../../../../core/utils/reading-progress.util';
 
 @Component({
   selector: 'app-manga-list-item',
@@ -73,8 +74,7 @@ export class MangaListItemComponent {
   @Input({ required: true }) manga!: Manga;
 
   getProgressPercentage(): number {
-    if (!this.manga.pages || this.manga.pages <= 0) return 0;
-    return Math.min(100, Math.round((this.manga.bookMark / this.manga.pages) * 100));
+    return progressPercent(this.manga.bookMark || 0, this.manga.pages || 0, this.manga.completed);
   }
 
   formatSize(bytes: number): string {

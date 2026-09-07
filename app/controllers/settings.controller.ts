@@ -1,6 +1,7 @@
 import { ipcMain } from 'electron';
 import { SettingsService } from '../services/settings.service';
 import { Secrets } from '../utils/secrets';
+import { Telemetry } from '../utils/telemetry';
 import { MenuController } from './menu.controller';
 
 export class SettingsController {
@@ -42,6 +43,25 @@ export class SettingsController {
         default:
           return null;
       }
+    });
+
+    ipcMain.handle('telemetry:is-enabled', async () => Telemetry.isEnabled);
+
+    ipcMain.handle(
+      'telemetry:record',
+      async (
+        _event,
+        payload: { error: { name?: string; message?: string; stack?: string }; message?: string }
+      ) => {
+        const err = Telemetry.fromSerialized(payload?.error || {});
+        Telemetry.recordException(err, payload?.message);
+        return true;
+      }
+    );
+
+    ipcMain.handle('telemetry:set-key', async (_event, key: string, value: string) => {
+      Telemetry.setCustomKey(String(key || ''), String(value ?? ''));
+      return true;
     });
   }
 }

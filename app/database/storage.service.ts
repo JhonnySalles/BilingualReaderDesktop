@@ -13,7 +13,13 @@ import { FileLinkRepository } from './file-link.repository';
 import { KanjiRepository } from './kanji.repository';
 import { KanjaxRepository } from './kanjax.repository';
 import { VocabularyRepository } from './vocabulary.repository';
-import { HistoryRepository, HistoryContentType, HistorySessionInput, HistorySessionUpdate } from './history.repository';
+import {
+  HistoryRepository,
+  HistoryContentType,
+  HistorySessionInput,
+  HistorySessionUpdate,
+  HistoryBookmarkEditInput
+} from './history.repository';
 import { StatisticsRepository } from './statistics.repository';
 import { Manga, MangaAnnotation } from '../../src/app/core/models/entities/manga.model';
 import { Book, BookAnnotation, BookConfiguration, BookSearchHistory } from '../../src/app/core/models/entities/book.model';
@@ -117,6 +123,10 @@ export class StorageService {
 
   public getAdjacentBooks(bookId: number): { prev: Book | null; next: Book | null } {
     return this.bookRepository.getAdjacentBooks(bookId);
+  }
+
+  public getAdjacentMangas(mangaId: number): { prev: Manga | null; next: Manga | null } {
+    return this.mangaRepository.getAdjacentMangas(mangaId);
   }
 
   public findBookByPath(filePath: string): Book | undefined {
@@ -281,12 +291,50 @@ export class StorageService {
     return this.historyRepository.startSession(input);
   }
 
+  public saveHistoryBookmarkEdit(input: HistoryBookmarkEditInput): number {
+    return this.historyRepository.saveBookmarkEdit(input);
+  }
+
   public updateHistorySession(update: HistorySessionUpdate): void {
     this.historyRepository.updateSession(update);
   }
 
-  public endHistorySession(id: number, pageEnd: number, pages?: number): void {
-    this.historyRepository.updateSession({ id, pageEnd, pages, endSession: true });
+  public endHistorySession(
+    id: number,
+    pageEnd: number,
+    pages?: number,
+    useTTS?: boolean
+  ): void {
+    this.historyRepository.updateSession({ id, pageEnd, pages, endSession: true, useTTS });
+  }
+
+  // --- Vocabulary / Kanjax ---
+
+  public searchVocabulary(options: import('./vocabulary.repository').VocabularySearchOptions) {
+    return this.vocabularyRepository.searchPage(options);
+  }
+
+  public getVocabulary(id: number) {
+    return this.vocabularyRepository.get(id);
+  }
+
+  public setVocabularyFavorite(id: number, favorite: boolean) {
+    return this.vocabularyRepository.setFavorite(id, favorite);
+  }
+
+  public getVocabularyRelated(vocabularyId: number, titleHint?: string | null) {
+    return {
+      mangas: this.vocabularyRepository.findRelatedMangas(vocabularyId, titleHint),
+      books: this.vocabularyRepository.findRelatedBooks(vocabularyId, titleHint)
+    };
+  }
+
+  public getKanjax(kanji: string) {
+    return this.kanjaxRepository.get(kanji) ?? null;
+  }
+
+  public getKanjaxForWord(word: string) {
+    return this.kanjaxRepository.forWord(word);
   }
 
   public getOrCreateLibrary(folderPath: string, type: 'MANGA' | 'BOOK' = 'MANGA'): number {

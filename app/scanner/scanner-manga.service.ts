@@ -6,6 +6,7 @@ import { Manga } from '../../src/app/core/models/entities/manga.model';
 import { FileType } from '../../src/app/core/models/enums/app-enums';
 import { ParseFactory } from '../parser/manga/parse-factory';
 import { MangaImageCoverController } from '../controllers/manga-image-cover.controller';
+import { Telemetry } from '../utils/telemetry';
 
 const MANGA_EXTENSIONS = new Set(['.cbz', '.cbr', '.cb7', '.cbt', '.zip', '.rar', '.7z', '.tar']);
 
@@ -98,6 +99,7 @@ export class ScannerMangaService {
 
     } catch (err) {
       console.error('Error scanning folder:', err);
+      Telemetry.recordException(err, 'Error scanning manga folder');
     } finally {
       this.isScanning = false;
       if (window) {
@@ -279,6 +281,7 @@ export class ScannerMangaService {
       return this.storageService.findMangaByPath(filePath) || null;
     } catch (e) {
       console.error('Failed to process single manga file:', filePath, e);
+      Telemetry.recordException(e, `Failed to process single manga file: ${filePath}`);
       return null;
     }
   }

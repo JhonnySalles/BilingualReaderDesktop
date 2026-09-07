@@ -9,6 +9,7 @@ import { SettingsService } from '../services/settings.service';
 import { LibraryStateService } from '../services/library-state.service';
 import { HistoryUiStateService } from '../services/history-ui-state.service';
 import { AnnotationsUiStateService } from '../services/annotations-ui-state.service';
+import { VocabularyUiStateService } from '../services/vocabulary-ui-state.service';
 import { HomeDashboardService } from '../services/home-dashboard.service';
 import { NavigationStackService } from '../services/navigation-stack.service';
 import { LibrarySearchService } from '../services/library-search.service';
@@ -24,7 +25,7 @@ interface NavLibrary {
   count: number;
 }
 
-type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'settings' | 'titleOnly';
+type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' | 'settings' | 'titleOnly';
 
 @Component({
   selector: 'app-main-layout',
@@ -530,6 +531,48 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'settings' | 
             </div>
           }
 
+          @if (headerMode() === 'vocabulary') {
+            <div class="flex items-center gap-2 sm:gap-3 shrink-0 flex-wrap justify-end">
+              <div class="relative w-40 sm:w-56">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input
+                  type="text"
+                  [ngModel]="vocabularyUi.search()"
+                  (ngModelChange)="onVocabularySearch($event)"
+                  placeholder="Pesquisar palavras..."
+                  class="w-full pl-9 pr-3 py-1.5 bg-slate-900/90 border border-slate-800 rounded-xl text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500/80 transition-all" />
+              </div>
+
+              <button
+                type="button"
+                (click)="vocabularyUi.toggleFavoriteOnly()"
+                class="p-2 bg-slate-900 border rounded-xl transition-all flex items-center justify-center cursor-pointer"
+                [class.border-amber-500]="vocabularyUi.favoriteOnly()"
+                [class.text-amber-300]="vocabularyUi.favoriteOnly()"
+                [class.border-slate-800]="!vocabularyUi.favoriteOnly()"
+                [class.text-slate-300]="!vocabularyUi.favoriteOnly()"
+                title="Somente favoritos">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" [attr.fill]="vocabularyUi.favoriteOnly() ? 'currentColor' : 'none'" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/>
+                </svg>
+              </button>
+
+              <button
+                type="button"
+                (click)="vocabularyUi.cycleOrder()"
+                (contextmenu)="vocabularyUi.showOrderPopup.set(true); $event.preventDefault()"
+                class="p-2 bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl text-slate-300 hover:text-white transition-all flex items-center justify-center cursor-pointer"
+                [title]="'Ordenar: ' + vocabularyUi.order()">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 transition-transform duration-300" [class.rotate-180]="vocabularyUi.desc()" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
+                </svg>
+              </button>
+            </div>
+          }
+
           @if (headerMode() === 'settings') {
             <div class="flex items-center gap-2 shrink-0">
               <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
@@ -555,6 +598,7 @@ export class MainLayoutComponent implements OnInit {
   public libraryStateService = inject(LibraryStateService);
   public historyUi = inject(HistoryUiStateService);
   public annotationsUi = inject(AnnotationsUiStateService);
+  public vocabularyUi = inject(VocabularyUiStateService);
   public home = inject(HomeDashboardService);
   private librarySearch = inject(LibrarySearchService);
 
@@ -577,6 +621,7 @@ export class MainLayoutComponent implements OnInit {
     if (mode === 'library') return this.libraryStateService.activeLibrary().name;
     if (mode === 'history') return this.historyUi.pageTitle();
     if (mode === 'annotations') return this.annotationsUi.pageTitle();
+    if (mode === 'vocabulary') return this.vocabularyUi.pageTitle();
     if (mode === 'settings') return 'Configurações do Leitor';
     return this.titleOnlyLabel();
   });
@@ -634,13 +679,17 @@ export class MainLayoutComponent implements OnInit {
       this.annotationsUi.bumpReload();
       return;
     }
+    if (path.startsWith('/vocabulary')) {
+      this.headerMode.set('vocabulary');
+      this.vocabularyUi.bumpReload();
+      return;
+    }
     if (path.startsWith('/settings')) {
       this.headerMode.set('settings');
       return;
     }
     this.headerMode.set('titleOnly');
     if (path.startsWith('/statistics')) this.titleOnlyLabel.set('Estatísticas de Uso');
-    else if (path.startsWith('/vocabulary')) this.titleOnlyLabel.set('Vocabulário');
     else if (path.startsWith('/detail')) this.titleOnlyLabel.set('Detalhe');
     else this.titleOnlyLabel.set('Bilingual Reader');
   }
@@ -673,6 +722,10 @@ export class MainLayoutComponent implements OnInit {
 
   onAnnotationsSearch(value: string): void {
     this.annotationsUi.setSearch(value);
+  }
+
+  onVocabularySearch(value: string): void {
+    this.vocabularyUi.setSearch(value);
   }
 
   async updateCounts(): Promise<void> {

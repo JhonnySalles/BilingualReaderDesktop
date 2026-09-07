@@ -6,6 +6,7 @@ import { Book } from '../../src/app/core/models/entities/book.model';
 import { FileType } from '../../src/app/core/models/enums/app-enums';
 import { BookExtractorFactory } from '../parser/book/book-extractor.factory';
 import { BookImageCoverController } from '../controllers/book-image-cover.controller';
+import { Telemetry } from '../utils/telemetry';
 
 const BOOK_EXTENSIONS = new Set([
   '.epub', '.kepub', '.epub3', '.pdf', '.xps', '.mobi', '.azw', '.azw3', '.azw4',
@@ -79,6 +80,7 @@ export class ScannerBookService {
 
     } catch (err) {
       console.error('Error scanning book folder:', err);
+      Telemetry.recordException(err, 'Error scanning book folder');
     } finally {
       this.isScanning = false;
       if (window) {
@@ -210,6 +212,7 @@ export class ScannerBookService {
       return this.storageService.findBookByPath(filePath) || null;
     } catch (e) {
       console.error('Failed to process single book file:', filePath, e);
+      Telemetry.recordException(e, `Failed to process single book file: ${filePath}`);
       return null;
     }
   }

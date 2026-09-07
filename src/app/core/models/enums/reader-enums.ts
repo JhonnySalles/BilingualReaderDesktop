@@ -10,7 +10,10 @@ export enum ReaderMode {
 export enum MangaScrollingMode {
   Horizontal = 'Horizontal',
   HorizontalRtl = 'HorizontalRtl',
+  HorizontalDual = 'HorizontalDual',
+  HorizontalDualRtl = 'HorizontalDualRtl',
   Vertical = 'Vertical',
+  VerticalDual = 'VerticalDual',
   LongStrip = 'LongStrip',
   LongStripGap = 'LongStripGap'
 }
@@ -19,6 +22,38 @@ export enum MangaFitMode {
   FitWidth = 'FitWidth',
   FitHeight = 'FitHeight',
   Original = 'Original'
+}
+
+export function isMangaDualMode(m: MangaScrollingMode): boolean {
+  return (
+    m === MangaScrollingMode.HorizontalDual ||
+    m === MangaScrollingMode.HorizontalDualRtl ||
+    m === MangaScrollingMode.VerticalDual
+  );
+}
+
+export function isMangaHorizontalMode(m: MangaScrollingMode): boolean {
+  return (
+    m === MangaScrollingMode.Horizontal ||
+    m === MangaScrollingMode.HorizontalRtl ||
+    m === MangaScrollingMode.HorizontalDual ||
+    m === MangaScrollingMode.HorizontalDualRtl
+  );
+}
+
+export function isMangaRtlMode(m: MangaScrollingMode): boolean {
+  return (
+    m === MangaScrollingMode.HorizontalRtl ||
+    m === MangaScrollingMode.HorizontalDualRtl
+  );
+}
+
+export function isMangaVerticalMode(m: MangaScrollingMode): boolean {
+  return m === MangaScrollingMode.Vertical || m === MangaScrollingMode.VerticalDual;
+}
+
+export function isMangaLongStripMode(m: MangaScrollingMode): boolean {
+  return m === MangaScrollingMode.LongStrip || m === MangaScrollingMode.LongStripGap;
 }
 
 export enum BookLayout {

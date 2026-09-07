@@ -133,6 +133,9 @@ class StorageService {
     getAdjacentBooks(bookId) {
         return this.bookRepository.getAdjacentBooks(bookId);
     }
+    getAdjacentMangas(mangaId) {
+        return this.mangaRepository.getAdjacentMangas(mangaId);
+    }
     findBookByPath(filePath) {
         return this.bookRepository.getByPath(filePath);
     }
@@ -250,11 +253,36 @@ class StorageService {
     startHistorySession(input) {
         return this.historyRepository.startSession(input);
     }
+    saveHistoryBookmarkEdit(input) {
+        return this.historyRepository.saveBookmarkEdit(input);
+    }
     updateHistorySession(update) {
         this.historyRepository.updateSession(update);
     }
-    endHistorySession(id, pageEnd, pages) {
-        this.historyRepository.updateSession({ id, pageEnd, pages, endSession: true });
+    endHistorySession(id, pageEnd, pages, useTTS) {
+        this.historyRepository.updateSession({ id, pageEnd, pages, endSession: true, useTTS });
+    }
+    // --- Vocabulary / Kanjax ---
+    searchVocabulary(options) {
+        return this.vocabularyRepository.searchPage(options);
+    }
+    getVocabulary(id) {
+        return this.vocabularyRepository.get(id);
+    }
+    setVocabularyFavorite(id, favorite) {
+        return this.vocabularyRepository.setFavorite(id, favorite);
+    }
+    getVocabularyRelated(vocabularyId, titleHint) {
+        return {
+            mangas: this.vocabularyRepository.findRelatedMangas(vocabularyId, titleHint),
+            books: this.vocabularyRepository.findRelatedBooks(vocabularyId, titleHint)
+        };
+    }
+    getKanjax(kanji) {
+        return this.kanjaxRepository.get(kanji) ?? null;
+    }
+    getKanjaxForWord(word) {
+        return this.kanjaxRepository.forWord(word);
     }
     getOrCreateLibrary(folderPath, type = 'MANGA') {
         const normalized = path.normalize(folderPath);

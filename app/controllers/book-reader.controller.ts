@@ -55,7 +55,7 @@ export class BookReaderController {
         if (!book?.id) return null;
 
         const pages = Math.max(1, payload.pages ?? book.pages ?? 1);
-        const bookMark = Math.min(Math.max(0, payload.bookMark), Math.max(0, pages - 1));
+        const bookMark = Math.min(Math.max(0, Math.floor(payload.bookMark)), pages);
         const now = new Date().toISOString();
 
         const id = this.storage.saveBook({
@@ -65,7 +65,7 @@ export class BookReaderController {
           chapter: payload.chapter ?? book.chapter,
           chapterDescription: payload.chapterDescription ?? book.chapterDescription,
           pages,
-          completed: bookMark >= pages - 1,
+          completed: bookMark >= pages,
           lastAccess: now,
           lastAlteration: now
         });
