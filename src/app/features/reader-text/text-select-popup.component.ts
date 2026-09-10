@@ -45,9 +45,10 @@ import {
           </button>
           <button
             type="button"
-            disabled
-            class="w-8 h-8 rounded-lg text-slate-600 cursor-not-allowed opacity-50 flex items-center justify-center"
-            title="Buscar (em breve)">
+            class="w-8 h-8 rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white cursor-pointer
+              flex items-center justify-center"
+            title="Buscar no livro"
+            (click)="search.emit()">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                 d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"/>
@@ -55,12 +56,24 @@ import {
           </button>
           <button
             type="button"
-            disabled
-            class="w-8 h-8 rounded-lg text-slate-600 cursor-not-allowed opacity-50 flex items-center justify-center"
-            title="Traduzir (em breve)">
+            class="w-8 h-8 rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white cursor-pointer
+              flex items-center justify-center"
+            title="Traduzir"
+            (click)="translate.emit()">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                 d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"/>
+            </svg>
+          </button>
+          <button
+            type="button"
+            class="w-8 h-8 rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white cursor-pointer
+              flex items-center justify-center"
+            title="Vocabulário"
+            (click)="vocabulary.emit()">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
             </svg>
           </button>
           <button
@@ -116,6 +129,9 @@ export class TextSelectPopupComponent {
   erase = output<void>();
   copy = output<void>();
   selectAll = output<void>();
+  search = output<void>();
+  translate = output<void>();
+  vocabulary = output<void>();
   tts = output<void>();
   dismiss = output<void>();
 

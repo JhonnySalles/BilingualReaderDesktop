@@ -1,10 +1,12 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.MANGA_EXTENSIONS = exports.FontType = exports.Color = exports.Themes = exports.ThemeMode = exports.Order = exports.ListMode = exports.Libraries = exports.Languages = exports.FileType = void 0;
+exports.BOOK_EXTENSION_TYPES = exports.MANGA_EXTENSIONS = exports.FontType = exports.Color = exports.Themes = exports.ThemeMode = exports.Order = exports.ListMode = exports.Libraries = exports.Languages = exports.FileType = void 0;
 exports.getMangaFileType = getMangaFileType;
 exports.isMangaFile = isMangaFile;
 exports.getMangaFileTypes = getMangaFileTypes;
 exports.getBookFileTypes = getBookFileTypes;
+exports.getBookFileType = getBookFileType;
+exports.isBookFile = isBookFile;
 exports.compareFileTypeExtension = compareFileTypeExtension;
 var FileType;
 (function (FileType) {
@@ -111,24 +113,21 @@ var FontType;
     FontType["INTER"] = "INTER";
 })(FontType || (exports.FontType = FontType = {}));
 exports.MANGA_EXTENSIONS = {
-    cbz: 'CBZ',
-    cbr: 'CBR',
-    cb7: 'CB7',
-    cbt: 'CBT',
-    zip: 'ZIP',
-    rar: 'RAR',
-    '7z': '7Z',
-    tar: 'TAR',
-    epub: 'EPUB',
-    epub3: 'EPUB3'
+    cbz: FileType.CBZ,
+    cbr: FileType.CBR,
+    cb7: FileType.CB7,
+    cbt: FileType.CBT,
+    zip: FileType.ZIP,
+    rar: FileType.RAR,
+    '7z': FileType.SEVENZ,
+    tar: FileType.TAR,
+    tgz: FileType.TAR,
+    epub: FileType.EPUB,
+    epub3: FileType.EPUB3
 };
 function getMangaFileType(filePath) {
     const ext = filePath.split('.').pop()?.toLowerCase() || '';
-    const typeStr = exports.MANGA_EXTENSIONS[ext];
-    if (typeStr && typeStr in FileType) {
-        return FileType[typeStr];
-    }
-    return FileType.UNKNOWN;
+    return exports.MANGA_EXTENSIONS[ext] ?? FileType.UNKNOWN;
 }
 function isMangaFile(filePath) {
     const ext = filePath.split('.').pop()?.toLowerCase() || '';
@@ -172,6 +171,46 @@ function getBookFileTypes() {
         FileType.MD,
         FileType.MHT
     ];
+}
+/** Extension → FileType for book scanner / open dialog. */
+exports.BOOK_EXTENSION_TYPES = {
+    epub: FileType.EPUB,
+    kepub: FileType.EPUB,
+    epub3: FileType.EPUB3,
+    pdf: FileType.PDF,
+    xps: FileType.UNKNOWN,
+    mobi: FileType.MOBI,
+    azw: FileType.AZW,
+    azw3: FileType.AZW3,
+    azw4: FileType.AZW3,
+    pdb: FileType.MOBI,
+    prc: FileType.MOBI,
+    djvu: FileType.DJVU,
+    fb2: FileType.FB2,
+    txt: FileType.TXT,
+    rtf: FileType.RTF,
+    html: FileType.HTML,
+    htm: FileType.HTML,
+    xhtml: FileType.HTML,
+    xhtm: FileType.HTML,
+    htmlz: FileType.HTML,
+    pmlz: FileType.UNKNOWN,
+    doc: FileType.DOC,
+    docx: FileType.DOCX,
+    odt: FileType.ODT,
+    md: FileType.MD,
+    markdown: FileType.MD,
+    mht: FileType.MHT,
+    mhtml: FileType.MHT,
+    shtml: FileType.HTML
+};
+function getBookFileType(filePath) {
+    const ext = filePath.split('.').pop()?.toLowerCase() || '';
+    return exports.BOOK_EXTENSION_TYPES[ext] ?? FileType.UNKNOWN;
+}
+function isBookFile(filePath) {
+    const ext = filePath.split('.').pop()?.toLowerCase() || '';
+    return ext in exports.BOOK_EXTENSION_TYPES;
 }
 /** True when free-text looks like a file extension for this type. */
 function compareFileTypeExtension(fileType, query) {

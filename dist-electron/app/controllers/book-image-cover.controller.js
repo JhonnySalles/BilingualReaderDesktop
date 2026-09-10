@@ -79,12 +79,49 @@ class BookImageCoverController {
         }
         return null;
     }
+    /** Return existing coverPath if present on disk; otherwise re-extract from source. */
+    ensureCover(book) {
+        if (book.coverPath && fs.existsSync(book.coverPath)) {
+            return book.coverPath;
+        }
+        try {
+            return this.getBookCoverFile(book);
+        }
+        catch (e) {
+            console.warn('[BookImageCover] ensureCover failed', book.name, e);
+            return null;
+        }
+    }
     saveCoverToCache(filePath, buffer) {
         const hash = this.generateHash(filePath);
         const cacheDir = this.getCacheDir();
         const coverPath = path.join(cacheDir, `${hash}.png`);
         fs.writeFileSync(coverPath, buffer);
         return coverPath;
+    }
+    /** Remove all cached cover files. Returns count of entries removed. */
+    clearCache() {
+        const cacheDir = this.getCacheDir();
+        if (!fs.existsSync(cacheDir))
+            return 0;
+        let removed = 0;
+        for (const name of fs.readdirSync(cacheDir)) {
+            const full = path.join(cacheDir, name);
+            try {
+                const st = fs.statSync(full);
+                if (st.isDirectory()) {
+                    fs.rmSync(full, { recursive: true, force: true });
+                }
+                else {
+                    fs.unlinkSync(full);
+                }
+                removed += 1;
+            }
+            catch (e) {
+                console.warn('[BookImageCover] clearCache failed', full, e);
+            }
+        }
+        return removed;
     }
 }
 exports.BookImageCoverController = BookImageCoverController;

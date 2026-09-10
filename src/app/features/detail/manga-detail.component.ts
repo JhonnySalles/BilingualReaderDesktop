@@ -63,9 +63,9 @@ import { fromReaderIndex } from '../../core/utils/reading-progress.util';
 
             <div class="relative px-6 py-8 flex flex-col md:flex-row gap-6">
               <div class="w-40 shrink-0">
-                <div class="aspect-[2/3] rounded-xl overflow-hidden border border-slate-700 bg-slate-900 shadow-xl">
+                <div class="aspect-[2/3] rounded-xl overflow-hidden border border-slate-700 bg-slate-900 shadow-xl cover-3d-host">
                   @if (manga()!.coverPath) {
-                    <img [src]="'local-cover:///' + manga()!.coverPath" [alt]="manga()!.title" class="w-full h-full object-cover" />
+                    <img [src]="'local-cover:///' + manga()!.coverPath" [alt]="manga()!.title" class="cover-3d-face w-full h-full object-cover" />
                   } @else {
                     <div class="w-full h-full flex items-center justify-center text-slate-500 text-xs">Sem capa</div>
                   }

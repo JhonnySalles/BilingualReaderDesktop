@@ -520,4 +520,9 @@ export class HistoryRepository extends BaseRepository<HistoryRow, number> {
       lastAccess: row.lastAccess
     }));
   }
+
+  clearAll(): number {
+    const result = this.db.prepare('DELETE FROM History').run();
+    return Number(result.changes || 0);
+  }
 }

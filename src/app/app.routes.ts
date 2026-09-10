@@ -44,6 +44,14 @@ export const routes: Routes = [
         path: 'vocabulary',
         loadComponent: () =>
           import('./features/vocabulary/vocabulary.component').then(m => m.VocabularyComponent)
+      },
+      {
+        path: 'help',
+        loadComponent: () => import('./features/help/help.component').then(m => m.HelpComponent)
+      },
+      {
+        path: 'about',
+        loadComponent: () => import('./features/about/about.component').then(m => m.AboutComponent)
       }
     ]
   },

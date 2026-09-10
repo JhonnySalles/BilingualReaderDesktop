@@ -41,10 +41,35 @@ const book_extractor_factory_1 = require("../parser/book/book-extractor.factory"
 const book_image_cover_controller_1 = require("../controllers/book-image-cover.controller");
 const telemetry_1 = require("../utils/telemetry");
 const BOOK_EXTENSIONS = new Set([
-    '.epub', '.kepub', '.epub3', '.pdf', '.xps', '.mobi', '.azw', '.azw3', '.azw4',
-    '.pdb', '.prc', '.djvu', '.fb2', '.txt', '.playlist', '.log', '.tcr', '.rtf',
-    '.html', '.htm', '.xhtml', '.xhtm', '.xml', '.htmlz', '.pmlz', '.doc', '.docx',
-    '.odt', '.md', '.markdown', '.mht', '.mhtml', '.shtml'
+    '.epub',
+    '.kepub',
+    '.epub3',
+    '.pdf',
+    '.xps',
+    '.mobi',
+    '.azw',
+    '.azw3',
+    '.azw4',
+    '.pdb',
+    '.prc',
+    '.djvu',
+    '.fb2',
+    '.txt',
+    '.rtf',
+    '.html',
+    '.htm',
+    '.xhtml',
+    '.xhtm',
+    '.htmlz',
+    '.pmlz',
+    '.doc',
+    '.docx',
+    '.odt',
+    '.md',
+    '.markdown',
+    '.mht',
+    '.mhtml',
+    '.shtml'
 ]);
 class ScannerBookService {
     storageService;
@@ -143,14 +168,13 @@ class ScannerBookService {
         // Extract metadata using BookExtractorFactory
         const meta = book_extractor_factory_1.BookExtractorFactory.getMetadata(filePath);
         const title = meta.title || path.basename(filePath, ext);
-        const typeStr = ext.replace('.', '').toUpperCase();
         const book = {
             title,
             path: filePath,
             folder,
             name: fileName,
             fileSize: stat.size,
-            fileType: app_enums_1.FileType[typeStr] || app_enums_1.FileType.UNKNOWN,
+            fileType: (0, app_enums_1.getBookFileType)(filePath),
             pages: 1,
             bookMark: 0,
             completed: false,

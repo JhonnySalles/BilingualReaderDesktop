@@ -94,7 +94,10 @@ export interface HeatmapDay {
 }
 
 export interface AssistantHistory extends BaseEntity<number> {
+  /** Book or manga id. */
+  idReference: number;
+  type: HistoryContentType;
   role: AssistantMessage;
-  content: string;
-  timestamp: string;
+  message: string;
+  date: string;
 }

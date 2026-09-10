@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron';
+import { ipcMain, shell } from 'electron';
 import { SettingsService } from '../services/settings.service';
 import { Secrets } from '../utils/secrets';
 import { Telemetry } from '../utils/telemetry';
@@ -62,6 +62,39 @@ export class SettingsController {
     ipcMain.handle('telemetry:set-key', async (_event, key: string, value: string) => {
       Telemetry.setCustomKey(String(key || ''), String(value ?? ''));
       return true;
+    });
+
+    ipcMain.handle('shell:openExternal', async (_event, url: string) => {
+      const raw = String(url || '').trim();
+      if (!raw) return false;
+      let parsed: URL;
+      try {
+        parsed = new URL(raw);
+      } catch {
+        return false;
+      }
+      if (
+        parsed.protocol !== 'https:' &&
+        parsed.protocol !== 'http:' &&
+        parsed.protocol !== 'mailto:'
+      ) {
+        return false;
+      }
+      await shell.openExternal(parsed.toString());
+      return true;
+    });
+
+    ipcMain.handle('converter:tools-status', async () => {
+      const { EBookConverterService } = await import('../services/ebook-converter.service');
+      const adapters = EBookConverterService.instance.getAdapterStatuses();
+      const legacy = EBookConverterService.instance.getToolsStatus();
+      return {
+        adapters,
+        pandoc: !!legacy.pandoc,
+        calibre: !!legacy.calibre,
+        pandocPath: legacy.pandoc,
+        calibrePath: legacy.calibre
+      };
     });
   }
 }

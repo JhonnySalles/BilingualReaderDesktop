@@ -52,6 +52,7 @@ const file_link_repository_1 = require("./file-link.repository");
 const kanji_repository_1 = require("./kanji.repository");
 const kanjax_repository_1 = require("./kanjax.repository");
 const vocabulary_repository_1 = require("./vocabulary.repository");
+const assistant_history_repository_1 = require("./assistant-history.repository");
 const history_repository_1 = require("./history.repository");
 const statistics_repository_1 = require("./statistics.repository");
 class StorageService {
@@ -66,14 +67,17 @@ class StorageService {
     kanjiRepository;
     kanjaxRepository;
     vocabularyRepository;
+    assistantHistoryRepository;
     historyRepository;
     statisticsRepository;
     constructor() {
         this.initDatabase();
     }
+    getDbPath() {
+        return path.join(electron_1.app.getPath('userData'), 'BilingualReaderDesktop.db');
+    }
     initDatabase() {
-        const userDataPath = electron_1.app.getPath('userData');
-        const dbPath = path.join(userDataPath, 'BilingualReaderDesktop.db');
+        const dbPath = this.getDbPath();
         const dbDir = path.dirname(dbPath);
         if (!fs.existsSync(dbDir)) {
             fs.mkdirSync(dbDir, { recursive: true });
@@ -92,8 +96,30 @@ class StorageService {
         this.kanjiRepository = new kanji_repository_1.KanjiRepository(this.db);
         this.kanjaxRepository = new kanjax_repository_1.KanjaxRepository(this.db);
         this.vocabularyRepository = new vocabulary_repository_1.VocabularyRepository(this.db);
+        this.assistantHistoryRepository = new assistant_history_repository_1.AssistantHistoryRepository(this.db);
         this.historyRepository = new history_repository_1.HistoryRepository(this.db);
         this.statisticsRepository = new statistics_repository_1.StatisticsRepository(this.db);
+    }
+    /** Checkpoint WAL into the main file so a single .db copy is consistent. */
+    checkpointWal() {
+        try {
+            this.db.pragma('wal_checkpoint(TRUNCATE)');
+        }
+        catch (e) {
+            console.warn('[StorageService] wal_checkpoint failed', e);
+        }
+    }
+    closeDatabase() {
+        try {
+            this.checkpointWal();
+            this.db.close();
+        }
+        catch (e) {
+            console.warn('[StorageService] closeDatabase failed', e);
+        }
+    }
+    clearHistory() {
+        return this.historyRepository.clearAll();
     }
     // --- Manga Repository Delegates ---
     listMangas(libraryId) {
@@ -141,6 +167,9 @@ class StorageService {
     }
     saveBook(book) {
         return this.bookRepository.save(book);
+    }
+    setBookPassword(id, password) {
+        return this.bookRepository.setPassword(id, password);
     }
     countBooks(libraryId) {
         return this.bookRepository.getBookCount(libraryId);

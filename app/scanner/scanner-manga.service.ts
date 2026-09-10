@@ -3,7 +3,7 @@ import * as path from 'path';
 import { BrowserWindow } from 'electron';
 import { StorageService } from '../database/storage.service';
 import { Manga } from '../../src/app/core/models/entities/manga.model';
-import { FileType } from '../../src/app/core/models/enums/app-enums';
+import { FileType, getMangaFileType } from '../../src/app/core/models/enums/app-enums';
 import { ParseFactory } from '../parser/manga/parse-factory';
 import { MangaImageCoverController } from '../controllers/manga-image-cover.controller';
 import { Telemetry } from '../utils/telemetry';
@@ -179,14 +179,13 @@ export class ScannerMangaService {
       }
     }
 
-    const typeStr = isDirectory ? 'FOLDER' : ext.replace('.', '').toUpperCase();
     const manga: Partial<Manga> = {
       title,
       path: itemPath,
       folder,
       name: fileName,
       fileSize: stat.size,
-      fileType: isDirectory ? (FileType as any)['CBZ'] || FileType.CBZ : ((FileType as any)[typeStr] || FileType.UNKNOWN),
+      fileType: isDirectory ? FileType.DIRECTORY : getMangaFileType(itemPath),
       pages,
       chapters: [],
       chaptersPages: {},

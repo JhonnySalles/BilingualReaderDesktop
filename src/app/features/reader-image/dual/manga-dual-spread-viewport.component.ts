@@ -120,7 +120,8 @@ import { DRAG_THRESHOLD_PX } from '../manga-reader-navigation';
                       [texts]="ocrTexts"
                       [imageWidth]="pageNaturalWidth"
                       [imageHeight]="pageNaturalHeight"
-                      [selectedSequence]="null" />
+                      [selectedSequence]="null"
+                      (selectText)="selectText.emit($event)" />
                   }
                 </div>
               } @else if (pages[page]) {
@@ -156,7 +157,8 @@ import { DRAG_THRESHOLD_PX } from '../manga-reader-navigation';
                       [texts]="ocrTexts"
                       [imageWidth]="pageNaturalWidth"
                       [imageHeight]="pageNaturalHeight"
-                      [selectedSequence]="null" />
+                      [selectedSequence]="null"
+                      (selectText)="selectText.emit($event)" />
                   }
                 </div>
               } @else {

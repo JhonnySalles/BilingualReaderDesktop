@@ -88,12 +88,49 @@ class MangaImageCoverController {
         }
         return null;
     }
+    /** Return existing coverPath if present on disk; otherwise re-extract from source. */
+    async ensureCover(manga) {
+        if (manga.coverPath && fs.existsSync(manga.coverPath)) {
+            return manga.coverPath;
+        }
+        try {
+            return await this.getMangaCoverFile(manga);
+        }
+        catch (e) {
+            console.warn('[MangaImageCover] ensureCover failed', manga.name, e);
+            return null;
+        }
+    }
     saveCoverToCache(filePath, buffer) {
         const hash = this.generateHash(filePath);
         const cacheDir = this.getCacheDir();
         const coverPath = path.join(cacheDir, `${hash}.png`);
         fs.writeFileSync(coverPath, buffer);
         return coverPath;
+    }
+    /** Remove all cached cover files. Returns count of entries removed. */
+    clearCache() {
+        const cacheDir = this.getCacheDir();
+        if (!fs.existsSync(cacheDir))
+            return 0;
+        let removed = 0;
+        for (const name of fs.readdirSync(cacheDir)) {
+            const full = path.join(cacheDir, name);
+            try {
+                const st = fs.statSync(full);
+                if (st.isDirectory()) {
+                    fs.rmSync(full, { recursive: true, force: true });
+                }
+                else {
+                    fs.unlinkSync(full);
+                }
+                removed += 1;
+            }
+            catch (e) {
+                console.warn('[MangaImageCover] clearCache failed', full, e);
+            }
+        }
+        return removed;
     }
 }
 exports.MangaImageCoverController = MangaImageCoverController;

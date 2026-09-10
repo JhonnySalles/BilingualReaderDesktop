@@ -2,9 +2,17 @@
 
 # Compiled output
 /dist
+/dist-electron
+/release
+/exec
 /tmp
 /out-tsc
 /bazel-out
+
+# Native addon
+/native/libmobi-addon/build
+/native/libmobi-addon/vendor
+/native/libmobi-addon/node_modules
 
 # Node
 /node_modules

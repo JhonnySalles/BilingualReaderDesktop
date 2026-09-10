@@ -70,11 +70,12 @@ class BookReaderSessionService {
             epubPath = await ebook_converter_service_1.EBookConverterService.instance.convertToEpub(bookPath);
         }
         catch (err) {
-            const msg = err?.message || String(err);
-            if (/Failed to convert/i.test(msg)) {
-                throw new Error('Não foi possível converter o arquivo para EPUB. Instale Pandoc ou Calibre (ebook-convert) e tente novamente.');
+            if (err instanceof ebook_converter_service_1.EbookConversionError) {
+                throw new Error(err.message);
             }
-            throw err;
+            const msg = err instanceof Error ? err.message : String(err);
+            throw new Error(msg ||
+                'Não foi possível converter o arquivo para EPUB. Instale Calibre (ebook-convert) e/ou Pandoc e tente novamente.');
         }
         if (!fs.existsSync(epubPath)) {
             throw new Error('Arquivo EPUB convertido não encontrado');

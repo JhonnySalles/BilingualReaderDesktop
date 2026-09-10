@@ -1,4 +1,37 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SettingsController = void 0;
 const electron_1 = require("electron");
@@ -51,6 +84,37 @@ class SettingsController {
         electron_1.ipcMain.handle('telemetry:set-key', async (_event, key, value) => {
             telemetry_1.Telemetry.setCustomKey(String(key || ''), String(value ?? ''));
             return true;
+        });
+        electron_1.ipcMain.handle('shell:openExternal', async (_event, url) => {
+            const raw = String(url || '').trim();
+            if (!raw)
+                return false;
+            let parsed;
+            try {
+                parsed = new URL(raw);
+            }
+            catch {
+                return false;
+            }
+            if (parsed.protocol !== 'https:' &&
+                parsed.protocol !== 'http:' &&
+                parsed.protocol !== 'mailto:') {
+                return false;
+            }
+            await electron_1.shell.openExternal(parsed.toString());
+            return true;
+        });
+        electron_1.ipcMain.handle('converter:tools-status', async () => {
+            const { EBookConverterService } = await Promise.resolve().then(() => __importStar(require('../services/ebook-converter.service')));
+            const adapters = EBookConverterService.instance.getAdapterStatuses();
+            const legacy = EBookConverterService.instance.getToolsStatus();
+            return {
+                adapters,
+                pandoc: !!legacy.pandoc,
+                calibre: !!legacy.calibre,
+                pandocPath: legacy.pandoc,
+                calibrePath: legacy.calibre
+            };
         });
     }
 }

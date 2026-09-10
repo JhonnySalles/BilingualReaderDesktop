@@ -3,16 +3,41 @@ import * as path from 'path';
 import { BrowserWindow } from 'electron';
 import { StorageService } from '../database/storage.service';
 import { Book } from '../../src/app/core/models/entities/book.model';
-import { FileType } from '../../src/app/core/models/enums/app-enums';
+import { getBookFileType } from '../../src/app/core/models/enums/app-enums';
 import { BookExtractorFactory } from '../parser/book/book-extractor.factory';
 import { BookImageCoverController } from '../controllers/book-image-cover.controller';
 import { Telemetry } from '../utils/telemetry';
 
 const BOOK_EXTENSIONS = new Set([
-  '.epub', '.kepub', '.epub3', '.pdf', '.xps', '.mobi', '.azw', '.azw3', '.azw4',
-  '.pdb', '.prc', '.djvu', '.fb2', '.txt', '.playlist', '.log', '.tcr', '.rtf',
-  '.html', '.htm', '.xhtml', '.xhtm', '.xml', '.htmlz', '.pmlz', '.doc', '.docx',
-  '.odt', '.md', '.markdown', '.mht', '.mhtml', '.shtml'
+  '.epub',
+  '.kepub',
+  '.epub3',
+  '.pdf',
+  '.xps',
+  '.mobi',
+  '.azw',
+  '.azw3',
+  '.azw4',
+  '.pdb',
+  '.prc',
+  '.djvu',
+  '.fb2',
+  '.txt',
+  '.rtf',
+  '.html',
+  '.htm',
+  '.xhtml',
+  '.xhtm',
+  '.htmlz',
+  '.pmlz',
+  '.doc',
+  '.docx',
+  '.odt',
+  '.md',
+  '.markdown',
+  '.mht',
+  '.mhtml',
+  '.shtml'
 ]);
 
 export class ScannerBookService {
@@ -120,14 +145,13 @@ export class ScannerBookService {
     const meta = BookExtractorFactory.getMetadata(filePath);
     const title = meta.title || path.basename(filePath, ext);
 
-    const typeStr = ext.replace('.', '').toUpperCase();
     const book: Partial<Book> = {
       title,
       path: filePath,
       folder,
       name: fileName,
       fileSize: stat.size,
-      fileType: (FileType as any)[typeStr] || FileType.UNKNOWN,
+      fileType: getBookFileType(filePath),
       pages: 1,
       bookMark: 0,
       completed: false,

@@ -13,6 +13,7 @@ import { FileLinkRepository } from './file-link.repository';
 import { KanjiRepository } from './kanji.repository';
 import { KanjaxRepository } from './kanjax.repository';
 import { VocabularyRepository } from './vocabulary.repository';
+import { AssistantHistoryRepository } from './assistant-history.repository';
 import {
   HistoryRepository,
   HistoryContentType,
@@ -37,6 +38,7 @@ export class StorageService {
   public kanjiRepository!: KanjiRepository;
   public kanjaxRepository!: KanjaxRepository;
   public vocabularyRepository!: VocabularyRepository;
+  public assistantHistoryRepository!: AssistantHistoryRepository;
   public historyRepository!: HistoryRepository;
   public statisticsRepository!: StatisticsRepository;
 
@@ -44,9 +46,12 @@ export class StorageService {
     this.initDatabase();
   }
 
+  getDbPath(): string {
+    return path.join(app.getPath('userData'), 'BilingualReaderDesktop.db');
+  }
+
   private initDatabase(): void {
-    const userDataPath = app.getPath('userData');
-    const dbPath = path.join(userDataPath, 'BilingualReaderDesktop.db');
+    const dbPath = this.getDbPath();
     
     const dbDir = path.dirname(dbPath);
     if (!fs.existsSync(dbDir)) {
@@ -69,8 +74,31 @@ export class StorageService {
     this.kanjiRepository = new KanjiRepository(this.db);
     this.kanjaxRepository = new KanjaxRepository(this.db);
     this.vocabularyRepository = new VocabularyRepository(this.db);
+    this.assistantHistoryRepository = new AssistantHistoryRepository(this.db);
     this.historyRepository = new HistoryRepository(this.db);
     this.statisticsRepository = new StatisticsRepository(this.db);
+  }
+
+  /** Checkpoint WAL into the main file so a single .db copy is consistent. */
+  checkpointWal(): void {
+    try {
+      this.db.pragma('wal_checkpoint(TRUNCATE)');
+    } catch (e) {
+      console.warn('[StorageService] wal_checkpoint failed', e);
+    }
+  }
+
+  closeDatabase(): void {
+    try {
+      this.checkpointWal();
+      this.db.close();
+    } catch (e) {
+      console.warn('[StorageService] closeDatabase failed', e);
+    }
+  }
+
+  clearHistory(): number {
+    return this.historyRepository.clearAll();
   }
 
   // --- Manga Repository Delegates ---
@@ -135,6 +163,10 @@ export class StorageService {
 
   public saveBook(book: Partial<Book>): number {
     return this.bookRepository.save(book);
+  }
+
+  public setBookPassword(id: number, password: string): Book | undefined {
+    return this.bookRepository.setPassword(id, password);
   }
 
   public countBooks(libraryId?: number): number {

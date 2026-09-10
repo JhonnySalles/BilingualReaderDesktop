@@ -33,8 +33,6 @@ export interface LinkedFileSource extends MangaPageSource {
 }
 
 const MAX_BACKUPS = 10;
-/** Match Android USE_PAGE_PATH_FOR_LINKED default for folder-aware padding. */
-const USE_PAGE_PATH_FOR_LINKED = true;
 
 export class PageLinkEngine {
   linkedFile: LinkedFile = createEmptyLinkedFile(0);
@@ -43,6 +41,8 @@ export class PageLinkEngine {
   language: Languages = Languages.PORTUGUESE;
   mangaId = 0;
   mangaTitle = '';
+  /** Pad using folder paths when linking (settings). */
+  usePagePathForLinked = true;
 
   private backups: LinkedPage[][] = [];
 
@@ -181,7 +181,7 @@ export class PageLinkEngine {
 
     for (let i = 0; i < source.pageCount; i++) {
       const pagePath = source.pagePaths[i] || '';
-      if (USE_PAGE_PATH_FOR_LINKED && hasFolders) {
+      if (this.usePagePathForLinked && hasFolders) {
         const folder = pagePath;
         if (folder !== lastFolder) {
           lastFolder = folder;

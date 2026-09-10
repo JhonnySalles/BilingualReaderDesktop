@@ -17,6 +17,8 @@ import ePub, { Book as EpubBook, NavItem, Rendition } from 'epubjs';
 import { ElectronService } from '../../core/services/electron.service';
 import { NavigationStackService } from '../../core/services/navigation-stack.service';
 import { SettingsService } from '../../core/services/settings.service';
+import { BookUnlockService } from '../../core/services/book-unlock.service';
+import { bookNeedsUnlock, bookPasswordMatches } from '../../core/utils/book-password.util';
 import {
   TOUCH_DOUBLE_CLICK_MS,
   TouchZoneService
@@ -34,10 +36,12 @@ import {
   BookSearchHistory,
   BookSearchListItem,
   BookSpacingSize,
+  Kanjax,
   Languages,
   PAGE_TRANSITION_LABELS_PT,
   PAGE_TRANSITION_OPTIONS,
   PageTransitionType,
+  Vocabulary,
   isPageTransitionType,
   prefersReducedMotion
 } from '../../core/models';
@@ -56,6 +60,11 @@ import { AnnotationListOverlayComponent } from './annotation-list-overlay.compon
 import { TextSelectPopupComponent } from './text-select-popup.component';
 import { BookTtsBarComponent } from './book-tts-bar.component';
 import { BookTtsPopupComponent } from './book-tts-popup.component';
+import { VocabularyDetailDialogComponent } from '../vocabulary/components/vocabulary-detail-dialog.component';
+import { KanjaxDetailDialogComponent } from '../vocabulary/components/kanjax-detail-dialog.component';
+import { ReadingAssistantPanelComponent } from '../assistant/reading-assistant-panel.component';
+import { ReadingSummaryDialogComponent } from '../assistant/reading-summary-dialog.component';
+import { AssistantContextItem } from '../assistant/assistant-context.util';
 import {
   splitTtsSentences,
   findSentenceIndexContaining,
@@ -71,7 +80,7 @@ import {
   textSpeechAzureName
 } from '../../core/models/enums/tts-enums';
 import { AnnotationItem } from '../../core/models';
-import { BookFontOption, babelStoneFontFaceCss, japaneseFontOptions, westernFontOptions } from './book-fonts';
+import { BookFontOption, babelStoneFontFaceCss, japaneseFontOptions, westernFontOptions, resolveFontFamilyForTate } from './book-fonts';
 import { JapaneseTextUtil } from '../../core/services/japanese/japanese-text.util';
 import { runBookSearch } from './book-search.util';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
@@ -138,7 +147,11 @@ const TAP_DEDUPE_MS = 350;
     AnnotationListOverlayComponent,
     TextSelectPopupComponent,
     BookTtsBarComponent,
-    BookTtsPopupComponent
+    BookTtsPopupComponent,
+    VocabularyDetailDialogComponent,
+    KanjaxDetailDialogComponent,
+    ReadingAssistantPanelComponent,
+    ReadingSummaryDialogComponent
   ],
   host: { class: 'block h-screen w-screen' },
   styles: [`
@@ -230,6 +243,32 @@ const TAP_DEDUPE_MS = 350;
             class="px-4 py-2 rounded-xl bg-slate-800 text-xs font-semibold text-slate-200 hover:bg-slate-700 cursor-pointer">
             Voltar
           </button>
+        </div>
+      }
+
+      @if (unlockRequired()) {
+        <div class="absolute inset-0 z-[55] flex items-center justify-center bg-slate-950/95 p-4">
+          <div class="w-full max-w-sm rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl p-5 space-y-3">
+            <h2 class="text-sm font-semibold text-slate-100">Livro protegido</h2>
+            <p class="text-xs text-slate-400">Digite a senha para abrir “{{ title() }}”.</p>
+            <input type="password" autocomplete="off"
+              class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200"
+              [(ngModel)]="unlockAttempt"
+              (keydown.enter)="confirmUnlock()" />
+            @if (unlockError()) {
+              <p class="text-[11px] text-rose-300">{{ unlockError() }}</p>
+            }
+            <div class="flex justify-end gap-2">
+              <button type="button" (click)="goBack()"
+                class="px-3 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800 cursor-pointer">
+                Cancelar
+              </button>
+              <button type="button" (click)="confirmUnlock()"
+                class="px-3 py-2 rounded-xl text-xs font-semibold bg-amber-600 hover:bg-amber-500 text-white cursor-pointer">
+                Abrir
+              </button>
+            </div>
+          </div>
         </div>
       }
 
@@ -525,6 +564,16 @@ const TAP_DEDUPE_MS = 350;
             </svg>
           </button>
 
+          <button type="button" (click)="openAssistant()"
+            class="p-2.5 rounded-xl text-slate-200 hover:bg-slate-800 cursor-pointer"
+            [class.text-indigo-300]="showAssistant()"
+            title="Assistente de leitura">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/>
+            </svg>
+          </button>
+
           <button type="button" (click)="goNext()"
             class="p-2.5 rounded-xl text-slate-200 hover:bg-slate-800 cursor-pointer" title="Próxima">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -750,6 +799,21 @@ const TAP_DEDUPE_MS = 350;
               <option [ngValue]="opt">{{ pageTransitionLabels[opt] }}</option>
             }
           </select>
+
+          @if (isJapaneseBook()) {
+            <div class="h-px bg-slate-700/80 mx-1 my-4"></div>
+            <label class="flex items-center justify-between text-[11px] text-slate-300 cursor-pointer gap-3">
+              <span class="min-w-0">
+                <span class="block">Tate-gaki (texto vertical)</span>
+                <span class="block text-[10px] text-slate-500 font-normal mt-0.5">
+                  CSS writing-mode; funciona com furigana
+                </span>
+              </span>
+              <input type="checkbox" class="w-4 h-4 accent-indigo-600 rounded shrink-0"
+                [ngModel]="settings.bookFontJapaneseStyle()"
+                (ngModelChange)="setTateGaki($event)" />
+            </label>
+          }
         </aside>
       }
 
@@ -909,6 +973,41 @@ const TAP_DEDUPE_MS = 350;
         </div>
       }
 
+      @if (vocabDetail(); as d) {
+        <app-vocabulary-detail-dialog
+          [item]="d"
+          (close)="vocabDetail.set(null)"
+          (openKanji)="vocabKanji.set($event)" />
+      }
+      @if (vocabKanji(); as k) {
+        <app-kanjax-detail-dialog [item]="k" (close)="vocabKanji.set(null)" />
+      }
+
+      @if (showAssistant()) {
+        <app-reading-assistant-panel
+          type="BOOK"
+          [referenceId]="bookId"
+          [title]="title()"
+          [items]="assistantItems()"
+          [currentPage]="currentPage()"
+          [pageCount]="pageCount()"
+          [maxContextChars]="assistantMaxContext()"
+          [preloadSystem]="assistantPreload()"
+          (close)="showAssistant.set(false)"
+          (openSummary)="prepareAssistantSummary()" />
+      }
+      @if (showAssistantSummary()) {
+        <app-reading-summary-dialog
+          type="BOOK"
+          [referenceId]="bookId"
+          [title]="title()"
+          [items]="assistantItems()"
+          [selectedIds]="assistantSelectedForSummary()"
+          [maxContextChars]="assistantMaxContext()"
+          (close)="showAssistantSummary.set(false)"
+          (openInChat)="onAssistantSummaryToChat($event)" />
+      }
+
       <app-text-select-popup
         [visible]="textSelectVisible()"
         [left]="textSelectPos().left"
@@ -917,6 +1016,9 @@ const TAP_DEDUPE_MS = 350;
         (erase)="onTextSelectErase()"
         (copy)="onTextSelectCopy()"
         (selectAll)="onTextSelectAll()"
+        (search)="onTextSelectSearch()"
+        (translate)="onTextSelectTranslate()"
+        (vocabulary)="onTextSelectVocabulary()"
         (tts)="onTextSelectTts()"
         (dismiss)="dismissTextSelect()" />
 
@@ -960,9 +1062,10 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
   private router = inject(Router);
   private electron = inject(ElectronService);
   private nav = inject(NavigationStackService);
-  private settings = inject(SettingsService);
+  settings = inject(SettingsService);
   private touchZones = inject(TouchZoneService);
   private sanitizer = inject(DomSanitizer);
+  private bookUnlock = inject(BookUnlockService);
 
   BookScrollingMode = BookScrollingMode;
   Math = Math;
@@ -979,6 +1082,10 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
   loading = signal(true);
   loadingMessage = signal('Abrindo arquivo…');
   error = signal<string | null>(null);
+  unlockRequired = signal(false);
+  unlockError = signal<string | null>(null);
+  unlockAttempt = '';
+  private pendingBookPassword = '';
   chromeVisible = signal(false);
   isFullscreen = signal(false);
   showToc = signal(false);
@@ -998,6 +1105,14 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
   showTouchConfig = signal(false);
   touchMenuOpen = signal(false);
   stubToast = signal<string | null>(null);
+  vocabDetail = signal<Vocabulary | null>(null);
+  vocabKanji = signal<Kanjax | null>(null);
+  showAssistant = signal(false);
+  showAssistantSummary = signal(false);
+  assistantItems = signal<AssistantContextItem[]>([]);
+  assistantPreload = signal<string | null>(null);
+  assistantMaxContext = signal(12000);
+  assistantSelectedForSummary = signal<string[]>([]);
   coverUrl = signal<string | null>(null);
   adjacentPrev = signal<Book | null>(null);
   adjacentNext = signal<Book | null>(null);
@@ -1118,6 +1233,11 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
 
   readonly isRtl = computed(() => this.scrollingMode() === BookScrollingMode.PaginationRtl);
 
+  /** Left/right page keys behave like RTL when RTL mode or tate-gaki is on. */
+  usesRtlPageKeys(): boolean {
+    return this.isRtl() || this.tateGakiEnabled();
+  }
+
   readonly isHorizontalMode = computed(() => {
     const m = this.scrollingMode();
     return m === BookScrollingMode.Pagination || m === BookScrollingMode.PaginationRtl;
@@ -1158,8 +1278,8 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       const w = this.peekViewportW() || window.innerWidth;
       if (x === 0) return 'none';
       // LTR next (x<0): +w; LTR prev (x>0): -w; RTL inverts
-      const dir = this.isRtl() ? (x > 0 ? 1 : -1) : (x < 0 ? 1 : -1);
-      const side = this.isRtl() ? -dir : dir;
+      const dir = this.usesRtlPageKeys() ? (x > 0 ? 1 : -1) : (x < 0 ? 1 : -1);
+      const side = this.usesRtlPageKeys() ? -dir : dir;
       return `translate(${x + side * w}px, 0)`;
     }
 
@@ -1232,11 +1352,11 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     if (key === 'ArrowLeft') {
       if (!paginated) return;
       ev.preventDefault();
-      this.isRtl() ? this.goNext() : this.goPrev();
+      this.usesRtlPageKeys() ? this.goNext() : this.goPrev();
     } else if (key === 'ArrowRight') {
       if (!paginated) return;
       ev.preventDefault();
-      this.isRtl() ? this.goPrev() : this.goNext();
+      this.usesRtlPageKeys() ? this.goPrev() : this.goNext();
     } else if (key === 'ArrowUp') {
       if (paginated) {
         ev.preventDefault();
@@ -1256,14 +1376,14 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     } else if (key === 'PageUp') {
       ev.preventDefault();
       if (paginated) {
-        this.isRtl() && this.isHorizontalMode() ? this.goNext() : this.goPrev();
+        this.usesRtlPageKeys() && this.isHorizontalMode() ? this.goNext() : this.goPrev();
       } else {
         this.goPrev();
       }
     } else if (key === 'PageDown' || key === ' ') {
       ev.preventDefault();
       if (paginated) {
-        this.isRtl() && this.isHorizontalMode() ? this.goPrev() : this.goNext();
+        this.usesRtlPageKeys() && this.isHorizontalMode() ? this.goPrev() : this.goNext();
       } else {
         this.goNext();
       }
@@ -2098,7 +2218,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     const forward = this.wheelAccum > 0;
     this.wheelAccum = 0;
 
-    if (this.isHorizontalMode() && this.isRtl()) {
+    if (this.isHorizontalMode() && this.usesRtlPageKeys()) {
       forward ? this.goPrev() : this.goNext();
     } else {
       forward ? this.goNext() : this.goPrev();
@@ -2141,6 +2261,11 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private onRenditionClick = (event: MouseEvent): void => {
     if (this.editingAnnotation()) return;
+    const vocabEl = (event.target as Element | null)?.closest?.('.br-vocab') as HTMLElement | null;
+    if (vocabEl) {
+      void this.openVocabularyFromElement(vocabEl);
+      return;
+    }
     if (this.textSelectVisible()) {
       // Keep toolbar while native selection remains (mouseup after drag must not clear it)
       if (this.hasActiveTextSelection()) return;
@@ -2236,6 +2361,8 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
   private async openReader(): Promise<void> {
     this.loading.set(true);
     this.error.set(null);
+    this.unlockRequired.set(false);
+    this.unlockError.set(null);
     this.loadingMessage.set('Abrindo arquivo…');
     try {
       if (!this.bookId || Number.isNaN(this.bookId)) {
@@ -2251,7 +2378,39 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
         this.coverUrl.set(book.coverPath ? `local-cover:///${book.coverPath}` : null);
       }
 
-      this.loadingMessage.set('Preparando EPUB…');
+      if (bookNeedsUnlock(book?.password) && !this.bookUnlock.isUnlocked(this.bookId)) {
+        this.pendingBookPassword = book?.password || '';
+        this.unlockRequired.set(true);
+        this.loading.set(false);
+        return;
+      }
+
+      await this.continueOpenReader();
+    } catch (e: any) {
+      console.error(e);
+      this.error.set(e?.message || 'Erro ao abrir o livro');
+      this.loading.set(false);
+    }
+  }
+
+  confirmUnlock(): void {
+    if (!bookPasswordMatches(this.pendingBookPassword, this.unlockAttempt)) {
+      this.unlockError.set('Senha incorreta');
+      return;
+    }
+    this.bookUnlock.markUnlocked(this.bookId);
+    this.unlockRequired.set(false);
+    this.unlockAttempt = '';
+    this.unlockError.set(null);
+    this.loading.set(true);
+    void this.continueOpenReader();
+  }
+
+  private async continueOpenReader(): Promise<void> {
+    this.loading.set(true);
+    this.error.set(null);
+    this.loadingMessage.set('Preparando EPUB…');
+    try {
       const opened = await this.electron.openBookReader(this.bookId);
       if (!opened) {
         throw new Error('Falha ao abrir o leitor (Electron indisponível)');
@@ -2838,6 +2997,163 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     void this.startTtsFromSelection(text);
   }
 
+  async onTextSelectSearch(): Promise<void> {
+    const text = (this.pendingSelection()?.text || '').trim();
+    this.dismissTextSelect();
+    if (!text) {
+      this.showStub('Nada selecionado');
+      return;
+    }
+    await this.openSearch();
+    this.searchQuery.set(text);
+    void this.runSearch(text);
+  }
+
+  async onTextSelectTranslate(): Promise<void> {
+    const text = (this.pendingSelection()?.text || '').trim();
+    this.dismissTextSelect();
+    if (!text) {
+      this.showStub('Nada selecionado');
+      return;
+    }
+    const url =
+      'https://translate.google.com/?sl=auto&tl=pt&text=' + encodeURIComponent(text);
+    const ok = await this.electron.openExternal(url);
+    if (!ok) this.showStub('Não foi possível abrir o tradutor');
+  }
+
+  async onTextSelectVocabulary(): Promise<void> {
+    const text = (this.pendingSelection()?.text || '').trim();
+    this.dismissTextSelect();
+    await this.openVocabularyFromText(text);
+  }
+
+  async openAssistant(): Promise<void> {
+    const status = await this.electron.assistantStatus();
+    if (!status.enabled) {
+      this.showStub('Ative a IA em Configurações');
+      return;
+    }
+    if (status.ready === false) {
+      this.showStub(
+        status.readyReason ||
+          (status.provider === 'openrouter'
+            ? 'Configure a chave OpenRouter'
+            : 'Provedor local offline — inicie Ollama/LM Studio')
+      );
+      return;
+    }
+    if (status.provider === 'openrouter' && !status.hasApiKey) {
+      this.showStub('Configure a chave OpenRouter');
+      return;
+    }
+    if (status.provider === 'ollama' || status.provider === 'lm_studio') {
+      const probe = await this.electron.aiTestConnection(status.provider);
+      if (!probe.ok) {
+        this.showStub(probe.error || 'Provedor local offline — inicie Ollama/LM Studio');
+        return;
+      }
+    }
+    this.assistantMaxContext.set(status.maxContextChars || 12000);
+    this.showStub('Preparando capítulos…');
+    try {
+      this.assistantItems.set(await this.buildBookAssistantItems());
+    } catch (e) {
+      console.warn('[reader-text] assistant context failed', e);
+      this.assistantItems.set([]);
+    }
+    this.assistantPreload.set(null);
+    this.showAssistant.set(true);
+    this.chromeVisible.set(true);
+  }
+
+  private async buildBookAssistantItems(): Promise<AssistantContextItem[]> {
+    const book = this.epubBook;
+    const toc = this.toc();
+    if (!book || !toc.length) {
+      return [
+        {
+          id: 'c:current',
+          label: 'Trecho atual',
+          text: ''
+        }
+      ];
+    }
+    const items: AssistantContextItem[] = [];
+    const limit = Math.min(toc.length, 40);
+    for (let i = 0; i < limit; i++) {
+      const entry = toc[i];
+      let text = '';
+      try {
+        const href = (entry.href || '').split('#')[0];
+        const section = book.spine.get(href) || book.spine.get(i);
+        if (section) {
+          await section.load(book.load.bind(book));
+          const doc: Document | undefined = section.document;
+          text = (doc?.body?.innerText || doc?.body?.textContent || '').replace(/\s+\n/g, '\n').trim();
+          try {
+            section.unload?.();
+          } catch {
+            /* ignore */
+          }
+        }
+      } catch {
+        text = '';
+      }
+      items.push({
+        id: `c:${i}:${entry.href || i}`,
+        label: entry.label || `Capítulo ${i + 1}`,
+        text: text || `(Sem texto extraído: ${entry.label || i + 1})`
+      });
+    }
+    return items;
+  }
+
+  prepareAssistantSummary(): void {
+    const items = this.assistantItems();
+    this.assistantSelectedForSummary.set(items.slice(-3).map(i => i.id));
+    this.showAssistantSummary.set(true);
+  }
+
+  onAssistantSummaryToChat(summary: string): void {
+    this.showAssistantSummary.set(false);
+    this.assistantPreload.set(summary);
+    this.showAssistant.set(true);
+  }
+
+  private async openVocabularyFromElement(el: HTMLElement): Promise<void> {
+    const surface = (el.getAttribute('data-surface') || el.textContent || '').trim();
+    const basic = (el.getAttribute('data-basic') || '').trim();
+    const query = basic && basic !== surface ? `${surface}` : surface;
+    await this.openVocabularyFromText(query || surface, basic || undefined);
+  }
+
+  private async openVocabularyFromText(text: string, basicForm?: string): Promise<void> {
+    const q = (text || '').trim();
+    if (!q) {
+      this.showStub('Nada selecionado');
+      return;
+    }
+    try {
+      let hit = await this.electron.lookupVocabulary({
+        text: basicForm ? basicForm : q,
+        bookId: this.bookId || null
+      });
+      if (!hit && basicForm && basicForm !== q) {
+        hit = await this.electron.lookupVocabulary({ text: q, bookId: this.bookId || null });
+      }
+      if (!hit) {
+        this.showStub('Nenhum vocabulário encontrado');
+        return;
+      }
+      this.vocabKanji.set(null);
+      this.vocabDetail.set(hit);
+    } catch (e) {
+      console.warn('[reader-text] vocabulary lookup failed', e);
+      this.showStub('Falha ao buscar vocabulário');
+    }
+  }
+
   isJapaneseBook(): boolean {
     const lang = (this.bookMeta?.language || '').toLowerCase();
     return lang.startsWith('ja') || lang.includes('japan') || lang === Languages.JAPANESE;
@@ -2855,6 +3171,16 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       this.settings.bookProcessJapaneseText() &&
       this.settings.bookGenerateFurigana()
     );
+  }
+
+  /** Vertical Japanese writing — settings toggle and Japanese-language books only. */
+  tateGakiEnabled(): boolean {
+    return this.isJapaneseBook() && this.settings.bookFontJapaneseStyle();
+  }
+
+  setTateGaki(enabled: boolean): void {
+    this.settings.bookFontJapaneseStyle.set(!!enabled);
+    this.scheduleTypographyReflow();
   }
 
   async toggleTts(): Promise<void> {
@@ -3495,7 +3821,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.isHorizontalMode()) {
       const amount = this.overscrollX;
       if (amount === 0) return 0;
-      if (this.isRtl()) return amount > 0 ? 1 : -1;
+      if (this.usesRtlPageKeys()) return amount > 0 ? 1 : -1;
       return amount < 0 ? 1 : -1;
     }
     const amount = this.overscrollY;
@@ -3812,10 +4138,17 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     }
     if (!targets.length) return;
 
+    const tate = this.tateGakiEnabled();
+    const furigana = this.furiganaEnabled();
     const pad = MARGIN_PX[this.margin()];
     let lh = SPACING_LH[this.spacing()] ?? this.settings.bookLineHeight();
-    if (this.furiganaEnabled()) {
-      lh = Math.max(lh, Math.min(2.4, lh * 1.25));
+    if (furigana) {
+      // Extra column gap when furigana sits on the "over" side in vertical-rl.
+      const bump = tate ? 1.45 : 1.25;
+      const cap = tate ? 2.8 : 2.4;
+      lh = Math.max(lh, Math.min(cap, lh * bump));
+    } else if (tate) {
+      lh = Math.max(lh, Math.min(2.2, lh * 1.1));
     }
     const textAlign = this.align();
     let imgMarginLeft = '0';
@@ -3829,12 +4162,69 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     }
     const imgMl = imgMarginLeft + ' !important';
     const imgMr = imgMarginRight + ' !important';
-    const family = this.isJapaneseBook()
+    let family = this.isJapaneseBook()
       ? (this.fontFamily() || this.settings.bookFontFamilyJapanese())
       : this.fontFamily();
+    if (tate && this.isJapaneseBook()) {
+      family = resolveFontFamilyForTate(family);
+    }
+
+    const imgRules: Record<string, string> = tate
+      ? {
+          'max-width': '100% !important',
+          'max-height': '100% !important',
+          'width': 'auto !important',
+          'height': 'auto !important',
+          'display': 'block !important',
+          'margin-left': imgMl,
+          'margin-right': imgMr,
+          'object-fit': 'contain'
+        }
+      : {
+          'max-width': '100% !important',
+          'width': 'auto !important',
+          'height': 'auto !important',
+          'display': 'block !important',
+          'margin-left': imgMl,
+          'margin-right': imgMr,
+          'object-fit': 'contain'
+        };
+
+    const rubyRules: Record<string, string> = {
+      'ruby-position': 'over',
+      'ruby-align': 'center'
+    };
+    const rtRules: Record<string, string> = furigana && tate
+      ? {
+          'font-size': '0.6em',
+          'line-height': '1',
+          'text-orientation': 'upright',
+          '-webkit-text-orientation': 'upright',
+          color: '#cbd5e1'
+        }
+      : {
+          'font-size': '0.75em',
+          'line-height': '1.1',
+          color: '#cbd5e1'
+        };
+
     const theme: Record<string, Record<string, string>> = {
       html: {
-        background: PAGE_BG + ' !important'
+        background: PAGE_BG + ' !important',
+        ...(tate
+          ? {
+              'writing-mode': 'vertical-rl',
+              '-webkit-writing-mode': 'vertical-rl',
+              'text-orientation': 'mixed',
+              height: '100%',
+              'max-height': '100%',
+              overflow: 'hidden'
+            }
+          : {
+              'writing-mode': 'horizontal-tb',
+              '-webkit-writing-mode': 'horizontal-tb',
+              'text-orientation': 'mixed'
+            })
       },
       body: {
         'font-family': family + ' !important',
@@ -3843,7 +4233,21 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
         'text-align': textAlign + ' !important',
         'padding': pad + 'px !important',
         'background': PAGE_BG + ' !important',
-        'color': '#e2e8f0 !important'
+        'color': '#e2e8f0 !important',
+        ...(tate
+          ? {
+              'writing-mode': 'vertical-rl',
+              '-webkit-writing-mode': 'vertical-rl',
+              'text-orientation': 'mixed',
+              height: '100%',
+              'max-height': '100%',
+              'overflow-y': 'hidden',
+              'overflow-x': 'auto'
+            }
+          : {
+              'writing-mode': 'horizontal-tb',
+              '-webkit-writing-mode': 'horizontal-tb'
+            })
       },
       p: {
         'text-align': textAlign + ' !important',
@@ -3852,26 +4256,12 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       a: {
         color: '#a5b4fc !important'
       },
-      ruby: {
-        'ruby-position': 'over',
-        'ruby-align': 'center'
-      },
-      rt: {
-        'font-size': '0.75em',
-        'line-height': '1.1',
-        color: '#cbd5e1'
-      },
-      'img, svg, image, video': {
-        'max-width': '100% !important',
-        'width': 'auto !important',
-        'height': 'auto !important',
-        'display': 'block !important',
-        'margin-left': imgMl,
-        'margin-right': imgMr,
-        'object-fit': 'contain'
-      },
+      ruby: rubyRules,
+      rt: rtRules,
+      'img, svg, image, video': imgRules,
       figure: {
         'max-width': '100% !important',
+        ...(tate ? { 'max-height': '100% !important' } : {}),
         'margin-left': imgMl,
         'margin-right': imgMr,
         'margin-top': '0.5em !important',
@@ -3879,12 +4269,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
         'display': 'block !important'
       },
       'p img, div img, figure img': {
-        'width': 'auto !important',
-        'max-width': '100% !important',
-        'height': 'auto !important',
-        'display': 'block !important',
-        'margin-left': imgMl,
-        'margin-right': imgMr
+        ...imgRules
       }
     };
     for (const r of targets) {
@@ -4053,30 +4438,38 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  /** Inject BabelStone @font-face + optional furigana ruby rewrite. */
+  /** Inject BabelStone @font-face + optional furigana/vocab ruby rewrite. */
   private async enhanceJapaneseContents(contents: any): Promise<void> {
     const doc: Document | undefined = contents?.document;
     if (!doc?.head || !doc.body) return;
 
     this.injectJapaneseFontFaces(doc);
 
-    if (!this.furiganaEnabled()) return;
+    if (!this.japaneseProcessingEnabled()) return;
     if (doc.documentElement.getAttribute('data-br-furigana') === '1') return;
 
     try {
       await this.electron.japaneseInit();
       await this.applyFuriganaToDocument(doc);
       doc.documentElement.setAttribute('data-br-furigana', '1');
+      // Re-apply themes so vertical ruby/rt rules land after DOM rewrite.
+      this.applyTypography();
     } catch (e) {
       console.warn('[reader-text] furigana apply failed', e);
     }
+  }
+
+  private japaneseProcessingEnabled(): boolean {
+    return this.isJapaneseBook() && this.settings.bookProcessJapaneseText();
   }
 
   private injectJapaneseFontFaces(doc: Document): void {
     if (doc.getElementById('br-jp-fonts')) return;
     const style = doc.createElement('style');
     style.id = 'br-jp-fonts';
-    style.textContent = babelStoneFontFaceCss('assets/fonts');
+    style.textContent =
+      babelStoneFontFaceCss('assets/fonts') +
+      '\n.br-vocab{cursor:pointer;}\n.br-vocab:hover{background:rgba(99,102,241,0.18);border-radius:2px;}';
     doc.head.appendChild(style);
   }
 
@@ -4087,7 +4480,9 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
         const parent = node.parentElement;
         if (!parent) return NodeFilter.FILTER_REJECT;
         if (skip.has(parent.tagName)) return NodeFilter.FILTER_REJECT;
-        if (parent.closest('ruby, rt, rp, script, style, code, pre')) return NodeFilter.FILTER_REJECT;
+        if (parent.closest('ruby, rt, rp, script, style, code, pre, .br-vocab, .br-furigana')) {
+          return NodeFilter.FILTER_REJECT;
+        }
         const text = node.textContent || '';
         if (!text.trim() || !JapaneseTextUtil.isJapanese(text)) return NodeFilter.FILTER_REJECT;
         return NodeFilter.FILTER_ACCEPT;
@@ -4100,6 +4495,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       nodes.push(current as Text);
     }
 
+    const withFurigana = this.settings.bookGenerateFurigana();
     const BATCH = 8;
     for (let i = 0; i < nodes.length; i += BATCH) {
       const slice = nodes.slice(i, i + BATCH);
@@ -4107,8 +4503,8 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
         slice.map(async textNode => {
           if (!textNode.isConnected) return;
           const raw = textNode.textContent || '';
-          const html = await this.electron.japaneseToRubyHtml(raw, true);
-          if (!html || !html.includes('<ruby')) return;
+          const html = await this.electron.japaneseToRubyHtml(raw, withFurigana);
+          if (!html || !html.includes('br-vocab')) return;
           const wrap = doc.createElement('span');
           wrap.className = 'br-furigana';
           wrap.innerHTML = html;

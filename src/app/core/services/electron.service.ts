@@ -51,6 +51,7 @@ declare global {
       getLibraryCount: (libraryId: number, type: 'MANGA' | 'BOOK') => Promise<number>;
       getManga: (id: number) => Promise<Manga | null>;
       getBook: (id: number) => Promise<Book | null>;
+      setBookPassword: (id: number, password: string) => Promise<Book | null>;
       getAdjacentBooks: (id: number) => Promise<{ prev: Book | null; next: Book | null }>;
       getAdjacentMangas: (id: number) => Promise<{ prev: Manga | null; next: Manga | null }>;
       saveManga: (manga: Partial<Manga>) => Promise<Manga | null>;
@@ -124,6 +125,50 @@ declare global {
         rate: number;
       }>>;
       ttsClearCache: () => Promise<boolean>;
+      dbBackup: () => Promise<{ ok: boolean; canceled?: boolean; path?: string; error?: string }>;
+      dbRestore: () => Promise<{
+        ok: boolean;
+        canceled?: boolean;
+        relaunching?: boolean;
+        error?: string;
+      }>;
+      coversClearCache: () => Promise<{ ok: boolean; mangaRemoved: number; bookRemoved: number }>;
+      statisticsClearHistory: () => Promise<{ ok: boolean; removed: number }>;
+      appGetInfo: () => Promise<{
+        name: string;
+        version: string;
+        author: string;
+        productName: string;
+      }>;
+      aiTestConnection: (
+        provider?: string
+      ) => Promise<{ ok: boolean; models?: number; error?: string; provider?: string }>;
+      llmTestLocal: (payload: {
+        baseUrl?: string;
+        apiKey?: string;
+      }) => Promise<{ ok: boolean; models?: number; error?: string }>;
+      llmListLocalModels: (payload: {
+        baseUrl?: string;
+        apiKey?: string;
+      }) => Promise<{
+        ok: boolean;
+        models: Array<{ id: string; name: string; hasVision: boolean }>;
+        error?: string;
+      }>;
+      llmGetProvider: () => Promise<{ provider: string }>;
+      llmSetProvider: (provider: string) => Promise<{ provider: string }>;
+      converterToolsStatus: () => Promise<{
+        adapters: Array<{
+          id: string;
+          label: string;
+          available: boolean;
+          detail?: string | null;
+        }>;
+        pandoc: boolean;
+        calibre: boolean;
+        pandocPath: string | null;
+        calibrePath: string | null;
+      }>;
       openMangaReader: (mangaId: number) => Promise<{
         sessionId: string;
         mangaId: number;
@@ -161,6 +206,80 @@ declare global {
         engine: 'tesseract' | 'windows';
       }>;
       ocrWindowsAvailable: () => Promise<boolean>;
+      llmStatus: () => Promise<{
+        enabled: boolean;
+        hasKey: boolean;
+        targetLang: string;
+        provider?: string;
+        ready?: boolean;
+      }>;
+      llmTranslate: (payload: {
+        text?: string;
+        blocks?: string[];
+        mode: 'literal' | 'interpret';
+        sourceLang?: string;
+        targetLang?: string;
+        model?: string;
+        temperature?: number;
+      }) => Promise<
+        | { ok: true; text: string; mode: 'literal' | 'interpret'; model: string }
+        | { ok: false; error: string; code?: string; status?: number | null }
+      >;
+      assistantStatus: () => Promise<{
+        enabled: boolean;
+        hasApiKey: boolean;
+        provider?: string;
+        ready?: boolean;
+        readyReason?: string | null;
+        maxContextChars: number;
+        maxHistoryChars: number;
+      }>;
+      assistantHistoryList: (
+        referenceId: number,
+        type: 'BOOK' | 'MANGA'
+      ) => Promise<
+        Array<{
+          id?: number;
+          idReference: number;
+          type: 'BOOK' | 'MANGA';
+          role: string;
+          message: string;
+          date: string;
+        }>
+      >;
+      assistantHistoryClear: (referenceId: number, type: 'BOOK' | 'MANGA') => Promise<number>;
+      assistantSelectionGet: (type: 'BOOK' | 'MANGA', referenceId: number) => Promise<string>;
+      assistantSelectionSet: (
+        type: 'BOOK' | 'MANGA',
+        referenceId: number,
+        value: string
+      ) => Promise<boolean>;
+      assistantModels: (provider?: string) => Promise<{
+        ok: boolean;
+        models: Array<{ id: string; name: string; hasVision: boolean; isFree?: boolean }>;
+        error?: string;
+      }>;
+      assistantPageImages: (sessionId: string, pages: number[]) => Promise<string[]>;
+      assistantCancel: (requestId: string) => Promise<boolean>;
+      assistantAsk: (payload: {
+        type: 'BOOK' | 'MANGA';
+        referenceId: number;
+        title: string;
+        question: string;
+        contextText: string;
+        imagesBase64?: string[];
+        model?: string | null;
+        mode?: 'qa' | 'summary';
+        language?: string;
+        requestId: string;
+      }) => Promise<{
+        requestId: string;
+        ok: boolean;
+        text?: string;
+        model?: string;
+        error?: string;
+        code?: string;
+      }>;
       setMangaBookmark: (mangaId: number, page: number) => Promise<Manga | null>;
       toggleMangaFavorite: (mangaId: number) => Promise<Manga | null>;
       listMangaAnnotations: (mangaId: number) => Promise<MangaAnnotation[]>;
@@ -233,6 +352,12 @@ declare global {
         hasKanji: boolean;
       }>>;
       japaneseEngine: () => Promise<string>;
+      openExternal: (url: string) => Promise<boolean>;
+      lookupVocabulary: (options: {
+        text: string;
+        mangaId?: number | null;
+        bookId?: number | null;
+      }) => Promise<Vocabulary | null>;
       send: (channel: string, data: any) => void;
       on: (channel: string, func: (...args: any[]) => void) => () => void;
     };
@@ -328,6 +453,13 @@ export class ElectronService {
   async getBook(id: number): Promise<Book | null> {
     if (this.isElectron && window.electronAPI?.getBook) {
       return await window.electronAPI.getBook(id);
+    }
+    return null;
+  }
+
+  async setBookPassword(id: number, password: string): Promise<Book | null> {
+    if (this.isElectron && window.electronAPI?.setBookPassword) {
+      return await window.electronAPI.setBookPassword(id, password);
     }
     return null;
   }
@@ -545,6 +677,124 @@ export class ElectronService {
     return false;
   }
 
+  async dbBackup(): Promise<{ ok: boolean; canceled?: boolean; path?: string; error?: string }> {
+    if (this.isElectron && window.electronAPI?.dbBackup) {
+      return await window.electronAPI.dbBackup();
+    }
+    return { ok: false, error: 'Electron IPC indisponível' };
+  }
+
+  async dbRestore(): Promise<{
+    ok: boolean;
+    canceled?: boolean;
+    relaunching?: boolean;
+    error?: string;
+  }> {
+    if (this.isElectron && window.electronAPI?.dbRestore) {
+      return await window.electronAPI.dbRestore();
+    }
+    return { ok: false, error: 'Electron IPC indisponível' };
+  }
+
+  async coversClearCache(): Promise<{ ok: boolean; mangaRemoved: number; bookRemoved: number }> {
+    if (this.isElectron && window.electronAPI?.coversClearCache) {
+      return await window.electronAPI.coversClearCache();
+    }
+    return { ok: false, mangaRemoved: 0, bookRemoved: 0 };
+  }
+
+  async statisticsClearHistory(): Promise<{ ok: boolean; removed: number }> {
+    if (this.isElectron && window.electronAPI?.statisticsClearHistory) {
+      return await window.electronAPI.statisticsClearHistory();
+    }
+    return { ok: false, removed: 0 };
+  }
+
+  async appGetInfo(): Promise<{
+    name: string;
+    version: string;
+    author: string;
+    productName: string;
+  }> {
+    if (this.isElectron && window.electronAPI?.appGetInfo) {
+      return await window.electronAPI.appGetInfo();
+    }
+    return {
+      name: 'Bilingual Reader',
+      version: '0.0.0',
+      author: 'Jhonny Salles',
+      productName: 'Bilingual Reader'
+    };
+  }
+
+  async aiTestConnection(
+    provider?: string
+  ): Promise<{ ok: boolean; models?: number; error?: string; provider?: string }> {
+    if (this.isElectron && window.electronAPI?.aiTestConnection) {
+      return await window.electronAPI.aiTestConnection(provider);
+    }
+    return { ok: false, error: 'Electron IPC indisponível' };
+  }
+
+  async llmTestLocal(payload: {
+    baseUrl?: string;
+    apiKey?: string;
+  }): Promise<{ ok: boolean; models?: number; error?: string }> {
+    if (this.isElectron && window.electronAPI?.llmTestLocal) {
+      return await window.electronAPI.llmTestLocal(payload);
+    }
+    return { ok: false, error: 'Electron IPC indisponível' };
+  }
+
+  async llmListLocalModels(payload: { baseUrl?: string; apiKey?: string }): Promise<{
+    ok: boolean;
+    models: Array<{ id: string; name: string; hasVision: boolean }>;
+    error?: string;
+  }> {
+    if (this.isElectron && window.electronAPI?.llmListLocalModels) {
+      return await window.electronAPI.llmListLocalModels(payload);
+    }
+    return { ok: false, models: [], error: 'Electron IPC indisponível' };
+  }
+
+  async llmGetProvider(): Promise<{ provider: string }> {
+    if (this.isElectron && window.electronAPI?.llmGetProvider) {
+      return await window.electronAPI.llmGetProvider();
+    }
+    return { provider: 'openrouter' };
+  }
+
+  async llmSetProvider(provider: string): Promise<{ provider: string }> {
+    if (this.isElectron && window.electronAPI?.llmSetProvider) {
+      return await window.electronAPI.llmSetProvider(provider);
+    }
+    return { provider };
+  }
+
+  async converterToolsStatus(): Promise<{
+    adapters: Array<{
+      id: string;
+      label: string;
+      available: boolean;
+      detail?: string | null;
+    }>;
+    pandoc: boolean;
+    calibre: boolean;
+    pandocPath: string | null;
+    calibrePath: string | null;
+  }> {
+    if (this.isElectron && window.electronAPI?.converterToolsStatus) {
+      return await window.electronAPI.converterToolsStatus();
+    }
+    return {
+      adapters: [],
+      pandoc: false,
+      calibre: false,
+      pandocPath: null,
+      calibrePath: null
+    };
+  }
+
   async openMangaReader(mangaId: number) {
     if (this.isElectron && window.electronAPI?.openMangaReader) {
       return await window.electronAPI.openMangaReader(mangaId);
@@ -592,6 +842,123 @@ export class ElectronService {
       return await window.electronAPI.ocrWindowsAvailable();
     }
     return false;
+  }
+
+  async llmStatus(): Promise<{
+    enabled: boolean;
+    hasKey: boolean;
+    targetLang: string;
+    provider?: string;
+    ready?: boolean;
+  }> {
+    if (this.isElectron && window.electronAPI?.llmStatus) {
+      return await window.electronAPI.llmStatus();
+    }
+    return { enabled: false, hasKey: false, targetLang: 'OFF', provider: 'openrouter', ready: false };
+  }
+
+  async llmTranslate(payload: {
+    text?: string;
+    blocks?: string[];
+    mode: 'literal' | 'interpret';
+    sourceLang?: string;
+    targetLang?: string;
+    model?: string;
+    temperature?: number;
+  }) {
+    if (this.isElectron && window.electronAPI?.llmTranslate) {
+      return await window.electronAPI.llmTranslate(payload);
+    }
+    return { ok: false as const, error: 'LLM indisponível fora do Electron', code: 'api' };
+  }
+
+  async assistantStatus() {
+    if (this.isElectron && window.electronAPI?.assistantStatus) {
+      return await window.electronAPI.assistantStatus();
+    }
+    return {
+      enabled: false,
+      hasApiKey: false,
+      provider: 'openrouter',
+      ready: false,
+      readyReason: null,
+      maxContextChars: 12000,
+      maxHistoryChars: 600
+    };
+  }
+
+  async assistantHistoryList(referenceId: number, type: 'BOOK' | 'MANGA') {
+    if (this.isElectron && window.electronAPI?.assistantHistoryList) {
+      return await window.electronAPI.assistantHistoryList(referenceId, type);
+    }
+    return [];
+  }
+
+  async assistantHistoryClear(referenceId: number, type: 'BOOK' | 'MANGA') {
+    if (this.isElectron && window.electronAPI?.assistantHistoryClear) {
+      return await window.electronAPI.assistantHistoryClear(referenceId, type);
+    }
+    return 0;
+  }
+
+  async assistantSelectionGet(type: 'BOOK' | 'MANGA', referenceId: number) {
+    if (this.isElectron && window.electronAPI?.assistantSelectionGet) {
+      return await window.electronAPI.assistantSelectionGet(type, referenceId);
+    }
+    return '';
+  }
+
+  async assistantSelectionSet(type: 'BOOK' | 'MANGA', referenceId: number, value: string) {
+    if (this.isElectron && window.electronAPI?.assistantSelectionSet) {
+      return await window.electronAPI.assistantSelectionSet(type, referenceId, value);
+    }
+    return false;
+  }
+
+  async assistantModels(provider?: string) {
+    if (this.isElectron && window.electronAPI?.assistantModels) {
+      return await window.electronAPI.assistantModels(provider);
+    }
+    return { ok: false, models: [], error: 'Indisponível' };
+  }
+
+  async assistantPageImages(sessionId: string, pages: number[]) {
+    if (this.isElectron && window.electronAPI?.assistantPageImages) {
+      return await window.electronAPI.assistantPageImages(sessionId, pages);
+    }
+    return [];
+  }
+
+  async assistantCancel(requestId: string) {
+    if (this.isElectron && window.electronAPI?.assistantCancel) {
+      return await window.electronAPI.assistantCancel(requestId);
+    }
+    return false;
+  }
+
+  async assistantAsk(payload: {
+    type: 'BOOK' | 'MANGA';
+    referenceId: number;
+    title: string;
+    question: string;
+    contextText: string;
+    imagesBase64?: string[];
+    model?: string | null;
+    mode?: 'qa' | 'summary';
+    language?: string;
+    requestId: string;
+  }) {
+    if (this.isElectron && window.electronAPI?.assistantAsk) {
+      return await window.electronAPI.assistantAsk(payload);
+    }
+    return { requestId: payload.requestId, ok: false, error: 'Assistente indisponível', code: 'api' };
+  }
+
+  onAssistantChunk(handler: (payload: { requestId: string; delta: string }) => void): () => void {
+    if (this.isElectron && window.electronAPI?.on) {
+      return window.electronAPI.on('assistant:chunk', handler);
+    }
+    return () => undefined;
   }
 
   async setMangaBookmark(mangaId: number, page: number): Promise<Manga | null> {
@@ -905,6 +1272,41 @@ export class ElectronService {
       return await window.electronAPI.japaneseToRubyHtml(text, withFurigana);
     }
     return text;
+  }
+
+  async japaneseTokenize(text: string): Promise<Array<{
+    surface: string;
+    readingHiragana: string;
+    dictionaryForm: string;
+    hasKanji: boolean;
+  }>> {
+    if (this.isElectron && window.electronAPI?.japaneseTokenize) {
+      return await window.electronAPI.japaneseTokenize(text);
+    }
+    return [];
+  }
+
+  async openExternal(url: string): Promise<boolean> {
+    if (this.isElectron && window.electronAPI?.openExternal) {
+      return await window.electronAPI.openExternal(url);
+    }
+    try {
+      window.open(url, '_blank', 'noopener,noreferrer');
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async lookupVocabulary(options: {
+    text: string;
+    mangaId?: number | null;
+    bookId?: number | null;
+  }): Promise<Vocabulary | null> {
+    if (this.isElectron && window.electronAPI?.lookupVocabulary) {
+      return await window.electronAPI.lookupVocabulary(options);
+    }
+    return null;
   }
 
   onExtractProgress(handler: (progress: { current: number; total: number }) => void): () => void {

@@ -1,8 +1,21 @@
-import { Component, Input, Output, EventEmitter, inject, signal } from '@angular/core';
+import {
+  Component,
+  Input,
+  Output,
+  EventEmitter,
+  inject,
+  signal,
+  ElementRef,
+  ViewChild,
+  HostListener,
+  OnDestroy
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Manga } from '../../../../../core/models';
 import { MangaLibraryService } from '../../../../../core/services/manga-library.service';
 import { progressPercent } from '../../../../../core/utils/reading-progress.util';
+
+const MENU_WIDTH = 176; // w-44
 
 @Component({
   selector: 'app-manga-card',
@@ -12,10 +25,9 @@ import { progressPercent } from '../../../../../core/utils/reading-progress.util
     <!-- STANDARD CARD STYLE -->
     @if (cardStyle === 'STANDARD') {
       <div class="group relative bg-slate-800/60 backdrop-blur-md rounded-xl overflow-hidden border border-slate-700/50 hover:border-indigo-500/50 transition-all duration-300 hover:shadow-xl hover:shadow-indigo-500/10 hover:-translate-y-1 cursor-pointer flex flex-col h-full">
-        <!-- Cover Image Container -->
-        <div class="relative aspect-[2/3] w-full overflow-hidden bg-slate-900">
+        <div class="relative aspect-[2/3] w-full overflow-hidden bg-slate-900 cover-3d-host">
           @if (manga.coverPath) {
-            <img [src]="'local-cover:///' + manga.coverPath" [alt]="manga.title" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+            <img [src]="'local-cover:///' + manga.coverPath" [alt]="manga.title" class="cover-3d-face w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
           } @else {
             <div class="w-full h-full flex flex-col items-center justify-center p-4 text-slate-500 bg-gradient-to-br from-slate-900 to-slate-800">
               <svg xmlns="http://www.w3.org/2000/svg" class="w-12 h-12 mb-2 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -25,14 +37,12 @@ import { progressPercent } from '../../../../../core/utils/reading-progress.util
             </div>
           }
 
-          <!-- Top Badges & Actions -->
           <div class="absolute top-2 left-2 right-2 flex justify-between items-center z-10 pointer-events-auto">
             <span class="px-2 py-0.5 text-[10px] font-bold rounded-md bg-slate-950/80 backdrop-blur-md text-indigo-300 border border-indigo-500/30 uppercase tracking-wider shadow">
               {{ manga.fileType }}
             </span>
 
             <div class="flex items-center gap-1.5">
-              <!-- Favorite Button -->
               <button
                 (click)="onFavoriteClick($event)"
                 [class.opacity-100]="manga.favorite"
@@ -44,47 +54,14 @@ import { progressPercent } from '../../../../../core/utils/reading-progress.util
                 </svg>
               </button>
 
-              <!-- 3-Dots Menu Button -->
-              <div class="relative">
-                <button
-                  (click)="toggleMenu($event)"
-                  class="opacity-0 group-hover:opacity-100 transition-all duration-300 p-1.5 rounded-full bg-slate-950/80 backdrop-blur-md text-slate-300 hover:text-white hover:scale-110 shadow-md border border-slate-700/50"
-                  title="Opções">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                  </svg>
-                </button>
-
-                <!-- Dropdown Menu -->
-                @if (isMenuOpen()) {
-                  <div (click)="$event.stopPropagation()" class="absolute right-0 top-8 w-44 bg-slate-900 border border-slate-700/80 rounded-xl shadow-2xl z-30 py-1 overflow-hidden animate-fade-in text-xs font-medium backdrop-blur-xl">
-                    <button
-                      (click)="onSetBookmark($event)"
-                      class="w-full px-3 py-2 text-left text-slate-300 hover:text-indigo-400 hover:bg-slate-800/80 flex items-center gap-2 transition-colors">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-                      </svg>
-                      Marcador
-                    </button>
-                    <button
-                      (click)="onClearProgress($event)"
-                      class="w-full px-3 py-2 text-left text-slate-300 hover:text-indigo-400 hover:bg-slate-800/80 flex items-center gap-2 transition-colors">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                      </svg>
-                      Limpar progresso
-                    </button>
-                    <button
-                      (click)="onPromptDelete($event)"
-                      class="w-full px-3 py-2 text-left text-rose-400 hover:bg-rose-500/10 flex items-center gap-2 transition-colors">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                      Deletar
-                    </button>
-                  </div>
-                }
-              </div>
+              <button
+                (click)="toggleMenu($event)"
+                class="opacity-0 group-hover:opacity-100 transition-all duration-300 p-1.5 rounded-full bg-slate-950/80 backdrop-blur-md text-slate-300 hover:text-white hover:scale-110 shadow-md border border-slate-700/50"
+                title="Opções">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                </svg>
+              </button>
             </div>
           </div>
 
@@ -95,7 +72,6 @@ import { progressPercent } from '../../../../../core/utils/reading-progress.util
           }
         </div>
 
-        <!-- Content Info -->
         <div class="p-3 flex flex-col flex-1 justify-between">
           <div>
             <h3 class="text-sm font-semibold text-slate-100 line-clamp-2 sm:line-clamp-3 md:line-clamp-4 lg:line-clamp-5 group-hover:text-indigo-400 transition-colors" [title]="manga.title">
@@ -106,7 +82,6 @@ import { progressPercent } from '../../../../../core/utils/reading-progress.util
             </p>
           </div>
 
-          <!-- Reading Progress Bar -->
           <div class="mt-3">
             <div class="flex justify-between items-center text-[10px] text-slate-400 mb-1">
               <span>Pág. {{ manga.bookMark }} / {{ manga.pages }}</span>
@@ -123,7 +98,6 @@ import { progressPercent } from '../../../../../core/utils/reading-progress.util
     <!-- OVERLAY CARD STYLE -->
     @if (cardStyle === 'OVERLAY') {
       <div class="group relative aspect-[2/3] w-full rounded-xl overflow-hidden border border-slate-700/50 hover:border-indigo-500/50 transition-all duration-300 hover:shadow-xl hover:shadow-indigo-500/10 hover:-translate-y-1 cursor-pointer flex flex-col justify-between bg-slate-900">
-        <!-- Background Cover Image -->
         @if (manga.coverPath) {
           <img [src]="'local-cover:///' + manga.coverPath" [alt]="manga.title" class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
         } @else {
@@ -135,17 +109,14 @@ import { progressPercent } from '../../../../../core/utils/reading-progress.util
           </div>
         }
 
-        <!-- Gradient Backdrop Shadow overlay -->
         <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent opacity-80 group-hover:opacity-90 transition-opacity"></div>
 
-        <!-- Top Badges & Actions -->
         <div class="relative z-10 p-2.5 flex justify-between items-center pointer-events-auto">
           <span class="px-2 py-0.5 text-[10px] font-bold rounded-md bg-slate-950/80 backdrop-blur-md text-indigo-300 border border-indigo-500/30 uppercase tracking-wider shadow">
             {{ manga.fileType }}
           </span>
 
           <div class="flex items-center gap-1.5">
-            <!-- Favorite Button -->
             <button
               (click)="onFavoriteClick($event)"
               [class.opacity-100]="manga.favorite"
@@ -157,51 +128,17 @@ import { progressPercent } from '../../../../../core/utils/reading-progress.util
               </svg>
             </button>
 
-            <!-- 3-Dots Menu Button -->
-            <div class="relative">
-              <button
-                (click)="toggleMenu($event)"
-                class="opacity-0 group-hover:opacity-100 transition-all duration-300 p-1.5 rounded-full bg-slate-950/80 backdrop-blur-md text-slate-300 hover:text-white hover:scale-110 shadow-md border border-slate-700/50"
-                title="Opções">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                </svg>
-              </button>
-
-              <!-- Dropdown Menu -->
-              @if (isMenuOpen()) {
-                <div (click)="$event.stopPropagation()" class="absolute right-0 top-8 w-44 bg-slate-900 border border-slate-700/80 rounded-xl shadow-2xl z-30 py-1 overflow-hidden animate-fade-in text-xs font-medium backdrop-blur-xl">
-                  <button
-                    (click)="onSetBookmark($event)"
-                    class="w-full px-3 py-2 text-left text-slate-300 hover:text-indigo-400 hover:bg-slate-800/80 flex items-center gap-2 transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-                    </svg>
-                    Marcador
-                  </button>
-                  <button
-                    (click)="onClearProgress($event)"
-                    class="w-full px-3 py-2 text-left text-slate-300 hover:text-indigo-400 hover:bg-slate-800/80 flex items-center gap-2 transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                    Limpar progresso
-                  </button>
-                  <button
-                    (click)="onPromptDelete($event)"
-                    class="w-full px-3 py-2 text-left text-rose-400 hover:bg-rose-500/10 flex items-center gap-2 transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                    Deletar
-                  </button>
-                </div>
-              }
-            </div>
+            <button
+              (click)="toggleMenu($event)"
+              class="opacity-0 group-hover:opacity-100 transition-all duration-300 p-1.5 rounded-full bg-slate-950/80 backdrop-blur-md text-slate-300 hover:text-white hover:scale-110 shadow-md border border-slate-700/50"
+              title="Opções">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+              </svg>
+            </button>
           </div>
         </div>
 
-        <!-- Bottom Blur Details Overlay -->
         <div class="relative z-10 p-3 bg-slate-950/70 backdrop-blur-md border-t border-slate-700/40">
           <h3 class="text-sm font-semibold text-slate-100 line-clamp-2 sm:line-clamp-3 md:line-clamp-4 lg:line-clamp-5 group-hover:text-indigo-400 transition-colors" [title]="manga.title">
             {{ manga.title }}
@@ -210,7 +147,6 @@ import { progressPercent } from '../../../../../core/utils/reading-progress.util
             {{ manga.author || manga.series || 'Desconhecido' }}
           </p>
 
-          <!-- Reading Progress Bar -->
           <div class="mt-2.5">
             <div class="flex justify-between items-center text-[10px] text-slate-300 mb-1 font-mono opacity-90">
               <span>{{ manga.bookMark }}/{{ manga.pages }}p</span>
@@ -224,10 +160,48 @@ import { progressPercent } from '../../../../../core/utils/reading-progress.util
       </div>
     }
 
-    <!-- CONFIRM DELETE MODAL OVERLAY -->
+    <!-- Teleported dropdown (body) so card overflow/transform cannot clip it -->
+    @if (isMenuOpen()) {
+      <div
+        #menuEl
+        (click)="$event.stopPropagation()"
+        class="fixed z-[200] w-44 bg-slate-900 border border-slate-700/80 rounded-xl shadow-2xl py-1 overflow-hidden animate-fade-in text-xs font-medium backdrop-blur-xl"
+        [style.top.px]="menuPos().top"
+        [style.left.px]="menuPos().left">
+        <button
+          (click)="onSetBookmark($event)"
+          class="w-full px-3 py-2 text-left text-slate-300 hover:text-indigo-400 hover:bg-slate-800/80 flex items-center gap-2 transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+          </svg>
+          Marcador
+        </button>
+        <button
+          (click)="onClearProgress($event)"
+          class="w-full px-3 py-2 text-left text-slate-300 hover:text-indigo-400 hover:bg-slate-800/80 flex items-center gap-2 transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          Limpar progresso
+        </button>
+        <button
+          (click)="onPromptDelete($event)"
+          class="w-full px-3 py-2 text-left text-rose-400 hover:bg-rose-500/10 flex items-center gap-2 transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+          Deletar
+        </button>
+      </div>
+    }
+
+    <!-- Teleported delete confirm (body) -->
     @if (showDeleteModal()) {
-      <div (click)="$event.stopPropagation()" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in">
-        <div class="bg-slate-900 border border-slate-700 rounded-2xl p-5 max-w-sm w-full shadow-2xl flex flex-col gap-4 text-center">
+      <div
+        #deleteModalEl
+        (click)="$event.stopPropagation()"
+        class="fixed inset-0 z-[210] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl p-5 max-w-md w-full shadow-2xl flex flex-col gap-4 text-center">
           <div class="w-12 h-12 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center mx-auto border border-rose-500/20">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -256,14 +230,72 @@ import { progressPercent } from '../../../../../core/utils/reading-progress.util
     }
   `
 })
-export class MangaCardComponent {
+export class MangaCardComponent implements OnDestroy {
   @Input({ required: true }) manga!: Manga;
   @Input() cardStyle: 'STANDARD' | 'OVERLAY' = 'STANDARD';
   @Output() setBookmark = new EventEmitter<Manga>();
 
   private mangaService = inject(MangaLibraryService);
-  public isMenuOpen = signal<boolean>(false);
-  public showDeleteModal = signal<boolean>(false);
+  private host = inject(ElementRef<HTMLElement>);
+
+  public isMenuOpen = signal(false);
+  public showDeleteModal = signal(false);
+  public menuPos = signal({ top: 0, left: 0 });
+
+  private menuButtonEl: HTMLElement | null = null;
+  private menuNode: HTMLElement | null = null;
+  private deleteModalNode: HTMLElement | null = null;
+
+  @ViewChild('menuEl')
+  set menuEl(ref: ElementRef<HTMLElement> | undefined) {
+    if (this.menuNode && this.menuNode.parentElement === document.body) {
+      this.menuNode.remove();
+      this.menuNode = null;
+    }
+    if (ref?.nativeElement) {
+      this.menuNode = ref.nativeElement;
+      document.body.appendChild(this.menuNode);
+      this.updateMenuPosition();
+    }
+  }
+
+  @ViewChild('deleteModalEl')
+  set deleteModalEl(ref: ElementRef<HTMLElement> | undefined) {
+    if (this.deleteModalNode && this.deleteModalNode.parentElement === document.body) {
+      this.deleteModalNode.remove();
+      this.deleteModalNode = null;
+    }
+    if (ref?.nativeElement) {
+      this.deleteModalNode = ref.nativeElement;
+      document.body.appendChild(this.deleteModalNode);
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.detachMenu();
+    this.detachDeleteModal();
+  }
+
+  @HostListener('document:mousedown', ['$event'])
+  onDocumentMouseDown(ev: MouseEvent): void {
+    if (!this.isMenuOpen()) return;
+    const target = ev.target as Node;
+    const inHost = this.host.nativeElement.contains(target);
+    const inMenu = this.menuNode?.contains(target) ?? false;
+    if (!inHost && !inMenu) {
+      this.isMenuOpen.set(false);
+    } else if (inHost && !inMenu && target !== this.menuButtonEl && !this.menuButtonEl?.contains(target)) {
+      this.isMenuOpen.set(false);
+    }
+  }
+
+  @HostListener('window:resize')
+  @HostListener('window:scroll')
+  onViewportChange(): void {
+    if (this.isMenuOpen()) {
+      this.updateMenuPosition();
+    }
+  }
 
   getProgressPercentage(): number {
     return progressPercent(this.manga.bookMark || 0, this.manga.pages || 0, this.manga.completed);
@@ -272,12 +304,21 @@ export class MangaCardComponent {
   onFavoriteClick(event: MouseEvent): void {
     event.stopPropagation();
     this.mangaService.toggleFavorite(this.manga);
-    this.manga.favorite = !this.manga.favorite; // Optimistic UI update
+    this.manga.favorite = !this.manga.favorite;
   }
 
   toggleMenu(event: MouseEvent): void {
     event.stopPropagation();
-    this.isMenuOpen.update(v => !v);
+    const button = event.currentTarget as HTMLElement;
+    this.menuButtonEl = button;
+    const opening = !this.isMenuOpen();
+    if (opening) {
+      this.updateMenuPositionFromButton(button);
+      this.isMenuOpen.set(true);
+      queueMicrotask(() => this.updateMenuPosition());
+    } else {
+      this.isMenuOpen.set(false);
+    }
   }
 
   onSetBookmark(event: MouseEvent): void {
@@ -307,5 +348,34 @@ export class MangaCardComponent {
     event.stopPropagation();
     this.showDeleteModal.set(false);
     this.mangaService.deleteManga(this.manga);
+  }
+
+  private updateMenuPosition(): void {
+    if (this.menuButtonEl) {
+      this.updateMenuPositionFromButton(this.menuButtonEl);
+    }
+  }
+
+  private updateMenuPositionFromButton(button: HTMLElement): void {
+    const rect = button.getBoundingClientRect();
+    const left = Math.max(8, Math.min(rect.right - MENU_WIDTH, window.innerWidth - MENU_WIDTH - 8));
+    this.menuPos.set({
+      top: rect.bottom + 4,
+      left
+    });
+  }
+
+  private detachMenu(): void {
+    if (this.menuNode?.parentElement === document.body) {
+      this.menuNode.remove();
+    }
+    this.menuNode = null;
+  }
+
+  private detachDeleteModal(): void {
+    if (this.deleteModalNode?.parentElement === document.body) {
+      this.deleteModalNode.remove();
+    }
+    this.deleteModalNode = null;
   }
 }

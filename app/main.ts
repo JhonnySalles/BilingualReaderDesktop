@@ -18,7 +18,12 @@ import { TrayService } from './services/tray.service';
 import { ShareMarkController } from './controllers/sharemark.controller';
 import { TtsController } from './controllers/tts.controller';
 import { OcrController } from './controllers/ocr.controller';
+import { LlmController } from './controllers/llm.controller';
+import { AssistantController } from './controllers/assistant.controller';
 import { JapaneseController } from './controllers/japanese.controller';
+import { DatabaseMaintenanceController } from './controllers/database-maintenance.controller';
+import { BookImageCoverController } from './controllers/book-image-cover.controller';
+import { MangaImageCoverController } from './controllers/manga-image-cover.controller';
 import { Telemetry } from './utils/telemetry';
 
 // Init Sentry/Telemetry as early as possible (no-op when TELEMETRY_ENABLED=false).
@@ -132,7 +137,14 @@ app.on('ready', () => {
     new ShareMarkController(storageService, () => mainWindow).registerIpcHandlers();
     new TtsController().registerIpcHandlers();
     new OcrController(mangaReaderController.getSessionService()).registerIpcHandlers();
+    new LlmController().registerIpcHandlers();
+    new AssistantController(
+      storageService,
+      () => mainWindow,
+      mangaReaderController.getSessionService()
+    ).registerIpcHandlers();
     new JapaneseController().registerIpcHandlers();
+    new DatabaseMaintenanceController(storageService, () => mainWindow).registerIpcHandlers();
 
     // Same pattern as local-cover — absolute path after scheme, no privileged registration
     let localPageServeLogged = false;
@@ -226,7 +238,18 @@ app.on('ready', () => {
     });
 
     ipcMain.handle('manga:get', async (_event, id: number) => {
-      return storageService.findMangaById(id) || null;
+      const manga = storageService.findMangaById(id) || null;
+      if (!manga) return null;
+      try {
+        const coverPath = await MangaImageCoverController.instance.ensureCover(manga);
+        if (coverPath && coverPath !== manga.coverPath) {
+          storageService.saveManga({ ...manga, coverPath });
+          return storageService.findMangaById(id) || { ...manga, coverPath };
+        }
+      } catch (e) {
+        console.warn('[manga:get] ensureCover failed', id, e);
+      }
+      return manga;
     });
 
     ipcMain.handle('manga:clear-progress', async (_event, id: number) => {
@@ -234,7 +257,22 @@ app.on('ready', () => {
     });
 
     ipcMain.handle('book:get', async (_event, id: number) => {
-      return storageService.findBookById(id) || null;
+      const book = storageService.findBookById(id) || null;
+      if (!book) return null;
+      try {
+        const coverPath = BookImageCoverController.instance.ensureCover(book);
+        if (coverPath && coverPath !== book.coverPath) {
+          storageService.saveBook({ ...book, coverPath });
+          return storageService.findBookById(id) || { ...book, coverPath };
+        }
+      } catch (e) {
+        console.warn('[book:get] ensureCover failed', id, e);
+      }
+      return book;
+    });
+
+    ipcMain.handle('book:set-password', async (_event, id: number, password: string) => {
+      return storageService.setBookPassword(id, password ?? '') || null;
     });
 
     ipcMain.handle('book:adjacent', async (_event, id: number) => {

@@ -202,14 +202,13 @@ class ScannerMangaService {
                 parser.destroy();
             }
         }
-        const typeStr = isDirectory ? 'FOLDER' : ext.replace('.', '').toUpperCase();
         const manga = {
             title,
             path: itemPath,
             folder,
             name: fileName,
             fileSize: stat.size,
-            fileType: isDirectory ? app_enums_1.FileType['CBZ'] || app_enums_1.FileType.CBZ : (app_enums_1.FileType[typeStr] || app_enums_1.FileType.UNKNOWN),
+            fileType: isDirectory ? app_enums_1.FileType.DIRECTORY : (0, app_enums_1.getMangaFileType)(itemPath),
             pages,
             chapters: [],
             chaptersPages: {},

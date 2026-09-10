@@ -229,3 +229,35 @@ html[data-theme="win-mica-light"] .bg-slate-950 {
   animation: fadeIn 0.18s ease-out forwards;
 }
 
+/* Glassmorphism toggle — amplify translucent panels when enabled */
+html[data-glass='1'] .bg-slate-900\/50,
+html[data-glass='1'] .bg-slate-900\/80,
+html[data-glass='1'] .bg-slate-800\/60 {
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+html[data-glass='0'] .backdrop-blur-md,
+html[data-glass='0'] .backdrop-blur-xl,
+html[data-glass='0'] .backdrop-blur-sm {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Subtle 3D cover tilt on library / detail covers */
+html[data-covers-3d='1'] .cover-3d-host {
+  perspective: 900px;
+}
+
+html[data-covers-3d='1'] .cover-3d-face {
+  transform: rotateY(-6deg) rotateX(2deg);
+  transform-style: preserve-3d;
+  transition: transform 0.35s ease;
+  box-shadow: 8px 12px 24px rgba(0, 0, 0, 0.35);
+}
+
+html[data-covers-3d='1'] .group:hover .cover-3d-face,
+html[data-covers-3d='1'] .cover-3d-host:hover .cover-3d-face {
+  transform: rotateY(0deg) rotateX(0deg);
+}
+

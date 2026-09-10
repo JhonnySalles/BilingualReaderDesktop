@@ -32,6 +32,8 @@ export interface Book extends BaseEntity<number>, HistoryInterface {
   chapter?: string;
   chapterDescription?: string;
   password?: string;
+  /** True when a lock password is set (list views may omit the raw password). */
+  hasPassword?: boolean;
   fkLibrary?: number;
   excluded: boolean;
   dateCreate?: string;

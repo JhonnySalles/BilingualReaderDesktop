@@ -36,6 +36,7 @@ export class BookRepository extends BaseRepository<Book, number> {
       chapter: row.chapter || '',
       chapterDescription: row.chapter_description || '',
       password: row.password || '',
+      hasPassword: Boolean(row.password),
       fkLibrary: row.id_library,
       excluded: Boolean(row.excluded),
       dateCreate: row.date_create,
@@ -62,10 +63,10 @@ export class BookRepository extends BaseRepository<Book, number> {
   public list(libraryId?: number): Book[] {
     if (libraryId !== undefined && libraryId !== null) {
       const stmt = this.db.prepare(`SELECT * FROM Book WHERE id_library = ? AND excluded = 0 ORDER BY title ASC`);
-      return stmt.all(libraryId).map(row => this.mapRowToBook(row));
+      return stmt.all(libraryId).map(row => this.redactPassword(this.mapRowToBook(row)));
     }
     const stmt = this.db.prepare(`SELECT * FROM Book WHERE excluded = 0 ORDER BY title ASC`);
-    return stmt.all().map(row => this.mapRowToBook(row));
+    return stmt.all().map(row => this.redactPassword(this.mapRowToBook(row)));
   }
 
   public listRecentChange(libraryId?: number): Book[] {
@@ -73,12 +74,12 @@ export class BookRepository extends BaseRepository<Book, number> {
       const stmt = this.db.prepare(
         `SELECT * FROM Book WHERE id_library = ? AND excluded = 0 AND last_alteration >= datetime('now','-5 hour')`
       );
-      return stmt.all(libraryId).map(row => this.mapRowToBook(row));
+      return stmt.all(libraryId).map(row => this.redactPassword(this.mapRowToBook(row)));
     }
     const stmt = this.db.prepare(
       `SELECT * FROM Book WHERE excluded = 0 AND last_alteration >= datetime('now','-5 hour')`
     );
-    return stmt.all().map(row => this.mapRowToBook(row));
+    return stmt.all().map(row => this.redactPassword(this.mapRowToBook(row)));
   }
 
   public listHistory(): Book[] {
@@ -314,4 +315,28 @@ export class BookRepository extends BaseRepository<Book, number> {
       return Number(info.lastInsertRowid);
     }
   }
+
+  public setPassword(id: number, password: string): Book | undefined {
+    const book = this.getById(id);
+    if (!book) return undefined;
+    const next = String(password ?? '');
+    const stmt = this.db.prepare(
+      `UPDATE Book SET password = ?, last_alteration = ? WHERE id = ?`
+    );
+    stmt.run(next, new Date().toISOString(), id);
+    return this.getById(id);
+  }
+
+  /** Strip raw password from list/card payloads; keep hasPassword flag. */
+  private redactPassword(book: Book): Book {
+    return {
+      ...book,
+      hasPassword: bookNeedsUnlockFlag(book.password),
+      password: ''
+    };
+  }
+}
+
+function bookNeedsUnlockFlag(password: string | null | undefined): boolean {
+  return String(password ?? '').length > 0;
 }

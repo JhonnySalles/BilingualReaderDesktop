@@ -25,7 +25,7 @@ interface NavLibrary {
   count: number;
 }
 
-type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' | 'settings' | 'titleOnly';
+type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' | 'settings' | 'help' | 'about' | 'titleOnly';
 
 @Component({
   selector: 'app-main-layout',
@@ -47,7 +47,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
               @if (isExpanded()) {
                 <div class="truncate">
                   <h1 class="text-sm font-bold tracking-wide leading-none text-slate-100">Bilingual Reader</h1>
-                  <span class="text-[10px] text-indigo-400 font-semibold tracking-wider uppercase">Desktop v1.0</span>
+                  <span class="text-[10px] text-indigo-400 font-semibold tracking-wider uppercase">Desktop v{{ appVersion() }}</span>
                 </div>
               }
             </div>
@@ -192,7 +192,27 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
           </nav>
         </div>
 
-        <div class="p-2 border-t border-slate-800">
+        <div class="p-2 border-t border-slate-800 space-y-1">
+          <a
+            routerLink="/help"
+            routerLinkActive="bg-indigo-600/15 text-indigo-400 font-semibold border-r-2 border-indigo-500"
+            class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer">
+            <svg class="w-5 h-5 min-w-[1.25rem]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            @if (isExpanded()) { <span>Ajuda</span> }
+          </a>
+          <a
+            routerLink="/about"
+            routerLinkActive="bg-indigo-600/15 text-indigo-400 font-semibold border-r-2 border-indigo-500"
+            class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer">
+            <svg class="w-5 h-5 min-w-[1.25rem]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            @if (isExpanded()) { <span>Sobre</span> }
+          </a>
           <a
             routerLink="/settings"
             routerLinkActive="bg-indigo-600/15 text-indigo-400 font-semibold border-r-2 border-indigo-500"
@@ -605,6 +625,7 @@ export class MainLayoutComponent implements OnInit {
   isExpanded = signal<boolean>(true);
   LibraryViewType = LibraryViewType;
   headerMode = signal<HeaderMode>('home');
+  appVersion = signal('…');
 
   defaultMangaLibrary = signal<NavLibrary>({ id: 'manga-default', name: 'Biblioteca de Mangás', type: 'manga', icon: 'ico_manga', count: 0 });
   defaultBookLibrary = signal<NavLibrary>({ id: 'book-default', name: 'Biblioteca de Livros', type: 'book', icon: 'ico_book', count: 0 });
@@ -623,6 +644,8 @@ export class MainLayoutComponent implements OnInit {
     if (mode === 'annotations') return this.annotationsUi.pageTitle();
     if (mode === 'vocabulary') return this.vocabularyUi.pageTitle();
     if (mode === 'settings') return 'Configurações do Leitor';
+    if (mode === 'help') return 'Ajuda';
+    if (mode === 'about') return 'Sobre';
     return this.titleOnlyLabel();
   });
 
@@ -638,6 +661,9 @@ export class MainLayoutComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    void this.electronService.appGetInfo().then(info => {
+      this.appVersion.set(info.version || '0.0.0');
+    });
     this.applyRoute(this.router.url);
     this.router.events
       .pipe(
@@ -682,6 +708,14 @@ export class MainLayoutComponent implements OnInit {
     if (path.startsWith('/vocabulary')) {
       this.headerMode.set('vocabulary');
       this.vocabularyUi.bumpReload();
+      return;
+    }
+    if (path.startsWith('/help')) {
+      this.headerMode.set('help');
+      return;
+    }
+    if (path.startsWith('/about')) {
+      this.headerMode.set('about');
       return;
     }
     if (path.startsWith('/settings')) {

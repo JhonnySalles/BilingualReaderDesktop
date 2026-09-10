@@ -105,26 +105,23 @@ export enum FontType {
   INTER = 'INTER'
 }
 
-export const MANGA_EXTENSIONS: Record<string, string> = {
-  cbz: 'CBZ',
-  cbr: 'CBR',
-  cb7: 'CB7',
-  cbt: 'CBT',
-  zip: 'ZIP',
-  rar: 'RAR',
-  '7z': '7Z',
-  tar: 'TAR',
-  epub: 'EPUB',
-  epub3: 'EPUB3'
+export const MANGA_EXTENSIONS: Record<string, FileType> = {
+  cbz: FileType.CBZ,
+  cbr: FileType.CBR,
+  cb7: FileType.CB7,
+  cbt: FileType.CBT,
+  zip: FileType.ZIP,
+  rar: FileType.RAR,
+  '7z': FileType.SEVENZ,
+  tar: FileType.TAR,
+  tgz: FileType.TAR,
+  epub: FileType.EPUB,
+  epub3: FileType.EPUB3
 };
 
 export function getMangaFileType(filePath: string): FileType {
   const ext = filePath.split('.').pop()?.toLowerCase() || '';
-  const typeStr = MANGA_EXTENSIONS[ext];
-  if (typeStr && typeStr in FileType) {
-    return (FileType as any)[typeStr];
-  }
-  return FileType.UNKNOWN;
+  return MANGA_EXTENSIONS[ext] ?? FileType.UNKNOWN;
 }
 
 export function isMangaFile(filePath: string): boolean {
@@ -171,6 +168,49 @@ export function getBookFileTypes(): FileType[] {
     FileType.MD,
     FileType.MHT
   ];
+}
+
+/** Extension → FileType for book scanner / open dialog. */
+export const BOOK_EXTENSION_TYPES: Record<string, FileType> = {
+  epub: FileType.EPUB,
+  kepub: FileType.EPUB,
+  epub3: FileType.EPUB3,
+  pdf: FileType.PDF,
+  xps: FileType.UNKNOWN,
+  mobi: FileType.MOBI,
+  azw: FileType.AZW,
+  azw3: FileType.AZW3,
+  azw4: FileType.AZW3,
+  pdb: FileType.MOBI,
+  prc: FileType.MOBI,
+  djvu: FileType.DJVU,
+  fb2: FileType.FB2,
+  txt: FileType.TXT,
+  rtf: FileType.RTF,
+  html: FileType.HTML,
+  htm: FileType.HTML,
+  xhtml: FileType.HTML,
+  xhtm: FileType.HTML,
+  htmlz: FileType.HTML,
+  pmlz: FileType.UNKNOWN,
+  doc: FileType.DOC,
+  docx: FileType.DOCX,
+  odt: FileType.ODT,
+  md: FileType.MD,
+  markdown: FileType.MD,
+  mht: FileType.MHT,
+  mhtml: FileType.MHT,
+  shtml: FileType.HTML
+};
+
+export function getBookFileType(filePath: string): FileType {
+  const ext = filePath.split('.').pop()?.toLowerCase() || '';
+  return BOOK_EXTENSION_TYPES[ext] ?? FileType.UNKNOWN;
+}
+
+export function isBookFile(filePath: string): boolean {
+  const ext = filePath.split('.').pop()?.toLowerCase() || '';
+  return ext in BOOK_EXTENSION_TYPES;
 }
 
 /** True when free-text looks like a file extension for this type. */

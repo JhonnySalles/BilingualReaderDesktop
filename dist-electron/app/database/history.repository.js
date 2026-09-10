@@ -341,5 +341,9 @@ class HistoryRepository extends base_repository_1.BaseRepository {
             lastAccess: row.lastAccess
         }));
     }
+    clearAll() {
+        const result = this.db.prepare('DELETE FROM History').run();
+        return Number(result.changes || 0);
+    }
 }
 exports.HistoryRepository = HistoryRepository;

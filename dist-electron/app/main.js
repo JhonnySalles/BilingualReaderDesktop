@@ -53,7 +53,12 @@ const tray_service_1 = require("./services/tray.service");
 const sharemark_controller_1 = require("./controllers/sharemark.controller");
 const tts_controller_1 = require("./controllers/tts.controller");
 const ocr_controller_1 = require("./controllers/ocr.controller");
+const llm_controller_1 = require("./controllers/llm.controller");
+const assistant_controller_1 = require("./controllers/assistant.controller");
 const japanese_controller_1 = require("./controllers/japanese.controller");
+const database_maintenance_controller_1 = require("./controllers/database-maintenance.controller");
+const book_image_cover_controller_1 = require("./controllers/book-image-cover.controller");
+const manga_image_cover_controller_1 = require("./controllers/manga-image-cover.controller");
 const telemetry_1 = require("./utils/telemetry");
 // Init Sentry/Telemetry as early as possible (no-op when TELEMETRY_ENABLED=false).
 telemetry_1.Telemetry.init();
@@ -151,7 +156,10 @@ electron_1.app.on('ready', () => {
         new sharemark_controller_1.ShareMarkController(storageService, () => mainWindow).registerIpcHandlers();
         new tts_controller_1.TtsController().registerIpcHandlers();
         new ocr_controller_1.OcrController(mangaReaderController.getSessionService()).registerIpcHandlers();
+        new llm_controller_1.LlmController().registerIpcHandlers();
+        new assistant_controller_1.AssistantController(storageService, () => mainWindow, mangaReaderController.getSessionService()).registerIpcHandlers();
         new japanese_controller_1.JapaneseController().registerIpcHandlers();
+        new database_maintenance_controller_1.DatabaseMaintenanceController(storageService, () => mainWindow).registerIpcHandlers();
         // Same pattern as local-cover — absolute path after scheme, no privileged registration
         let localPageServeLogged = false;
         electron_1.protocol.handle('local-page', (request) => {
@@ -232,13 +240,42 @@ electron_1.app.on('ready', () => {
             return true;
         });
         electron_1.ipcMain.handle('manga:get', async (_event, id) => {
-            return storageService.findMangaById(id) || null;
+            const manga = storageService.findMangaById(id) || null;
+            if (!manga)
+                return null;
+            try {
+                const coverPath = await manga_image_cover_controller_1.MangaImageCoverController.instance.ensureCover(manga);
+                if (coverPath && coverPath !== manga.coverPath) {
+                    storageService.saveManga({ ...manga, coverPath });
+                    return storageService.findMangaById(id) || { ...manga, coverPath };
+                }
+            }
+            catch (e) {
+                console.warn('[manga:get] ensureCover failed', id, e);
+            }
+            return manga;
         });
         electron_1.ipcMain.handle('manga:clear-progress', async (_event, id) => {
             return storageService.clearMangaProgress(id) || null;
         });
         electron_1.ipcMain.handle('book:get', async (_event, id) => {
-            return storageService.findBookById(id) || null;
+            const book = storageService.findBookById(id) || null;
+            if (!book)
+                return null;
+            try {
+                const coverPath = book_image_cover_controller_1.BookImageCoverController.instance.ensureCover(book);
+                if (coverPath && coverPath !== book.coverPath) {
+                    storageService.saveBook({ ...book, coverPath });
+                    return storageService.findBookById(id) || { ...book, coverPath };
+                }
+            }
+            catch (e) {
+                console.warn('[book:get] ensureCover failed', id, e);
+            }
+            return book;
+        });
+        electron_1.ipcMain.handle('book:set-password', async (_event, id, password) => {
+            return storageService.setBookPassword(id, password ?? '') || null;
         });
         electron_1.ipcMain.handle('book:adjacent', async (_event, id) => {
             return storageService.getAdjacentBooks(id);

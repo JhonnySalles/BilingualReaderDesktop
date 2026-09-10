@@ -160,22 +160,59 @@ class FileUtil {
         const ext = Util.getExtensionFromPath(filename).toLowerCase();
         switch (ext) {
             case 'cbz':
+                return app_enums_1.FileType.CBZ;
             case 'cbr':
+                return app_enums_1.FileType.CBR;
             case 'cb7':
+                return app_enums_1.FileType.CB7;
             case 'cbt':
-            case 'rar':
+                return app_enums_1.FileType.CBT;
             case 'zip':
-            case '7z':
-            case 'tar':
                 return app_enums_1.FileType.ZIP;
+            case 'rar':
+                return app_enums_1.FileType.RAR;
+            case '7z':
+                return app_enums_1.FileType.SEVENZ;
+            case 'tar':
+            case 'tgz':
+                return app_enums_1.FileType.TAR;
             case 'pdf':
                 return app_enums_1.FileType.PDF;
             case 'epub':
+            case 'kepub':
+            case 'epub3':
                 return app_enums_1.FileType.EPUB;
             case 'mobi':
                 return app_enums_1.FileType.MOBI;
+            case 'azw':
+                return app_enums_1.FileType.AZW;
+            case 'azw3':
+            case 'azw4':
+                return app_enums_1.FileType.AZW3;
+            case 'fb2':
+                return app_enums_1.FileType.FB2;
+            case 'djvu':
+                return app_enums_1.FileType.DJVU;
             case 'txt':
                 return app_enums_1.FileType.TXT;
+            case 'rtf':
+                return app_enums_1.FileType.RTF;
+            case 'doc':
+                return app_enums_1.FileType.DOC;
+            case 'docx':
+                return app_enums_1.FileType.DOCX;
+            case 'odt':
+                return app_enums_1.FileType.ODT;
+            case 'md':
+            case 'markdown':
+                return app_enums_1.FileType.MD;
+            case 'html':
+            case 'htm':
+            case 'xhtml':
+                return app_enums_1.FileType.HTML;
+            case 'mht':
+            case 'mhtml':
+                return app_enums_1.FileType.MHT;
             default:
                 if (FileUtil.isImage(filename))
                     return app_enums_1.FileType.IMAGE;

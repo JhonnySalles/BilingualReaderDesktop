@@ -45,6 +45,11 @@ export const BOOK_FONT_OPTIONS: BookFontOption[] = [
 
 export const DEFAULT_JAPANESE_FONT_CSS = BOOK_FONT_OPTIONS.find(f => f.id === 'babel-erjian1')!.css;
 
+/** Upright CJK stack for CSS writing-mode:vertical-rl (avoid Erjian “horizontal-sim” faces). */
+export const TATE_GAKI_UPRIGHT_FONT_CSS =
+  BOOK_FONT_OPTIONS.find(f => f.id === 'babel-han')?.css ||
+  "'Noto Sans JP', 'Yu Gothic', 'Hiragino Sans', sans-serif";
+
 export function japaneseFontOptions(): BookFontOption[] {
   return BOOK_FONT_OPTIONS.filter(f => f.japanese);
 }
@@ -55,6 +60,23 @@ export function westernFontOptions(): BookFontOption[] {
 
 export function findBookFont(cssOrId: string): BookFontOption | undefined {
   return BOOK_FONT_OPTIONS.find(f => f.id === cssOrId || f.css === cssOrId);
+}
+
+/**
+ * BabelStone Erjian glyphs are oriented for horizontal layout simulating vertical.
+ * With real CSS vertical-rl they can look wrong — swap to an upright face while tate is on.
+ */
+export function isHorizontalSimJapaneseFont(css: string | null | undefined): boolean {
+  const s = String(css || '').toLowerCase();
+  return s.includes('babelstoneerjian') || s.includes('erjian');
+}
+
+/** Font-family to apply under tate-gaki (keeps upright Han / Noto if Erjian selected). */
+export function resolveFontFamilyForTate(preferredCss: string): string {
+  if (isHorizontalSimJapaneseFont(preferredCss)) {
+    return TATE_GAKI_UPRIGHT_FONT_CSS;
+  }
+  return preferredCss || TATE_GAKI_UPRIGHT_FONT_CSS;
 }
 
 /** CSS @font-face block for BabelStone faces served from /assets/fonts/. */

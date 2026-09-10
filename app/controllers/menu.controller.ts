@@ -53,7 +53,8 @@ export class MenuController {
           extensions: [
             'cbz', 'cbr', 'cb7', 'cbt', 'zip', 'rar', '7z', 'tar',
             'epub', 'kepub', 'epub3', 'pdf', 'xps', 'mobi', 'azw', 'azw3', 'azw4',
-            'fb2', 'txt'
+            'pdb', 'prc', 'djvu', 'fb2', 'txt', 'rtf', 'html', 'htm', 'doc', 'docx',
+            'odt', 'md', 'markdown', 'mht', 'mhtml'
           ]
         },
         {
@@ -62,7 +63,33 @@ export class MenuController {
         },
         {
           name: 'Livros Digitais (*.epub, *.pdf, *.mobi, ...)',
-          extensions: ['epub', 'kepub', 'epub3', 'pdf', 'xps', 'mobi', 'azw', 'azw3', 'azw4', 'fb2', 'txt']
+          extensions: [
+            'epub',
+            'kepub',
+            'epub3',
+            'pdf',
+            'xps',
+            'mobi',
+            'azw',
+            'azw3',
+            'azw4',
+            'pdb',
+            'prc',
+            'djvu',
+            'fb2',
+            'txt',
+            'rtf',
+            'html',
+            'htm',
+            'xhtml',
+            'doc',
+            'docx',
+            'odt',
+            'md',
+            'markdown',
+            'mht',
+            'mhtml'
+          ]
         },
         {
           name: 'Todos os arquivos',
@@ -155,6 +182,14 @@ export class MenuController {
       {
         label: 'Estatísticas',
         click: () => this.navigate('/statistics')
+      },
+      {
+        label: 'Ajuda',
+        click: () => this.navigate('/help')
+      },
+      {
+        label: 'Sobre',
+        click: () => this.navigate('/about')
       },
       {
         label: 'Configurações',

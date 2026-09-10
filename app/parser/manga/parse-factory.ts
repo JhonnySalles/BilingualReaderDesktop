@@ -4,6 +4,8 @@ import { Parse } from './parse.interface';
 import { DirectoryParse } from './directory-parse';
 import { ZipParse } from './zip-parse';
 import { RarParse } from './rar-parse';
+import { SevenZParse } from './sevenz-parse';
+import { TarParse } from './tar-parse';
 
 export class ParseFactory {
   public static async create(filePath: string): Promise<Parse | null> {
@@ -34,23 +36,28 @@ export class ParseFactory {
       parser = new ZipParse();
     } else if (ext === '.cbr' || ext === '.rar') {
       parser = new RarParse();
+    } else if (ext === '.cb7' || ext === '.7z') {
+      parser = new SevenZParse();
+    } else if (ext === '.cbt' || ext === '.tar' || ext === '.tgz' || ext === '.tar.gz') {
+      parser = new TarParse();
     }
 
     if (parser) {
       const result = await this.tryParseInternal(parser, filePath);
       if (result) return result;
+      // Do not Zip/Rar-fallback dedicated 7z/tar extensions — they are not zip/rar.
+      if (ext === '.cb7' || ext === '.7z' || ext === '.cbt' || ext === '.tar' || ext === '.tgz') {
+        return null;
+      }
     }
 
-    // Fallback: try ZipParse then RarParse
+    // Fallback for unknown / mislabeled: try Zip then Rar
     const zipFallback = new ZipParse();
     const fallbackResult = await this.tryParseInternal(zipFallback, filePath);
     if (fallbackResult) return fallbackResult;
 
     const rarFallback = new RarParse();
-    const rarFallbackResult = await this.tryParseInternal(rarFallback, filePath);
-    if (rarFallbackResult) return rarFallbackResult;
-
-    return null;
+    return await this.tryParseInternal(rarFallback, filePath);
   }
 
   private static async tryParseInternal(parser: Parse, filePath: string): Promise<Parse | null> {

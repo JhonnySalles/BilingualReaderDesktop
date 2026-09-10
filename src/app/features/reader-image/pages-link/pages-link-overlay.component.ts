@@ -24,6 +24,7 @@ import { PageLinkSlot } from '../../../core/models/enums/page-link-enums';
 import { PageLinkEngine } from './page-link-engine';
 import { PageSlotMenuAction, PagesLinkRowComponent } from './pages-link-row.component';
 import { MangaFilePickerComponent } from './manga-file-picker.component';
+import { SettingsService } from '../../../core/services/settings.service';
 
 @Component({
   selector: 'app-pages-link-overlay',
@@ -161,13 +162,13 @@ import { MangaFilePickerComponent } from './manga-file-picker.component';
 
       <!-- Footer actions -->
       <div class="shrink-0 border-t border-slate-800 px-3 py-2 flex flex-wrap items-center justify-center gap-2 bg-slate-950/80">
-        <button type="button" class="action-btn" (click)="engine.autoReorderDoublePages(true); refresh()"
+        <button type="button" class="action-btn" (click)="applyEnginePrefs(); engine.autoReorderDoublePages(true); refresh()"
           [disabled]="!engine.hasLinkedFile">Auto</button>
         <button type="button" class="action-btn" (click)="engine.reorderBySortPages(); refresh()"
           [disabled]="!engine.hasLinkedFile">Reordenar</button>
         <button type="button" class="action-btn" (click)="engine.reorderSimplePages(); refresh()"
           [disabled]="!engine.hasLinkedFile">Simples</button>
-        <button type="button" class="action-btn" (click)="engine.reorderDoublePages(); refresh()"
+        <button type="button" class="action-btn" (click)="reorderDoublePages(); refresh()"
           [disabled]="!engine.hasLinkedFile">Duplas</button>
         <button type="button" class="action-btn" (click)="engine.returnBackup(); refresh()"
           [disabled]="!engine.hasBackup">Desfazer</button>
@@ -232,6 +233,7 @@ export class PagesLinkOverlayComponent implements OnChanges, OnDestroy {
   @ViewChild('listEl') listEl?: ElementRef<HTMLElement>;
 
   private electron = inject(ElectronService);
+  private settings = inject(SettingsService);
 
   readonly Languages = Languages;
   readonly engine = new PageLinkEngine();
@@ -253,6 +255,15 @@ export class PagesLinkOverlayComponent implements OnChanges, OnDestroy {
   private dragState: { index: number; type: PageLinkSlot; kind: 'linked' | 'not-linked' } | null = null;
   private linkedSessionId: string | null = null;
   private initialized = false;
+
+  applyEnginePrefs(): void {
+    this.engine.usePagePathForLinked = this.settings.mangaUsePagePathForLinked();
+  }
+
+  reorderDoublePages(initial?: LinkedPage | null): void {
+    this.applyEnginePrefs();
+    this.engine.reorderDoublePages(this.settings.mangaDualPageCalculate(), initial);
+  }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['mangaId'] || changes['pages']) {
@@ -463,7 +474,7 @@ export class PagesLinkOverlayComponent implements OnChanges, OnDestroy {
         this.engine.reorderSimplePages(true, page);
         break;
       case 'dual':
-        this.engine.reorderDoublePages(false, page);
+        this.engine.reorderDoublePages(this.settings.mangaDualPageCalculate(), page);
         break;
       case 'from-not-linked':
         this.engine.reorderNotLinked(page);
@@ -499,6 +510,7 @@ export class PagesLinkOverlayComponent implements OnChanges, OnDestroy {
     this.busy.set(true);
     this.setStatus('Carregando…');
     try {
+      this.applyEnginePrefs();
       this.engine.reset(this.mangaId, this.mangaTitle);
       this.engine.loadMangaSpine({
         pageCount: this.pageCount || this.pages.length,
@@ -545,6 +557,7 @@ export class PagesLinkOverlayComponent implements OnChanges, OnDestroy {
 
       const source = this.toSource(opened);
       if (mapping?.pagesLink?.length) {
+        this.applyEnginePrefs();
         this.engine.applySavedLink(
           mapping,
           {
@@ -561,6 +574,7 @@ export class PagesLinkOverlayComponent implements OnChanges, OnDestroy {
         this.engine.linkedFile.folder = opened.folder;
         this.engine.linkedFile.pages = opened.pageCount;
       } else {
+        this.applyEnginePrefs();
         this.engine.readFileLink(source);
       }
       this.refresh();

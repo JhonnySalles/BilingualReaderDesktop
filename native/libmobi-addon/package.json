@@ -1,0 +1,19 @@
+{
+  "name": "libmobi-addon",
+  "version": "1.0.0",
+  "private": true,
+  "description": "N-API bindings for libmobi (LGPL) — MOBI/AZW3 → IR",
+  "main": "index.js",
+  "gypfile": true,
+  "scripts": {
+    "install": "node-gyp rebuild --release || echo libmobi-addon: build skipped",
+    "build": "node-gyp rebuild --release",
+    "build:electron": "node ../../scripts/build-libmobi-addon.js"
+  },
+  "dependencies": {
+    "node-addon-api": "^8.3.0"
+  },
+  "devDependencies": {
+    "node-gyp": "^11.0.0"
+  }
+}

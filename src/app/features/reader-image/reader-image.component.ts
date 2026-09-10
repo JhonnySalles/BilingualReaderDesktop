@@ -19,7 +19,7 @@ import {
   TOUCH_DOUBLE_CLICK_MS,
   TouchZoneService
 } from '../../core/services/touch-zone.service';
-import { Manga, MangaAnnotation, MangaFitMode, MangaScrollingMode, PAGE_TRANSITION_LABELS_PT, PAGE_TRANSITION_OPTIONS, PageTransitionType, prefersReducedMotion, isMangaDualMode, isMangaHorizontalMode, isMangaLongStripMode, isMangaRtlMode, isMangaVerticalMode } from '../../core/models';
+import { Manga, MangaAnnotation, MangaFitMode, MangaScrollingMode, PAGE_TRANSITION_LABELS_PT, PAGE_TRANSITION_OPTIONS, PageTransitionType, prefersReducedMotion, isMangaDualMode, isMangaHorizontalMode, isMangaLongStripMode, isMangaRtlMode, isMangaVerticalMode, Kanjax, Vocabulary } from '../../core/models';
 import { ReaderTouchOverlayComponent } from '../reader-shared/reader-touch-overlay.component';
 import { ReaderTouchConfigComponent } from '../reader-shared/reader-touch-config.component';
 import { handleReaderTouchTap, TouchActionHandlers } from '../reader-shared/touch-action.util';
@@ -52,6 +52,11 @@ import {
   NormalizedSubtitleText,
   SubtitleCatalog
 } from '../../core/utils/subtitle-normalize';
+import { VocabularyDetailDialogComponent } from '../vocabulary/components/vocabulary-detail-dialog.component';
+import { KanjaxDetailDialogComponent } from '../vocabulary/components/kanjax-detail-dialog.component';
+import { ReadingAssistantPanelComponent } from '../assistant/reading-assistant-panel.component';
+import { ReadingSummaryDialogComponent } from '../assistant/reading-summary-dialog.component';
+import { AssistantContextItem } from '../assistant/assistant-context.util';
 
 import {
   buildPageCssFilter,
@@ -84,7 +89,11 @@ const MAGNIFIER_SQUARE_PX = 250;
     MangaSpreadViewportComponent,
     MangaDualSpreadViewportComponent,
     MangaPageTurnLayerComponent,
-    MangaSubtitlePanelComponent
+    MangaSubtitlePanelComponent,
+    VocabularyDetailDialogComponent,
+    KanjaxDetailDialogComponent,
+    ReadingAssistantPanelComponent,
+    ReadingSummaryDialogComponent
   ],
   host: { class: 'block h-screen w-screen' },
   styles: [`
@@ -558,6 +567,16 @@ const MAGNIFIER_SQUARE_PX = 250;
             </svg>
           </button>
 
+          <button type="button" (click)="openAssistant()"
+            class="p-2.5 rounded-xl cursor-pointer hover:bg-slate-800 text-slate-200"
+            [class.text-indigo-300]="showAssistant()"
+            title="Assistente de leitura">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/>
+            </svg>
+          </button>
+
           <button type="button" (click)="toggleColorFilters()"
             class="p-2.5 rounded-xl cursor-pointer hover:bg-slate-800"
             [ngClass]="{
@@ -855,6 +874,42 @@ const MAGNIFIER_SQUARE_PX = 250;
         </div>
       }
 
+      @if (vocabDetail(); as d) {
+        <app-vocabulary-detail-dialog
+          [item]="d"
+          (close)="vocabDetail.set(null)"
+          (openKanji)="vocabKanji.set($event)" />
+      }
+      @if (vocabKanji(); as k) {
+        <app-kanjax-detail-dialog [item]="k" (close)="vocabKanji.set(null)" />
+      }
+
+      @if (showAssistant()) {
+        <app-reading-assistant-panel
+          type="MANGA"
+          [referenceId]="mangaId"
+          [title]="title()"
+          [sessionId]="sessionId || ''"
+          [items]="assistantItems()"
+          [currentPage]="currentPage()"
+          [pageCount]="pageCount()"
+          [maxContextChars]="assistantMaxContext()"
+          [preloadSystem]="assistantPreload()"
+          (close)="showAssistant.set(false)"
+          (openSummary)="prepareAssistantSummary()" />
+      }
+      @if (showAssistantSummary()) {
+        <app-reading-summary-dialog
+          type="MANGA"
+          [referenceId]="mangaId"
+          [title]="title()"
+          [items]="assistantItems()"
+          [selectedIds]="assistantSelectedForSummary()"
+          [maxContextChars]="assistantMaxContext()"
+          (close)="showAssistantSummary.set(false)"
+          (openInChat)="onAssistantSummaryToChat($event)" />
+      }
+
       @if (showPagesLink()) {
         <app-pages-link-overlay
           [mangaId]="mangaId"
@@ -912,15 +967,61 @@ const MAGNIFIER_SQUARE_PX = 250;
             } @else {
               @if (ocrFullText()) {
                 <div class="rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2">
-                  <p class="text-[10px] font-bold text-emerald-400 mb-1">Texto completo</p>
+                  <p class="text-[10px] font-bold text-emerald-400 mb-1">Original</p>
                   <p class="text-xs text-slate-200 whitespace-pre-wrap break-words">{{ ocrFullText() }}</p>
                 </div>
               }
+
+              <div class="rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2 space-y-2">
+                <div class="flex items-center justify-between gap-2">
+                  <p class="text-[10px] font-bold text-sky-400">Tradução</p>
+                  <button type="button" (click)="runOcrTranslate('literal')"
+                    class="px-2 py-1 rounded-md text-[10px] font-semibold bg-sky-700/40 text-sky-100 hover:bg-sky-600/50 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                    [disabled]="!canRunOcrLlm() || ocrTranslateBusy() || ocrBusy()">
+                    {{ ocrTranslateBusy() ? 'Traduzindo…' : 'Traduzir' }}
+                  </button>
+                </div>
+                @if (ocrTranslateError()) {
+                  <p class="text-[10px] text-rose-300">{{ ocrTranslateError() }}</p>
+                } @else if (ocrTranslation()) {
+                  <p class="text-xs text-slate-200 whitespace-pre-wrap break-words">{{ ocrTranslation() }}</p>
+                } @else {
+                  <p class="text-[10px] text-slate-500">
+                    @if (!llmTranslateReady()) {
+                      Ative a IA e defina o idioma-alvo em Configurações.
+                    } @else {
+                      Aguardando tradução…
+                    }
+                  </p>
+                }
+              </div>
+
+              <div class="rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2 space-y-2">
+                <div class="flex items-center justify-between gap-2">
+                  <p class="text-[10px] font-bold text-violet-400">Interpretação</p>
+                  <button type="button" (click)="runOcrTranslate('interpret')"
+                    class="px-2 py-1 rounded-md text-[10px] font-semibold bg-violet-700/40 text-violet-100 hover:bg-violet-600/50 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                    [disabled]="!canRunOcrLlm() || ocrInterpretBusy() || ocrBusy()">
+                    {{ ocrInterpretBusy() ? 'Interpretando…' : 'Interpretar' }}
+                  </button>
+                </div>
+                @if (ocrInterpretError()) {
+                  <p class="text-[10px] text-rose-300">{{ ocrInterpretError() }}</p>
+                } @else if (ocrInterpretation()) {
+                  <p class="text-xs text-slate-200 whitespace-pre-wrap break-words">{{ ocrInterpretation() }}</p>
+                } @else {
+                  <p class="text-[10px] text-slate-500">Use o botão para gerar uma leitura interpretativa.</p>
+                }
+              </div>
+
               @for (b of ocrBlocks(); track $index) {
-                <div class="rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2">
+                <button type="button"
+                  class="w-full text-left rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2 cursor-pointer hover:border-indigo-700/50"
+                  (click)="openVocabularyFromText(b.text)"
+                  title="Buscar vocabulário">
                   <p class="text-[10px] text-slate-600 font-mono mb-1">{{ b.x }},{{ b.y }} {{ b.width }}×{{ b.height }}</p>
                   <p class="text-xs text-slate-200 whitespace-pre-wrap break-words">{{ b.text }}</p>
-                </div>
+                </button>
               }
             }
           </div>
@@ -1025,6 +1126,14 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
   showTouchConfig = signal(false);
   touchMenuOpen = signal(false);
   stubToast = signal<string | null>(null);
+  vocabDetail = signal<Vocabulary | null>(null);
+  vocabKanji = signal<Kanjax | null>(null);
+  showAssistant = signal(false);
+  showAssistantSummary = signal(false);
+  assistantItems = signal<AssistantContextItem[]>([]);
+  assistantPreload = signal<string | null>(null);
+  assistantMaxContext = signal(12000);
+  assistantSelectedForSummary = signal<string[]>([]);
   coverUrl = signal<string | null>(null);
   adjacentPrev = signal<Manga | null>(null);
   adjacentNext = signal<Manga | null>(null);
@@ -1076,6 +1185,31 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
   ocrCropActive = signal(false);
   ocrCropRect = signal<{ x: number; y: number; w: number; h: number } | null>(null);
   private ocrCropStart: { x: number; y: number } | null = null;
+  ocrTranslation = signal('');
+  ocrInterpretation = signal('');
+  ocrTranslateBusy = signal(false);
+  ocrInterpretBusy = signal(false);
+  ocrTranslateError = signal('');
+  ocrInterpretError = signal('');
+  /** Cached llm:status — refreshed after OCR / before translate. */
+  llmStatusCache = signal<{ enabled: boolean; hasKey: boolean; targetLang: string }>({
+    enabled: false,
+    hasKey: false,
+    targetLang: 'OFF'
+  });
+
+  llmTranslateReady = computed(() => {
+    const st = this.llmStatusCache();
+    const target = this.settings.subtitleTranslate();
+    return (
+      this.settings.llmEnabled() &&
+      st.hasKey &&
+      target !== 'OFF' &&
+      !!(this.ocrFullText() || this.ocrBlocks().length)
+    );
+  });
+
+  canRunOcrLlm = computed(() => this.llmTranslateReady());
 
   hasFileLink = signal(false);
   /** Pages currently showing the linked (translation) image. */
@@ -1131,7 +1265,7 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
     return `Páginas ${spread.left + 1}–${spread.right + 1} / ${total}`;
   });
 
-  private sessionId: string | null = null;
+  sessionId: string | null = null;
   private linkedSessionId: string | null = null;
   private pendingScrollRestore: {
     page: number;
@@ -2067,6 +2201,100 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
 
   onSubtitleSelect(text: NormalizedSubtitleText): void {
     this.selectedSubtitleSeq.set(text.sequence);
+    void this.openVocabularyFromText(text.text || '');
+  }
+
+  async openAssistant(): Promise<void> {
+    const status = await this.electron.assistantStatus();
+    if (!status.enabled) {
+      this.showStub('Ative a IA em Configurações');
+      return;
+    }
+    if (status.ready === false) {
+      this.showStub(
+        status.readyReason ||
+          (status.provider === 'openrouter'
+            ? 'Configure a chave OpenRouter'
+            : 'Provedor local offline — inicie Ollama/LM Studio')
+      );
+      return;
+    }
+    if (status.provider === 'openrouter' && !status.hasApiKey) {
+      this.showStub('Configure a chave OpenRouter');
+      return;
+    }
+    if (status.provider === 'ollama' || status.provider === 'lm_studio') {
+      const probe = await this.electron.aiTestConnection(status.provider);
+      if (!probe.ok) {
+        this.showStub(probe.error || 'Provedor local offline — inicie Ollama/LM Studio');
+        return;
+      }
+    }
+    this.assistantMaxContext.set(status.maxContextChars || 12000);
+    this.assistantItems.set(this.buildMangaAssistantItems());
+    this.assistantPreload.set(null);
+    this.showAssistant.set(true);
+    this.chromeVisible.set(true);
+  }
+
+  private buildMangaAssistantItems(): AssistantContextItem[] {
+    const count = this.pageCount();
+    const chapters = chaptersForLanguage(this.subtitleCatalog(), this.subtitleLanguage());
+    const items: AssistantContextItem[] = [];
+    for (let i = 0; i < count; i++) {
+      const found = findSubtitlePage(chapters, {
+        pageHash: this.pageHashes()[i],
+        pageName: this.pageNames()[i]
+      });
+      const text = (found?.page?.texts || []).map(t => t.text).filter(Boolean).join('\n');
+      items.push({
+        id: `p:${i}`,
+        label: `Página ${i + 1}`,
+        text: text || `(Página ${i + 1} — sem legenda; use visão/OCR se disponível)`,
+        pageIndex: i
+      });
+    }
+    return items;
+  }
+
+  onAssistantSummaryToChat(summary: string): void {
+    this.showAssistantSummary.set(false);
+    this.assistantPreload.set(summary);
+    this.showAssistant.set(true);
+  }
+
+  /** Called when panel emits openSummary — snapshot selection around current page. */
+  prepareAssistantSummary(): void {
+    const cur = this.currentPage();
+    const ids: string[] = [];
+    for (let i = Math.max(0, cur - 2); i <= Math.min(this.pageCount() - 1, cur + 2); i++) {
+      ids.push(`p:${i}`);
+    }
+    this.assistantSelectedForSummary.set(ids);
+    this.showAssistantSummary.set(true);
+  }
+
+  async openVocabularyFromText(raw: string): Promise<void> {
+    const q = String(raw || '').replace(/\s+/g, ' ').trim();
+    if (!q) {
+      this.showStub('Nada selecionado');
+      return;
+    }
+    try {
+      const hit = await this.electron.lookupVocabulary({
+        text: q,
+        mangaId: this.mangaId || null
+      });
+      if (!hit) {
+        this.showStub('Nenhum vocabulário encontrado');
+        return;
+      }
+      this.vocabKanji.set(null);
+      this.vocabDetail.set(hit);
+    } catch (e) {
+      console.warn('[reader-image] vocabulary lookup failed', e);
+      this.showStub('Falha ao buscar vocabulário');
+    }
   }
 
   async onImportSubtitleJson(): Promise<void> {
@@ -2166,6 +2394,10 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
     this.ocrPanelOpen.set(true);
     this.ocrFullText.set('');
     this.ocrBlocks.set([]);
+    this.ocrTranslation.set('');
+    this.ocrInterpretation.set('');
+    this.ocrTranslateError.set('');
+    this.ocrInterpretError.set('');
     try {
       const result = await this.electron.ocrRecognize({
         sessionId: this.sessionId!,
@@ -2182,10 +2414,93 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
       this.ocrFullText.set(result.fullText || '');
       this.ocrBlocks.set(result.blocks || []);
       this.ocrEngineUsed.set(result.engine || '');
+      await this.refreshLlmStatus();
+      const hasText = !!(result.fullText || (result.blocks && result.blocks.length));
+      if (hasText && this.settings.llmEnabled() && this.settings.subtitleTranslate() !== 'OFF') {
+        if (this.settings.ocrAutoTranslate()) {
+          await this.runOcrTranslate('literal');
+        }
+        if (this.settings.ocrAutoInterpret()) {
+          await this.runOcrTranslate('interpret');
+        }
+      }
     } catch (e: any) {
       this.ocrFullText.set(e?.message || 'Falha no OCR');
     } finally {
       this.ocrBusy.set(false);
+    }
+  }
+
+  async refreshLlmStatus(): Promise<void> {
+    try {
+      const st = await this.electron.llmStatus();
+      this.llmStatusCache.set(st);
+    } catch {
+      this.llmStatusCache.set({ enabled: false, hasKey: false, targetLang: 'OFF' });
+    }
+  }
+
+  async runOcrTranslate(mode: 'literal' | 'interpret'): Promise<void> {
+    const text = this.ocrFullText();
+    const blocks = this.ocrBlocks().map(b => b.text);
+    if (!text && !blocks.length) return;
+
+    await this.refreshLlmStatus();
+    if (!this.settings.llmEnabled()) {
+      const msg = 'Ative os recursos de IA nas configurações.';
+      if (mode === 'literal') this.ocrTranslateError.set(msg);
+      else this.ocrInterpretError.set(msg);
+      return;
+    }
+    if (this.settings.subtitleTranslate() === 'OFF') {
+      const msg = 'Idioma-alvo de tradução está desativado.';
+      if (mode === 'literal') this.ocrTranslateError.set(msg);
+      else this.ocrInterpretError.set(msg);
+      return;
+    }
+    if (!this.llmStatusCache().hasKey) {
+      const msg = 'Configure a chave OpenRouter (app ou .env).';
+      if (mode === 'literal') this.ocrTranslateError.set(msg);
+      else this.ocrInterpretError.set(msg);
+      return;
+    }
+
+    if (mode === 'literal') {
+      this.ocrTranslateBusy.set(true);
+      this.ocrTranslateError.set('');
+    } else {
+      this.ocrInterpretBusy.set(true);
+      this.ocrInterpretError.set('');
+    }
+
+    try {
+      const result = await this.electron.llmTranslate({
+        text,
+        blocks,
+        mode,
+        sourceLang: this.ocrLang(),
+        targetLang: this.settings.subtitleTranslate(),
+        model:
+          mode === 'literal'
+            ? this.settings.llmMangaTranslateModel()
+            : this.settings.llmMangaInterpretModel(),
+        temperature: this.settings.llmTemperature()
+      });
+      if (!result || result.ok === false) {
+        const err = (result && 'error' in result && result.error) || 'Falha na tradução';
+        if (mode === 'literal') this.ocrTranslateError.set(err);
+        else this.ocrInterpretError.set(err);
+        return;
+      }
+      if (mode === 'literal') this.ocrTranslation.set(result.text);
+      else this.ocrInterpretation.set(result.text);
+    } catch (e: any) {
+      const msg = e?.message || 'Falha na tradução';
+      if (mode === 'literal') this.ocrTranslateError.set(msg);
+      else this.ocrInterpretError.set(msg);
+    } finally {
+      if (mode === 'literal') this.ocrTranslateBusy.set(false);
+      else this.ocrInterpretBusy.set(false);
     }
   }
 

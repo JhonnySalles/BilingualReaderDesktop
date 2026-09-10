@@ -67,6 +67,7 @@ class BookRepository extends base_repository_1.BaseRepository {
             chapter: row.chapter || '',
             chapterDescription: row.chapter_description || '',
             password: row.password || '',
+            hasPassword: Boolean(row.password),
             fkLibrary: row.id_library,
             excluded: Boolean(row.excluded),
             dateCreate: row.date_create,
@@ -91,18 +92,18 @@ class BookRepository extends base_repository_1.BaseRepository {
     list(libraryId) {
         if (libraryId !== undefined && libraryId !== null) {
             const stmt = this.db.prepare(`SELECT * FROM Book WHERE id_library = ? AND excluded = 0 ORDER BY title ASC`);
-            return stmt.all(libraryId).map(row => this.mapRowToBook(row));
+            return stmt.all(libraryId).map(row => this.redactPassword(this.mapRowToBook(row)));
         }
         const stmt = this.db.prepare(`SELECT * FROM Book WHERE excluded = 0 ORDER BY title ASC`);
-        return stmt.all().map(row => this.mapRowToBook(row));
+        return stmt.all().map(row => this.redactPassword(this.mapRowToBook(row)));
     }
     listRecentChange(libraryId) {
         if (libraryId !== undefined && libraryId !== null) {
             const stmt = this.db.prepare(`SELECT * FROM Book WHERE id_library = ? AND excluded = 0 AND last_alteration >= datetime('now','-5 hour')`);
-            return stmt.all(libraryId).map(row => this.mapRowToBook(row));
+            return stmt.all(libraryId).map(row => this.redactPassword(this.mapRowToBook(row)));
         }
         const stmt = this.db.prepare(`SELECT * FROM Book WHERE excluded = 0 AND last_alteration >= datetime('now','-5 hour')`);
-        return stmt.all().map(row => this.mapRowToBook(row));
+        return stmt.all().map(row => this.redactPassword(this.mapRowToBook(row)));
     }
     listHistory() {
         const stmt = this.db.prepare(`SELECT * FROM Book WHERE last_access IS NOT NULL ORDER BY last_access DESC`);
@@ -273,5 +274,25 @@ class BookRepository extends base_repository_1.BaseRepository {
             return Number(info.lastInsertRowid);
         }
     }
+    setPassword(id, password) {
+        const book = this.getById(id);
+        if (!book)
+            return undefined;
+        const next = String(password ?? '');
+        const stmt = this.db.prepare(`UPDATE Book SET password = ?, last_alteration = ? WHERE id = ?`);
+        stmt.run(next, new Date().toISOString(), id);
+        return this.getById(id);
+    }
+    /** Strip raw password from list/card payloads; keep hasPassword flag. */
+    redactPassword(book) {
+        return {
+            ...book,
+            hasPassword: bookNeedsUnlockFlag(book.password),
+            password: ''
+        };
+    }
 }
 exports.BookRepository = BookRepository;
+function bookNeedsUnlockFlag(password) {
+    return String(password ?? '').length > 0;
+}

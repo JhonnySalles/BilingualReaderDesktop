@@ -85,35 +85,15 @@ class EpubBookExtractor {
                     const subjectMatch = opfXml.match(/<dc:subject[^>]*>([\s\S]*?)<\/dc:subject>/i);
                     if (subjectMatch)
                         genre = this.cleanXmlText(subjectMatch[1]);
-                    // Extract Cover Image
-                    const coverMetaMatch = opfXml.match(/<meta[^>]*name=["']cover["'][^>]*content=["']([^"']+)["']/i) ||
-                        opfXml.match(/<meta[^>]*content=["']([^"']+)["'][^>]*name=["']cover["']/i);
-                    let coverItemId = coverMetaMatch ? coverMetaMatch[1] : '';
-                    let coverHref = '';
-                    if (coverItemId) {
-                        const itemMatch = opfXml.match(new RegExp(`<item[^>]*id=["']${coverItemId}["'][^>]*href=["']([^"']+)["']`, 'i')) ||
-                            opfXml.match(new RegExp(`<item[^>]*href=["']([^"']+)["'][^>]*id=["']${coverItemId}["']`, 'i'));
-                        if (itemMatch) {
-                            coverHref = itemMatch[1];
-                        }
-                    }
-                    if (!coverHref) {
-                        // Fallback: look for item with media-type image and 'cover' in id or href
-                        const coverItemMatch = opfXml.match(/<item[^>]*href=["']([^"']*(?:cover|cover-image)[^"']*)["'][^>]*media-type=["']image\/[^"']+["']/i) ||
-                            opfXml.match(/<item[^>]*media-type=["']image\/[^"']+["'][^>]*href=["']([^"']*(?:cover|cover-image)[^"']*)["']/i);
-                        if (coverItemMatch) {
-                            coverHref = coverItemMatch[1];
-                        }
-                    }
+                    const coverHref = this.resolveCoverHref(opfXml);
                     if (coverHref) {
-                        const opfDir = path.dirname(opfPath);
-                        const fullCoverPath = opfDir === '.' ? coverHref : path.posix.join(opfDir.replace(/\\/g, '/'), coverHref);
-                        const coverEntry = zip.getEntry(fullCoverPath) || zip.getEntry(coverHref);
-                        if (coverEntry) {
-                            coverImage = zip.readFile(coverEntry);
-                        }
+                        coverImage = this.readZipImage(zip, opfPath, coverHref);
                     }
                 }
+            }
+            // ZIP filename fallback (Kotlin-aligned): cover*.jpg/png when OPF resolution fails
+            if (!coverImage) {
+                coverImage = this.findCoverByZipFilename(zip);
             }
         }
         catch (e) {
@@ -128,6 +108,98 @@ class EpubBookExtractor {
             language,
             coverImage
         };
+    }
+    /** Escape a string for safe use inside a RegExp pattern. */
+    static escapeRegExp(value) {
+        return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+    /**
+     * Resolve cover image href from OPF:
+     * 1) meta name=cover content → item id
+     * 2) meta content → item properties (Yen Press: content="cover-image" but id differs)
+     * 3) item with properties containing cover-image
+     * 4) image item whose href contains cover / cover-image
+     */
+    static resolveCoverHref(opfXml) {
+        const coverMetaMatch = opfXml.match(/<meta[^>]*name=["']cover["'][^>]*content=["']([^"']+)["']/i) ||
+            opfXml.match(/<meta[^>]*content=["']([^"']+)["'][^>]*name=["']cover["']/i);
+        const coverRef = coverMetaMatch ? coverMetaMatch[1] : '';
+        if (coverRef) {
+            const escaped = this.escapeRegExp(coverRef);
+            // Match item by id === meta content
+            const byId = opfXml.match(new RegExp(`<item[^>]*id=["']${escaped}["'][^>]*href=["']([^"']+)["']`, 'i')) ||
+                opfXml.match(new RegExp(`<item[^>]*href=["']([^"']+)["'][^>]*id=["']${escaped}["']`, 'i'));
+            if (byId?.[1]) {
+                return byId[1];
+            }
+            // Match item by properties === meta content (e.g. properties="cover-image")
+            const byExactProp = opfXml.match(new RegExp(`<item[^>]*properties=["']${escaped}["'][^>]*href=["']([^"']+)["']`, 'i')) ||
+                opfXml.match(new RegExp(`<item[^>]*href=["']([^"']+)["'][^>]*properties=["']${escaped}["']`, 'i'));
+            if (byExactProp?.[1]) {
+                return byExactProp[1];
+            }
+        }
+        // EPUB3: properties contains cover-image (may be space-separated with other props)
+        const byCoverProp = opfXml.match(/<item[^>]*properties=["'][^"']*\bcover-image\b[^"']*["'][^>]*href=["']([^"']+)["']/i) ||
+            opfXml.match(/<item[^>]*href=["']([^"']+)["'][^>]*properties=["'][^"']*\bcover-image\b[^"']*["']/i);
+        if (byCoverProp?.[1]) {
+            return byCoverProp[1];
+        }
+        // Fallback: image item with 'cover' / 'cover-image' in href
+        const byHref = opfXml.match(/<item[^>]*href=["']([^"']*(?:cover|cover-image)[^"']*)["'][^>]*media-type=["']image\/[^"']+["']/i) ||
+            opfXml.match(/<item[^>]*media-type=["']image\/[^"']+["'][^>]*href=["']([^"']*(?:cover|cover-image)[^"']*)["']/i);
+        if (byHref?.[1]) {
+            return byHref[1];
+        }
+        return '';
+    }
+    static readZipImage(zip, opfPath, coverHref) {
+        const decodedHref = (() => {
+            try {
+                return decodeURIComponent(coverHref);
+            }
+            catch {
+                return coverHref;
+            }
+        })();
+        const opfDir = path.dirname(opfPath).replace(/\\/g, '/');
+        const fullCoverPath = opfDir === '.' ? decodedHref : path.posix.join(opfDir, decodedHref);
+        let coverEntry = zip.getEntry(fullCoverPath) || zip.getEntry(decodedHref) || zip.getEntry(coverHref);
+        if (!coverEntry) {
+            const basename = decodedHref.includes('/')
+                ? decodedHref.substring(decodedHref.lastIndexOf('/') + 1)
+                : decodedHref;
+            coverEntry =
+                zip.getEntries().find(e => !e.isDirectory && e.entryName.includes(decodedHref)) ||
+                    zip.getEntries().find(e => !e.isDirectory && e.entryName.endsWith('/' + basename)) ||
+                    zip.getEntries().find(e => !e.isDirectory && e.entryName.endsWith(basename)) ||
+                    null;
+        }
+        if (coverEntry) {
+            return zip.readFile(coverEntry);
+        }
+        return null;
+    }
+    /** Prefer basename starting with "cover", else any image basename containing "cover". */
+    static findCoverByZipFilename(zip) {
+        const imageExt = /\.(jpe?g|png)$/i;
+        let coverAux = null;
+        for (const entry of zip.getEntries()) {
+            if (entry.isDirectory)
+                continue;
+            const name = entry.entryName.replace(/\\/g, '/');
+            const basename = name.includes('/') ? name.substring(name.lastIndexOf('/') + 1) : name;
+            if (!imageExt.test(basename))
+                continue;
+            const low = basename.toLowerCase();
+            if (low.startsWith('cover')) {
+                return zip.readFile(entry);
+            }
+            if (coverAux === null && low.includes('cover')) {
+                coverAux = zip.readFile(entry);
+            }
+        }
+        return coverAux;
     }
     static cleanXmlText(text) {
         return text.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').trim();

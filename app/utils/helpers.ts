@@ -134,22 +134,59 @@ export class FileUtil {
     const ext = Util.getExtensionFromPath(filename).toLowerCase();
     switch (ext) {
       case 'cbz':
+        return FileType.CBZ;
       case 'cbr':
+        return FileType.CBR;
       case 'cb7':
+        return FileType.CB7;
       case 'cbt':
-      case 'rar':
+        return FileType.CBT;
       case 'zip':
-      case '7z':
-      case 'tar':
         return FileType.ZIP;
+      case 'rar':
+        return FileType.RAR;
+      case '7z':
+        return FileType.SEVENZ;
+      case 'tar':
+      case 'tgz':
+        return FileType.TAR;
       case 'pdf':
         return FileType.PDF;
       case 'epub':
+      case 'kepub':
+      case 'epub3':
         return FileType.EPUB;
       case 'mobi':
         return FileType.MOBI;
+      case 'azw':
+        return FileType.AZW;
+      case 'azw3':
+      case 'azw4':
+        return FileType.AZW3;
+      case 'fb2':
+        return FileType.FB2;
+      case 'djvu':
+        return FileType.DJVU;
       case 'txt':
         return FileType.TXT;
+      case 'rtf':
+        return FileType.RTF;
+      case 'doc':
+        return FileType.DOC;
+      case 'docx':
+        return FileType.DOCX;
+      case 'odt':
+        return FileType.ODT;
+      case 'md':
+      case 'markdown':
+        return FileType.MD;
+      case 'html':
+      case 'htm':
+      case 'xhtml':
+        return FileType.HTML;
+      case 'mht':
+      case 'mhtml':
+        return FileType.MHT;
       default:
         if (FileUtil.isImage(filename)) return FileType.IMAGE;
         return FileType.UNKNOWN;

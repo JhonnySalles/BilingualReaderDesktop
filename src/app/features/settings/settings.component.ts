@@ -3,10 +3,10 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ElectronService } from '../../core/services/electron.service';
 import { ThemeService, ThemeMode, AccentColor } from '../../core/services/theme.service';
-import { SettingsService, CustomLibrary } from '../../core/services/settings.service';
+import { SettingsService, CustomLibrary, LlmProviderSetting, LlmLocalKind, normalizeEbookConvertMode, EBOOK_CONVERT_MODE_KEY } from '../../core/services/settings.service';
 import { ShareMarkUiService } from '../../core/services/sharemark/share-mark-ui.service';
 import { ShareMarkCloud } from '../../core/models/enums/sharemark.enum';
-import { MangaFitMode, MangaScrollingMode, ReaderTouchType, Languages, PAGE_TRANSITION_LABELS_PT, PAGE_TRANSITION_OPTIONS, PageTransitionType } from '../../core/models';
+import { MangaFitMode, MangaScrollingMode, OrderType, ReaderTouchType, Languages, PAGE_TRANSITION_LABELS_PT, PAGE_TRANSITION_OPTIONS, PageTransitionType, LLM_MANGA_MODEL_OPTIONS } from '../../core/models';
 import {
   TextSpeech,
   activeTextSpeechVoices,
@@ -16,6 +16,7 @@ import {
 } from '../../core/models/enums/tts-enums';
 import { ReaderTouchConfigComponent } from '../reader-shared/reader-touch-config.component';
 import { japaneseFontOptions, westernFontOptions } from '../reader-text/book-fonts';
+import { LibraryStateService } from '../../core/services/library-state.service';
 export type { CustomLibrary };
 
 const TTS_VOICE_NORMAL_KEY = 'BOOK_READER_TTS_VOICE_NORMAL';
@@ -146,10 +147,13 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai';
                 <div class="grid grid-cols-2 gap-4">
                   <div>
                     <label class="block text-xs text-slate-300 mb-1 font-medium">Ordem de Exibição Padrão</label>
-                    <select class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200">
-                      <option>Nome do Arquivo (A-Z)</option>
-                      <option>Últimos Lidos</option>
-                      <option>Data de Modificação</option>
+                    <select
+                      class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200"
+                      [ngModel]="settingsService.libraryDefaultOrder()"
+                      (ngModelChange)="onLibraryDefaultOrder($event)">
+                      <option [ngValue]="OrderType.Name">Nome do Arquivo (A-Z)</option>
+                      <option [ngValue]="OrderType.LastAccess">Últimos Lidos</option>
+                      <option [ngValue]="OrderType.Date">Data de Modificação</option>
                     </select>
                   </div>
 
@@ -179,11 +183,14 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai';
                   </div>
 
                   <div>
-                    <label class="block text-xs text-slate-300 mb-1 font-medium">Tradução da Legenda</label>
-                    <select class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200">
-                      <option>Português (Brasil)</option>
-                      <option>Inglês</option>
-                      <option>Desativado</option>
+                    <label class="block text-xs text-slate-300 mb-1 font-medium">Tradução da Legenda / OCR</label>
+                    <select
+                      class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200"
+                      [ngModel]="settingsService.subtitleTranslate()"
+                      (ngModelChange)="settingsService.subtitleTranslate.set($event)">
+                      <option value="PORTUGUESE">Português (Brasil)</option>
+                      <option value="ENGLISH">Inglês</option>
+                      <option value="OFF">Desativado</option>
                     </select>
                   </div>
 
@@ -259,11 +266,17 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai';
                   </label>
                   <label class="flex items-center justify-between text-xs text-slate-300 cursor-pointer">
                     <span>Usar Nome da Pasta para Vincular Capítulos</span>
-                    <input type="checkbox" checked class="w-4 h-4 accent-indigo-600 rounded">
+                    <input type="checkbox"
+                      class="w-4 h-4 accent-indigo-600 rounded"
+                      [ngModel]="settingsService.mangaUsePagePathForLinked()"
+                      (ngModelChange)="settingsService.mangaUsePagePathForLinked.set($event)">
                   </label>
                   <label class="flex items-center justify-between text-xs text-slate-300 cursor-pointer">
                     <span>Calcular Páginas Duplas Vinculadas</span>
-                    <input type="checkbox" checked class="w-4 h-4 accent-indigo-600 rounded">
+                    <input type="checkbox"
+                      class="w-4 h-4 accent-indigo-600 rounded"
+                      [ngModel]="settingsService.mangaDualPageCalculate()"
+                      (ngModelChange)="settingsService.mangaDualPageCalculate.set($event)">
                   </label>
                 </div>
               </div>
@@ -370,9 +383,17 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai';
                       [ngModel]="settingsService.bookProcessVocabulary()"
                       (ngModelChange)="settingsService.bookProcessVocabulary.set($event)">
                   </label>
-                  <label class="flex items-center justify-between text-xs text-slate-300 cursor-pointer">
-                    <span>Habilitar Modo de Escrita Vertical Japonês (Tate-gaki)</span>
-                    <input type="checkbox" class="w-4 h-4 accent-indigo-600 rounded" disabled title="Em breve">
+                  <label class="flex items-center justify-between text-xs text-slate-300 cursor-pointer gap-3">
+                    <span class="min-w-0">
+                      <span class="block">Habilitar Modo de Escrita Vertical Japonês (Tate-gaki)</span>
+                      <span class="block text-[10px] text-slate-500 font-normal mt-0.5">
+                        CSS writing-mode no EPUB; furigana permanece sobre o kanji
+                      </span>
+                    </span>
+                    <input type="checkbox"
+                      class="w-4 h-4 accent-indigo-600 rounded shrink-0"
+                      [ngModel]="settingsService.bookFontJapaneseStyle()"
+                      (ngModelChange)="settingsService.bookFontJapaneseStyle.set($event)">
                   </label>
                 </div>
               </div>
@@ -618,11 +639,17 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai';
                 <div class="pt-3 border-t border-slate-800/80 space-y-3">
                   <label class="flex items-center justify-between text-xs text-slate-300 cursor-pointer">
                     <span>Habilitar Efeito Glassmorphism (Desfocagem Transparente)</span>
-                    <input type="checkbox" [(ngModel)]="enableGlassmorphism" class="w-4 h-4 accent-indigo-600 rounded">
+                    <input type="checkbox"
+                      class="w-4 h-4 accent-indigo-600 rounded"
+                      [ngModel]="settingsService.themeGlassmorphism()"
+                      (ngModelChange)="settingsService.themeGlassmorphism.set($event)">
                   </label>
                   <label class="flex items-center justify-between text-xs text-slate-300 cursor-pointer">
                     <span>Renderizar Capas com Efeito 3D na Prateleira</span>
-                    <input type="checkbox" [(ngModel)]="enable3DCovers" class="w-4 h-4 accent-indigo-600 rounded">
+                    <input type="checkbox"
+                      class="w-4 h-4 accent-indigo-600 rounded"
+                      [ngModel]="settingsService.theme3DCovers()"
+                      (ngModelChange)="settingsService.theme3DCovers.set($event)">
                   </label>
                 </div>
               </div>
@@ -746,15 +773,78 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai';
                 <p class="text-xs text-slate-400">Gere cópias de segurança (.db) ou execute limpeza de arquivos temporários</p>
                 
                 <div class="flex flex-wrap gap-3">
-                  <button class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold rounded-lg text-white transition-colors cursor-pointer">
+                  <button type="button" (click)="onCreateBackup()"
+                    class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold rounded-lg text-white transition-colors cursor-pointer">
                     💾 Criar Backup (.db)
                   </button>
-                  <button class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-semibold rounded-lg text-slate-300 border border-slate-700 transition-colors cursor-pointer">
+                  <button type="button" (click)="onRestoreBackup()"
+                    class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-semibold rounded-lg text-slate-300 border border-slate-700 transition-colors cursor-pointer">
                     📥 Restaurar Backup
                   </button>
-                  <button class="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-xs font-semibold rounded-lg transition-colors cursor-pointer">
+                  <button type="button" (click)="onClearCoverCache()"
+                    class="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-xs font-semibold rounded-lg transition-colors cursor-pointer">
                     🗑️ Limpar Capas em Cache
                   </button>
+                  <button type="button" (click)="onClearStatisticsHistory()"
+                    class="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-xs font-semibold rounded-lg transition-colors cursor-pointer">
+                    📊 Limpar Histórico de Estatísticas
+                  </button>
+                </div>
+              </div>
+
+              <!-- Ebook conversion tools -->
+              <div class="bg-slate-900/80 rounded-xl p-5 border border-slate-800 space-y-4">
+                <div>
+                  <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Conversão de livros</h3>
+                  <p class="text-xs text-slate-400 mt-1">
+                    Status das ferramentas detectadas e prioridade ao converter formatos para EPUB
+                  </p>
+                </div>
+
+                <div>
+                  <label class="block text-xs text-slate-300 mb-1 font-medium">Modo de conversão</label>
+                  <select
+                    class="w-full max-w-md bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200"
+                    [ngModel]="settingsService.ebookConvertMode()"
+                    (ngModelChange)="onEbookConvertModeChange($event)">
+                    <option value="auto">Auto (Calibre → nativo)</option>
+                    <option value="calibre">Calibre</option>
+                    <option value="native">Nativo</option>
+                  </select>
+                  <p class="text-[11px] text-slate-500 mt-1.5">
+                    Auto tenta o Calibre primeiro (melhor qualidade) e, se indisponível ou falhar, usa os converters embutidos.
+                    Calibre força só o ebook-convert. Nativo usa apenas libmobi, documentos JS e FB2 (sem Calibre/Pandoc).
+                  </p>
+                </div>
+
+                <div class="rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-2 text-[11px] text-slate-400 space-y-1">
+                  <div class="font-semibold text-slate-300">Ferramentas no sistema</div>
+                  @if (converterAdapters()?.length) {
+                    @for (a of converterAdapters(); track a.id) {
+                      <div>
+                        {{ a.label }}:
+                        <span [class.text-emerald-400]="a.available" [class.text-amber-400]="!a.available">
+                          {{ a.available ? 'disponível' : 'indisponível' }}
+                        </span>
+                        @if (a.detail) {
+                          <span class="text-slate-500"> — {{ a.detail }}</span>
+                        }
+                      </div>
+                    }
+                  } @else {
+                    <div>
+                      Pandoc:
+                      <span [class.text-emerald-400]="converterTools()?.pandoc" [class.text-amber-400]="!converterTools()?.pandoc">
+                        {{ converterTools()?.pandoc ? 'detectado' : 'não encontrado' }}
+                      </span>
+                    </div>
+                    <div>
+                      Calibre (ebook-convert):
+                      <span [class.text-emerald-400]="converterTools()?.calibre" [class.text-amber-400]="!converterTools()?.calibre">
+                        {{ converterTools()?.calibre ? 'detectado' : 'não encontrado' }}
+                      </span>
+                    </div>
+                  }
                 </div>
               </div>
             </section>
@@ -765,51 +855,268 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai';
             <section class="space-y-6">
               <div class="border-b border-slate-800 pb-3">
                 <h2 class="text-lg font-bold text-indigo-400">Inteligência Artificial & Tradução</h2>
-                <p class="text-xs text-slate-400 mt-1">Conexão com OpenRouter API para tradução contextual e explicações de gramática</p>
+                <p class="text-xs text-slate-400 mt-1">
+                  OpenRouter (nuvem) ou assistente local via Ollama / LM Studio (API OpenAI-compatible)
+                </p>
               </div>
 
               <div class="bg-slate-900/80 rounded-xl p-5 border border-slate-800 space-y-4">
                 <label class="flex items-center justify-between text-xs text-slate-200 font-bold cursor-pointer">
                   <span>Ativar Recursos de IA no Leitor</span>
-                  <input type="checkbox" checked class="w-4 h-4 accent-indigo-600 rounded">
+                  <input
+                    type="checkbox"
+                    class="w-4 h-4 accent-indigo-600 rounded"
+                    [ngModel]="settingsService.llmEnabled()"
+                    (ngModelChange)="settingsService.llmEnabled.set($event)" />
                 </label>
 
                 <div>
+                  <label class="block text-xs text-slate-300 mb-1 font-medium">Provedor ativo</label>
+                  <select
+                    class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200"
+                    [ngModel]="settingsService.llmProvider()"
+                    (ngModelChange)="onLlmProviderChange($event)">
+                    <option value="openrouter">OpenRouter (nuvem)</option>
+                    <option value="ollama">Ollama (local)</option>
+                    <option value="lm_studio">LM Studio (local)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="bg-slate-900/80 rounded-xl p-5 border border-slate-800 space-y-4">
+                <h3 class="text-sm font-bold text-slate-100">OpenRouter</h3>
+
+                <div>
                   <label class="block text-xs text-slate-300 mb-1 font-medium">Chave API do OpenRouter</label>
-                  <input type="password" value="sk-or-v1-demo-key-placeholder" class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200">
+                  <input
+                    type="password"
+                    autocomplete="off"
+                    placeholder="sk-or-v1-… (vazio = usar .env)"
+                    class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200"
+                    [ngModel]="settingsService.llmOpenRouterApiKey()"
+                    (ngModelChange)="settingsService.llmOpenRouterApiKey.set($event)" />
+                  <p class="text-[10px] text-slate-500 mt-1">
+                    Preferência do app; se vazia, usa OPENROUTER_API_KEY do ambiente.
+                  </p>
                 </div>
 
                 <div class="grid grid-cols-2 gap-4">
                   <div>
-                    <label class="block text-xs text-slate-300 mb-1 font-medium">Modelo para Tradução de Mangá</label>
-                    <select class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200">
-                      <option>google/gemini-2.5-flash</option>
-                      <option>anthropic/claude-3.5-sonnet</option>
-                      <option>openai/gpt-4o-mini</option>
+                    <label class="block text-xs text-slate-300 mb-1 font-medium">Modelo para Tradução OCR (mangá)</label>
+                    <select
+                      class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200"
+                      [ngModel]="settingsService.llmMangaTranslateModel()"
+                      (ngModelChange)="settingsService.llmMangaTranslateModel.set($event)">
+                      @for (m of llmMangaModels; track m) {
+                        <option [value]="m">{{ m }}</option>
+                      }
                     </select>
                   </div>
                   <div>
-                    <label class="block text-xs text-slate-300 mb-1 font-medium">Modelo para Resumo de Ebooks</label>
-                    <select class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200">
-                      <option>google/gemini-2.5-flash</option>
-                      <option>deepseek/deepseek-r1</option>
+                    <label class="block text-xs text-slate-300 mb-1 font-medium">Modelo para Interpretação OCR</label>
+                    <select
+                      class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200"
+                      [ngModel]="settingsService.llmMangaInterpretModel()"
+                      (ngModelChange)="settingsService.llmMangaInterpretModel.set($event)">
+                      @for (m of llmMangaModels; track m) {
+                        <option [value]="m">{{ m }}</option>
+                      }
                     </select>
                   </div>
                 </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-xs text-slate-300 mb-1 font-medium">Modelo Q&amp;A (livro)</label>
+                    <select
+                      class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200"
+                      [ngModel]="settingsService.llmBookQaModel()"
+                      (ngModelChange)="settingsService.llmBookQaModel.set($event)">
+                      @for (m of llmMangaModels; track m) {
+                        <option [value]="m">{{ m }}</option>
+                      }
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-xs text-slate-300 mb-1 font-medium">Modelo resumo (livro)</label>
+                    <select
+                      class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200"
+                      [ngModel]="settingsService.llmBookSummaryModel()"
+                      (ngModelChange)="settingsService.llmBookSummaryModel.set($event)">
+                      @for (m of llmMangaModels; track m) {
+                        <option [value]="m">{{ m }}</option>
+                      }
+                    </select>
+                  </div>
+                </div>
+
+                <div class="pt-2">
+                  <button type="button" (click)="onTestAiConnection('openrouter')" [disabled]="aiTesting()"
+                    class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-xs font-semibold rounded-lg text-white transition-colors cursor-pointer">
+                    {{ aiTesting() ? 'Testando…' : 'Testar conexão OpenRouter' }}
+                  </button>
+                </div>
+              </div>
+
+              <div class="bg-slate-900/80 rounded-xl p-5 border border-slate-800 space-y-4">
+                <h3 class="text-sm font-bold text-slate-100">Assistente local (Ollama / LM Studio)</h3>
+                <p class="text-[10px] text-slate-500">
+                  API OpenAI-compatible em <code class="text-slate-400">/v1/chat/completions</code>.
+                  Modelos locais não sobrescrevem os IDs do OpenRouter.
+                </p>
+
+                <div>
+                  <label class="block text-xs text-slate-300 mb-1 font-medium">Backend local</label>
+                  <select
+                    class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200"
+                    [ngModel]="settingsService.llmLocalKind()"
+                    (ngModelChange)="onLocalKindChange($event)">
+                    <option value="ollama">Ollama</option>
+                    <option value="lm_studio">LM Studio</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label class="block text-xs text-slate-300 mb-1 font-medium">Base URL</label>
+                  <input
+                    type="text"
+                    class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200"
+                    [ngModel]="localBaseUrl()"
+                    (ngModelChange)="setLocalBaseUrl($event)"
+                    [placeholder]="settingsService.llmLocalKind() === 'ollama' ? 'http://127.0.0.1:11434/v1' : 'http://127.0.0.1:1234/v1'" />
+                </div>
+
+                <div>
+                  <label class="block text-xs text-slate-300 mb-1 font-medium">API key (opcional)</label>
+                  <input
+                    type="password"
+                    autocomplete="off"
+                    placeholder="vazio na maioria dos casos; LM Studio às vezes usa lm-studio"
+                    class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200"
+                    [ngModel]="localApiKey()"
+                    (ngModelChange)="setLocalApiKey($event)" />
+                </div>
+
+                <div class="flex flex-wrap gap-2">
+                  <button type="button" (click)="onTestLocalConnection()" [disabled]="localTesting()"
+                    class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-xs font-semibold rounded-lg text-white transition-colors cursor-pointer">
+                    {{ localTesting() ? 'Testando…' : 'Testar conexão' }}
+                  </button>
+                  <button type="button" (click)="onRefreshLocalModels()" [disabled]="localModelsLoading()"
+                    class="px-4 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-xs font-semibold rounded-lg text-slate-200 transition-colors cursor-pointer">
+                    {{ localModelsLoading() ? 'Atualizando…' : 'Atualizar modelos' }}
+                  </button>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label class="block text-xs text-slate-300 mb-1 font-medium">Modelo Q&amp;A (livro)</label>
+                    <input list="local-llm-models" type="text"
+                      class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200"
+                      [ngModel]="settingsService.llmBookLocalModel()"
+                      (ngModelChange)="settingsService.llmBookLocalModel.set($event)" />
+                  </div>
+                  <div>
+                    <label class="block text-xs text-slate-300 mb-1 font-medium">Modelo resumo (livro)</label>
+                    <input list="local-llm-models" type="text"
+                      class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200"
+                      [ngModel]="settingsService.llmBookLocalModelSummary()"
+                      (ngModelChange)="settingsService.llmBookLocalModelSummary.set($event)" />
+                  </div>
+                  <div>
+                    <label class="block text-xs text-slate-300 mb-1 font-medium">Modelo mangá / OCR</label>
+                    <input list="local-llm-models" type="text"
+                      class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200"
+                      [ngModel]="settingsService.llmMangaLocalModel()"
+                      (ngModelChange)="settingsService.llmMangaLocalModel.set($event)" />
+                  </div>
+                </div>
+                <datalist id="local-llm-models">
+                  @for (m of localModelIds(); track m) {
+                    <option [value]="m"></option>
+                  }
+                </datalist>
+              </div>
+
+              <div class="bg-slate-900/80 rounded-xl p-5 border border-slate-800 space-y-4">
+                <h3 class="text-sm font-bold text-slate-100">Limites e temperatura</h3>
+
+                <div class="grid grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-xs text-slate-300 mb-1 font-medium">Máx. contexto (chars)</label>
+                    <input type="number" min="2000" max="100000" step="500"
+                      class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200"
+                      [ngModel]="settingsService.llmMaxContextChars()"
+                      (ngModelChange)="settingsService.llmMaxContextChars.set(+$event || 12000)" />
+                  </div>
+                  <div>
+                    <label class="block text-xs text-slate-300 mb-1 font-medium">Máx. histórico (chars)</label>
+                    <input type="number" min="100" max="8000" step="50"
+                      class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200"
+                      [ngModel]="settingsService.llmMaxHistoryChars()"
+                      (ngModelChange)="settingsService.llmMaxHistoryChars.set(+$event || 600)" />
+                  </div>
+                  <div>
+                    <label class="block text-xs text-slate-300 mb-1 font-medium">Máx. capítulos (livro)</label>
+                    <input type="number" min="1" max="20" step="1"
+                      class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200"
+                      [ngModel]="settingsService.llmMaxBookChapters()"
+                      (ngModelChange)="settingsService.llmMaxBookChapters.set(+$event || 5)" />
+                  </div>
+                  <div>
+                    <label class="block text-xs text-slate-300 mb-1 font-medium">Máx. páginas (mangá)</label>
+                    <input type="number" min="1" max="50" step="1"
+                      class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200"
+                      [ngModel]="settingsService.llmMaxMangaPages()"
+                      (ngModelChange)="settingsService.llmMaxMangaPages.set(+$event || 10)" />
+                  </div>
+                </div>
+
+                <div>
+                  <label class="block text-xs text-slate-300 mb-1 font-medium">
+                    Temperatura ({{ settingsService.llmTemperature() }})
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    step="5"
+                    class="w-full accent-indigo-600"
+                    [ngModel]="settingsService.llmTemperature()"
+                    (ngModelChange)="settingsService.llmTemperature.set(+$event)" />
+                </div>
+
+                <label class="flex items-center justify-between text-xs text-slate-200 cursor-pointer">
+                  <span>Traduzir automaticamente após OCR</span>
+                  <input
+                    type="checkbox"
+                    class="w-4 h-4 accent-indigo-600 rounded"
+                    [ngModel]="settingsService.ocrAutoTranslate()"
+                    (ngModelChange)="settingsService.ocrAutoTranslate.set($event)" />
+                </label>
+
+                <label class="flex items-center justify-between text-xs text-slate-200 cursor-pointer">
+                  <span>Interpretar automaticamente após OCR</span>
+                  <input
+                    type="checkbox"
+                    class="w-4 h-4 accent-indigo-600 rounded"
+                    [ngModel]="settingsService.ocrAutoInterpret()"
+                    (ngModelChange)="settingsService.ocrAutoInterpret.set($event)" />
+                </label>
               </div>
             </section>
           }
 
-          @if (shareMark.toastMessage()) {
+          @if (shareMark.toastMessage() || localToast()) {
             <div
               class="fixed bottom-6 right-8 z-50 max-w-sm px-4 py-3 rounded-xl border shadow-xl text-xs font-medium flex items-center gap-3"
               [ngClass]="{
-                'bg-slate-900 border-slate-700 text-slate-200': shareMark.toastKind() === 'info',
-                'bg-emerald-950 border-emerald-700/50 text-emerald-200': shareMark.toastKind() === 'success',
-                'bg-red-950 border-red-700/50 text-red-200': shareMark.toastKind() === 'error'
+                'bg-slate-900 border-slate-700 text-slate-200': (localToast()?.kind || shareMark.toastKind()) === 'info',
+                'bg-emerald-950 border-emerald-700/50 text-emerald-200': (localToast()?.kind || shareMark.toastKind()) === 'success',
+                'bg-red-950 border-red-700/50 text-red-200': (localToast()?.kind || shareMark.toastKind()) === 'error'
               }">
-              <span class="flex-1">{{ shareMark.toastMessage() }}</span>
-              <button type="button" (click)="shareMark.dismissToast()" class="text-[10px] uppercase tracking-wider opacity-70 hover:opacity-100 cursor-pointer">
+              <span class="flex-1">{{ localToast()?.message || shareMark.toastMessage() }}</span>
+              <button type="button" (click)="dismissLocalToast(); shareMark.dismissToast()" class="text-[10px] uppercase tracking-wider opacity-70 hover:opacity-100 cursor-pointer">
                 Fechar
               </button>
             </div>
@@ -897,17 +1204,30 @@ export class SettingsComponent implements OnInit {
   themeService = inject(ThemeService);
   settingsService = inject(SettingsService);
   shareMark = inject(ShareMarkUiService);
+  private libraryState = inject(LibraryStateService);
 
   MangaFitMode = MangaFitMode;
   MangaScrollingMode = MangaScrollingMode;
+  OrderType = OrderType;
   pageTransitionOptions = PAGE_TRANSITION_OPTIONS;
   pageTransitionLabels = PAGE_TRANSITION_LABELS_PT;
+  llmMangaModels = [...LLM_MANGA_MODEL_OPTIONS];
   westernFonts = westernFontOptions();
   japaneseFonts = japaneseFontOptions();
 
   activeTab = signal<SettingTab>('manga');
   showTouchConfig = signal(false);
   touchConfigType = signal<ReaderTouchType>('manga');
+  aiTesting = signal(false);
+  localTesting = signal(false);
+  localModelsLoading = signal(false);
+  localModelIds = signal<string[]>([]);
+  localToast = signal<{ message: string; kind: 'info' | 'success' | 'error' } | null>(null);
+  converterTools = signal<{ pandoc: boolean; calibre: boolean } | null>(null);
+  converterAdapters = signal<
+    Array<{ id: string; label: string; available: boolean; detail?: string | null }>
+  >([]);
+  private localToastTimer: ReturnType<typeof setTimeout> | null = null;
 
   // Base Directory Signals
   mangaBasePath = computed(() => this.settingsService.mangaBasePath());
@@ -923,8 +1243,179 @@ export class SettingsComponent implements OnInit {
   // Theme & Visual Signals
   themeMode = computed(() => this.themeService.themeMode());
   accentColor = computed(() => this.themeService.accentColor());
-  enableGlassmorphism = true;
-  enable3DCovers = true;
+
+  showLocalToast(message: string, kind: 'info' | 'success' | 'error' = 'info'): void {
+    if (this.localToastTimer) clearTimeout(this.localToastTimer);
+    this.localToast.set({ message, kind });
+    this.localToastTimer = setTimeout(() => this.localToast.set(null), 4200);
+  }
+
+  dismissLocalToast(): void {
+    if (this.localToastTimer) clearTimeout(this.localToastTimer);
+    this.localToast.set(null);
+  }
+
+  onLibraryDefaultOrder(order: OrderType): void {
+    this.settingsService.libraryDefaultOrder.set(order);
+    this.libraryState.setCurrentOrder(order, 'manga');
+    this.libraryState.setCurrentOrder(order, 'book');
+  }
+
+  async onCreateBackup(): Promise<void> {
+    const result = await this.electronService.dbBackup();
+    if (result.canceled) return;
+    if (result.ok) {
+      this.showLocalToast(`Backup salvo${result.path ? `: ${result.path}` : ''}`, 'success');
+    } else {
+      this.showLocalToast(result.error || 'Falha ao criar backup', 'error');
+    }
+  }
+
+  async onRestoreBackup(): Promise<void> {
+    const ok = window.confirm(
+      'Restaurar um backup substitui o banco atual e reinicia o aplicativo. Continuar?'
+    );
+    if (!ok) return;
+    const result = await this.electronService.dbRestore();
+    if (result.canceled) return;
+    if (!result.ok) {
+      this.showLocalToast(result.error || 'Falha ao restaurar backup', 'error');
+    }
+  }
+
+  async onClearCoverCache(): Promise<void> {
+    const result = await this.electronService.coversClearCache();
+    if (result.ok) {
+      this.showLocalToast(
+        `Capas limpas (${result.mangaRemoved + result.bookRemoved} arquivos)`,
+        'success'
+      );
+    } else {
+      this.showLocalToast('Falha ao limpar capas', 'error');
+    }
+  }
+
+  async onClearStatisticsHistory(): Promise<void> {
+    const ok = window.confirm(
+      'Isso apaga todo o histórico de leitura usado nas estatísticas. Marcadores e progresso dos arquivos não são alterados. Continuar?'
+    );
+    if (!ok) return;
+    const result = await this.electronService.statisticsClearHistory();
+    if (result.ok) {
+      this.showLocalToast(`Histórico limpo (${result.removed} sessões)`, 'success');
+    } else {
+      this.showLocalToast('Falha ao limpar histórico', 'error');
+    }
+  }
+
+  async onTestAiConnection(provider: LlmProviderSetting = 'openrouter'): Promise<void> {
+    this.aiTesting.set(true);
+    try {
+      const result = await this.electronService.aiTestConnection(provider);
+      if (result.ok) {
+        this.showLocalToast(
+          `Conexão OK${typeof result.models === 'number' ? ` (${result.models} modelos)` : ''}`,
+          'success'
+        );
+      } else {
+        this.showLocalToast(result.error || 'Falha na conexão', 'error');
+      }
+    } finally {
+      this.aiTesting.set(false);
+    }
+  }
+
+  onLlmProviderChange(value: string): void {
+    const p =
+      value === 'ollama' || value === 'lm_studio' || value === 'openrouter'
+        ? (value as LlmProviderSetting)
+        : 'openrouter';
+    this.settingsService.llmProvider.set(p);
+    if (p === 'ollama' || p === 'lm_studio') {
+      this.settingsService.llmLocalKind.set(p);
+    }
+  }
+
+  onLocalKindChange(value: string): void {
+    const kind: LlmLocalKind = value === 'lm_studio' ? 'lm_studio' : 'ollama';
+    this.settingsService.llmLocalKind.set(kind);
+  }
+
+  localBaseUrl(): string {
+    return this.settingsService.llmLocalKind() === 'lm_studio'
+      ? this.settingsService.llmLmStudioBaseUrl()
+      : this.settingsService.llmOllamaBaseUrl();
+  }
+
+  setLocalBaseUrl(value: string): void {
+    if (this.settingsService.llmLocalKind() === 'lm_studio') {
+      this.settingsService.llmLmStudioBaseUrl.set(value);
+    } else {
+      this.settingsService.llmOllamaBaseUrl.set(value);
+    }
+  }
+
+  localApiKey(): string {
+    return this.settingsService.llmLocalKind() === 'lm_studio'
+      ? this.settingsService.llmLmStudioApiKey()
+      : this.settingsService.llmOllamaApiKey();
+  }
+
+  setLocalApiKey(value: string): void {
+    if (this.settingsService.llmLocalKind() === 'lm_studio') {
+      this.settingsService.llmLmStudioApiKey.set(value);
+    } else {
+      this.settingsService.llmOllamaApiKey.set(value);
+    }
+  }
+
+  async onTestLocalConnection(): Promise<void> {
+    this.localTesting.set(true);
+    try {
+      const result = await this.electronService.llmTestLocal({
+        baseUrl: this.localBaseUrl(),
+        apiKey: this.localApiKey()
+      });
+      if (result.ok) {
+        this.showLocalToast(
+          `Local OK${typeof result.models === 'number' ? ` (${result.models} modelos)` : ''}`,
+          'success'
+        );
+      } else {
+        this.showLocalToast(result.error || 'Falha na conexão local', 'error');
+      }
+    } finally {
+      this.localTesting.set(false);
+    }
+  }
+
+  async onRefreshLocalModels(): Promise<void> {
+    this.localModelsLoading.set(true);
+    try {
+      const result = await this.electronService.llmListLocalModels({
+        baseUrl: this.localBaseUrl(),
+        apiKey: this.localApiKey()
+      });
+      if (!result.ok) {
+        this.showLocalToast(result.error || 'Falha ao listar modelos', 'error');
+        return;
+      }
+      const ids = (result.models || []).map(m => m.id).filter(Boolean);
+      this.localModelIds.set(ids);
+      if (ids.length && !ids.includes(this.settingsService.llmBookLocalModel())) {
+        this.settingsService.llmBookLocalModel.set(ids[0]);
+      }
+      if (ids.length && !ids.includes(this.settingsService.llmBookLocalModelSummary())) {
+        this.settingsService.llmBookLocalModelSummary.set(ids[0]);
+      }
+      if (ids.length && !ids.includes(this.settingsService.llmMangaLocalModel())) {
+        this.settingsService.llmMangaLocalModel.set(ids[0]);
+      }
+      this.showLocalToast(`${ids.length} modelo(s) local(is)`, 'success');
+    } finally {
+      this.localModelsLoading.set(false);
+    }
+  }
 
   async onShareMarkEnabled(event: Event): Promise<void> {
     const checked = (event.target as HTMLInputElement).checked;
@@ -987,6 +1478,19 @@ export class SettingsComponent implements OnInit {
   ngOnInit(): void {
     void this.shareMark.refreshStatus();
     void this.loadTtsSettings();
+    void this.loadConverterTools();
+  }
+
+  private async loadConverterTools(): Promise<void> {
+    const status = await this.electronService.converterToolsStatus();
+    this.converterTools.set({ pandoc: status.pandoc, calibre: status.calibre });
+    this.converterAdapters.set(status.adapters || []);
+    const mode = await this.electronService.getSetting(EBOOK_CONVERT_MODE_KEY, 'auto');
+    this.settingsService.ebookConvertMode.set(normalizeEbookConvertMode(mode));
+  }
+
+  onEbookConvertModeChange(value: string): void {
+    this.settingsService.ebookConvertMode.set(normalizeEbookConvertMode(value));
   }
 
   private async loadTtsSettings(): Promise<void> {

@@ -11,6 +11,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getLibraryCount: (libraryId: number, type: 'MANGA' | 'BOOK') => ipcRenderer.invoke('library:get-count', libraryId, type),
   getManga: (id: number) => ipcRenderer.invoke('manga:get', id),
   getBook: (id: number) => ipcRenderer.invoke('book:get', id),
+  setBookPassword: (id: number, password: string) =>
+    ipcRenderer.invoke('book:set-password', id, password),
   getAdjacentBooks: (id: number) => ipcRenderer.invoke('book:adjacent', id),
   getAdjacentMangas: (id: number) => ipcRenderer.invoke('manga:adjacent', id),
   saveManga: (manga: any) => ipcRenderer.invoke('manga:save', manga),
@@ -82,6 +84,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('tts:prefetch', items),
   ttsClearCache: () => ipcRenderer.invoke('tts:clear-cache'),
 
+  dbBackup: () => ipcRenderer.invoke('db:backup'),
+  dbRestore: () => ipcRenderer.invoke('db:restore'),
+  coversClearCache: () => ipcRenderer.invoke('covers:clear-cache'),
+  statisticsClearHistory: () => ipcRenderer.invoke('statistics:clear-history'),
+  appGetInfo: () => ipcRenderer.invoke('app:get-info'),
+  aiTestConnection: (provider?: string) => ipcRenderer.invoke('ai:test-connection', provider),
+  llmTestLocal: (payload: { baseUrl?: string; apiKey?: string }) =>
+    ipcRenderer.invoke('llm:test-local', payload),
+  llmListLocalModels: (payload: { baseUrl?: string; apiKey?: string }) =>
+    ipcRenderer.invoke('llm:list-local-models', payload),
+  llmGetProvider: () => ipcRenderer.invoke('llm:provider'),
+  llmSetProvider: (provider: string) => ipcRenderer.invoke('llm:set-provider', provider),
+  converterToolsStatus: () => ipcRenderer.invoke('converter:tools-status'),
+
   openMangaReader: (mangaId: number) => ipcRenderer.invoke('manga-reader:open', mangaId),
   closeMangaReader: (sessionId: string) => ipcRenderer.invoke('manga-reader:close', sessionId),
   getSessionSubtitles: (sessionId: string) => ipcRenderer.invoke('subtitle:getForSession', sessionId),
@@ -95,6 +111,32 @@ contextBridge.exposeInMainWorld('electronAPI', {
     engine?: 'auto' | 'tesseract' | 'windows';
   }) => ipcRenderer.invoke('ocr:recognize', payload),
   ocrWindowsAvailable: () => ipcRenderer.invoke('ocr:windowsAvailable'),
+  llmStatus: () => ipcRenderer.invoke('llm:status'),
+  llmTranslate: (payload: {
+    text?: string;
+    blocks?: string[];
+    mode: 'literal' | 'interpret';
+    sourceLang?: string;
+    targetLang?: string;
+    model?: string;
+    temperature?: number;
+  }) => ipcRenderer.invoke('llm:translate', payload),
+
+  assistantStatus: () => ipcRenderer.invoke('assistant:status'),
+  assistantHistoryList: (referenceId: number, type: 'BOOK' | 'MANGA') =>
+    ipcRenderer.invoke('assistant:history:list', referenceId, type),
+  assistantHistoryClear: (referenceId: number, type: 'BOOK' | 'MANGA') =>
+    ipcRenderer.invoke('assistant:history:clear', referenceId, type),
+  assistantSelectionGet: (type: 'BOOK' | 'MANGA', referenceId: number) =>
+    ipcRenderer.invoke('assistant:selection:get', type, referenceId),
+  assistantSelectionSet: (type: 'BOOK' | 'MANGA', referenceId: number, value: string) =>
+    ipcRenderer.invoke('assistant:selection:set', type, referenceId, value),
+  assistantModels: (provider?: string) => ipcRenderer.invoke('assistant:models', provider),
+  assistantPageImages: (sessionId: string, pages: number[]) =>
+    ipcRenderer.invoke('assistant:page-images', sessionId, pages),
+  assistantCancel: (requestId: string) => ipcRenderer.invoke('assistant:cancel', requestId),
+  assistantAsk: (payload: any) => ipcRenderer.invoke('assistant:ask', payload),
+
   setMangaBookmark: (mangaId: number, page: number) => ipcRenderer.invoke('manga:set-bookmark', mangaId, page),
   toggleMangaFavorite: (mangaId: number) => ipcRenderer.invoke('manga:toggle-favorite', mangaId),
   listMangaAnnotations: (mangaId: number) => ipcRenderer.invoke('manga:list-annotations', mangaId),
@@ -162,6 +204,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('japanese:toRubyHtml', text, withFurigana),
   japaneseTokenize: (text: string) => ipcRenderer.invoke('japanese:tokenize', text),
   japaneseEngine: () => ipcRenderer.invoke('japanese:engine'),
+
+  openExternal: (url: string) => ipcRenderer.invoke('shell:openExternal', url),
+  lookupVocabulary: (options: { text: string; mangaId?: number | null; bookId?: number | null }) =>
+    ipcRenderer.invoke('vocabulary:lookup', options),
 
   send: (channel: string, data: any) => ipcRenderer.send(channel, data),
   on: (channel: string, func: (...args: any[]) => void) => {

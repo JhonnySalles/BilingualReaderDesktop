@@ -91,13 +91,15 @@ class JapaneseTokenizerService {
         let html = '';
         for (const t of tokens) {
             const surface = this.escapeHtml(t.surface);
+            const attrSurface = this.escapeAttr(t.surface);
+            const attrBasic = this.escapeAttr(t.dictionaryForm || t.surface);
+            let inner = surface;
             if (withFurigana && t.hasKanji && t.readingHiragana) {
                 const rt = this.escapeHtml(t.readingHiragana);
-                html += `<ruby>${surface}<rt>${rt}</rt></ruby>`;
+                inner = `<ruby>${surface}<rt>${rt}</rt></ruby>`;
             }
-            else {
-                html += surface;
-            }
+            // Clickable vocab span for reader lookup (Android showPopupVocabulary parity).
+            html += `<span class="br-vocab" data-surface="${attrSurface}" data-basic="${attrBasic}">${inner}</span>`;
         }
         return html;
     }
@@ -278,6 +280,9 @@ class JapaneseTokenizerService {
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;');
+    }
+    escapeAttr(s) {
+        return this.escapeHtml(s).replace(/'/g, '&#39;');
     }
 }
 exports.JapaneseTokenizerService = JapaneseTokenizerService;

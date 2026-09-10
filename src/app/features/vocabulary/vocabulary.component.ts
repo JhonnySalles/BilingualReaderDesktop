@@ -10,10 +10,10 @@ import {
   VocabularyManga
 } from '../../core/models';
 import {
-  VocabularyCardComponent,
-  VocabularyDetailDialogComponent,
-  KanjaxDetailDialogComponent
+  VocabularyCardComponent
 } from './components/vocabulary-card.component';
+import { VocabularyDetailDialogComponent } from './components/vocabulary-detail-dialog.component';
+import { KanjaxDetailDialogComponent } from './components/kanjax-detail-dialog.component';
 
 const PAGE_SIZE = 40;
 

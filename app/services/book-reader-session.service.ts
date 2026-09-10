@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
 import { app } from 'electron';
-import { EBookConverterService } from './ebook-converter.service';
+import { EBookConverterService, EbookConversionError } from './ebook-converter.service';
 import { BookConfiguration } from '../../src/app/core/models/entities/book.model';
 
 export interface OpenBookReaderResult {
@@ -68,14 +68,15 @@ export class BookReaderSessionService {
     let epubPath: string;
     try {
       epubPath = await EBookConverterService.instance.convertToEpub(bookPath);
-    } catch (err: any) {
-      const msg = err?.message || String(err);
-      if (/Failed to convert/i.test(msg)) {
-        throw new Error(
-          'Não foi possível converter o arquivo para EPUB. Instale Pandoc ou Calibre (ebook-convert) e tente novamente.'
-        );
+    } catch (err: unknown) {
+      if (err instanceof EbookConversionError) {
+        throw new Error(err.message);
       }
-      throw err;
+      const msg = err instanceof Error ? err.message : String(err);
+      throw new Error(
+        msg ||
+          'Não foi possível converter o arquivo para EPUB. Instale Calibre (ebook-convert) e/ou Pandoc e tente novamente.'
+      );
     }
 
     if (!fs.existsSync(epubPath)) {

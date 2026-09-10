@@ -125,6 +125,15 @@ const PROGRAMMATIC_SCROLL_FALLBACK_MS = 1000;
                     [selectedSequence]="selectedSubtitleSeq"
                     (selectText)="selectText.emit($event)" />
                 }
+                @if (showOcrOverlay && i === activeReadPage && ocrTexts.length) {
+                  <app-manga-subtitle-overlay
+                    [visible]="true"
+                    [texts]="ocrTexts"
+                    [imageWidth]="naturalSize(i).w"
+                    [imageHeight]="naturalSize(i).h"
+                    [selectedSequence]="null"
+                    (selectText)="selectText.emit($event)" />
+                }
               </div>
             }
           }
@@ -187,7 +196,8 @@ const PROGRAMMATIC_SCROLL_FALLBACK_MS = 1000;
                     [texts]="ocrTexts"
                     [imageWidth]="naturalSize(i).w"
                     [imageHeight]="naturalSize(i).h"
-                    [selectedSequence]="null" />
+                    [selectedSequence]="null"
+                    (selectText)="selectText.emit($event)" />
                 }
               </div>
             }
