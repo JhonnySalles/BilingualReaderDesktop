@@ -126,7 +126,14 @@ function createWindow() {
         mainWindow.webContents.openDevTools();
     }
     else {
-        mainWindow.loadFile(path.join(__dirname, '../dist/bilingual-reader-desktop/browser/index.html'));
+        const indexHtml = path.join(electron_1.app.getAppPath(), 'dist/bilingual-reader-desktop/browser/index.html');
+        if (!fs.existsSync(indexHtml)) {
+            console.error('[main] index.html not found:', indexHtml);
+        }
+        mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
+            console.error('[main] did-fail-load', { errorCode, errorDescription, validatedURL, indexHtml });
+        });
+        void mainWindow.loadFile(indexHtml);
     }
     mainWindow.on('closed', () => {
         mainWindow = null;
