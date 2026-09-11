@@ -7,6 +7,9 @@ import { Vocabulary, VocabularyBook, VocabularyManga } from '../../../core/model
   selector: 'app-vocabulary-card',
   standalone: true,
   imports: [CommonModule],
+  host: {
+    class: 'block w-full'
+  },
   template: `
     <article
       class="group flex gap-3 rounded-xl border border-slate-800/80 bg-slate-900/50 hover:border-slate-700 hover:bg-slate-900 px-3 py-3 transition-colors cursor-pointer"

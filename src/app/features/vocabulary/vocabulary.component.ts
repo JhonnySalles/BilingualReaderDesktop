@@ -118,7 +118,7 @@ const PAGE_SIZE = 40;
             }
           </div>
         } @else {
-          <div class="space-y-2 max-w-3xl mx-auto">
+          <div class="flex flex-col gap-3.5 max-w-3xl mx-auto">
             <p class="text-[11px] text-slate-500 px-1 mb-1">{{ total() }} palavras</p>
             @for (item of items(); track item.id) {
               <app-vocabulary-card

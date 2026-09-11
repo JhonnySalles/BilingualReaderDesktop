@@ -59,3 +59,4 @@ public/assets/system_small.dic
 !.env.example
 secrets.properties
 google-oauth.json
+/data
