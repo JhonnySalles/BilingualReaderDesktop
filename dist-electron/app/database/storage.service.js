@@ -40,7 +40,7 @@ exports.StorageService = void 0;
 const better_sqlite3_1 = __importDefault(require("better-sqlite3"));
 const path = __importStar(require("path"));
 const fs = __importStar(require("fs"));
-const electron_1 = require("electron");
+const app_paths_1 = require("../utils/app-paths");
 const migrations_1 = require("./migrations");
 const manga_repository_1 = require("./manga.repository");
 const book_repository_1 = require("./book.repository");
@@ -74,7 +74,7 @@ class StorageService {
         this.initDatabase();
     }
     getDbPath() {
-        return path.join(electron_1.app.getPath('userData'), 'BilingualReaderDesktop.db');
+        return path.join((0, app_paths_1.getAppDataDir)(), 'BilingualReaderDesktop.db');
     }
     initDatabase() {
         const dbPath = this.getDbPath();

@@ -37,7 +37,7 @@ exports.MangaReaderSessionService = void 0;
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const crypto = __importStar(require("crypto"));
-const electron_1 = require("electron");
+const app_paths_1 = require("../utils/app-paths");
 const parse_factory_1 = require("../parser/manga/parse-factory");
 const parse_util_1 = require("../parser/manga/parse-util");
 const subtitle_normalize_1 = require("../../src/app/core/utils/subtitle-normalize");
@@ -48,7 +48,7 @@ const SUBTITLES_FILE = 'subtitles.json';
 class MangaReaderSessionService {
     active = new Map();
     getCacheRoot() {
-        return path.join(electron_1.app.getPath('userData'), 'cache', 'manga-pages');
+        return path.join((0, app_paths_1.getAppCacheDir)(), 'manga-pages');
     }
     isPathAllowed(filePath) {
         const root = path.resolve(this.getCacheRoot());

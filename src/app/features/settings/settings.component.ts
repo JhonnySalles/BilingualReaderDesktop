@@ -102,6 +102,14 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai';
                       Procurar...
                     </button>
                   </div>
+                  <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer mt-2">
+                    <input type="checkbox"
+                      class="w-4 h-4 accent-indigo-600 rounded"
+                      [ngModel]="settingsService.mangaBasePathExternalHd()"
+                      (ngModelChange)="settingsService.mangaBasePathExternalHd.set($event)">
+                    <span>HD Externo</span>
+                    <span class="text-[10px] text-slate-500">(protege contra exclusão quando desconectado)</span>
+                  </label>
                 </div>
               </div>
 
@@ -319,6 +327,14 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai';
                       Procurar...
                     </button>
                   </div>
+                  <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer mt-2">
+                    <input type="checkbox"
+                      class="w-4 h-4 accent-indigo-600 rounded"
+                      [ngModel]="settingsService.bookBasePathExternalHd()"
+                      (ngModelChange)="settingsService.bookBasePathExternalHd.set($event)">
+                    <span>HD Externo</span>
+                    <span class="text-[10px] text-slate-500">(protege contra exclusão quando desconectado)</span>
+                  </label>
                 </div>
               </div>
 
@@ -1173,6 +1189,16 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai';
                   </button>
                 </div>
               </div>
+
+              <div>
+                <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                  <input type="checkbox"
+                    class="w-4 h-4 accent-indigo-600 rounded"
+                    [(ngModel)]="libraryForm.externalHd">
+                  <span>HD Externo</span>
+                  <span class="text-[10px] text-slate-500">(protege contra exclusão quando desconectado)</span>
+                </label>
+              </div>
             </div>
 
             <div class="flex justify-end gap-2 pt-2">
@@ -1549,7 +1575,8 @@ export class SettingsComponent implements OnInit {
       title: '',
       language: 'Japonês (JA)',
       path: '',
-      type: type
+      type: type,
+      externalHd: false
     };
     this.showLibraryModal.set(true);
   }

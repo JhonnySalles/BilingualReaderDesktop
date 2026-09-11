@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
 import { app, BrowserWindow } from 'electron';
+import { getAppCacheDir } from '../utils/app-paths';
 import { ParseFactory } from '../parser/manga/parse-factory';
 import { ParseUtil } from '../parser/manga/parse-util';
 import {
@@ -63,7 +64,7 @@ export class MangaReaderSessionService {
   private active = new Map<string, ActiveSession>();
 
   getCacheRoot(): string {
-    return path.join(app.getPath('userData'), 'cache', 'manga-pages');
+    return path.join(getAppCacheDir(), 'manga-pages');
   }
 
   isPathAllowed(filePath: string): boolean {

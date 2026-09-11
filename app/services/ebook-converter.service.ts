@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
-import { app } from 'electron';
+import { getAppCacheDir } from '../utils/app-paths';
 import { EbookConvertFactory } from './ebook-convert/ebook-convert.factory';
 import {
   AdapterStatus,
@@ -39,8 +39,7 @@ export class EBookConverterService {
   }
 
   private getCacheDir(): string {
-    const userData = app ? app.getPath('userData') : process.cwd();
-    const cacheDir = path.join(userData, 'cache', 'converted');
+    const cacheDir = path.join(getAppCacheDir(), 'convert');
     if (!fs.existsSync(cacheDir)) {
       fs.mkdirSync(cacheDir, { recursive: true });
     }

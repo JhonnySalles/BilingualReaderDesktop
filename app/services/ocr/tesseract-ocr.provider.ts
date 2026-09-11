@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { app } from 'electron';
 import { createWorker, Worker } from 'tesseract.js';
+import { getAppBaseDir } from '../../utils/app-paths';
 import { GeneralConsts } from '../../utils/constants';
 import { OcrBlock, OcrProvider, OcrRecognizeInput, OcrResult } from './ocr.types';
 
@@ -73,7 +74,7 @@ export class TesseractOcrProvider implements OcrProvider {
 
   private tessdataDir(): string {
     return path.join(
-      app.getPath('userData'),
+      getAppBaseDir(),
       'cache',
       GeneralConsts.CACHE_FOLDER.TESSERACT,
       'tessdata'

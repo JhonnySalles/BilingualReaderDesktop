@@ -39,10 +39,10 @@ export class MangaLibraryService {
     }
   }
 
-  public async scanFolder(folderPath: string): Promise<void> {
+  public async scanFolder(folderPath: string, externalHd?: boolean): Promise<void> {
     if (!window.electronAPI?.scanLibrary || !folderPath) return;
     this.currentFolderPath = folderPath;
-    await window.electronAPI.scanLibrary(folderPath);
+    await window.electronAPI.scanLibrary(folderPath, externalHd);
     await this.loadMangas(folderPath);
   }
 

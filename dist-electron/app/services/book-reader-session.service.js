@@ -37,13 +37,13 @@ exports.BookReaderSessionService = void 0;
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const crypto = __importStar(require("crypto"));
-const electron_1 = require("electron");
+const app_paths_1 = require("../utils/app-paths");
 const ebook_converter_service_1 = require("./ebook-converter.service");
 class BookReaderSessionService {
     active = new Map();
     allowedPaths = new Set();
     getConvertedCacheRoot() {
-        return path.join(electron_1.app.getPath('userData'), 'cache', 'converted');
+        return path.join((0, app_paths_1.getAppCacheDir)(), 'convert');
     }
     isPathAllowed(filePath) {
         let candidate = filePath;

@@ -37,9 +37,9 @@ exports.EdgeTtsService = void 0;
 const crypto = __importStar(require("crypto"));
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
-const electron_1 = require("electron");
 const msedge_tts_1 = require("msedge-tts");
 const tts_enums_1 = require("../../../src/app/core/models/enums/tts-enums");
+const app_paths_1 = require("../../utils/app-paths");
 const PREFETCH_LIMIT = 3;
 class EdgeTtsService {
     lastVoice = '';
@@ -47,7 +47,7 @@ class EdgeTtsService {
     tts = null;
     inflight = new Map();
     getCacheRoot() {
-        return path.join(electron_1.app.getPath('userData'), 'cache', 'audio');
+        return path.join((0, app_paths_1.getAppCacheDir)(), 'audio');
     }
     ensureCacheDir() {
         const dir = this.getCacheRoot();

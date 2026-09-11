@@ -37,7 +37,7 @@ exports.EBookConverterService = exports.DEFAULT_EBOOK_CONVERT_MODE = exports.EBO
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const crypto = __importStar(require("crypto"));
-const electron_1 = require("electron");
+const app_paths_1 = require("../utils/app-paths");
 const ebook_convert_factory_1 = require("./ebook-convert/ebook-convert.factory");
 const types_1 = require("./ebook-convert/types");
 const settings_service_1 = require("./settings.service");
@@ -59,8 +59,7 @@ class EBookConverterService {
         return this._instance;
     }
     getCacheDir() {
-        const userData = electron_1.app ? electron_1.app.getPath('userData') : process.cwd();
-        const cacheDir = path.join(userData, 'cache', 'converted');
+        const cacheDir = path.join((0, app_paths_1.getAppCacheDir)(), 'convert');
         if (!fs.existsSync(cacheDir)) {
             fs.mkdirSync(cacheDir, { recursive: true });
         }

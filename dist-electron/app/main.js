@@ -60,6 +60,13 @@ const database_maintenance_controller_1 = require("./controllers/database-mainte
 const book_image_cover_controller_1 = require("./controllers/book-image-cover.controller");
 const manga_image_cover_controller_1 = require("./controllers/manga-image-cover.controller");
 const telemetry_1 = require("./utils/telemetry");
+const app_paths_1 = require("./utils/app-paths");
+// Ensure data/cache directory structures and migrate legacy files
+(0, app_paths_1.ensureAppDirs)();
+// Redirect userData path to data/userData inside executable folder or process.cwd()
+if (electron_1.app) {
+    electron_1.app.setPath('userData', path.join((0, app_paths_1.getAppDataDir)(), 'userData'));
+}
 // Init Sentry/Telemetry as early as possible (no-op when TELEMETRY_ENABLED=false).
 telemetry_1.Telemetry.init();
 process.on('uncaughtException', (err) => {
@@ -223,6 +230,16 @@ electron_1.app.on('ready', () => {
         electron_1.ipcMain.handle('app:ping', async () => {
             return 'Pong de Electron Node.js!';
         });
+        electron_1.ipcMain.handle('fs:check-path-online', async (_event, folderPath) => {
+            try {
+                if (!folderPath)
+                    return false;
+                return fs.existsSync(folderPath);
+            }
+            catch {
+                return false;
+            }
+        });
         electron_1.ipcMain.handle('dialog:openDirectory', async () => {
             if (!mainWindow)
                 return null;
@@ -242,8 +259,8 @@ electron_1.app.on('ready', () => {
             }
             return storageService.listMangas(libraryId);
         });
-        electron_1.ipcMain.handle('manga:scan', async (_event, folderPath) => {
-            await scannerMangaService.scanFolder(folderPath, mainWindow);
+        electron_1.ipcMain.handle('manga:scan', async (_event, folderPath, externalHd) => {
+            await scannerMangaService.scanFolder(folderPath, mainWindow, externalHd);
             return true;
         });
         electron_1.ipcMain.handle('manga:get', async (_event, id) => {
@@ -300,8 +317,8 @@ electron_1.app.on('ready', () => {
             }
             return storageService.listBooks(libraryId);
         });
-        electron_1.ipcMain.handle('book:scan', async (_event, folderPath) => {
-            await scannerBookService.scanFolder(folderPath, mainWindow);
+        electron_1.ipcMain.handle('book:scan', async (_event, folderPath, externalHd) => {
+            await scannerBookService.scanFolder(folderPath, mainWindow, externalHd);
             return true;
         });
         electron_1.ipcMain.handle('library:get-count', async (_event, libIdOrPath, type) => {

@@ -39,7 +39,7 @@ const path = __importStar(require("path"));
 const crypto = __importStar(require("crypto"));
 const https = __importStar(require("https"));
 const http = __importStar(require("http"));
-const electron_1 = require("electron");
+const app_paths_1 = require("../utils/app-paths");
 class ImageController {
     static _instance;
     static get instance() {
@@ -49,8 +49,7 @@ class ImageController {
         return this._instance;
     }
     getCacheDir() {
-        const userData = electron_1.app ? electron_1.app.getPath('userData') : process.cwd();
-        const cacheDir = path.join(userData, 'cache', 'images');
+        const cacheDir = path.join((0, app_paths_1.getAppCacheDir)(), 'temp');
         if (!fs.existsSync(cacheDir)) {
             fs.mkdirSync(cacheDir, { recursive: true });
         }

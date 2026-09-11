@@ -3,7 +3,7 @@ import * as path from 'path';
 import * as crypto from 'crypto';
 import * as https from 'https';
 import * as http from 'http';
-import { app } from 'electron';
+import { getAppCacheDir } from '../utils/app-paths';
 
 export class ImageController {
   private static _instance: ImageController;
@@ -16,8 +16,7 @@ export class ImageController {
   }
 
   private getCacheDir(): string {
-    const userData = app ? app.getPath('userData') : process.cwd();
-    const cacheDir = path.join(userData, 'cache', 'images');
+    const cacheDir = path.join(getAppCacheDir(), 'temp');
     if (!fs.existsSync(cacheDir)) {
       fs.mkdirSync(cacheDir, { recursive: true });
     }

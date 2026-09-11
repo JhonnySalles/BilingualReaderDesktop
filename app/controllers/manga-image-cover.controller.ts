@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
-import { app } from 'electron';
+import { getAppCoversDir } from '../utils/app-paths';
 import { ParseFactory } from '../parser/manga/parse-factory';
 import { Manga } from '../../src/app/core/models/entities/manga.model';
 
@@ -16,8 +16,7 @@ export class MangaImageCoverController {
   }
 
   private getCacheDir(): string {
-    const baseDir = process.cwd();
-    const cacheDir = path.join(baseDir, 'manga_cover');
+    const cacheDir = path.join(getAppCoversDir(), 'manga');
     if (!fs.existsSync(cacheDir)) {
       fs.mkdirSync(cacheDir, { recursive: true });
     }

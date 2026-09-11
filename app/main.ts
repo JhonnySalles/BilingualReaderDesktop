@@ -25,6 +25,15 @@ import { DatabaseMaintenanceController } from './controllers/database-maintenanc
 import { BookImageCoverController } from './controllers/book-image-cover.controller';
 import { MangaImageCoverController } from './controllers/manga-image-cover.controller';
 import { Telemetry } from './utils/telemetry';
+import { getAppBaseDir, getAppDataDir, ensureAppDirs } from './utils/app-paths';
+
+// Ensure data/cache directory structures and migrate legacy files
+ensureAppDirs();
+
+// Redirect userData path to data/userData inside executable folder or process.cwd()
+if (app) {
+  app.setPath('userData', path.join(getAppDataDir(), 'userData'));
+}
 
 // Init Sentry/Telemetry as early as possible (no-op when TELEMETRY_ENABLED=false).
 Telemetry.init();
@@ -222,6 +231,15 @@ app.on('ready', () => {
       return 'Pong de Electron Node.js!';
     });
 
+    ipcMain.handle('fs:check-path-online', async (_event, folderPath: string) => {
+      try {
+        if (!folderPath) return false;
+        return fs.existsSync(folderPath);
+      } catch {
+        return false;
+      }
+    });
+
     ipcMain.handle('dialog:openDirectory', async () => {
       if (!mainWindow) return null;
       const result = await dialog.showOpenDialog(mainWindow, {
@@ -242,8 +260,8 @@ app.on('ready', () => {
       return storageService.listMangas(libraryId);
     });
 
-    ipcMain.handle('manga:scan', async (_event, folderPath: string) => {
-      await scannerMangaService.scanFolder(folderPath, mainWindow);
+    ipcMain.handle('manga:scan', async (_event, folderPath: string, externalHd?: boolean) => {
+      await scannerMangaService.scanFolder(folderPath, mainWindow, externalHd);
       return true;
     });
 
@@ -304,8 +322,8 @@ app.on('ready', () => {
       return storageService.listBooks(libraryId);
     });
 
-    ipcMain.handle('book:scan', async (_event, folderPath: string) => {
-      await scannerBookService.scanFolder(folderPath, mainWindow);
+    ipcMain.handle('book:scan', async (_event, folderPath: string, externalHd?: boolean) => {
+      await scannerBookService.scanFolder(folderPath, mainWindow, externalHd);
       return true;
     });
 

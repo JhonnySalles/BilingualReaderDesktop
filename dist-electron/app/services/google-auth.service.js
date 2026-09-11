@@ -38,6 +38,7 @@ const fs = __importStar(require("fs"));
 const http = __importStar(require("http"));
 const path = __importStar(require("path"));
 const electron_1 = require("electron");
+const app_paths_1 = require("../utils/app-paths");
 const google_auth_library_1 = require("google-auth-library");
 const secrets_1 = require("../utils/secrets");
 const telemetry_1 = require("../utils/telemetry");
@@ -58,7 +59,7 @@ class GoogleAuthService {
         return this._instance;
     }
     constructor() {
-        const userData = electron_1.app ? electron_1.app.getPath('userData') : process.cwd();
+        const userData = (0, app_paths_1.getAppDataDir)();
         this.tokenPath = path.join(userData, 'google-oauth.json');
         this.loadTokens();
     }

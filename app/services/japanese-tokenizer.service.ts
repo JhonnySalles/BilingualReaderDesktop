@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { app } from 'electron';
+import { getAppLibsDir } from '../utils/app-paths';
 import { JapaneseCharacterUtil } from './japanese-character.util';
 
 export type TokenizerEngine = 'SUDACHI' | 'KUROMOJI' | 'NONE';
@@ -163,7 +164,7 @@ export class JapaneseTokenizerService {
   /** Copy packaged/public dic into userData/sudachi (Android filesDir parity). */
   private ensureSudachiDictionary(): string | null {
     try {
-      const userDir = path.join(app.getPath('userData'), 'sudachi');
+      const userDir = path.join(getAppLibsDir(), 'sudachi');
       const dest = path.join(userDir, 'system_small.dic');
       if (fs.existsSync(dest) && fs.statSync(dest).size > 0) {
         return dest;

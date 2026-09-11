@@ -36,7 +36,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.SettingsService = void 0;
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
-const electron_1 = require("electron");
+const app_paths_1 = require("../utils/app-paths");
 class SettingsService {
     static _instance;
     filePath;
@@ -48,7 +48,7 @@ class SettingsService {
         return this._instance;
     }
     constructor() {
-        const userDataPath = electron_1.app ? electron_1.app.getPath('userData') : process.cwd();
+        const userDataPath = (0, app_paths_1.getAppDataDir)();
         this.filePath = path.join(userDataPath, 'settings.json');
         this.load();
     }

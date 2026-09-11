@@ -2,6 +2,7 @@ import Database from 'better-sqlite3';
 import * as path from 'path';
 import * as fs from 'fs';
 import { app } from 'electron';
+import { getAppDataDir } from '../utils/app-paths';
 import { MigrationsManager } from './migrations';
 import { MangaRepository } from './manga.repository';
 import { BookRepository } from './book.repository';
@@ -47,7 +48,7 @@ export class StorageService {
   }
 
   getDbPath(): string {
-    return path.join(app.getPath('userData'), 'BilingualReaderDesktop.db');
+    return path.join(getAppDataDir(), 'BilingualReaderDesktop.db');
   }
 
   private initDatabase(): void {

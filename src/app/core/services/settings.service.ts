@@ -24,6 +24,7 @@ export interface CustomLibrary {
   path: string;
   type: 'manga' | 'book';
   count?: number;
+  externalHd?: boolean;
 }
 
 const SETTINGS_KEY = 'bilingual_reader_settings';
@@ -82,6 +83,8 @@ const BOOK_TOUCH_DEFAULT: TouchZoneMap = {
 interface SettingsData {
   mangaBasePath: string;
   bookBasePath: string;
+  mangaBasePathExternalHd?: boolean;
+  bookBasePathExternalHd?: boolean;
   libraries: CustomLibrary[];
   mangaScrollingMode?: MangaScrollingMode;
   mangaFitMode?: MangaFitMode;
@@ -143,6 +146,8 @@ interface SettingsData {
 export class SettingsService {
   mangaBasePath = signal<string>('C:\\Users\\Jhonny\\Documents\\BilingualReader\\Mangas');
   bookBasePath = signal<string>('C:\\Users\\Jhonny\\Documents\\BilingualReader\\Books');
+  mangaBasePathExternalHd = signal(false);
+  bookBasePathExternalHd = signal(false);
   libraries = signal<CustomLibrary[]>([]);
   mangaScrollingMode = signal<MangaScrollingMode>(MangaScrollingMode.Horizontal);
   mangaFitMode = signal<MangaFitMode>(MangaFitMode.FitWidth);
@@ -219,6 +224,8 @@ export class SettingsService {
       const data: SettingsData = {
         mangaBasePath: this.mangaBasePath(),
         bookBasePath: this.bookBasePath(),
+        mangaBasePathExternalHd: this.mangaBasePathExternalHd(),
+        bookBasePathExternalHd: this.bookBasePathExternalHd(),
         libraries: this.libraries(),
         mangaScrollingMode: this.mangaScrollingMode(),
         mangaFitMode: this.mangaFitMode(),
@@ -279,6 +286,8 @@ export class SettingsService {
         void window.electronAPI.setSetting('libraries', this.libraries());
         void window.electronAPI.setSetting('mangaBasePath', this.mangaBasePath());
         void window.electronAPI.setSetting('bookBasePath', this.bookBasePath());
+        void window.electronAPI.setSetting('MANGA_BASE_PATH_EXTERNAL_HD', this.mangaBasePathExternalHd());
+        void window.electronAPI.setSetting('BOOK_BASE_PATH_EXTERNAL_HD', this.bookBasePathExternalHd());
         void window.electronAPI.setSetting('MANGA_PROCESS_VOCABULARY', this.mangaProcessVocabulary());
         void window.electronAPI.setSetting('BOOK_PROCESS_VOCABULARY', this.bookProcessVocabulary());
         void window.electronAPI.setSetting('BOOK_PROCESS_JAPANESE_TEXT', this.bookProcessJapaneseText());
@@ -327,6 +336,8 @@ export class SettingsService {
         const data: SettingsData = JSON.parse(raw);
         if (data.mangaBasePath) this.mangaBasePath.set(data.mangaBasePath);
         if (data.bookBasePath) this.bookBasePath.set(data.bookBasePath);
+        if (typeof data.mangaBasePathExternalHd === 'boolean') this.mangaBasePathExternalHd.set(data.mangaBasePathExternalHd);
+        if (typeof data.bookBasePathExternalHd === 'boolean') this.bookBasePathExternalHd.set(data.bookBasePathExternalHd);
         if (Array.isArray(data.libraries)) this.libraries.set(data.libraries);
         if (data.mangaScrollingMode && Object.values(MangaScrollingMode).includes(data.mangaScrollingMode)) {
           this.mangaScrollingMode.set(data.mangaScrollingMode);

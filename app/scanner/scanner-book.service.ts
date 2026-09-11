@@ -49,7 +49,7 @@ export class ScannerBookService {
     return this.isScanning;
   }
 
-  public async scanFolder(folderPath: string, window: BrowserWindow | null): Promise<void> {
+  public async scanFolder(folderPath: string, window: BrowserWindow | null, externalHd?: boolean): Promise<void> {
     if (this.isScanning) return;
     this.isScanning = true;
 
@@ -59,6 +59,12 @@ export class ScannerBookService {
 
     try {
       if (!fs.existsSync(folderPath)) {
+        if (externalHd) {
+          if (window) {
+            window.webContents.send('book:scan-status', { status: 'SKIPPED_EXTERNAL_HD', folderPath });
+          }
+          return;
+        }
         try {
           fs.mkdirSync(folderPath, { recursive: true });
         } catch (e) {

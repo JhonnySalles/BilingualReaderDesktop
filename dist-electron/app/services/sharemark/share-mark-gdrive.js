@@ -36,11 +36,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ShareMarkGDriveService = void 0;
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
-const electron_1 = require("electron");
 const googleapis_1 = require("googleapis");
 const share_mark_base_1 = require("./share-mark-base");
 const google_auth_service_1 = require("../google-auth.service");
 const sharemark_enum_1 = require("../../../src/app/core/models/enums/sharemark.enum");
+const app_paths_1 = require("../../utils/app-paths");
 const telemetry_1 = require("../../utils/telemetry");
 const share_item_mapper_1 = require("./share-item.mapper");
 const FOLDER = 'BilingualReader';
@@ -56,8 +56,7 @@ class ShareMarkGDriveService extends share_mark_base_1.ShareMarkBase {
     idBook = '';
     drive = null;
     cacheDir() {
-        const base = electron_1.app ? electron_1.app.getPath('userData') : process.cwd();
-        const dir = path.join(base, 'sharemark-cache');
+        const dir = path.join((0, app_paths_1.getAppCacheDir)(), 'sharemark');
         if (!fs.existsSync(dir))
             fs.mkdirSync(dir, { recursive: true });
         return dir;

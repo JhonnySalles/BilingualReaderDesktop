@@ -38,6 +38,7 @@ const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const electron_1 = require("electron");
 const tesseract_js_1 = require("tesseract.js");
+const app_paths_1 = require("../../utils/app-paths");
 const constants_1 = require("../../utils/constants");
 const LANGS = new Set(['eng', 'por', 'jpn', 'jpn_vert']);
 /**
@@ -96,7 +97,7 @@ class TesseractOcrProvider {
         }
     }
     tessdataDir() {
-        return path.join(electron_1.app.getPath('userData'), 'cache', constants_1.GeneralConsts.CACHE_FOLDER.TESSERACT, 'tessdata');
+        return path.join((0, app_paths_1.getAppBaseDir)(), 'cache', constants_1.GeneralConsts.CACHE_FOLDER.TESSERACT, 'tessdata');
     }
     bundledTessdataDir() {
         const candidates = [

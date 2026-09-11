@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
-import { app } from 'electron';
+import { getAppCacheDir } from '../utils/app-paths';
 import { EBookConverterService, EbookConversionError } from './ebook-converter.service';
 import { BookConfiguration } from '../../src/app/core/models/entities/book.model';
 
@@ -30,7 +30,7 @@ export class BookReaderSessionService {
   private allowedPaths = new Set<string>();
 
   getConvertedCacheRoot(): string {
-    return path.join(app.getPath('userData'), 'cache', 'converted');
+    return path.join(getAppCacheDir(), 'convert');
   }
 
   isPathAllowed(filePath: string): boolean {

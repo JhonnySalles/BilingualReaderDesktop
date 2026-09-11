@@ -37,6 +37,7 @@ exports.JapaneseTokenizerService = void 0;
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const electron_1 = require("electron");
+const app_paths_1 = require("../utils/app-paths");
 const japanese_character_util_1 = require("./japanese-character.util");
 /**
  * Main-process Japanese tokenizer: Sudachi (system_small.dic) with Kuromoji fallback.
@@ -157,7 +158,7 @@ class JapaneseTokenizerService {
     /** Copy packaged/public dic into userData/sudachi (Android filesDir parity). */
     ensureSudachiDictionary() {
         try {
-            const userDir = path.join(electron_1.app.getPath('userData'), 'sudachi');
+            const userDir = path.join((0, app_paths_1.getAppLibsDir)(), 'sudachi');
             const dest = path.join(userDir, 'system_small.dic');
             if (fs.existsSync(dest) && fs.statSync(dest).size > 0) {
                 return dest;

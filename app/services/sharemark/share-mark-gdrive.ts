@@ -12,6 +12,7 @@ import {
 import { ShareMarkType, ShareMarkStatus } from '../../../src/app/core/models/enums/sharemark.enum';
 import { Manga } from '../../../src/app/core/models/entities/manga.model';
 import { Book } from '../../../src/app/core/models/entities/book.model';
+import { getAppCacheDir } from '../../utils/app-paths';
 import { Telemetry } from '../../utils/telemetry';
 import {
   formatShareMarkDate,
@@ -36,8 +37,7 @@ export class ShareMarkGDriveService extends ShareMarkBase {
   private drive: drive_v3.Drive | null = null;
 
   private cacheDir(): string {
-    const base = app ? app.getPath('userData') : process.cwd();
-    const dir = path.join(base, 'sharemark-cache');
+    const dir = path.join(getAppCacheDir(), 'sharemark');
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     return dir;
   }

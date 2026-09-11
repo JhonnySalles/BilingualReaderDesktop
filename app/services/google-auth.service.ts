@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as http from 'http';
 import * as path from 'path';
 import { app, shell } from 'electron';
+import { getAppDataDir } from '../utils/app-paths';
 import { OAuth2Client } from 'google-auth-library';
 import { Secrets } from '../utils/secrets';
 import { Telemetry } from '../utils/telemetry';
@@ -38,7 +39,7 @@ export class GoogleAuthService {
   }
 
   constructor() {
-    const userData = app ? app.getPath('userData') : process.cwd();
+    const userData = getAppDataDir();
     this.tokenPath = path.join(userData, 'google-oauth.json');
     this.loadTokens();
   }

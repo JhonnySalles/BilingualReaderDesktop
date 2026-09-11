@@ -5,6 +5,7 @@ import { LibraryStateService } from '../../core/services/library-state.service';
 import { MangaLibraryService } from '../../core/services/manga-library.service';
 import { BookLibraryService } from '../../core/services/book-library.service';
 import { SettingsService } from '../../core/services/settings.service';
+import { ElectronService } from '../../core/services/electron.service';
 import { NavigationStackService } from '../../core/services/navigation-stack.service';
 import { HomeDashboardService } from '../../core/services/home-dashboard.service';
 import { LibrarySearchService } from '../../core/services/library-search.service';
@@ -194,9 +195,23 @@ import { ShareMarkType } from '../../core/models/enums/sharemark.enum';
                 }
               </button>
 
+              @if (isExternalHd()) {
+                <div 
+                  class="w-8 h-8 rounded-xl flex items-center justify-center border transition-all"
+                  [ngClass]="{
+                    'bg-emerald-500/10 border-emerald-500/40 text-emerald-400': isPathOnline(),
+                    'bg-red-500/10 border-red-500/40 text-red-400': !isPathOnline()
+                  }"
+                  [title]="isPathOnline() ? 'HD Externo: Conectado (Online)' : 'HD Externo: Desconectado (Offline)'">
+                  <span class="w-2.5 h-2.5 rounded-full"
+                    [ngClass]="{ 'bg-emerald-400 animate-pulse': isPathOnline(), 'bg-red-500': !isPathOnline() }">
+                  </span>
+                </div>
+              }
+
               <button 
                 (click)="onScanClick()" 
-                [disabled]="isCurrentlyScanning()"
+                [disabled]="isCurrentlyScanning() || (isExternalHd() && !isPathOnline())"
                 class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-xl text-xs font-medium transition-all shadow-lg shadow-indigo-600/20 flex items-center gap-2">
                 @if (isCurrentlyScanning()) {
                   <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -213,6 +228,18 @@ import { ShareMarkType } from '../../core/models/enums/sharemark.enum';
               </button>
             </div>
           </div>
+
+          @if (isExternalHd() && !isPathOnline()) {
+            <div class="rounded-2xl border border-red-900/50 bg-red-950/30 p-4 mb-4 flex items-center gap-3 text-red-300 text-xs">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 shrink-0 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <div>
+                <p class="font-bold">HD Externo Desconectado</p>
+                <p class="text-slate-400 text-[11px] mt-0.5">O diretório configurado não está acessível no momento. Conecte o dispositivo para escanear ou abrir arquivos.</p>
+              </div>
+            </div>
+          }
 
           @if (filteredItems().length === 0 && !isCurrentlyScanning()) {
             <div class="flex flex-col items-center justify-center py-20 text-center flex-1">
@@ -275,11 +302,14 @@ export class LibraryComponent implements OnInit {
   public home = inject(HomeDashboardService);
   private librarySearch = inject(LibrarySearchService);
   public shareMark = inject(ShareMarkUiService);
+  private electronService = inject(ElectronService);
 
   activeLibId = signal<string>('home');
   activeLibType = signal<'manga' | 'book'>('manga');
   customOrderItems = signal<(Manga | Book)[] | null>(null);
   bookmarkTarget = signal<Manga | Book | null>(null);
+  isExternalHd = signal<boolean>(false);
+  isPathOnline = signal<boolean>(true);
 
   isCurrentlyScanning = computed(() => {
     return this.mangaLibraryService.isScanning() || this.bookLibraryService.isScanning();
@@ -293,6 +323,20 @@ export class LibraryComponent implements OnInit {
     this.settingsService.libraries().filter(l => l.type === 'book')
   );
 
+  private async checkPathAndAutoScan(pathToScan: string, isExternalHd: boolean): Promise<void> {
+    this.isExternalHd.set(isExternalHd);
+    if (isExternalHd) {
+      const online = await this.electronService.checkPathOnline(pathToScan);
+      this.isPathOnline.set(online);
+      if (online) {
+        this.onScanClick();
+      }
+    } else {
+      this.isPathOnline.set(true);
+      this.onScanClick();
+    }
+  }
+
   ngOnInit(): void {
     void this.shareMark.refreshStatus();
     this.route.queryParams.subscribe(async params => {
@@ -304,6 +348,8 @@ export class LibraryComponent implements OnInit {
       let pathToScan = '';
 
       if (libId === 'home') {
+        this.isExternalHd.set(false);
+        this.isPathOnline.set(true);
         this.libraryStateService.activeContext.set('manga');
         this.libraryStateService.activeLibrary.set({
           id: 'home',
@@ -318,6 +364,7 @@ export class LibraryComponent implements OnInit {
         this.activeLibType.set('manga');
         this.libraryStateService.activeContext.set('manga');
         pathToScan = this.settingsService.mangaBasePath();
+        const extHd = !!this.settingsService.mangaBasePathExternalHd();
         this.libraryStateService.activeLibrary.set({
           id: 'manga-default',
           name: 'Biblioteca de Mangás',
@@ -325,11 +372,12 @@ export class LibraryComponent implements OnInit {
           count: this.mangaLibraryService.mangas().length
         });
         await this.mangaLibraryService.loadMangas(pathToScan);
-        this.onScanClick();
+        await this.checkPathAndAutoScan(pathToScan, extHd);
       } else if (libId === 'book-default') {
         this.activeLibType.set('book');
         this.libraryStateService.activeContext.set('book');
         pathToScan = this.settingsService.bookBasePath();
+        const extHd = !!this.settingsService.bookBasePathExternalHd();
         this.libraryStateService.activeLibrary.set({
           id: 'book-default',
           name: 'Biblioteca de Livros',
@@ -337,13 +385,14 @@ export class LibraryComponent implements OnInit {
           count: this.bookLibraryService.books().length
         });
         await this.bookLibraryService.loadBooks(pathToScan);
-        this.onScanClick();
+        await this.checkPathAndAutoScan(pathToScan, extHd);
       } else {
         const found = this.settingsService.libraries().find(l => l.id === libId);
         if (found) {
           this.activeLibType.set(found.type);
           this.libraryStateService.activeContext.set(found.type);
           pathToScan = found.path;
+          const extHd = !!found.externalHd;
           this.libraryStateService.activeLibrary.set({
             id: found.id,
             name: found.title,
@@ -355,7 +404,7 @@ export class LibraryComponent implements OnInit {
           } else {
             await this.bookLibraryService.loadBooks(pathToScan);
           }
-          this.onScanClick();
+          await this.checkPathAndAutoScan(pathToScan, extHd);
         }
       }
     });
@@ -396,23 +445,33 @@ export class LibraryComponent implements OnInit {
 
   onScanClick(): void {
     let pathToScan = '';
+    let isExternalHd = false;
     const libId = this.activeLibId();
 
     if (libId === 'manga-default') {
       pathToScan = this.settingsService.mangaBasePath();
+      isExternalHd = !!this.settingsService.mangaBasePathExternalHd();
     } else if (libId === 'book-default') {
       pathToScan = this.settingsService.bookBasePath();
+      isExternalHd = !!this.settingsService.bookBasePathExternalHd();
     } else {
       const found = this.settingsService.libraries().find(l => l.id === libId);
       if (found) {
         pathToScan = found.path;
+        isExternalHd = !!found.externalHd;
       }
     }
 
+    this.isExternalHd.set(isExternalHd);
+
+    if (isExternalHd && !this.isPathOnline()) {
+      return;
+    }
+
     if (this.activeLibType() === 'manga') {
-      this.mangaLibraryService.scanFolder(pathToScan);
+      this.mangaLibraryService.scanFolder(pathToScan, isExternalHd);
     } else {
-      this.bookLibraryService.scanFolder(pathToScan);
+      this.bookLibraryService.scanFolder(pathToScan, isExternalHd);
     }
   }
 
@@ -463,8 +522,27 @@ export class LibraryComponent implements OnInit {
     this.customOrderItems.set(newOrder);
   }
 
-  onOpenRecent(item: HomeRecentItem): void {
+  async onOpenRecent(item: HomeRecentItem): Promise<void> {
     if (!item.fkReference) return;
+    if (item.type === 'MANGA') {
+      const manga = this.mangaLibraryService.mangas().find(m => m.id === item.fkReference) || await this.electronService.getManga(item.fkReference);
+      if (manga?.path) {
+        const online = await this.electronService.checkPathOnline(manga.path);
+        if (!online) {
+          this.shareMark.showToast('HD Externo desconectado. Conecte o dispositivo para acessar o arquivo.', 'error');
+          return;
+        }
+      }
+    } else {
+      const book = this.bookLibraryService.books().find(b => b.id === item.fkReference) || await this.electronService.getBook(item.fkReference);
+      if (book?.path) {
+        const online = await this.electronService.checkPathOnline(book.path);
+        if (!online) {
+          this.shareMark.showToast('HD Externo desconectado. Conecte o dispositivo para acessar o arquivo.', 'error');
+          return;
+        }
+      }
+    }
     this.nav.openReader(
       this.router,
       item.type === 'MANGA' ? 'image' : 'text',
@@ -472,8 +550,15 @@ export class LibraryComponent implements OnInit {
     );
   }
 
-  onOpenItem(item: Manga | Book): void {
+  async onOpenItem(item: Manga | Book): Promise<void> {
     if (!item.id) return;
+    if (item.path) {
+      const online = await this.electronService.checkPathOnline(item.path);
+      if (!online) {
+        this.shareMark.showToast('HD Externo desconectado. Conecte o dispositivo para acessar o arquivo.', 'error');
+        return;
+      }
+    }
     if (this.activeLibType() === 'manga') {
       this.nav.openReader(this.router, 'image', item.id);
     } else {
@@ -481,8 +566,15 @@ export class LibraryComponent implements OnInit {
     }
   }
 
-  onOpenDetail(item: Manga | Book): void {
+  async onOpenDetail(item: Manga | Book): Promise<void> {
     if (!item.id) return;
+    if (item.path) {
+      const online = await this.electronService.checkPathOnline(item.path);
+      if (!online) {
+        this.shareMark.showToast('HD Externo desconectado. Conecte o dispositivo para acessar o arquivo.', 'error');
+        return;
+      }
+    }
     if (this.activeLibType() === 'manga') {
       this.nav.openDetail(this.router, 'manga', item.id);
     } else {

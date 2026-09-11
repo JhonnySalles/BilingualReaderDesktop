@@ -1,9 +1,9 @@
 import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
-import { app } from 'electron';
 import { MsEdgeTTS, OUTPUT_FORMAT } from 'msedge-tts';
 import { ttsRateToEdge } from '../../../src/app/core/models/enums/tts-enums';
+import { getAppCacheDir } from '../../utils/app-paths';
 
 export interface TtsSynthesizeRequest {
   text: string;
@@ -27,7 +27,7 @@ export class EdgeTtsService {
   private inflight = new Map<string, Promise<TtsSynthesizeResult>>();
 
   getCacheRoot(): string {
-    return path.join(app.getPath('userData'), 'cache', 'audio');
+    return path.join(getAppCacheDir(), 'audio');
   }
 
   ensureCacheDir(): string {

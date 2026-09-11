@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
-import { app } from 'electron';
+import { getAppCoversDir } from '../utils/app-paths';
 import { BookExtractorFactory } from '../parser/book/book-extractor.factory';
 import { Book } from '../../src/app/core/models/entities/book.model';
 
@@ -16,8 +16,7 @@ export class BookImageCoverController {
   }
 
   private getCacheDir(): string {
-    const baseDir = process.cwd();
-    const cacheDir = path.join(baseDir, 'book_cover');
+    const cacheDir = path.join(getAppCoversDir(), 'book');
     if (!fs.existsSync(cacheDir)) {
       fs.mkdirSync(cacheDir, { recursive: true });
     }

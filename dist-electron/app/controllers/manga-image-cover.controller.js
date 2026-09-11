@@ -37,6 +37,7 @@ exports.MangaImageCoverController = void 0;
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const crypto = __importStar(require("crypto"));
+const app_paths_1 = require("../utils/app-paths");
 const parse_factory_1 = require("../parser/manga/parse-factory");
 class MangaImageCoverController {
     static _instance;
@@ -47,8 +48,7 @@ class MangaImageCoverController {
         return this._instance;
     }
     getCacheDir() {
-        const baseDir = process.cwd();
-        const cacheDir = path.join(baseDir, 'manga_cover');
+        const cacheDir = path.join((0, app_paths_1.getAppCoversDir)(), 'manga');
         if (!fs.existsSync(cacheDir)) {
             fs.mkdirSync(cacheDir, { recursive: true });
         }

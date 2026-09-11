@@ -50,7 +50,7 @@ class ScannerMangaService {
     isRunning() {
         return this.isScanning;
     }
-    async scanFolder(folderPath, window) {
+    async scanFolder(folderPath, window, externalHd) {
         if (this.isScanning)
             return;
         this.isScanning = true;
@@ -59,6 +59,12 @@ class ScannerMangaService {
         }
         try {
             if (!fs.existsSync(folderPath)) {
+                if (externalHd) {
+                    if (window) {
+                        window.webContents.send('manga:scan-status', { status: 'SKIPPED_EXTERNAL_HD', folderPath });
+                    }
+                    return;
+                }
                 try {
                     fs.mkdirSync(folderPath, { recursive: true });
                 }

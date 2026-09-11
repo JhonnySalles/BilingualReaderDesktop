@@ -43,11 +43,12 @@ declare global {
     electronAPI?: {
       ping: () => Promise<string>;
       selectDirectory: () => Promise<string | null>;
+      checkPathOnline: (path: string) => Promise<boolean>;
       openMangaFile: () => Promise<string | null>;
       listMangas: (folderPath?: string) => Promise<any[]>;
-      scanLibrary: (folderPath: string) => Promise<boolean>;
+      scanLibrary: (folderPath: string, externalHd?: boolean) => Promise<boolean>;
       listBooks: (folderPath?: string) => Promise<any[]>;
-      scanBookLibrary: (folderPath: string) => Promise<boolean>;
+      scanBookLibrary: (folderPath: string, externalHd?: boolean) => Promise<boolean>;
       getLibraryCount: (libraryId: number, type: 'MANGA' | 'BOOK') => Promise<number>;
       getManga: (id: number) => Promise<Manga | null>;
       getBook: (id: number) => Promise<Book | null>;
@@ -420,6 +421,13 @@ export class ElectronService {
       return await window.electronAPI.selectDirectory();
     }
     return prompt('Digite o caminho da pasta:');
+  }
+
+  async checkPathOnline(path: string): Promise<boolean> {
+    if (this.isElectron && window.electronAPI?.checkPathOnline) {
+      return await window.electronAPI.checkPathOnline(path);
+    }
+    return true;
   }
 
   async listMangas(folderPath?: string): Promise<Manga[]> {

@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { app } from 'electron';
+import { getAppDataDir } from '../utils/app-paths';
 
 export class SettingsService {
   private static _instance: SettingsService;
@@ -15,7 +15,7 @@ export class SettingsService {
   }
 
   constructor() {
-    const userDataPath = app ? app.getPath('userData') : process.cwd();
+    const userDataPath = getAppDataDir();
     this.filePath = path.join(userDataPath, 'settings.json');
     this.load();
   }

@@ -39,10 +39,10 @@ export class BookLibraryService {
     }
   }
 
-  public async scanFolder(folderPath: string): Promise<void> {
+  public async scanFolder(folderPath: string, externalHd?: boolean): Promise<void> {
     if (!window.electronAPI?.scanBookLibrary || !folderPath) return;
     this.currentFolderPath = folderPath;
-    await window.electronAPI.scanBookLibrary(folderPath);
+    await window.electronAPI.scanBookLibrary(folderPath, externalHd);
     await this.loadBooks(folderPath);
   }
 
