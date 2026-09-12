@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.MangaReaderController = void 0;
 const electron_1 = require("electron");
 const manga_reader_session_service_1 = require("../services/manga-reader-session.service");
+const tracker_service_1 = require("../services/tracker.service");
 class MangaReaderController {
     storage;
     sessionService = new manga_reader_session_service_1.MangaReaderSessionService();
@@ -61,13 +62,31 @@ class MangaReaderController {
             const now = new Date().toISOString();
             const pages = Math.max(1, manga.pages || 1);
             const bookMark = Math.min(Math.max(0, Math.floor(page)), pages);
+            const isCompleted = bookMark >= pages;
             const id = this.storage.saveManga({
                 ...manga,
                 bookMark,
-                completed: bookMark >= pages,
+                completed: isCompleted,
                 lastAccess: now,
                 lastAlteration: now
             });
+            // Auto update track progress if completed
+            if (isCompleted && manga.fkLibrary) {
+                try {
+                    const trackerService = new tracker_service_1.TrackerService(this.storage);
+                    const match = trackerService.matchTrack(manga.fkLibrary, manga.title || manga.series || '', manga.name || '');
+                    if (match.track?.id) {
+                        const nextVol = match.volume !== null ? Math.max(match.track.volumesRead, match.volume) : match.track.volumesRead;
+                        const nextCh = match.chapter !== null ? Math.max(match.track.chaptersRead, match.chapter) : match.track.chaptersRead;
+                        if (nextVol > match.track.volumesRead || nextCh > match.track.chaptersRead) {
+                            this.storage.updateTrackProgress(match.track.id, nextCh, nextVol);
+                        }
+                    }
+                }
+                catch (err) {
+                    console.warn('[MangaReaderController] Failed to auto update track progress:', err);
+                }
+            }
             return this.storage.findMangaById(id) || null;
         });
         electron_1.ipcMain.handle('manga:toggle-favorite', async (_event, mangaId) => {

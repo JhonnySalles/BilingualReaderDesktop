@@ -1,6 +1,7 @@
 import { BrowserWindow, ipcMain, dialog } from 'electron';
 import { StorageService } from '../database/storage.service';
 import { MangaReaderSessionService } from '../services/manga-reader-session.service';
+import { TrackerService } from '../services/tracker.service';
 
 export class MangaReaderController {
   private sessionService = new MangaReaderSessionService();
@@ -75,13 +76,36 @@ export class MangaReaderController {
       const now = new Date().toISOString();
       const pages = Math.max(1, manga.pages || 1);
       const bookMark = Math.min(Math.max(0, Math.floor(page)), pages);
+      const isCompleted = bookMark >= pages;
       const id = this.storage.saveManga({
         ...manga,
         bookMark,
-        completed: bookMark >= pages,
+        completed: isCompleted,
         lastAccess: now,
         lastAlteration: now
       });
+
+      // Auto update track progress if completed
+      if (isCompleted && manga.fkLibrary) {
+        try {
+          const trackerService = new TrackerService(this.storage);
+          const match = trackerService.matchTrack(
+            manga.fkLibrary,
+            manga.title || manga.series || '',
+            manga.name || ''
+          );
+          if (match.track?.id) {
+            const nextVol = match.volume !== null ? Math.max(match.track.volumesRead, match.volume) : match.track.volumesRead;
+            const nextCh = match.chapter !== null ? Math.max(match.track.chaptersRead, match.chapter) : match.track.chaptersRead;
+            if (nextVol > match.track.volumesRead || nextCh > match.track.chaptersRead) {
+              this.storage.updateTrackProgress(match.track.id, nextCh, nextVol);
+            }
+          }
+        } catch (err) {
+          console.warn('[MangaReaderController] Failed to auto update track progress:', err);
+        }
+      }
+
       return this.storage.findMangaById(id) || null;
     });
 

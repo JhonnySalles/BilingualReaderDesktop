@@ -60,3 +60,4 @@ public/assets/system_small.dic
 secrets.properties
 google-oauth.json
 /data
+/cache

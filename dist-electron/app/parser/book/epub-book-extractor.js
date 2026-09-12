@@ -39,6 +39,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.EpubBookExtractor = void 0;
 const adm_zip_1 = __importDefault(require("adm-zip"));
 const path = __importStar(require("path"));
+const fs = __importStar(require("fs"));
 class EpubBookExtractor {
     static extractMetadata(filePath) {
         let title = '';
@@ -203,6 +204,106 @@ class EpubBookExtractor {
     }
     static cleanXmlText(text) {
         return text.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').trim();
+    }
+    /**
+     * Count total words in an EPUB file (or in a specified spine/page range if applicable).
+     */
+    static countWords(filePath, pageStart, pageEnd) {
+        try {
+            if (!filePath || !fs.existsSync(filePath))
+                return 0;
+            const zip = new adm_zip_1.default(filePath);
+            let opfPath = '';
+            const containerEntry = zip.getEntry('META-INF/container.xml');
+            if (containerEntry) {
+                const containerXml = zip.readAsText(containerEntry);
+                const rootfileMatch = containerXml.match(/full-path=["']([^"']+)["']/i);
+                if (rootfileMatch) {
+                    opfPath = rootfileMatch[1];
+                }
+            }
+            if (!opfPath) {
+                const opfEntries = zip.getEntries().filter(e => e.entryName.endsWith('.opf'));
+                if (opfEntries.length > 0)
+                    opfPath = opfEntries[0].entryName;
+            }
+            const opfDir = opfPath ? path.dirname(opfPath).replace(/\\/g, '/') : '';
+            let spineHrefs = [];
+            if (opfPath) {
+                const opfEntry = zip.getEntry(opfPath);
+                if (opfEntry) {
+                    const opfXml = zip.readAsText(opfEntry);
+                    const manifestItems = {};
+                    const itemRegex = /<item\s+[^>]*id=["']([^"']+)["'][^>]*href=["']([^"']+)["'][^>]*>/gi;
+                    let match;
+                    while ((match = itemRegex.exec(opfXml)) !== null) {
+                        manifestItems[match[1]] = match[2];
+                    }
+                    const spineRegex = /<itemref\s+[^>]*idref=["']([^"']+)["'][^>]*>/gi;
+                    while ((match = spineRegex.exec(opfXml)) !== null) {
+                        const idref = match[1];
+                        if (manifestItems[idref]) {
+                            const href = manifestItems[idref];
+                            const fullHref = opfDir && opfDir !== '.' ? path.posix.join(opfDir, href) : href;
+                            spineHrefs.push(fullHref);
+                        }
+                    }
+                }
+            }
+            // Fallback: extract all html/xhtml entries in zip
+            if (spineHrefs.length === 0) {
+                spineHrefs = zip.getEntries()
+                    .filter(e => !e.isDirectory && /\.(x?html|xml|htm)$/i.test(e.entryName))
+                    .map(e => e.entryName);
+            }
+            if (spineHrefs.length === 0)
+                return 0;
+            // Filter by page/spine range if provided (1-based)
+            if (pageStart != null && pageEnd != null && pageStart > 0 && pageEnd >= pageStart) {
+                const startIdx = Math.max(0, pageStart - 1);
+                const endIdx = Math.min(spineHrefs.length, pageEnd);
+                spineHrefs = spineHrefs.slice(startIdx, endIdx);
+            }
+            let totalWords = 0;
+            for (const href of spineHrefs) {
+                const decodedHref = decodeURIComponent(href);
+                const entry = zip.getEntry(decodedHref) || zip.getEntry(href);
+                if (!entry)
+                    continue;
+                const content = zip.readAsText(entry);
+                // Remove style and script tags and their content
+                const stripped = content
+                    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, ' ')
+                    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, ' ')
+                    .replace(/<rt\b[^<]*(?:(?!<\/rt>)<[^<]*)*<\/rt>/gi, ' ') // Furigana rt tags
+                    .replace(/<[^>]+>/g, ' ');
+                const text = stripped
+                    .replace(/&nbsp;/g, ' ')
+                    .replace(/&amp;/g, '&')
+                    .replace(/&lt;/g, '<')
+                    .replace(/&gt;/g, '>')
+                    .replace(/&quot;/g, '"')
+                    .trim();
+                if (!text)
+                    continue;
+                // Check for CJK characters
+                const cjkMatches = text.match(/[\u4e00-\u9faf\u3040-\u309f\u30a0-\u30ff]/g);
+                if (cjkMatches && cjkMatches.length > text.length * 0.3) {
+                    // Primarily CJK: count characters
+                    totalWords += cjkMatches.length;
+                }
+                else {
+                    // Western text: count words
+                    const words = text.split(/\s+/).filter(w => w.length > 0);
+                    totalWords += words.length;
+                }
+            }
+            return totalWords;
+        }
+        catch (e) {
+            console.warn(`Error counting words in EPUB ${filePath}:`, e);
+            return 0;
+        }
     }
 }
 exports.EpubBookExtractor = EpubBookExtractor;

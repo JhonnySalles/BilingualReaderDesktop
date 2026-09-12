@@ -67,7 +67,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
     completed: boolean;
     volume?: string;
     dateTime: string;
+    secondsRead?: number;
+    averageTimePage?: number;
+    wordCount?: number;
+    secondsReadAutomatic?: boolean;
   }) => ipcRenderer.invoke('history:saveBookmarkEdit', input),
+  countBookWords: (filePath: string, pageStart?: number, pageEnd?: number) =>
+    ipcRenderer.invoke('history:countBookWords', filePath, pageStart, pageEnd),
+  recalculateReadingTimeBatch: (options: {
+    type: 'MANGA' | 'BOOK';
+    onlyNew: boolean;
+    avgTimePerPage: number;
+    avgTimePerWord: number;
+  }) => ipcRenderer.invoke('history:recalculateBatch', options),
   updateHistorySession: (update: { id: number; pageEnd: number; pages?: number }) =>
     ipcRenderer.invoke('history:update', update),
   endHistorySession: (payload: {
@@ -87,6 +99,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   dbBackup: () => ipcRenderer.invoke('db:backup'),
   dbRestore: () => ipcRenderer.invoke('db:restore'),
+  dataExportJson: () => ipcRenderer.invoke('data:export-json'),
+  dataImportJson: () => ipcRenderer.invoke('data:import-json'),
   coversClearCache: () => ipcRenderer.invoke('covers:clear-cache'),
   statisticsClearHistory: () => ipcRenderer.invoke('statistics:clear-history'),
   appGetInfo: () => ipcRenderer.invoke('app:get-info'),
@@ -164,6 +178,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     chapterDescription?: string;
     pages?: number;
   }) => ipcRenderer.invoke('book:set-bookmark', payload),
+  calculateBookPages: (bookId: number) => ipcRenderer.invoke('book:calculate-pages', bookId),
   toggleBookFavorite: (bookId: number) => ipcRenderer.invoke('book:toggle-favorite', bookId),
   getBookConfiguration: (bookId: number) => ipcRenderer.invoke('book:get-configuration', bookId),
   saveBookConfiguration: (config: any) => ipcRenderer.invoke('book:save-configuration', config),
@@ -209,6 +224,49 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openExternal: (url: string) => ipcRenderer.invoke('shell:openExternal', url),
   lookupVocabulary: (options: { text: string; mangaId?: number | null; bookId?: number | null }) =>
     ipcRenderer.invoke('vocabulary:lookup', options),
+
+  /* Tracker APIs */
+  listAllTracks: () => ipcRenderer.invoke('tracker:listAll'),
+  listTracksByLibrary: (libraryId: number) => ipcRenderer.invoke('tracker:listByLibrary', libraryId),
+  listTrackerLibraries: () => ipcRenderer.invoke('tracker:listLibraries'),
+  getMatchedMedia: (payload: {
+    libraryId: number;
+    titleRegex: string;
+    title?: string | null;
+    malId?: number | null;
+  }) => ipcRenderer.invoke('tracker:getMatchedMedia', payload),
+  getTrack: (id: number) => ipcRenderer.invoke('tracker:get', id),
+  saveTrack: (track: any) => ipcRenderer.invoke('tracker:save', track),
+  deleteTrack: (id: number) => ipcRenderer.invoke('tracker:delete', id),
+  matchTrack: (payload: {
+    libraryId: number;
+    title: string;
+    filename: string;
+    comicInfoMalId?: number | null;
+    comicInfoTitle?: string | null;
+  }) => ipcRenderer.invoke('tracker:match', payload),
+  updateTrackProgress: (payload: {
+    id: number;
+    chaptersRead: number;
+    volumesRead: number;
+    status?: string;
+  }) => ipcRenderer.invoke('tracker:updateProgress', payload),
+
+  /* MyAnimeList APIs */
+  malGetAuthStatus: () => ipcRenderer.invoke('mal:getAuthStatus'),
+  malLogin: () => ipcRenderer.invoke('mal:login'),
+  malLogout: () => ipcRenderer.invoke('mal:logout'),
+  malSearch: (query: string, limit?: number) => ipcRenderer.invoke('mal:search', query, limit),
+  malGetUserStatus: (malId: number) => ipcRenderer.invoke('mal:getUserStatus', malId),
+  malUpdateUserStatus: (payload: any) => ipcRenderer.invoke('mal:updateUserStatus', payload),
+
+  /* AniList APIs */
+  anilistGetAuthStatus: () => ipcRenderer.invoke('anilist:getAuthStatus'),
+  anilistLogin: () => ipcRenderer.invoke('anilist:login'),
+  anilistLogout: () => ipcRenderer.invoke('anilist:logout'),
+  anilistSearch: (query: string, limit?: number) => ipcRenderer.invoke('anilist:search', query, limit),
+  anilistGetUserStatus: (mediaId: number) => ipcRenderer.invoke('anilist:getUserStatus', mediaId),
+  anilistUpdateUserStatus: (payload: any) => ipcRenderer.invoke('anilist:updateUserStatus', payload),
 
   send: (channel: string, data: any) => ipcRenderer.send(channel, data),
   on: (channel: string, func: (...args: any[]) => void) => {

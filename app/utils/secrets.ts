@@ -6,6 +6,8 @@ export class Secrets {
   private static _instance: Secrets;
 
   private animeListClientId: string = '';
+  private aniListClientId: string = '';
+  private aniListClientSecret: string = '';
   private googleIdToken: string = '';
   private googleOAuthClientId: string = '';
   private googleOAuthClientSecret: string = '';
@@ -107,6 +109,14 @@ export class Secrets {
       case 'MY_ANIME_LIST_CLIENT_ID':
         this.animeListClientId = value;
         break;
+      case 'ANILIST_CLIENT_ID':
+      case 'ANI_LIST_CLIENT_ID':
+        this.aniListClientId = value;
+        break;
+      case 'ANILIST_CLIENT_SECRET':
+      case 'ANI_LIST_CLIENT_SECRET':
+        this.aniListClientSecret = value;
+        break;
       case 'GOOGLE_ID_TOKEN':
         this.googleIdToken = value;
         break;
@@ -169,6 +179,14 @@ export class Secrets {
 
   public getMyAnimeListClientId(): string {
     return this.animeListClientId;
+  }
+
+  public getAniListClientId(): string {
+    return this.aniListClientId;
+  }
+
+  public getAniListClientSecret(): string {
+    return this.aniListClientSecret;
   }
 
   public getGoogleIdToken(): string {

@@ -14,6 +14,11 @@ import {
   LibraryBookmarkDialogComponent,
   LibraryBookmarkPayload
 } from '../../shared/library-bookmark-dialog/library-bookmark-dialog.component';
+import { TrackerConfigDialogComponent } from '../../shared/tracker-config-dialog/tracker-config-dialog.component';
+import { TrackerSimpleDialogComponent } from '../../shared/tracker-simple-dialog/tracker-simple-dialog.component';
+import { TrackerService } from '../../core/services/tracker.service';
+import { Track } from '../../core/models';
+import { ConfirmDialogService } from '../../core/services/confirm-dialog.service';
 
 @Component({
   selector: 'app-book-detail',
@@ -24,7 +29,9 @@ import {
     RouterModule,
     DetailActionBarComponent,
     DetailMetaSectionComponent,
-    LibraryBookmarkDialogComponent
+    LibraryBookmarkDialogComponent,
+    TrackerConfigDialogComponent,
+    TrackerSimpleDialogComponent
   ],
   template: `
     <div class="h-full flex flex-col bg-slate-950 text-slate-100 overflow-hidden select-none relative">
@@ -113,10 +120,11 @@ import {
               (favoriteToggle)="onFavorite()"
               (markRead)="onMarkRead()"
               (clearProgress)="onClearProgress()"
-              (bookmark)="showBookmark.set(true)"
+              (bookmark)="onOpenBookmark()"
               (addTag)="showTagInput.set(true)"
               (vocabulary)="goVocabulary()"
               (importVocabulary)="onImportVocabulary()"
+              (tracker)="onOpenTracker()"
               (deleteItem)="onDelete()" />
 
             <section class="space-y-3">
@@ -194,6 +202,8 @@ import {
 
       <app-library-bookmark-dialog
         accent="amber"
+        type="book"
+        [filePath]="book()?.path"
         [open]="showBookmark()"
         [title]="book()?.title || ''"
         [maxPages]="book()?.pages || 1"
@@ -202,6 +212,25 @@ import {
         [completed]="!!book()?.completed"
         (confirm)="onBookmarkSave($event)"
         (cancel)="showBookmark.set(false)" />
+
+      <app-tracker-simple-dialog
+        [open]="showTrackerSimple()"
+        [libraryId]="book()?.fkLibrary || 0"
+        [mediaTitle]="book()?.title || ''"
+        [mediaFilename]="book()?.name || ''"
+        (confirmed)="onTrackerSaved($event)"
+        (cancel)="showTrackerSimple.set(false)"
+        (openFullConfig)="onOpenFullConfigFromSimple($event)" />
+
+      <app-tracker-config-dialog
+        [open]="showTrackerConfig()"
+        [track]="matchedTrack()"
+        [fkLibrary]="book()?.fkLibrary || 0"
+        [initialTitle]="book()?.title || ''"
+        [initialFilename]="book()?.name || ''"
+        (saved)="onTrackerConfigSaved($event)"
+        (deleted)="onTrackerDeleted()"
+        (cancel)="showTrackerConfig.set(false)" />
 
       @if (passwordModal(); as mode) {
         <div class="absolute inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
@@ -219,38 +248,43 @@ import {
                 <label class="block text-[10px] text-slate-400 mb-1">
                   {{ mode === 'unlock' ? 'Senha' : 'Senha atual' }}
                 </label>
-                <input type="password" autocomplete="off"
-                  class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200"
+                <input
+                  type="password"
+                  class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-amber-500"
                   [(ngModel)]="passwordCurrent"
-                  (keydown.enter)="confirmPasswordModal()" />
+                  (keydown.enter)="submitPasswordModal()" />
               </div>
             }
             @if (mode === 'set' || mode === 'change') {
               <div>
-                <label class="block text-[10px] text-slate-400 mb-1">Nova senha</label>
-                <input type="password" autocomplete="new-password"
-                  class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200"
+                <label class="block text-[10px] text-slate-400 mb-1">
+                  {{ mode === 'set' ? 'Senha' : 'Nova senha' }}
+                </label>
+                <input
+                  type="password"
+                  class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-amber-500"
                   [(ngModel)]="passwordNext" />
               </div>
               <div>
-                <label class="block text-[10px] text-slate-400 mb-1">Confirmar nova senha</label>
-                <input type="password" autocomplete="new-password"
-                  class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200"
+                <label class="block text-[10px] text-slate-400 mb-1">Confirmar senha</label>
+                <input
+                  type="password"
+                  class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-amber-500"
                   [(ngModel)]="passwordConfirm"
-                  (keydown.enter)="confirmPasswordModal()" />
+                  (keydown.enter)="submitPasswordModal()" />
               </div>
             }
             @if (passwordError()) {
-              <p class="text-[11px] text-rose-300">{{ passwordError() }}</p>
+              <p class="text-[11px] text-rose-400">{{ passwordError() }}</p>
             }
-            <div class="flex justify-end gap-2 pt-1">
+            <div class="flex justify-end gap-2 pt-2">
               <button type="button" (click)="closePasswordModal()"
-                class="px-3 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800 cursor-pointer">
+                class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:bg-slate-800 cursor-pointer">
                 Cancelar
               </button>
-              <button type="button" (click)="confirmPasswordModal()"
-                class="px-3 py-2 rounded-xl text-xs font-semibold bg-amber-600 hover:bg-amber-500 text-white cursor-pointer">
-                {{ mode === 'unlock' ? 'Abrir' : 'Confirmar' }}
+              <button type="button" (click)="submitPasswordModal()"
+                class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-600 hover:bg-amber-500 text-white cursor-pointer">
+                Confirmar
               </button>
             </div>
           </div>
@@ -272,10 +306,15 @@ export class BookDetailComponent implements OnInit {
   private nav = inject(NavigationStackService);
   private electron = inject(ElectronService);
   private bookUnlock = inject(BookUnlockService);
+  private trackerService = inject(TrackerService);
+  private confirmDialog = inject(ConfirmDialogService);
 
   book = signal<Book | null>(null);
   loading = signal(true);
   showBookmark = signal(false);
+  showTrackerSimple = signal(false);
+  showTrackerConfig = signal(false);
+  matchedTrack = signal<Track | null>(null);
   showTagInput = signal(false);
   bookmarkPage = signal(0);
   importMessage = signal<string | null>(null);
@@ -382,6 +421,10 @@ export class BookDetailComponent implements OnInit {
     this.passwordCurrent = '';
     this.passwordNext = '';
     this.passwordConfirm = '';
+  }
+
+  submitPasswordModal(): void {
+    void this.confirmPasswordModal();
   }
 
   async confirmPasswordModal(): Promise<void> {
@@ -521,6 +564,26 @@ export class BookDetailComponent implements OnInit {
     }
   }
 
+  async onOpenBookmark(): Promise<void> {
+    const b = this.book();
+    if (!b?.id) return;
+
+    if (!b.pages || b.pages <= 1) {
+      this.flash('Calculando páginas do livro...');
+      try {
+        const updated = await this.electron.calculateBookPages(b.id);
+        if (updated) {
+          this.book.set(updated);
+          this.bookmarkPage.set(updated.bookMark ?? 0);
+        }
+      } catch (err) {
+        console.error('Falha ao calcular páginas do livro:', err);
+      }
+    }
+
+    this.showBookmark.set(true);
+  }
+
   async onBookmarkSave(payload: LibraryBookmarkPayload): Promise<void> {
     const b = this.book();
     if (!b) return;
@@ -535,9 +598,16 @@ export class BookDetailComponent implements OnInit {
   async onDelete(): Promise<void> {
     const b = this.book();
     if (!b?.id) return;
-    if (!confirm(`Excluir "${b.title}" da biblioteca?`)) return;
-    const ok = await this.detail.deleteBook(b.id);
-    if (ok) this.nav.goToLibrary(this.router);
+    const ok = await this.confirmDialog.confirm({
+      title: 'Excluir da Biblioteca',
+      message: `Deseja realmente excluir "${b.title || b.name}" da biblioteca?\n\nOs arquivos locais não serão apagados.`,
+      confirmText: 'Excluir',
+      confirmVariant: 'danger',
+      icon: 'danger'
+    });
+    if (!ok) return;
+    const okDelete = await this.detail.deleteBook(b.id);
+    if (okDelete) this.nav.goToLibrary(this.router);
   }
 
   async onLanguage(language: string): Promise<void> {
@@ -566,5 +636,37 @@ export class BookDetailComponent implements OnInit {
     const tags = this.detail.parseTags(b.tags).filter(t => t !== tag);
     const updated = await this.detail.updateBookTags(b, this.detail.serializeTags(tags));
     if (updated) this.book.set(updated);
+  }
+
+  async onOpenTracker(): Promise<void> {
+    const b = this.book();
+    if (!b?.fkLibrary) return;
+    this.showTrackerSimple.set(true);
+  }
+
+  onOpenFullConfigFromSimple(track: Track | null): void {
+    this.matchedTrack.set(track);
+    this.showTrackerSimple.set(false);
+    this.showTrackerConfig.set(true);
+  }
+
+  onTrackerSaved(track: Track): void {
+    this.matchedTrack.set(track);
+    this.showTrackerSimple.set(false);
+    this.flash('Rastreador sincronizado com sucesso!');
+  }
+
+  onTrackerConfigSaved(track: Track): void {
+    this.matchedTrack.set(track);
+    this.showTrackerConfig.set(false);
+    this.showTrackerSimple.set(true);
+    this.flash('Rastreador salvo com sucesso!');
+  }
+
+  onTrackerDeleted(): void {
+    this.matchedTrack.set(null);
+    this.showTrackerConfig.set(false);
+    this.showTrackerSimple.set(false);
+    this.flash('Rastreador removido.');
   }
 }

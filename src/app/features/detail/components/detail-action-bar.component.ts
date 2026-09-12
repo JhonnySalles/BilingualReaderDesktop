@@ -45,6 +45,14 @@ import { CommonModule } from '@angular/common';
         Importar vocabulário
       </button>
 
+      <button type="button" (click)="tracker.emit()"
+        class="px-3 py-2 rounded-xl text-xs font-semibold bg-slate-900 text-slate-300 border border-slate-700 hover:bg-slate-800 transition-colors cursor-pointer flex items-center gap-1.5">
+        <svg class="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+        </svg>
+        Rastreador (MAL/AniList)
+      </button>
+
       <button type="button" (click)="deleteItem.emit()"
         class="px-3 py-2 rounded-xl text-xs font-semibold bg-rose-950 text-rose-300 border border-rose-800 hover:bg-rose-900 transition-colors cursor-pointer">
         Excluir
@@ -64,6 +72,7 @@ export class DetailActionBarComponent {
   @Output() addTag = new EventEmitter<void>();
   @Output() vocabulary = new EventEmitter<void>();
   @Output() importVocabulary = new EventEmitter<void>();
+  @Output() tracker = new EventEmitter<void>();
   @Output() deleteItem = new EventEmitter<void>();
 
   get favoriteBtnClass(): string {

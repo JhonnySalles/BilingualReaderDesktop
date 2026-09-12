@@ -20,6 +20,8 @@ export interface HistoryRow {
   average_time_page: number;
   use_tts: number;
   notified: number;
+  word_count: number;
+  seconds_read_automatic: number;
 }
 
 export interface HistorySessionInput {
@@ -29,6 +31,8 @@ export interface HistorySessionInput {
   pageStart: number;
   pages: number;
   volume?: string;
+  wordCount?: number;
+  secondsReadAutomatic?: boolean;
 }
 
 export interface HistorySessionUpdate {
@@ -37,6 +41,8 @@ export interface HistorySessionUpdate {
   pages?: number;
   endSession?: boolean;
   useTTS?: boolean;
+  wordCount?: number;
+  secondsReadAutomatic?: boolean;
 }
 
 export interface HistoryBookmarkEditInput {
@@ -49,6 +55,10 @@ export interface HistoryBookmarkEditInput {
   completed: boolean;
   volume?: string;
   dateTime: string;
+  secondsRead?: number;
+  averageTimePage?: number;
+  wordCount?: number;
+  secondsReadAutomatic?: boolean;
 }
 
 export interface HistoryStatisticsItem {
@@ -118,7 +128,9 @@ export class HistoryRepository extends BaseRepository<HistoryRow, number> {
       seconds_read: row.seconds_read ?? 0,
       average_time_page: row.average_time_page ?? 0,
       use_tts: row.use_tts ?? 0,
-      notified: row.notified ?? 0
+      notified: row.notified ?? 0,
+      word_count: row.word_count ?? 0,
+      seconds_read_automatic: row.seconds_read_automatic ?? 0
     };
   }
 
@@ -134,8 +146,8 @@ export class HistoryRepository extends BaseRepository<HistoryRow, number> {
       INSERT INTO History (
         id_library, id_reference, type, page_start, page_end, pages, completed,
         volume, chapters_read, date_time_start, date_time_end, seconds_read,
-        average_time_page, use_tts, notified
-      ) VALUES (?, ?, ?, ?, ?, ?, 0, ?, 0, ?, ?, 0, 0, 0, 0)
+        average_time_page, use_tts, notified, word_count, seconds_read_automatic
+      ) VALUES (?, ?, ?, ?, ?, ?, 0, ?, 0, ?, ?, 0, 0, 0, 0, ?, ?)
     `);
     const result = stmt.run(
       input.fkLibrary ?? 0,
@@ -146,7 +158,9 @@ export class HistoryRepository extends BaseRepository<HistoryRow, number> {
       input.pages ?? 1,
       input.volume ?? '',
       now,
-      now
+      now,
+      input.wordCount ?? 0,
+      input.secondsReadAutomatic ? 1 : 0
     );
     return Number(result.lastInsertRowid);
   }
@@ -154,12 +168,18 @@ export class HistoryRepository extends BaseRepository<HistoryRow, number> {
   /** Manual bookmark edit from library/detail popup (Android PopupBookMark parity). */
   public saveBookmarkEdit(input: HistoryBookmarkEditInput): number {
     const when = input.dateTime || new Date().toISOString();
+    const secondsRead = input.secondsRead ?? 0;
+    const pagesDelta = Math.max(1, input.pageEnd - input.pageStart);
+    const averageTimePage = input.averageTimePage ?? (secondsRead > 0 ? Math.floor(secondsRead / pagesDelta) : 0);
+    const wordCount = input.wordCount ?? 0;
+    const secondsReadAutomatic = input.secondsReadAutomatic ?? false ? 1 : 0;
+
     const stmt = this.db.prepare(`
       INSERT INTO History (
         id_library, id_reference, type, page_start, page_end, pages, completed,
         volume, chapters_read, date_time_start, date_time_end, seconds_read,
-        average_time_page, use_tts, notified
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, 0, 0, 0, 0)
+        average_time_page, use_tts, notified, word_count, seconds_read_automatic
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, 0, 0, ?, ?)
     `);
     const result = stmt.run(
       input.fkLibrary ?? 0,
@@ -171,7 +191,11 @@ export class HistoryRepository extends BaseRepository<HistoryRow, number> {
       input.completed ? 1 : 0,
       input.volume ?? '',
       when,
-      when
+      when,
+      secondsRead,
+      averageTimePage,
+      wordCount,
+      secondsReadAutomatic
     );
     return Number(result.lastInsertRowid);
   }
@@ -189,12 +213,17 @@ export class HistoryRepository extends BaseRepository<HistoryRow, number> {
     const secondsRead = Math.max(0, Math.floor((endMs - startMs) / 1000));
     const pagesDelta = Math.max(1, pageEnd - existing.page_start);
     const averageTimePage = Math.floor(secondsRead / pagesDelta);
+    const wordCount = update.wordCount ?? existing.word_count ?? 0;
+    const secondsReadAutomatic = update.secondsReadAutomatic !== undefined
+      ? (update.secondsReadAutomatic ? 1 : 0)
+      : (existing.seconds_read_automatic ?? 0);
 
     const stmt = this.db.prepare(`
       UPDATE History SET
         page_end = ?, pages = ?, completed = ?,
         date_time_end = ?, seconds_read = ?, average_time_page = ?,
-        use_tts = CASE WHEN ? = 1 THEN 1 ELSE use_tts END
+        use_tts = CASE WHEN ? = 1 THEN 1 ELSE use_tts END,
+        word_count = ?, seconds_read_automatic = ?
       WHERE id = ?
     `);
     stmt.run(
@@ -205,6 +234,8 @@ export class HistoryRepository extends BaseRepository<HistoryRow, number> {
       secondsRead,
       averageTimePage,
       update.useTTS ? 1 : 0,
+      wordCount,
+      secondsReadAutomatic,
       update.id
     );
   }
@@ -229,6 +260,42 @@ export class HistoryRepository extends BaseRepository<HistoryRow, number> {
     return (stmt.all(type, fkReference) as any[]).map((row) => this.mapRow(row));
   }
 
+  public findAllByType(type: HistoryContentType): HistoryRow[] {
+    const stmt = this.db.prepare(`
+      SELECT * FROM History
+      WHERE type = ?
+      ORDER BY date_time_start ASC
+    `);
+    return (stmt.all(type) as any[]).map((row) => this.mapRow(row));
+  }
+
+  public findByTypeNotAutomatic(type: HistoryContentType): HistoryRow[] {
+    const stmt = this.db.prepare(`
+      SELECT * FROM History
+      WHERE type = ? AND (seconds_read_automatic = 0 OR seconds_read_automatic IS NULL)
+      ORDER BY date_time_start ASC
+    `);
+    return (stmt.all(type) as any[]).map((row) => this.mapRow(row));
+  }
+
+  public updateHistoryCalculatedTime(
+    id: number,
+    secondsRead: number,
+    averageTimePage: number,
+    wordCount: number,
+    secondsReadAutomatic: number
+  ): void {
+    const stmt = this.db.prepare(`
+      UPDATE History SET
+        seconds_read = ?,
+        average_time_page = ?,
+        word_count = ?,
+        seconds_read_automatic = ?
+      WHERE id = ?
+    `);
+    stmt.run(secondsRead, averageTimePage, wordCount, secondsReadAutomatic, id);
+  }
+
   /** Insert a completed session received from cloud sync (notified = 0). */
   public insertSharedSession(input: {
     fkLibrary: number;
@@ -245,13 +312,15 @@ export class HistoryRepository extends BaseRepository<HistoryRow, number> {
     secondsRead: number;
     averageTimeByPage: number;
     useTTS: boolean;
+    wordCount?: number;
+    secondsReadAutomatic?: boolean;
   }): number {
     const stmt = this.db.prepare(`
       INSERT INTO History (
         id_library, id_reference, type, page_start, page_end, pages, completed,
         volume, chapters_read, date_time_start, date_time_end, seconds_read,
-        average_time_page, use_tts, notified
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+        average_time_page, use_tts, notified, word_count, seconds_read_automatic
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
     `);
     const result = stmt.run(
       input.fkLibrary ?? 0,
@@ -267,7 +336,9 @@ export class HistoryRepository extends BaseRepository<HistoryRow, number> {
       input.dateTimeEnd,
       input.secondsRead ?? 0,
       input.averageTimeByPage ?? 0,
-      input.useTTS ? 1 : 0
+      input.useTTS ? 1 : 0,
+      input.wordCount ?? 0,
+      input.secondsReadAutomatic ? 1 : 0
     );
     return Number(result.lastInsertRowid);
   }

@@ -12,7 +12,12 @@ import {
   LibraryBookmarkDialogComponent,
   LibraryBookmarkPayload
 } from '../../shared/library-bookmark-dialog/library-bookmark-dialog.component';
+import { TrackerConfigDialogComponent } from '../../shared/tracker-config-dialog/tracker-config-dialog.component';
+import { TrackerSimpleDialogComponent } from '../../shared/tracker-simple-dialog/tracker-simple-dialog.component';
+import { TrackerService } from '../../core/services/tracker.service';
+import { Track } from '../../core/models';
 import { fromReaderIndex } from '../../core/utils/reading-progress.util';
+import { ConfirmDialogService } from '../../core/services/confirm-dialog.service';
 
 @Component({
   selector: 'app-manga-detail',
@@ -23,7 +28,9 @@ import { fromReaderIndex } from '../../core/utils/reading-progress.util';
     DetailActionBarComponent,
     DetailMetaSectionComponent,
     LibraryBookmarkDialogComponent,
-    DetailChaptersListComponent
+    DetailChaptersListComponent,
+    TrackerConfigDialogComponent,
+    TrackerSimpleDialogComponent
   ],
   template: `
     <div class="h-full flex flex-col bg-slate-950 text-slate-100 overflow-hidden select-none relative">
@@ -113,6 +120,7 @@ import { fromReaderIndex } from '../../core/utils/reading-progress.util';
               (bookmark)="showBookmark.set(true)"
               (vocabulary)="goVocabulary()"
               (importVocabulary)="onImportVocabulary()"
+              (tracker)="onOpenTracker()"
               (deleteItem)="onDelete()" />
 
             <app-detail-meta-section title="Detalhe" [fields]="metaFields()" />
@@ -124,6 +132,8 @@ import { fromReaderIndex } from '../../core/utils/reading-progress.util';
 
       <app-library-bookmark-dialog
         accent="indigo"
+        type="manga"
+        [filePath]="manga()?.path"
         [open]="showBookmark()"
         [title]="manga()?.title || ''"
         [maxPages]="manga()?.pages || 1"
@@ -132,6 +142,25 @@ import { fromReaderIndex } from '../../core/utils/reading-progress.util';
         [completed]="!!manga()?.completed"
         (confirm)="onBookmarkSave($event)"
         (cancel)="showBookmark.set(false)" />
+
+      <app-tracker-simple-dialog
+        [open]="showTrackerSimple()"
+        [libraryId]="manga()?.fkLibrary || 0"
+        [mediaTitle]="manga()?.title || ''"
+        [mediaFilename]="manga()?.name || ''"
+        (confirmed)="onTrackerSaved($event)"
+        (cancel)="showTrackerSimple.set(false)"
+        (openFullConfig)="onOpenFullConfigFromSimple($event)" />
+
+      <app-tracker-config-dialog
+        [open]="showTrackerConfig()"
+        [track]="matchedTrack()"
+        [fkLibrary]="manga()?.fkLibrary || 0"
+        [initialTitle]="manga()?.title || manga()?.series || ''"
+        [initialFilename]="manga()?.name || ''"
+        (saved)="onTrackerConfigSaved($event)"
+        (deleted)="onTrackerDeleted()"
+        (cancel)="showTrackerConfig.set(false)" />
 
       @if (importMessage()) {
         <div class="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-xl bg-slate-800 border border-slate-600 text-xs text-slate-200 shadow-xl">
@@ -147,10 +176,15 @@ export class MangaDetailComponent implements OnInit {
   private detail = inject(DetailService);
   private nav = inject(NavigationStackService);
   private electron = inject(ElectronService);
+  private trackerService = inject(TrackerService);
+  private confirmDialog = inject(ConfirmDialogService);
 
   manga = signal<Manga | null>(null);
   loading = signal(true);
   showBookmark = signal(false);
+  showTrackerSimple = signal(false);
+  showTrackerConfig = signal(false);
+  matchedTrack = signal<Track | null>(null);
   bookmarkPage = signal(0);
   importMessage = signal<string | null>(null);
 
@@ -281,9 +315,16 @@ export class MangaDetailComponent implements OnInit {
   async onDelete(): Promise<void> {
     const m = this.manga();
     if (!m?.id) return;
-    if (!confirm(`Excluir "${m.title}" da biblioteca?`)) return;
-    const ok = await this.detail.deleteManga(m.id);
-    if (ok) this.nav.goToLibrary(this.router);
+    const ok = await this.confirmDialog.confirm({
+      title: 'Excluir da Biblioteca',
+      message: `Deseja realmente excluir "${m.title || m.name}" da biblioteca?\n\nOs arquivos locais não serão apagados.`,
+      confirmText: 'Excluir',
+      confirmVariant: 'danger',
+      icon: 'danger'
+    });
+    if (!ok) return;
+    const okDelete = await this.detail.deleteManga(m.id);
+    if (okDelete) this.nav.goToLibrary(this.router);
   }
 
   async onChapter(ch: DetailChapterItem): Promise<void> {
@@ -293,5 +334,40 @@ export class MangaDetailComponent implements OnInit {
     const updated = await this.detail.setMangaBookMark(m, bookMark);
     if (updated) this.manga.set(updated);
     this.nav.openReader(this.router, 'image', m.id);
+  }
+
+  async onOpenTracker(): Promise<void> {
+    const m = this.manga();
+    if (!m?.fkLibrary) return;
+    this.showTrackerSimple.set(true);
+  }
+
+  onOpenFullConfigFromSimple(track: Track | null): void {
+    this.matchedTrack.set(track);
+    this.showTrackerSimple.set(false);
+    this.showTrackerConfig.set(true);
+  }
+
+  onTrackerSaved(track: Track): void {
+    this.matchedTrack.set(track);
+    this.showTrackerSimple.set(false);
+    this.importMessage.set('Rastreador sincronizado com sucesso!');
+    setTimeout(() => this.importMessage.set(null), 3000);
+  }
+
+  onTrackerConfigSaved(track: Track): void {
+    this.matchedTrack.set(track);
+    this.showTrackerConfig.set(false);
+    this.showTrackerSimple.set(true);
+    this.importMessage.set('Rastreador salvo com sucesso!');
+    setTimeout(() => this.importMessage.set(null), 3000);
+  }
+
+  onTrackerDeleted(): void {
+    this.matchedTrack.set(null);
+    this.showTrackerConfig.set(false);
+    this.showTrackerSimple.set(false);
+    this.importMessage.set('Rastreador removido.');
+    setTimeout(() => this.importMessage.set(null), 3000);
   }
 }

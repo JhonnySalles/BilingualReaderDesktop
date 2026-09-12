@@ -1,9 +1,15 @@
 import { ipcMain } from 'electron';
 import { StorageService } from '../database/storage.service';
-import { HistoryContentType } from '../database/history.repository';
+import { HistoryContentType, HistoryBookmarkEditInput } from '../database/history.repository';
+import { ReadingTimeCalculatorService, RecalculateBatchOptions } from '../services/reading-time.service';
+import { EpubBookExtractor } from '../parser/book/epub-book-extractor';
 
 export class StatisticsController {
-  constructor(private storage: StorageService) {}
+  private readingTimeService: ReadingTimeCalculatorService;
+
+  constructor(private storage: StorageService) {
+    this.readingTimeService = new ReadingTimeCalculatorService(this.storage);
+  }
 
   public registerIpcHandlers(): void {
     ipcMain.handle('statistics:get', async () => {
@@ -52,19 +58,35 @@ export class StatisticsController {
       'history:saveBookmarkEdit',
       async (
         _event,
-        input: {
-          fkLibrary: number;
-          fkReference: number;
-          type: HistoryContentType;
-          pageStart: number;
-          pageEnd: number;
-          pages: number;
-          completed: boolean;
-          volume?: string;
-          dateTime: string;
-        }
+        input: HistoryBookmarkEditInput
       ) => {
         return this.storage.saveHistoryBookmarkEdit(input);
+      }
+    );
+
+    ipcMain.handle(
+      'history:countBookWords',
+      async (_event, filePath: string, pageStart?: number, pageEnd?: number) => {
+        return EpubBookExtractor.countWords(filePath, pageStart, pageEnd);
+      }
+    );
+
+    ipcMain.handle(
+      'history:recalculateBatch',
+      async (event, options: {
+        type: 'MANGA' | 'BOOK';
+        onlyNew: boolean;
+        avgTimePerPage: number;
+        avgTimePerWord: number;
+      }) => {
+        return this.readingTimeService.recalculateBatch({
+          ...options,
+          onProgress: (prog) => {
+            if (!event.sender.isDestroyed()) {
+              event.sender.send('history:recalculateProgress', prog);
+            }
+          }
+        });
       }
     );
 

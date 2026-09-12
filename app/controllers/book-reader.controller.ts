@@ -2,6 +2,8 @@ import { BrowserWindow, ipcMain } from 'electron';
 import { StorageService } from '../database/storage.service';
 import { BookReaderSessionService } from '../services/book-reader-session.service';
 import { BookAnnotation, BookConfiguration } from '../../src/app/core/models/entities/book.model';
+import { EpubBookExtractor } from '../parser/book/epub-book-extractor';
+import { TrackerService } from '../services/tracker.service';
 
 
 export class BookReaderController {
@@ -57,6 +59,7 @@ export class BookReaderController {
         const pages = Math.max(1, payload.pages ?? book.pages ?? 1);
         const bookMark = Math.min(Math.max(0, Math.floor(payload.bookMark)), pages);
         const now = new Date().toISOString();
+        const isCompleted = bookMark >= pages;
 
         const id = this.storage.saveBook({
           ...book,
@@ -65,14 +68,57 @@ export class BookReaderController {
           chapter: payload.chapter ?? book.chapter,
           chapterDescription: payload.chapterDescription ?? book.chapterDescription,
           pages,
-          completed: bookMark >= pages,
+          completed: isCompleted,
           lastAccess: now,
           lastAlteration: now
         });
 
+        // Auto update track progress if completed
+        if (isCompleted && book.fkLibrary) {
+          try {
+            const trackerService = new TrackerService(this.storage);
+            const match = trackerService.matchTrack(
+              book.fkLibrary,
+              book.title || '',
+              book.name || ''
+            );
+            if (match.track?.id) {
+              const nextVol = match.volume !== null ? Math.max(match.track.volumesRead, match.volume) : match.track.volumesRead;
+              const nextCh = match.chapter !== null ? Math.max(match.track.chaptersRead, match.chapter) : match.track.chaptersRead;
+              if (nextVol > match.track.volumesRead || nextCh > match.track.chaptersRead) {
+                this.storage.updateTrackProgress(match.track.id, nextCh, nextVol);
+              }
+            }
+          } catch (err) {
+            console.warn('[BookReaderController] Failed to auto update track progress:', err);
+          }
+        }
+
         return this.storage.findBookById(id) || null;
       }
     );
+
+    ipcMain.handle('book:calculate-pages', async (_event, bookId: number) => {
+      const book = this.storage.findBookById(bookId);
+      if (!book?.id || !book.path) return null;
+
+      try {
+        const wordCount = EpubBookExtractor.countWords(book.path);
+        const calculatedPages = Math.max(1, Math.ceil(wordCount / 250));
+        const now = new Date().toISOString();
+
+        const id = this.storage.saveBook({
+          ...book,
+          pages: calculatedPages,
+          lastAlteration: now
+        });
+
+        return this.storage.findBookById(id) || null;
+      } catch (err) {
+        console.error('[book:calculate-pages] Error calculating pages for book:', book.path, err);
+        return book;
+      }
+    });
 
     ipcMain.handle('book:toggle-favorite', async (_event, bookId: number) => {
       const book = this.storage.findBookById(bookId);

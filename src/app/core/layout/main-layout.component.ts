@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, OnInit, DestroyRef } from '@angular/core';
+import { Component, inject, signal, computed, OnInit, DestroyRef, effect, untracked } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -177,6 +177,16 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
               </svg>
               @if (isExpanded()) { <span>Vocabulário</span> }
+            </a>
+
+            <a
+              routerLink="/trackers"
+              routerLinkActive="bg-indigo-600/15 text-indigo-400 font-semibold border-r-2 border-indigo-500"
+              class="flex items-center gap-3 px-3 py-2 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer">
+              <svg class="w-5 h-5 min-w-[1.25rem]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              @if (isExpanded()) { <span>Rastreadores (Trackers)</span> }
             </a>
 
             <a
@@ -657,7 +667,14 @@ export class MainLayoutComponent implements OnInit {
   });
 
   constructor() {
-    this.updateCounts();
+    effect(() => {
+      this.settingsService.libraries();
+      this.settingsService.mangaBasePath();
+      this.settingsService.bookBasePath();
+      untracked(() => {
+        void this.updateCounts();
+      });
+    });
   }
 
   ngOnInit(): void {
@@ -723,7 +740,8 @@ export class MainLayoutComponent implements OnInit {
       return;
     }
     this.headerMode.set('titleOnly');
-    if (path.startsWith('/statistics')) this.titleOnlyLabel.set('Estatísticas de Uso');
+    if (path.startsWith('/trackers')) this.titleOnlyLabel.set('Rastreadores de Leitura');
+    else if (path.startsWith('/statistics')) this.titleOnlyLabel.set('Estatísticas de Uso');
     else if (path.startsWith('/detail')) this.titleOnlyLabel.set('Detalhe');
     else this.titleOnlyLabel.set('Bilingual Reader');
   }

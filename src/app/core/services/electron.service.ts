@@ -20,7 +20,14 @@ import {
   VocabularySearchPage,
   VocabularyRelated,
   VocabularyImportResult,
-  Kanjax
+  Kanjax,
+  Track,
+  TrackerMatchedItem,
+  TrackerLibraryOption,
+  ExternalTrackerSearchResult,
+  ExternalTrackerUserStatus,
+  ExternalTrackerUpdatePayload,
+  TrackerAuthStatus
 } from '../models';
 
 export interface OpenFileLinkResult {
@@ -103,7 +110,18 @@ declare global {
         completed: boolean;
         volume?: string;
         dateTime: string;
+        secondsRead?: number;
+        averageTimePage?: number;
+        wordCount?: number;
+        secondsReadAutomatic?: boolean;
       }) => Promise<number>;
+      countBookWords: (filePath: string, pageStart?: number, pageEnd?: number) => Promise<number>;
+      recalculateReadingTimeBatch: (options: {
+        type: 'MANGA' | 'BOOK';
+        onlyNew: boolean;
+        avgTimePerPage: number;
+        avgTimePerWord: number;
+      }) => Promise<{ processed: number; updated: number }>;
       updateHistorySession: (update: { id: number; pageEnd: number; pages?: number; useTTS?: boolean }) => Promise<boolean>;
       endHistorySession: (payload: {
         id: number;
@@ -131,6 +149,21 @@ declare global {
         ok: boolean;
         canceled?: boolean;
         relaunching?: boolean;
+        error?: string;
+      }>;
+      dataExportJson: () => Promise<{
+        ok: boolean;
+        canceled?: boolean;
+        path?: string;
+        count?: number;
+        error?: string;
+      }>;
+      dataImportJson: () => Promise<{
+        ok: boolean;
+        canceled?: boolean;
+        path?: string;
+        count?: number;
+        total?: number;
         error?: string;
       }>;
       coversClearCache: () => Promise<{ ok: boolean; mangaRemoved: number; bookRemoved: number }>;
@@ -316,6 +349,7 @@ declare global {
         chapterDescription?: string;
         pages?: number;
       }) => Promise<Book | null>;
+      calculateBookPages: (bookId: number) => Promise<Book | null>;
       toggleBookFavorite: (bookId: number) => Promise<Book | null>;
       getBookConfiguration: (bookId: number) => Promise<BookConfiguration | null>;
       saveBookConfiguration: (config: BookConfiguration) => Promise<BookConfiguration | null>;
@@ -359,6 +393,48 @@ declare global {
         mangaId?: number | null;
         bookId?: number | null;
       }) => Promise<Vocabulary | null>;
+      listAllTracks: () => Promise<Track[]>;
+      listTracksByLibrary: (libraryId: number) => Promise<Track[]>;
+      listTrackerLibraries: () => Promise<TrackerLibraryOption[]>;
+      getMatchedMedia: (payload: {
+        libraryId: number;
+        titleRegex: string;
+        title?: string | null;
+        malId?: number | null;
+      }) => Promise<TrackerMatchedItem[]>;
+      getTrack: (id: number) => Promise<Track | null>;
+      saveTrack: (track: Partial<Track>) => Promise<Track | null>;
+      deleteTrack: (id: number) => Promise<boolean>;
+      matchTrack: (payload: {
+        libraryId: number;
+        title: string;
+        filename: string;
+        comicInfoMalId?: number | null;
+        comicInfoTitle?: string | null;
+      }) => Promise<{
+        track: Track | null;
+        volume: number | null;
+        chapter: number | null;
+        matchedBy: 'MAL_ID' | 'TITLE' | 'REGEX' | 'NONE';
+      }>;
+      updateTrackProgress: (payload: {
+        id: number;
+        chaptersRead: number;
+        volumesRead: number;
+        status?: string;
+      }) => Promise<Track | null>;
+      malGetAuthStatus: () => Promise<TrackerAuthStatus>;
+      malLogin: () => Promise<TrackerAuthStatus>;
+      malLogout: () => Promise<boolean>;
+      malSearch: (query: string, limit?: number) => Promise<ExternalTrackerSearchResult[]>;
+      malGetUserStatus: (malId: number) => Promise<ExternalTrackerUserStatus>;
+      malUpdateUserStatus: (payload: ExternalTrackerUpdatePayload) => Promise<ExternalTrackerUserStatus>;
+      anilistGetAuthStatus: () => Promise<TrackerAuthStatus>;
+      anilistLogin: () => Promise<TrackerAuthStatus>;
+      anilistLogout: () => Promise<boolean>;
+      anilistSearch: (query: string, limit?: number) => Promise<ExternalTrackerSearchResult[]>;
+      anilistGetUserStatus: (mediaId: number) => Promise<ExternalTrackerUserStatus>;
+      anilistUpdateUserStatus: (payload: ExternalTrackerUpdatePayload) => Promise<ExternalTrackerUserStatus>;
       send: (channel: string, data: any) => void;
       on: (channel: string, func: (...args: any[]) => void) => () => void;
     };
@@ -625,6 +701,10 @@ export class ElectronService {
     completed: boolean;
     volume?: string;
     dateTime: string;
+    secondsRead?: number;
+    averageTimePage?: number;
+    wordCount?: number;
+    secondsReadAutomatic?: boolean;
   }): Promise<number | null> {
     if (this.isElectron && window.electronAPI?.saveHistoryBookmarkEdit) {
       return await window.electronAPI.saveHistoryBookmarkEdit(input);
@@ -700,6 +780,33 @@ export class ElectronService {
   }> {
     if (this.isElectron && window.electronAPI?.dbRestore) {
       return await window.electronAPI.dbRestore();
+    }
+    return { ok: false, error: 'Electron IPC indisponível' };
+  }
+
+  async dataExportJson(): Promise<{
+    ok: boolean;
+    canceled?: boolean;
+    path?: string;
+    count?: number;
+    error?: string;
+  }> {
+    if (this.isElectron && window.electronAPI?.dataExportJson) {
+      return await window.electronAPI.dataExportJson();
+    }
+    return { ok: false, error: 'Electron IPC indisponível' };
+  }
+
+  async dataImportJson(): Promise<{
+    ok: boolean;
+    canceled?: boolean;
+    path?: string;
+    count?: number;
+    total?: number;
+    error?: string;
+  }> {
+    if (this.isElectron && window.electronAPI?.dataImportJson) {
+      return await window.electronAPI.dataImportJson();
     }
     return { ok: false, error: 'Electron IPC indisponível' };
   }
@@ -1082,6 +1189,13 @@ export class ElectronService {
     return null;
   }
 
+  async calculateBookPages(bookId: number): Promise<Book | null> {
+    if (this.isElectron && window.electronAPI?.calculateBookPages) {
+      return await window.electronAPI.calculateBookPages(bookId);
+    }
+    return null;
+  }
+
   async toggleBookFavorite(bookId: number): Promise<Book | null> {
     if (this.isElectron && window.electronAPI?.toggleBookFavorite) {
       return await window.electronAPI.toggleBookFavorite(bookId);
@@ -1317,6 +1431,34 @@ export class ElectronService {
     return null;
   }
 
+  async countBookWords(filePath: string, pageStart?: number, pageEnd?: number): Promise<number> {
+    if (this.isElectron && window.electronAPI?.countBookWords) {
+      return await window.electronAPI.countBookWords(filePath, pageStart, pageEnd);
+    }
+    return 0;
+  }
+
+  async recalculateReadingTimeBatch(options: {
+    type: 'MANGA' | 'BOOK';
+    onlyNew: boolean;
+    avgTimePerPage: number;
+    avgTimePerWord: number;
+  }): Promise<{ processed: number; updated: number }> {
+    if (this.isElectron && window.electronAPI?.recalculateReadingTimeBatch) {
+      return await window.electronAPI.recalculateReadingTimeBatch(options);
+    }
+    return { processed: 0, updated: 0 };
+  }
+
+  onRecalculateProgress(
+    handler: (progress: { current: number; total: number; title: string }) => void
+  ): () => void {
+    if (this.isElectron && window.electronAPI?.on) {
+      return window.electronAPI.on('history:recalculateProgress', handler);
+    }
+    return () => undefined;
+  }
+
   onExtractProgress(handler: (progress: { current: number; total: number }) => void): () => void {
     if (this.isElectron && window.electronAPI?.on) {
       return window.electronAPI.on('manga-reader:extract-progress', handler);
@@ -1329,5 +1471,179 @@ export class ElectronService {
       return window.electronAPI.on('app:navigate', handler);
     }
     return () => undefined;
+  }
+
+  /* ================= Tracker Methods ================= */
+
+  async listAllTracks(): Promise<Track[]> {
+    if (this.isElectron && window.electronAPI?.listAllTracks) {
+      return await window.electronAPI.listAllTracks();
+    }
+    return [];
+  }
+
+  async listTracksByLibrary(libraryId: number): Promise<Track[]> {
+    if (this.isElectron && window.electronAPI?.listTracksByLibrary) {
+      return await window.electronAPI.listTracksByLibrary(libraryId);
+    }
+    return [];
+  }
+
+  async listTrackerLibraries(): Promise<TrackerLibraryOption[]> {
+    if (this.isElectron && window.electronAPI?.listTrackerLibraries) {
+      return await window.electronAPI.listTrackerLibraries();
+    }
+    return [];
+  }
+
+  async getMatchedMedia(payload: {
+    libraryId: number;
+    titleRegex: string;
+    title?: string | null;
+    malId?: number | null;
+  }): Promise<TrackerMatchedItem[]> {
+    if (this.isElectron && window.electronAPI?.getMatchedMedia) {
+      return await window.electronAPI.getMatchedMedia(payload);
+    }
+    return [];
+  }
+
+  async getTrack(id: number): Promise<Track | null> {
+    if (this.isElectron && window.electronAPI?.getTrack) {
+      return await window.electronAPI.getTrack(id);
+    }
+    return null;
+  }
+
+  async saveTrack(track: Partial<Track>): Promise<Track | null> {
+    if (this.isElectron && window.electronAPI?.saveTrack) {
+      return await window.electronAPI.saveTrack(track);
+    }
+    return null;
+  }
+
+  async deleteTrack(id: number): Promise<boolean> {
+    if (this.isElectron && window.electronAPI?.deleteTrack) {
+      return await window.electronAPI.deleteTrack(id);
+    }
+    return false;
+  }
+
+  async matchTrack(payload: {
+    libraryId: number;
+    title: string;
+    filename: string;
+    comicInfoMalId?: number | null;
+    comicInfoTitle?: string | null;
+  }): Promise<{
+    track: Track | null;
+    volume: number | null;
+    chapter: number | null;
+    matchedBy: 'MAL_ID' | 'TITLE' | 'REGEX' | 'NONE';
+  }> {
+    if (this.isElectron && window.electronAPI?.matchTrack) {
+      return await window.electronAPI.matchTrack(payload);
+    }
+    return { track: null, volume: null, chapter: null, matchedBy: 'NONE' };
+  }
+
+  async updateTrackProgress(payload: {
+    id: number;
+    chaptersRead: number;
+    volumesRead: number;
+    status?: string;
+  }): Promise<Track | null> {
+    if (this.isElectron && window.electronAPI?.updateTrackProgress) {
+      return await window.electronAPI.updateTrackProgress(payload);
+    }
+    return null;
+  }
+
+  /* ================= MyAnimeList Methods ================= */
+
+  async malGetAuthStatus(): Promise<TrackerAuthStatus> {
+    if (this.isElectron && window.electronAPI?.malGetAuthStatus) {
+      return await window.electronAPI.malGetAuthStatus();
+    }
+    return { authenticated: false };
+  }
+
+  async malLogin(): Promise<TrackerAuthStatus> {
+    if (this.isElectron && window.electronAPI?.malLogin) {
+      return await window.electronAPI.malLogin();
+    }
+    return { authenticated: false };
+  }
+
+  async malLogout(): Promise<boolean> {
+    if (this.isElectron && window.electronAPI?.malLogout) {
+      return await window.electronAPI.malLogout();
+    }
+    return false;
+  }
+
+  async malSearch(query: string, limit = 20): Promise<ExternalTrackerSearchResult[]> {
+    if (this.isElectron && window.electronAPI?.malSearch) {
+      return await window.electronAPI.malSearch(query, limit);
+    }
+    return [];
+  }
+
+  async malGetUserStatus(malId: number): Promise<ExternalTrackerUserStatus> {
+    if (this.isElectron && window.electronAPI?.malGetUserStatus) {
+      return await window.electronAPI.malGetUserStatus(malId);
+    }
+    return { inList: false };
+  }
+
+  async malUpdateUserStatus(payload: ExternalTrackerUpdatePayload): Promise<ExternalTrackerUserStatus> {
+    if (this.isElectron && window.electronAPI?.malUpdateUserStatus) {
+      return await window.electronAPI.malUpdateUserStatus(payload);
+    }
+    return { inList: false };
+  }
+
+  /* ================= AniList Methods ================= */
+
+  async anilistGetAuthStatus(): Promise<TrackerAuthStatus> {
+    if (this.isElectron && window.electronAPI?.anilistGetAuthStatus) {
+      return await window.electronAPI.anilistGetAuthStatus();
+    }
+    return { authenticated: false };
+  }
+
+  async anilistLogin(): Promise<TrackerAuthStatus> {
+    if (this.isElectron && window.electronAPI?.anilistLogin) {
+      return await window.electronAPI.anilistLogin();
+    }
+    return { authenticated: false };
+  }
+
+  async anilistLogout(): Promise<boolean> {
+    if (this.isElectron && window.electronAPI?.anilistLogout) {
+      return await window.electronAPI.anilistLogout();
+    }
+    return false;
+  }
+
+  async anilistSearch(query: string, limit = 20): Promise<ExternalTrackerSearchResult[]> {
+    if (this.isElectron && window.electronAPI?.anilistSearch) {
+      return await window.electronAPI.anilistSearch(query, limit);
+    }
+    return [];
+  }
+
+  async anilistGetUserStatus(mediaId: number): Promise<ExternalTrackerUserStatus> {
+    if (this.isElectron && window.electronAPI?.anilistGetUserStatus) {
+      return await window.electronAPI.anilistGetUserStatus(mediaId);
+    }
+    return { inList: false };
+  }
+
+  async anilistUpdateUserStatus(payload: ExternalTrackerUpdatePayload): Promise<ExternalTrackerUserStatus> {
+    if (this.isElectron && window.electronAPI?.anilistUpdateUserStatus) {
+      return await window.electronAPI.anilistUpdateUserStatus(payload);
+    }
+    return { inList: false };
   }
 }

@@ -22,6 +22,7 @@ import { LlmController } from './controllers/llm.controller';
 import { AssistantController } from './controllers/assistant.controller';
 import { JapaneseController } from './controllers/japanese.controller';
 import { DatabaseMaintenanceController } from './controllers/database-maintenance.controller';
+import { TrackerController } from './controllers/tracker.controller';
 import { BookImageCoverController } from './controllers/book-image-cover.controller';
 import { MangaImageCoverController } from './controllers/manga-image-cover.controller';
 import { Telemetry } from './utils/telemetry';
@@ -164,6 +165,7 @@ app.on('ready', () => {
     ).registerIpcHandlers();
     new JapaneseController().registerIpcHandlers();
     new DatabaseMaintenanceController(storageService, () => mainWindow).registerIpcHandlers();
+    new TrackerController(storageService).registerIpcHandlers();
 
     // Same pattern as local-cover — absolute path after scheme, no privileged registration
     let localPageServeLogged = false;

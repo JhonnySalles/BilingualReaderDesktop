@@ -58,7 +58,14 @@ export class DetailService {
   /** Full bookmark edit from shared dialog (page + lastAccess + completed + History). */
   async setMangaBookmarkEdit(
     manga: Manga,
-    payload: { page: number; lastAccess: string; completed: boolean }
+    payload: {
+      page: number;
+      lastAccess: string;
+      completed: boolean;
+      secondsRead?: number;
+      secondsReadAutomatic?: boolean;
+      wordCount?: number;
+    }
   ): Promise<Manga | null> {
     if (!manga.id) return null;
     const pages = Math.max(1, manga.pages || 1);
@@ -79,7 +86,10 @@ export class DetailService {
       pages,
       completed: payload.completed,
       volume: manga.volume || '',
-      dateTime: payload.lastAccess
+      dateTime: payload.lastAccess,
+      secondsRead: payload.secondsRead,
+      secondsReadAutomatic: payload.secondsReadAutomatic,
+      wordCount: payload.wordCount
     });
     return updated;
   }
@@ -97,7 +107,14 @@ export class DetailService {
 
   async setBookBookmarkEdit(
     book: Book,
-    payload: { page: number; lastAccess: string; completed: boolean }
+    payload: {
+      page: number;
+      lastAccess: string;
+      completed: boolean;
+      secondsRead?: number;
+      secondsReadAutomatic?: boolean;
+      wordCount?: number;
+    }
   ): Promise<Book | null> {
     if (!book.id) return null;
     const pages = Math.max(1, book.pages || 1);
@@ -118,7 +135,10 @@ export class DetailService {
       pages,
       completed: payload.completed,
       volume: book.volume || '',
-      dateTime: payload.lastAccess
+      dateTime: payload.lastAccess,
+      secondsRead: payload.secondsRead,
+      secondsReadAutomatic: payload.secondsReadAutomatic,
+      wordCount: payload.wordCount
     });
     return updated;
   }

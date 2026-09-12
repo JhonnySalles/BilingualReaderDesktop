@@ -23,9 +23,11 @@ import {
   HistoryBookmarkEditInput
 } from './history.repository';
 import { StatisticsRepository } from './statistics.repository';
+import { TrackRepository } from './track.repository';
 import { Manga, MangaAnnotation } from '../../src/app/core/models/entities/manga.model';
 import { Book, BookAnnotation, BookConfiguration, BookSearchHistory } from '../../src/app/core/models/entities/book.model';
 import { LinkedFile } from '../../src/app/core/models/entities/linked-file.model';
+import { Track } from '../../src/app/core/models/entities/track.model';
 
 export class StorageService {
   private db!: Database.Database;
@@ -42,6 +44,7 @@ export class StorageService {
   public assistantHistoryRepository!: AssistantHistoryRepository;
   public historyRepository!: HistoryRepository;
   public statisticsRepository!: StatisticsRepository;
+  public trackRepository!: TrackRepository;
 
   constructor() {
     this.initDatabase();
@@ -78,6 +81,7 @@ export class StorageService {
     this.assistantHistoryRepository = new AssistantHistoryRepository(this.db);
     this.historyRepository = new HistoryRepository(this.db);
     this.statisticsRepository = new StatisticsRepository(this.db);
+    this.trackRepository = new TrackRepository(this.db);
   }
 
   /** Checkpoint WAL into the main file so a single .db copy is consistent. */
@@ -381,4 +385,47 @@ export class StorageService {
     const res = insertStmt.run(title, folderPath, type);
     return Number(res.lastInsertRowid);
   }
+
+  /* ================= Track (Reading Tracker) Methods ================= */
+
+  public getAllTracks(): Track[] {
+    return this.trackRepository.findAll();
+  }
+
+  public getTracksByLibrary(libraryId: number): Track[] {
+    return this.trackRepository.findByLibrary(libraryId);
+  }
+
+  public getTrackById(id: number): Track | null {
+    return this.trackRepository.find(id) ?? null;
+  }
+
+  public saveTrack(track: Partial<Track>): number {
+    return this.trackRepository.save(track);
+  }
+
+  public deleteTrack(id: number): void {
+    this.trackRepository.delete(id);
+  }
+
+  public updateTrackProgress(id: number, chaptersRead: number, volumesRead: number, status?: string): void {
+    this.trackRepository.updateProgress(id, chaptersRead, volumesRead, status);
+  }
+
+  public listAllLibraries(): Array<{ id: number; title: string; type: 'MANGA' | 'BOOK'; path: string }> {
+    const stmt = this.db.prepare(`
+      SELECT id, title, type, path
+      FROM Libraries
+      WHERE excluded = 0
+      ORDER BY type ASC, title ASC
+    `);
+    return stmt.all() as any[];
+  }
+
+  public getLibraryById(id: number): { id: number; title: string; type: 'MANGA' | 'BOOK'; path: string } | null {
+    const stmt = this.db.prepare(`SELECT id, title, type, path FROM Libraries WHERE id = ? LIMIT 1`);
+    const row = stmt.get(id);
+    return (row as any) ?? null;
+  }
 }
+

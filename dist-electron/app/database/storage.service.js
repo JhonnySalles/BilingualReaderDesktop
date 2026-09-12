@@ -55,6 +55,7 @@ const vocabulary_repository_1 = require("./vocabulary.repository");
 const assistant_history_repository_1 = require("./assistant-history.repository");
 const history_repository_1 = require("./history.repository");
 const statistics_repository_1 = require("./statistics.repository");
+const track_repository_1 = require("./track.repository");
 class StorageService {
     db;
     mangaRepository;
@@ -70,6 +71,7 @@ class StorageService {
     assistantHistoryRepository;
     historyRepository;
     statisticsRepository;
+    trackRepository;
     constructor() {
         this.initDatabase();
     }
@@ -99,6 +101,7 @@ class StorageService {
         this.assistantHistoryRepository = new assistant_history_repository_1.AssistantHistoryRepository(this.db);
         this.historyRepository = new history_repository_1.HistoryRepository(this.db);
         this.statisticsRepository = new statistics_repository_1.StatisticsRepository(this.db);
+        this.trackRepository = new track_repository_1.TrackRepository(this.db);
     }
     /** Checkpoint WAL into the main file so a single .db copy is consistent. */
     checkpointWal() {
@@ -323,6 +326,39 @@ class StorageService {
         const insertStmt = this.db.prepare(`INSERT INTO Libraries (title, path, type, enabled, excluded) VALUES (?, ?, ?, 1, 0)`);
         const res = insertStmt.run(title, folderPath, type);
         return Number(res.lastInsertRowid);
+    }
+    /* ================= Track (Reading Tracker) Methods ================= */
+    getAllTracks() {
+        return this.trackRepository.findAll();
+    }
+    getTracksByLibrary(libraryId) {
+        return this.trackRepository.findByLibrary(libraryId);
+    }
+    getTrackById(id) {
+        return this.trackRepository.find(id) ?? null;
+    }
+    saveTrack(track) {
+        return this.trackRepository.save(track);
+    }
+    deleteTrack(id) {
+        this.trackRepository.delete(id);
+    }
+    updateTrackProgress(id, chaptersRead, volumesRead, status) {
+        this.trackRepository.updateProgress(id, chaptersRead, volumesRead, status);
+    }
+    listAllLibraries() {
+        const stmt = this.db.prepare(`
+      SELECT id, title, type, path
+      FROM Libraries
+      WHERE excluded = 0
+      ORDER BY type ASC, title ASC
+    `);
+        return stmt.all();
+    }
+    getLibraryById(id) {
+        const stmt = this.db.prepare(`SELECT id, title, type, path FROM Libraries WHERE id = ? LIMIT 1`);
+        const row = stmt.get(id);
+        return row ?? null;
     }
 }
 exports.StorageService = StorageService;

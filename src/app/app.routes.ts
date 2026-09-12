@@ -18,6 +18,10 @@ export const routes: Routes = [
         loadComponent: () => import('./features/statistics/statistics.component').then(m => m.StatisticsComponent)
       },
       {
+        path: 'trackers',
+        loadComponent: () => import('./features/tracker/tracker-list.component').then(m => m.TrackerListComponent)
+      },
+      {
         path: 'statistics/history/:type',
         loadComponent: () =>
           import('./features/statistics/statistics-history.component').then(m => m.StatisticsHistoryComponent)

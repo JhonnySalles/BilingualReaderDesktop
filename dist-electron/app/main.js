@@ -57,6 +57,7 @@ const llm_controller_1 = require("./controllers/llm.controller");
 const assistant_controller_1 = require("./controllers/assistant.controller");
 const japanese_controller_1 = require("./controllers/japanese.controller");
 const database_maintenance_controller_1 = require("./controllers/database-maintenance.controller");
+const tracker_controller_1 = require("./controllers/tracker.controller");
 const book_image_cover_controller_1 = require("./controllers/book-image-cover.controller");
 const manga_image_cover_controller_1 = require("./controllers/manga-image-cover.controller");
 const telemetry_1 = require("./utils/telemetry");
@@ -174,6 +175,7 @@ electron_1.app.on('ready', () => {
         new assistant_controller_1.AssistantController(storageService, () => mainWindow, mangaReaderController.getSessionService()).registerIpcHandlers();
         new japanese_controller_1.JapaneseController().registerIpcHandlers();
         new database_maintenance_controller_1.DatabaseMaintenanceController(storageService, () => mainWindow).registerIpcHandlers();
+        new tracker_controller_1.TrackerController(storageService).registerIpcHandlers();
         // Same pattern as local-cover — absolute path after scheme, no privileged registration
         let localPageServeLogged = false;
         electron_1.protocol.handle('local-page', (request) => {

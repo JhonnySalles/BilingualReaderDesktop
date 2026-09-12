@@ -17,6 +17,7 @@ import {
 import { ReaderTouchConfigComponent } from '../reader-shared/reader-touch-config.component';
 import { japaneseFontOptions, westernFontOptions } from '../reader-text/book-fonts';
 import { LibraryStateService } from '../../core/services/library-state.service';
+import { ConfirmDialogService } from '../../core/services/confirm-dialog.service';
 export type { CustomLibrary };
 
 const TTS_VOICE_NORMAL_KEY = 'BOOK_READER_TTS_VOICE_NORMAL';
@@ -24,7 +25,7 @@ const TTS_VOICE_JAPANESE_KEY = 'BOOK_READER_TTS_VOICE_JAPANESE';
 const TTS_SPEED_KEY = 'BOOK_READER_TTS_SPEED';
 const TTS_SPEED_DEFAULT = 0;
 
-type SettingTab = 'manga' | 'book' | 'system' | 'ai';
+type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
 
 @Component({
   selector: 'app-settings',
@@ -74,6 +75,16 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai';
             class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold transition-all cursor-pointer hover:bg-slate-800/60">
             <span class="text-base">🤖</span>
             <span class="truncate">Inteligência Artificial (OpenRouter)</span>
+          </button>
+
+          <button 
+            (click)="activeTab.set('tracker')"
+            [class.bg-indigo-600]="activeTab() === 'tracker'"
+            [class.text-white]="activeTab() === 'tracker'"
+            [class.text-slate-400]="activeTab() !== 'tracker'"
+            class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold transition-all cursor-pointer hover:bg-slate-800/60">
+            <span class="text-base">🎯</span>
+            <span class="truncate">Rastreadores (MAL / AniList)</span>
           </button>
         </div>
 
@@ -286,6 +297,53 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai';
                       [ngModel]="settingsService.mangaDualPageCalculate()"
                       (ngModelChange)="settingsService.mangaDualPageCalculate.set($event)">
                   </label>
+                </div>
+              </div>
+
+              <!-- Reading Speed & Batch Recalculate (Manga) -->
+              <div class="bg-slate-900/80 rounded-xl p-5 border border-slate-800 space-y-4">
+                <div class="border-b border-slate-800 pb-2">
+                  <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Tempo Médio de Leitura (Mangá)</h3>
+                  <p class="text-[11px] text-slate-500 mt-0.5">Estimativa em segundos por página para calcular automaticamente tempos de leitura</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-xs text-slate-300 mb-1 font-medium">Tempo Médio por Página (segundos)</label>
+                    <div class="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="10"
+                        max="600"
+                        step="5"
+                        class="w-32 bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200"
+                        [ngModel]="settingsService.mangaAvgTimePerPage()"
+                        (ngModelChange)="settingsService.mangaAvgTimePerPage.set(+$event || 120)">
+                      <span class="text-xs text-slate-400">({{ (settingsService.mangaAvgTimePerPage() / 60).toFixed(1) }} min/pág)</span>
+                    </div>
+                  </div>
+
+                  <div class="flex flex-col justify-end gap-2">
+                    <div class="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        (click)="startRecalculateBatch('MANGA', false)"
+                        [disabled]="recalculating()"
+                        class="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-xs font-semibold text-white transition-colors cursor-pointer flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                        <span>Recalcular Todos</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        (click)="startRecalculateBatch('MANGA', true)"
+                        [disabled]="recalculating()"
+                        class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-xs font-semibold text-indigo-300 border border-indigo-500/30 transition-colors cursor-pointer flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                        <span>Calcular Novos</span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -509,6 +567,55 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai';
                     <span class="text-indigo-400 font-bold">{{ fontSize() }}px</span>
                   </div>
                   <input type="range" min="12" max="32" step="1" [value]="fontSize()" (input)="updateFontSize($event)" class="w-full accent-indigo-600 cursor-pointer">
+                </div>
+              </div>
+
+              <!-- Reading Speed & Batch Recalculate (Book) -->
+              <div class="bg-slate-900/80 rounded-xl p-5 border border-slate-800 space-y-4">
+                <div class="border-b border-slate-800 pb-2">
+                  <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Velocidade Média de Leitura (Livro)</h3>
+                  <p class="text-[11px] text-slate-500 mt-0.5">Estimativa em segundos por palavra para calcular automaticamente tempos de leitura</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-xs text-slate-300 mb-1 font-medium">Tempo por Palavra (segundos)</label>
+                    <div class="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="0.05"
+                        max="2.0"
+                        step="0.01"
+                        class="w-32 bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200"
+                        [ngModel]="settingsService.bookAvgTimePerWord()"
+                        (ngModelChange)="settingsService.bookAvgTimePerWord.set(+$event || 0.24)">
+                      <span class="text-xs text-slate-400">
+                        (~{{ Math.round(60 / (settingsService.bookAvgTimePerWord() || 0.24)) }} palavras/min)
+                      </span>
+                    </div>
+                  </div>
+
+                  <div class="flex flex-col justify-end gap-2">
+                    <div class="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        (click)="startRecalculateBatch('BOOK', false)"
+                        [disabled]="recalculating()"
+                        class="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-xs font-semibold text-white transition-colors cursor-pointer flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                        <span>Recalcular Todos</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        (click)="startRecalculateBatch('BOOK', true)"
+                        [disabled]="recalculating()"
+                        class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-xs font-semibold text-indigo-300 border border-indigo-500/30 transition-colors cursor-pointer flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                        <span>Calcular Novos</span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -797,6 +904,14 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai';
                     class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-semibold rounded-lg text-slate-300 border border-slate-700 transition-colors cursor-pointer">
                     📥 Restaurar Backup
                   </button>
+                  <button type="button" (click)="onExportDataJson()"
+                    class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-xs font-semibold rounded-lg text-white transition-colors cursor-pointer">
+                    📤 Exportar Dados (JSON)
+                  </button>
+                  <button type="button" (click)="onImportDataJson()"
+                    class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-semibold rounded-lg text-slate-300 border border-slate-700 transition-colors cursor-pointer">
+                    📥 Importar Dados (JSON)
+                  </button>
                   <button type="button" (click)="onClearCoverCache()"
                     class="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-xs font-semibold rounded-lg transition-colors cursor-pointer">
                     🗑️ Limpar Capas em Cache
@@ -835,7 +950,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai';
 
                 <div class="rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-2 text-[11px] text-slate-400 space-y-1">
                   <div class="font-semibold text-slate-300">Ferramentas no sistema</div>
-                  @if (converterAdapters()?.length) {
+                  @if (converterAdapters().length) {
                     @for (a of converterAdapters(); track a.id) {
                       <div>
                         {{ a.label }}:
@@ -1123,6 +1238,244 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai';
             </section>
           }
 
+          <!-- ================= TAB: TRACKER (MAL / ANILIST) ================= -->
+          @if (activeTab() === 'tracker') {
+            <section class="space-y-6">
+              <div class="border-b border-slate-800 pb-3">
+                <h2 class="text-lg font-bold text-indigo-400">Rastreadores & Sincronização Externa</h2>
+                <p class="text-xs text-slate-400 mt-1">
+                  Gerencie contas, credenciais de acesso e sincronização de progresso com MyAnimeList e AniList
+                </p>
+              </div>
+
+              <!-- Two Main Tracker Cards Grid -->
+              <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                
+                <!-- CARD 1: MyAnimeList (MAL) -->
+                <div class="bg-slate-900/80 rounded-2xl p-5 border border-slate-800 flex flex-col justify-between space-y-4 hover:border-slate-700/80 transition-all">
+                  <div class="space-y-4">
+                    <!-- Top header of card -->
+                    <div class="flex items-start justify-between gap-3">
+                      <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-[#2e51a2] flex items-center justify-center text-white font-black text-xs shadow-lg shadow-[#2e51a2]/30 shrink-0">
+                          MAL
+                        </div>
+                        <div>
+                          <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+                            MyAnimeList
+                          </h3>
+                          <span class="text-[10px] text-slate-400">myanimelist.net</span>
+                        </div>
+                      </div>
+
+                      @if (malStatus().connected) {
+                        <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5">
+                          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                          Conectado
+                        </span>
+                      } @else {
+                        <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-800 text-slate-400 border border-slate-700">
+                          Não Conectado
+                        </span>
+                      }
+                    </div>
+
+                    <p class="text-[11px] text-slate-400 leading-relaxed">
+                      Sincronize automaticamente capítulos e volumes de mangás lidos com a sua lista pessoal do MyAnimeList.
+                    </p>
+
+                    <!-- Info Items -->
+                    <div class="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800/80 space-y-2 text-xs">
+                      <div class="flex items-center justify-between text-[11px]">
+                        <span class="text-slate-400 font-medium">Usuário Conectado:</span>
+                        <span class="font-semibold" [class.text-indigo-300]="malStatus().connected" [class.text-slate-500]="!malStatus().connected">
+                          {{ malStatus().username || 'Nenhum' }}
+                        </span>
+                      </div>
+                      <div class="flex items-center justify-between text-[11px]">
+                        <span class="text-slate-400 font-medium">Última Sincronização:</span>
+                        <span class="text-slate-300 font-mono text-[10px]">
+                          {{ malStatus().lastSync || 'Nunca' }}
+                        </span>
+                      </div>
+                      <div class="flex items-center justify-between text-[11px]">
+                        <span class="text-slate-400 font-medium">Escopo de Mídia:</span>
+                        <span class="text-slate-300">Mangás, Manhwas & Novels</span>
+                      </div>
+                    </div>
+
+                    <!-- Config Options -->
+                    <div class="pt-1 space-y-2.5 text-xs text-slate-300">
+                      <label class="flex items-center justify-between cursor-pointer">
+                        <span class="text-[11px]">Sincronizar ao terminar leitura de capítulo</span>
+                        <input type="checkbox" checked class="w-4 h-4 accent-indigo-600 rounded">
+                      </label>
+                      <label class="flex items-center justify-between cursor-pointer">
+                        <span class="text-[11px]">Atualizar pontuação (score) no MAL</span>
+                        <input type="checkbox" checked class="w-4 h-4 accent-indigo-600 rounded">
+                      </label>
+                    </div>
+                  </div>
+
+                  <!-- Actions -->
+                  <div class="pt-3 border-t border-slate-800 flex items-center justify-between gap-2.5">
+                    @if (malStatus().connected) {
+                      <button
+                        type="button"
+                        (click)="onLogoutMal()"
+                        class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-colors cursor-pointer">
+                        Desconectar
+                      </button>
+                      <button
+                        type="button"
+                        (click)="onSyncMal()"
+                        class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shadow-md shadow-indigo-600/20">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                        <span>Sincronizar Agora</span>
+                      </button>
+                    } @else {
+                      <button
+                        type="button"
+                        (click)="onLoginMal()"
+                        class="w-full py-2.5 rounded-xl bg-[#2e51a2] hover:bg-[#254285] text-white text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-2 shadow-lg shadow-[#2e51a2]/25">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/></svg>
+                        <span>Conectar MyAnimeList</span>
+                      </button>
+                    }
+                  </div>
+                </div>
+
+                <!-- CARD 2: AniList (AL) -->
+                <div class="bg-slate-900/80 rounded-2xl p-5 border border-slate-800 flex flex-col justify-between space-y-4 hover:border-slate-700/80 transition-all">
+                  <div class="space-y-4">
+                    <!-- Top header of card -->
+                    <div class="flex items-start justify-between gap-3">
+                      <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-[#02a9ff] flex items-center justify-center text-white font-black text-xs shadow-lg shadow-[#02a9ff]/30 shrink-0">
+                          AL
+                        </div>
+                        <div>
+                          <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+                            AniList
+                          </h3>
+                          <span class="text-[10px] text-slate-400">anilist.co</span>
+                        </div>
+                      </div>
+
+                      @if (aniListStatus().connected) {
+                        <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5">
+                          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                          Conectado
+                        </span>
+                      } @else {
+                        <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-800 text-slate-400 border border-slate-700">
+                          Não Conectado
+                        </span>
+                      }
+                    </div>
+
+                    <p class="text-[11px] text-slate-400 leading-relaxed">
+                      Conecte sua conta do AniList via GraphQL para rastreamento em tempo real de suas leituras e pontuações.
+                    </p>
+
+                    <!-- Info Items -->
+                    <div class="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800/80 space-y-2 text-xs">
+                      <div class="flex items-center justify-between text-[11px]">
+                        <span class="text-slate-400 font-medium">Usuário Conectado:</span>
+                        <span class="font-semibold" [class.text-sky-300]="aniListStatus().connected" [class.text-slate-500]="!aniListStatus().connected">
+                          {{ aniListStatus().username || 'Nenhum' }}
+                        </span>
+                      </div>
+                      <div class="flex items-center justify-between text-[11px]">
+                        <span class="text-slate-400 font-medium">Última Sincronização:</span>
+                        <span class="text-slate-300 font-mono text-[10px]">
+                          {{ aniListStatus().lastSync || 'Nunca' }}
+                        </span>
+                      </div>
+                      <div class="flex items-center justify-between text-[11px]">
+                        <span class="text-slate-400 font-medium">Escopo de Mídia:</span>
+                        <span class="text-slate-300">Mangás, Manhwas & Light Novels</span>
+                      </div>
+                    </div>
+
+                    <!-- Config Options -->
+                    <div class="pt-1 space-y-2.5 text-xs text-slate-300">
+                      <label class="flex items-center justify-between cursor-pointer">
+                        <span class="text-[11px]">Sincronizar ao terminar leitura de capítulo</span>
+                        <input type="checkbox" checked class="w-4 h-4 accent-indigo-600 rounded">
+                      </label>
+                      <label class="flex items-center justify-between cursor-pointer">
+                        <span class="text-[11px]">Atualizar formato de notas avançado (AniList)</span>
+                        <input type="checkbox" checked class="w-4 h-4 accent-indigo-600 rounded">
+                      </label>
+                    </div>
+                  </div>
+
+                  <!-- Actions -->
+                  <div class="pt-3 border-t border-slate-800 flex items-center justify-between gap-2.5">
+                    @if (aniListStatus().connected) {
+                      <button
+                        type="button"
+                        (click)="onLogoutAniList()"
+                        class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-colors cursor-pointer">
+                        Desconectar
+                      </button>
+                      <button
+                        type="button"
+                        (click)="onSyncAniList()"
+                        class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shadow-md shadow-indigo-600/20">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                        <span>Sincronizar Agora</span>
+                      </button>
+                    } @else {
+                      <button
+                        type="button"
+                        (click)="onLoginAniList()"
+                        class="w-full py-2.5 rounded-xl bg-[#02a9ff] hover:bg-[#0092dd] text-white text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-2 shadow-lg shadow-[#02a9ff]/25">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/></svg>
+                        <span>Conectar AniList</span>
+                      </button>
+                    }
+                  </div>
+                </div>
+
+              </div>
+
+              <!-- General Tracker Config -->
+              <div class="bg-slate-900/80 rounded-2xl p-5 border border-slate-800 space-y-4">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Preferências Gerais de Rastreamento</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-xs text-slate-300 mb-1 font-medium">Provedor Principal Preferencial</label>
+                    <select class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200 cursor-pointer">
+                      <option value="myanimelist">MyAnimeList</option>
+                      <option value="anilist">AniList</option>
+                      <option value="both">Ambos (Sincronização Dupla)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-xs text-slate-300 mb-1 font-medium">Modo de Correspondência Automática</label>
+                    <select class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200 cursor-pointer">
+                      <option value="cascade">Cascata: ID > Título > Regex</option>
+                      <option value="strict">Apenas Correspondência Exata (ID/Regex)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="pt-3 border-t border-slate-800/80 space-y-3">
+                  <label class="flex items-center justify-between text-xs text-slate-300 cursor-pointer">
+                    <span>Exibir notificações no aplicativo ao sincronizar status</span>
+                    <input type="checkbox" checked class="w-4 h-4 accent-indigo-600 rounded">
+                  </label>
+                  <label class="flex items-center justify-between text-xs text-slate-300 cursor-pointer">
+                    <span>Rastrear capítulos lidos em modo offline e sincronizar ao reconectar</span>
+                    <input type="checkbox" checked class="w-4 h-4 accent-indigo-600 rounded">
+                  </label>
+                </div>
+              </div>
+            </section>
+          }
+
           @if (shareMark.toastMessage() || localToast()) {
             <div
               class="fixed bottom-6 right-8 z-50 max-w-sm px-4 py-3 rounded-xl border shadow-xl text-xs font-medium flex items-center gap-3"
@@ -1222,6 +1575,32 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai';
         [type]="touchConfigType()"
         [coverUrl]="null"
         (close)="showTouchConfig.set(false)" />
+
+      <!-- Progress Modal for Reading Time Batch Recalculation -->
+      @if (recalculating()) {
+        <div class="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
+          <div class="w-full max-w-sm rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl p-6 flex flex-col items-center text-center space-y-4">
+            <div class="w-12 h-12 rounded-full bg-indigo-600/20 text-indigo-400 flex items-center justify-center">
+              <svg class="w-6 h-6 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            </div>
+            <div>
+              <h3 class="text-sm font-bold text-slate-100">Calculando tempos de leitura</h3>
+              <p class="text-xs text-slate-400 mt-1 truncate max-w-[18rem]">{{ recalculateTitle() || 'Processando registros...' }}</p>
+            </div>
+            <div class="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-800">
+              <div
+                class="h-full bg-indigo-600 transition-all duration-200"
+                [style.width.%]="recalculatePercent()"></div>
+            </div>
+            <p class="text-[11px] text-slate-500 font-medium">
+              {{ recalculateCurrent() }} de {{ recalculateTotal() }} registros ({{ recalculatePercent() }}%)
+            </p>
+          </div>
+        </div>
+      }
     </div>
   `
 })
@@ -1231,10 +1610,12 @@ export class SettingsComponent implements OnInit {
   settingsService = inject(SettingsService);
   shareMark = inject(ShareMarkUiService);
   private libraryState = inject(LibraryStateService);
+  private confirmDialog = inject(ConfirmDialogService);
 
   MangaFitMode = MangaFitMode;
   MangaScrollingMode = MangaScrollingMode;
   OrderType = OrderType;
+  Math = Math;
   pageTransitionOptions = PAGE_TRANSITION_OPTIONS;
   pageTransitionLabels = PAGE_TRANSITION_LABELS_PT;
   llmMangaModels = [...LLM_MANGA_MODEL_OPTIONS];
@@ -1254,6 +1635,17 @@ export class SettingsComponent implements OnInit {
     Array<{ id: string; label: string; available: boolean; detail?: string | null }>
   >([]);
   private localToastTimer: ReturnType<typeof setTimeout> | null = null;
+
+  // Reading Time Batch Recalculate State
+  recalculating = signal(false);
+  recalculateCurrent = signal(0);
+  recalculateTotal = signal(0);
+  recalculateTitle = signal('');
+  recalculatePercent = computed(() => {
+    const total = this.recalculateTotal();
+    if (total <= 0) return 0;
+    return Math.min(100, Math.round((this.recalculateCurrent() / total) * 100));
+  });
 
   // Base Directory Signals
   mangaBasePath = computed(() => this.settingsService.mangaBasePath());
@@ -1298,14 +1690,38 @@ export class SettingsComponent implements OnInit {
   }
 
   async onRestoreBackup(): Promise<void> {
-    const ok = window.confirm(
-      'Restaurar um backup substitui o banco atual e reinicia o aplicativo. Continuar?'
-    );
+    const ok = await this.confirmDialog.confirm({
+      title: 'Restaurar Backup',
+      message: 'Restaurar um backup substituirá todo o banco de dados atual e reiniciará o aplicativo.\n\nDeseja continuar?',
+      confirmText: 'Restaurar',
+      confirmVariant: 'warning',
+      icon: 'warning'
+    });
     if (!ok) return;
     const result = await this.electronService.dbRestore();
     if (result.canceled) return;
     if (!result.ok) {
       this.showLocalToast(result.error || 'Falha ao restaurar backup', 'error');
+    }
+  }
+
+  async onExportDataJson(): Promise<void> {
+    const result = await this.electronService.dataExportJson();
+    if (result.canceled) return;
+    if (result.ok) {
+      this.showLocalToast(`Exportados ${result.count ?? 0} itens para JSON com sucesso!`, 'success');
+    } else {
+      this.showLocalToast(result.error || 'Falha ao exportar dados em JSON', 'error');
+    }
+  }
+
+  async onImportDataJson(): Promise<void> {
+    const result = await this.electronService.dataImportJson();
+    if (result.canceled) return;
+    if (result.ok) {
+      this.showLocalToast(`Importados ${result.count ?? 0} de ${result.total ?? 0} itens do JSON com sucesso!`, 'success');
+    } else {
+      this.showLocalToast(result.error || 'Falha ao importar dados do JSON', 'error');
     }
   }
 
@@ -1322,9 +1738,13 @@ export class SettingsComponent implements OnInit {
   }
 
   async onClearStatisticsHistory(): Promise<void> {
-    const ok = window.confirm(
-      'Isso apaga todo o histórico de leitura usado nas estatísticas. Marcadores e progresso dos arquivos não são alterados. Continuar?'
-    );
+    const ok = await this.confirmDialog.confirm({
+      title: 'Limpar Histórico de Estatísticas',
+      message: 'Isso apagará todo o histórico de leitura usado nas estatísticas.\n\nMarcadores e progresso de leitura dos arquivos NÃO serão alterados. Deseja continuar?',
+      confirmText: 'Limpar Histórico',
+      confirmVariant: 'danger',
+      icon: 'danger'
+    });
     if (!ok) return;
     const result = await this.electronService.statisticsClearHistory();
     if (result.ok) {
@@ -1593,7 +2013,7 @@ export class SettingsComponent implements OnInit {
 
   saveLibrary(): void {
     if (!this.libraryForm.title || !this.libraryForm.path) {
-      alert('Por favor, preencha o título e o caminho da biblioteca.');
+      this.showLocalToast('Por favor, preencha o título e o caminho da biblioteca.', 'error');
       return;
     }
 
@@ -1606,11 +2026,18 @@ export class SettingsComponent implements OnInit {
     this.closeLibraryModal();
   }
 
-  deleteLibrary(id: string, event?: MouseEvent): void {
+  async deleteLibrary(id: string, event?: MouseEvent): Promise<void> {
     if (event) {
       event.stopPropagation();
     }
-    if (confirm('Deseja remover esta biblioteca da lista?')) {
+    const ok = await this.confirmDialog.confirm({
+      title: 'Remover Biblioteca',
+      message: 'Deseja remover esta biblioteca da lista?\n\nOs arquivos no seu disco rígido não serão apagados.',
+      confirmText: 'Remover',
+      confirmVariant: 'danger',
+      icon: 'danger'
+    });
+    if (ok) {
       this.settingsService.deleteLibrary(id);
     }
   }
@@ -1626,5 +2053,93 @@ export class SettingsComponent implements OnInit {
   updateFontSize(event: Event): void {
     const val = parseInt((event.target as HTMLInputElement).value, 10);
     this.fontSize.set(val);
+  }
+
+  async startRecalculateBatch(type: 'MANGA' | 'BOOK', onlyNew: boolean): Promise<void> {
+    const typeLabel = type === 'MANGA' ? 'mangás' : 'livros';
+    const actionLabel = onlyNew
+      ? `Calcular tempos de leitura para novos registros de ${typeLabel}?`
+      : `Recalcular tempos para TODOS os registros de ${typeLabel}?\n\n(Será aplicado apenas se o novo tempo for superior ao atual)`;
+
+    const ok = await this.confirmDialog.confirm({
+      title: 'Recalcular Tempos de Leitura',
+      message: actionLabel,
+      confirmText: 'Recalcular',
+      confirmVariant: 'warning',
+      icon: 'warning'
+    });
+    if (!ok) return;
+
+    this.recalculating.set(true);
+    this.recalculateCurrent.set(0);
+    this.recalculateTotal.set(0);
+    this.recalculateTitle.set('Iniciando...');
+
+    const removeListener = this.electronService.onRecalculateProgress(p => {
+      this.recalculateCurrent.set(p.current);
+      this.recalculateTotal.set(p.total);
+      this.recalculateTitle.set(p.title);
+    });
+
+    try {
+      const result = await this.electronService.recalculateReadingTimeBatch({
+        type,
+        onlyNew,
+        avgTimePerPage: this.settingsService.mangaAvgTimePerPage() || 120,
+        avgTimePerWord: this.settingsService.bookAvgTimePerWord() || 0.24
+      });
+
+      this.showLocalToast(
+        `Recálculo concluído: ${result.updated} de ${result.processed} registros atualizados.`,
+        'success'
+      );
+    } catch (e) {
+      console.error('Error recalculating reading time batch', e);
+      this.showLocalToast('Erro ao recalcular tempos de leitura.', 'error');
+    } finally {
+      removeListener();
+      this.recalculating.set(false);
+    }
+  }
+
+  // ================= Tracker Authentication & Sync State =================
+  malStatus = signal<{ connected: boolean; username: string | null; lastSync: string | null }>({
+    connected: false,
+    username: null,
+    lastSync: null
+  });
+
+  aniListStatus = signal<{ connected: boolean; username: string | null; lastSync: string | null }>({
+    connected: false,
+    username: null,
+    lastSync: null
+  });
+
+  onLoginMal(): void {
+    this.showLocalToast('Autenticação com MyAnimeList será disponibilizada em breve!', 'info');
+  }
+
+  onLogoutMal(): void {
+    this.malStatus.set({ connected: false, username: null, lastSync: null });
+    this.showLocalToast('Conta do MyAnimeList desconectada.', 'info');
+  }
+
+  onSyncMal(): void {
+    this.malStatus.update(s => ({ ...s, lastSync: new Date().toLocaleString('pt-BR') }));
+    this.showLocalToast('Sincronização com MyAnimeList solicitada com sucesso!', 'success');
+  }
+
+  onLoginAniList(): void {
+    this.showLocalToast('Autenticação com AniList será disponibilizada em breve!', 'info');
+  }
+
+  onLogoutAniList(): void {
+    this.aniListStatus.set({ connected: false, username: null, lastSync: null });
+    this.showLocalToast('Conta do AniList desconectada.', 'info');
+  }
+
+  onSyncAniList(): void {
+    this.aniListStatus.update(s => ({ ...s, lastSync: new Date().toLocaleString('pt-BR') }));
+    this.showLocalToast('Sincronização com AniList solicitada com sucesso!', 'success');
   }
 }

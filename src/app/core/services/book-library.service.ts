@@ -80,7 +80,14 @@ export class BookLibraryService {
   /** Apply bookmark popup: page, completed, lastAccess + History session. */
   public async updateBookmark(
     book: Book,
-    payload: { page: number; lastAccess: string; completed: boolean }
+    payload: {
+      page: number;
+      lastAccess: string;
+      completed: boolean;
+      secondsRead?: number;
+      secondsReadAutomatic?: boolean;
+      wordCount?: number;
+    }
   ): Promise<Book | null> {
     if (!window.electronAPI?.saveBook || !book.id) return null;
     const pages = Math.max(1, book.pages || 1);
@@ -102,7 +109,10 @@ export class BookLibraryService {
         pages,
         completed: payload.completed,
         volume: book.volume || '',
-        dateTime: payload.lastAccess
+        dateTime: payload.lastAccess,
+        secondsRead: payload.secondsRead,
+        secondsReadAutomatic: payload.secondsReadAutomatic,
+        wordCount: payload.wordCount
       });
     }
     if (updated) {

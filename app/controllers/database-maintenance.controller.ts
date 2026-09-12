@@ -5,6 +5,7 @@ import { StorageService } from '../database/storage.service';
 import { MangaImageCoverController } from './manga-image-cover.controller';
 import { BookImageCoverController } from './book-image-cover.controller';
 import { GeneralConsts } from '../utils/constants';
+import { DataExportImportService } from '../services/data-export-import.service';
 
 function formatBackupStamp(date = new Date()): string {
   const pad = (n: number) => String(n).padStart(2, '0');
@@ -34,12 +35,19 @@ function clearDirContents(dir: string): number {
 }
 
 export class DatabaseMaintenanceController {
+  private dataExportImportService: DataExportImportService;
+
   constructor(
     private storage: StorageService,
     private getWindow: () => BrowserWindow | null
-  ) {}
+  ) {
+    this.dataExportImportService = new DataExportImportService(this.storage, this.getWindow);
+  }
 
   registerIpcHandlers(): void {
+    ipcMain.handle('data:export-json', () => this.dataExportImportService.exportToJson());
+    ipcMain.handle('data:import-json', () => this.dataExportImportService.importFromJson());
+
     ipcMain.handle('db:backup', async () => {
       const win = this.getWindow();
       if (!win) return { ok: false, canceled: true };

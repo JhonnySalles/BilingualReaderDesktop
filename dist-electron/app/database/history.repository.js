@@ -23,7 +23,9 @@ class HistoryRepository extends base_repository_1.BaseRepository {
             seconds_read: row.seconds_read ?? 0,
             average_time_page: row.average_time_page ?? 0,
             use_tts: row.use_tts ?? 0,
-            notified: row.notified ?? 0
+            notified: row.notified ?? 0,
+            word_count: row.word_count ?? 0,
+            seconds_read_automatic: row.seconds_read_automatic ?? 0
         };
     }
     find(id) {
@@ -37,23 +39,28 @@ class HistoryRepository extends base_repository_1.BaseRepository {
       INSERT INTO History (
         id_library, id_reference, type, page_start, page_end, pages, completed,
         volume, chapters_read, date_time_start, date_time_end, seconds_read,
-        average_time_page, use_tts, notified
-      ) VALUES (?, ?, ?, ?, ?, ?, 0, ?, 0, ?, ?, 0, 0, 0, 0)
+        average_time_page, use_tts, notified, word_count, seconds_read_automatic
+      ) VALUES (?, ?, ?, ?, ?, ?, 0, ?, 0, ?, ?, 0, 0, 0, 0, ?, ?)
     `);
-        const result = stmt.run(input.fkLibrary ?? 0, input.fkReference, input.type, input.pageStart ?? 0, input.pageStart ?? 0, input.pages ?? 1, input.volume ?? '', now, now);
+        const result = stmt.run(input.fkLibrary ?? 0, input.fkReference, input.type, input.pageStart ?? 0, input.pageStart ?? 0, input.pages ?? 1, input.volume ?? '', now, now, input.wordCount ?? 0, input.secondsReadAutomatic ? 1 : 0);
         return Number(result.lastInsertRowid);
     }
     /** Manual bookmark edit from library/detail popup (Android PopupBookMark parity). */
     saveBookmarkEdit(input) {
         const when = input.dateTime || new Date().toISOString();
+        const secondsRead = input.secondsRead ?? 0;
+        const pagesDelta = Math.max(1, input.pageEnd - input.pageStart);
+        const averageTimePage = input.averageTimePage ?? (secondsRead > 0 ? Math.floor(secondsRead / pagesDelta) : 0);
+        const wordCount = input.wordCount ?? 0;
+        const secondsReadAutomatic = input.secondsReadAutomatic ?? false ? 1 : 0;
         const stmt = this.db.prepare(`
       INSERT INTO History (
         id_library, id_reference, type, page_start, page_end, pages, completed,
         volume, chapters_read, date_time_start, date_time_end, seconds_read,
-        average_time_page, use_tts, notified
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, 0, 0, 0, 0)
+        average_time_page, use_tts, notified, word_count, seconds_read_automatic
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, 0, 0, ?, ?)
     `);
-        const result = stmt.run(input.fkLibrary ?? 0, input.fkReference, input.type, input.pageStart ?? 0, input.pageEnd ?? 0, input.pages ?? 1, input.completed ? 1 : 0, input.volume ?? '', when, when);
+        const result = stmt.run(input.fkLibrary ?? 0, input.fkReference, input.type, input.pageStart ?? 0, input.pageEnd ?? 0, input.pages ?? 1, input.completed ? 1 : 0, input.volume ?? '', when, when, secondsRead, averageTimePage, wordCount, secondsReadAutomatic);
         return Number(result.lastInsertRowid);
     }
     updateSession(update) {
@@ -69,14 +76,19 @@ class HistoryRepository extends base_repository_1.BaseRepository {
         const secondsRead = Math.max(0, Math.floor((endMs - startMs) / 1000));
         const pagesDelta = Math.max(1, pageEnd - existing.page_start);
         const averageTimePage = Math.floor(secondsRead / pagesDelta);
+        const wordCount = update.wordCount ?? existing.word_count ?? 0;
+        const secondsReadAutomatic = update.secondsReadAutomatic !== undefined
+            ? (update.secondsReadAutomatic ? 1 : 0)
+            : (existing.seconds_read_automatic ?? 0);
         const stmt = this.db.prepare(`
       UPDATE History SET
         page_end = ?, pages = ?, completed = ?,
         date_time_end = ?, seconds_read = ?, average_time_page = ?,
-        use_tts = CASE WHEN ? = 1 THEN 1 ELSE use_tts END
+        use_tts = CASE WHEN ? = 1 THEN 1 ELSE use_tts END,
+        word_count = ?, seconds_read_automatic = ?
       WHERE id = ?
     `);
-        stmt.run(pageEnd, pages, completed, now, secondsRead, averageTimePage, update.useTTS ? 1 : 0, update.id);
+        stmt.run(pageEnd, pages, completed, now, secondsRead, averageTimePage, update.useTTS ? 1 : 0, wordCount, secondsReadAutomatic, update.id);
     }
     findOpenSession(type, fkReference) {
         const stmt = this.db.prepare(`
@@ -96,16 +108,43 @@ class HistoryRepository extends base_repository_1.BaseRepository {
     `);
         return stmt.all(type, fkReference).map((row) => this.mapRow(row));
     }
+    findAllByType(type) {
+        const stmt = this.db.prepare(`
+      SELECT * FROM History
+      WHERE type = ?
+      ORDER BY date_time_start ASC
+    `);
+        return stmt.all(type).map((row) => this.mapRow(row));
+    }
+    findByTypeNotAutomatic(type) {
+        const stmt = this.db.prepare(`
+      SELECT * FROM History
+      WHERE type = ? AND (seconds_read_automatic = 0 OR seconds_read_automatic IS NULL)
+      ORDER BY date_time_start ASC
+    `);
+        return stmt.all(type).map((row) => this.mapRow(row));
+    }
+    updateHistoryCalculatedTime(id, secondsRead, averageTimePage, wordCount, secondsReadAutomatic) {
+        const stmt = this.db.prepare(`
+      UPDATE History SET
+        seconds_read = ?,
+        average_time_page = ?,
+        word_count = ?,
+        seconds_read_automatic = ?
+      WHERE id = ?
+    `);
+        stmt.run(secondsRead, averageTimePage, wordCount, secondsReadAutomatic, id);
+    }
     /** Insert a completed session received from cloud sync (notified = 0). */
     insertSharedSession(input) {
         const stmt = this.db.prepare(`
       INSERT INTO History (
         id_library, id_reference, type, page_start, page_end, pages, completed,
         volume, chapters_read, date_time_start, date_time_end, seconds_read,
-        average_time_page, use_tts, notified
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+        average_time_page, use_tts, notified, word_count, seconds_read_automatic
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
     `);
-        const result = stmt.run(input.fkLibrary ?? 0, input.fkReference, input.type, input.pageStart ?? 0, input.pageEnd ?? 0, input.pages ?? 1, input.completed ? 1 : 0, input.volume ?? '', input.chaptersRead ?? 0, input.dateTimeStart, input.dateTimeEnd, input.secondsRead ?? 0, input.averageTimeByPage ?? 0, input.useTTS ? 1 : 0);
+        const result = stmt.run(input.fkLibrary ?? 0, input.fkReference, input.type, input.pageStart ?? 0, input.pageEnd ?? 0, input.pages ?? 1, input.completed ? 1 : 0, input.volume ?? '', input.chaptersRead ?? 0, input.dateTimeStart, input.dateTimeEnd, input.secondsRead ?? 0, input.averageTimeByPage ?? 0, input.useTTS ? 1 : 0, input.wordCount ?? 0, input.secondsReadAutomatic ? 1 : 0);
         return Number(result.lastInsertRowid);
     }
     listYears(type) {

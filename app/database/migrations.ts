@@ -13,48 +13,8 @@ export class MigrationsManager {
     if (currentVersion === 0) {
       this.createInitialSchema();
       this.seedInitialData();
-      this.db.pragma('user_version = 20');
+      this.db.pragma('user_version = 1');
       return;
-    }
-
-    if (currentVersion < 2) {
-      this.migrate1To2();
-      this.db.pragma('user_version = 2');
-    }
-    if (currentVersion < 3) {
-      this.migrate2To3();
-      this.db.pragma('user_version = 3');
-    }
-    if (currentVersion < 4) {
-      this.migrate3To4();
-      this.db.pragma('user_version = 4');
-    }
-    if (currentVersion < 5) {
-      this.migrate4To5();
-      this.db.pragma('user_version = 5');
-    }
-    if (currentVersion < 15) {
-      this.db.pragma('user_version = 15');
-    }
-    if (currentVersion < 16) {
-      this.migrate15To16();
-      this.db.pragma('user_version = 16');
-    }
-    if (currentVersion < 17) {
-      this.migrate16To17();
-      this.db.pragma('user_version = 17');
-    }
-    if (currentVersion < 18) {
-      this.migrate17To18();
-      this.db.pragma('user_version = 18');
-    }
-    if (currentVersion < 19) {
-      this.migrate18To19();
-      this.db.pragma('user_version = 19');
-    }
-    if (currentVersion < 20) {
-      this.migrate19To20();
-      this.db.pragma('user_version = 20');
     }
   }
 
@@ -290,7 +250,9 @@ export class MigrationsManager {
         seconds_read INTEGER NOT NULL DEFAULT 0,
         average_time_page INTEGER NOT NULL DEFAULT 0,
         use_tts INTEGER NOT NULL DEFAULT 0,
-        notified INTEGER NOT NULL DEFAULT 0
+        notified INTEGER NOT NULL DEFAULT 0,
+        word_count INTEGER NOT NULL DEFAULT 0,
+        seconds_read_automatic INTEGER NOT NULL DEFAULT 0
       );
 
       CREATE INDEX IF NOT EXISTS index_History_reference_library ON History(id_reference, id_library);
@@ -334,6 +296,28 @@ export class MigrationsManager {
       );
 
       CREATE INDEX IF NOT EXISTS idx_pages_link_file ON PagesLink(id_file);
+
+      CREATE TABLE IF NOT EXISTS Track (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        malId INTEGER,
+        aniId INTEGER,
+        id_library INTEGER NOT NULL,
+        titleRegex TEXT NOT NULL,
+        title TEXT,
+        totalVolumes INTEGER,
+        totalChapters INTEGER,
+        status TEXT,
+        score REAL,
+        scoreDate TEXT,
+        chaptersRead INTEGER NOT NULL DEFAULT 0,
+        volumesRead INTEGER NOT NULL DEFAULT 0,
+        lastSyncDate TEXT,
+        FOREIGN KEY (id_library) REFERENCES Libraries (id) ON DELETE CASCADE
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_track_library ON Track(id_library);
+      CREATE INDEX IF NOT EXISTS idx_track_malId ON Track(malId);
+      CREATE INDEX IF NOT EXISTS idx_track_aniId ON Track(aniId);
     `);
   }
 
@@ -397,183 +381,5 @@ export class MigrationsManager {
     } catch (e) {
       console.error(`Error executing batch SQL from ${filePath}:`, e);
     }
-  }
-
-  private migrate1To2(): void {
-    this.db.exec(`
-      CREATE TABLE IF NOT EXISTS MangaMark (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        id_manga INTEGER NOT NULL,
-        page INTEGER NOT NULL,
-        pages INTEGER NOT NULL,
-        type TEXT NOT NULL,
-        chapter TEXT NOT NULL,
-        folder TEXT NOT NULL,
-        annotation TEXT NOT NULL,
-        alteration TEXT NOT NULL,
-        created TEXT NOT NULL
-      );
-
-      CREATE INDEX IF NOT EXISTS index_MangaMark_id_manga_chapter ON MangaMark(id_manga, chapter);
-    `);
-
-    try {
-      this.db.exec(`ALTER TABLE Manga ADD COLUMN chapters_pages TEXT DEFAULT '' NOT NULL`);
-    } catch (e) {
-      // Column may already exist
-    }
-  }
-
-  private migrate2To3(): void {
-    try {
-      this.db.exec(`ALTER TABLE BookConfiguration ADD COLUMN pagination TEXT DEFAULT 'Default' NOT NULL`);
-    } catch (e) {
-      // Column may already exist
-    }
-  }
-
-  private migrate3To4(): void {
-    this.db.exec(`
-      CREATE TABLE IF NOT EXISTS AssistantHistory (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        id_reference INTEGER NOT NULL,
-        type TEXT NOT NULL,
-        role TEXT NOT NULL,
-        message TEXT NOT NULL,
-        date TEXT NOT NULL
-      );
-
-      CREATE INDEX IF NOT EXISTS index_AssistantHistory_id_reference_type ON AssistantHistory(id_reference, type);
-    `);
-  }
-
-  private migrate4To5(): void {
-    try {
-      this.db.exec(`ALTER TABLE Manga ADD COLUMN cover_path TEXT`);
-    } catch (e) {
-      // Column may already exist
-    }
-    try {
-      this.db.exec(`ALTER TABLE Book ADD COLUMN cover_path TEXT`);
-    } catch (e) {
-      // Column may already exist
-    }
-  }
-
-  private migrate15To16(): void {
-    this.db.exec(`
-      CREATE TABLE IF NOT EXISTS History (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        id_library INTEGER NOT NULL DEFAULT 0,
-        id_reference INTEGER NOT NULL,
-        type TEXT NOT NULL,
-        page_start INTEGER NOT NULL DEFAULT 0,
-        page_end INTEGER NOT NULL DEFAULT 0,
-        pages INTEGER NOT NULL DEFAULT 1,
-        completed INTEGER NOT NULL DEFAULT 0,
-        volume TEXT DEFAULT '',
-        chapters_read INTEGER NOT NULL DEFAULT 0,
-        date_time_start TEXT NOT NULL,
-        date_time_end TEXT NOT NULL,
-        seconds_read INTEGER NOT NULL DEFAULT 0,
-        average_time_page INTEGER NOT NULL DEFAULT 0,
-        use_tts INTEGER NOT NULL DEFAULT 0,
-        notified INTEGER NOT NULL DEFAULT 0
-      );
-
-      CREATE INDEX IF NOT EXISTS index_History_reference_library ON History(id_reference, id_library);
-      CREATE INDEX IF NOT EXISTS index_History_type_start ON History(type, date_time_start);
-    `);
-  }
-
-  private migrate16To17(): void {
-    try {
-      this.db.exec(`ALTER TABLE Book ADD COLUMN book_mark_cfi TEXT`);
-    } catch (e) {
-      // Column may already exist
-    }
-  }
-
-  private migrate17To18(): void {
-    this.db.exec(`
-      CREATE TABLE IF NOT EXISTS BookAnnotation (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        id_book INTEGER NOT NULL,
-        page INTEGER NOT NULL DEFAULT 0,
-        pages INTEGER NOT NULL DEFAULT 0,
-        font_size REAL NOT NULL DEFAULT 0,
-        type TEXT NOT NULL DEFAULT 'Annotation',
-        chapter_number REAL NOT NULL DEFAULT 0,
-        chapter TEXT DEFAULT '',
-        text TEXT NOT NULL DEFAULT '',
-        range TEXT DEFAULT '',
-        annotation TEXT DEFAULT '',
-        favorite INTEGER NOT NULL DEFAULT 0,
-        color TEXT DEFAULT 'Yellow',
-        cfi_range TEXT DEFAULT '',
-        created TEXT,
-        alteration TEXT,
-        FOREIGN KEY (id_book) REFERENCES Book (id) ON DELETE CASCADE
-      );
-
-      CREATE INDEX IF NOT EXISTS idx_book_annotation_book ON BookAnnotation (id_book, page);
-    `);
-  }
-
-  private migrate18To19(): void {
-    this.db.exec(`
-      CREATE TABLE IF NOT EXISTS BookSearchHistory (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        id_book INTEGER NOT NULL,
-        search TEXT NOT NULL,
-        date TEXT NOT NULL,
-        FOREIGN KEY(id_book) REFERENCES Book(id)
-      );
-
-      CREATE INDEX IF NOT EXISTS idx_book_search_history_book ON BookSearchHistory(id_book);
-    `);
-  }
-
-  private migrate19To20(): void {
-    this.db.exec(`
-      CREATE TABLE IF NOT EXISTS FileLink (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        id_manga INTEGER NOT NULL,
-        pages INTEGER NOT NULL DEFAULT 0,
-        path TEXT NOT NULL,
-        name TEXT NOT NULL,
-        type TEXT NOT NULL,
-        folder TEXT,
-        language TEXT DEFAULT 'pt',
-        date_create TEXT,
-        last_access TEXT,
-        last_alteration TEXT
-      );
-
-      CREATE INDEX IF NOT EXISTS idx_file_link_manga_name ON FileLink(id_manga, name);
-
-      CREATE TABLE IF NOT EXISTS PagesLink (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        id_file INTEGER NOT NULL,
-        manga_page INTEGER NOT NULL,
-        manga_pages INTEGER NOT NULL,
-        manga_page_name TEXT,
-        manga_page_path TEXT,
-        file_link_page INTEGER DEFAULT -1,
-        file_link_pages INTEGER DEFAULT 0,
-        file_link_page_name TEXT,
-        file_link_page_path TEXT,
-        file_right_link_page INTEGER DEFAULT -1,
-        file_right_link_page_name TEXT,
-        file_right_link_page_path TEXT,
-        not_linked INTEGER DEFAULT 0,
-        dual_image INTEGER DEFAULT 0,
-        manga_dual_page INTEGER DEFAULT 0,
-        file_left_dual_page INTEGER DEFAULT 0,
-        file_right_dual_page INTEGER DEFAULT 0
-      );
-
-      CREATE INDEX IF NOT EXISTS idx_pages_link_file ON PagesLink(id_file);
-    `);
   }
 }

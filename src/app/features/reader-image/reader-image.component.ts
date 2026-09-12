@@ -19,7 +19,7 @@ import {
   TOUCH_DOUBLE_CLICK_MS,
   TouchZoneService
 } from '../../core/services/touch-zone.service';
-import { Manga, MangaAnnotation, MangaFitMode, MangaScrollingMode, PAGE_TRANSITION_LABELS_PT, PAGE_TRANSITION_OPTIONS, PageTransitionType, prefersReducedMotion, isMangaDualMode, isMangaHorizontalMode, isMangaLongStripMode, isMangaRtlMode, isMangaVerticalMode, Kanjax, Vocabulary } from '../../core/models';
+import { Manga, MangaAnnotation, MangaFitMode, MangaScrollingMode, PAGE_TRANSITION_LABELS_PT, PAGE_TRANSITION_OPTIONS, PageTransitionType, prefersReducedMotion, isMangaDualMode, isMangaHorizontalMode, isMangaLongStripMode, isMangaRtlMode, isMangaVerticalMode, Kanjax, Vocabulary, Track } from '../../core/models';
 import { ReaderTouchOverlayComponent } from '../reader-shared/reader-touch-overlay.component';
 import { ReaderTouchConfigComponent } from '../reader-shared/reader-touch-config.component';
 import { handleReaderTouchTap, TouchActionHandlers } from '../reader-shared/touch-action.util';
@@ -57,6 +57,8 @@ import { KanjaxDetailDialogComponent } from '../vocabulary/components/kanjax-det
 import { ReadingAssistantPanelComponent } from '../assistant/reading-assistant-panel.component';
 import { ReadingSummaryDialogComponent } from '../assistant/reading-summary-dialog.component';
 import { AssistantContextItem } from '../assistant/assistant-context.util';
+import { TrackerSimpleDialogComponent } from '../../shared/tracker-simple-dialog/tracker-simple-dialog.component';
+import { TrackerConfigDialogComponent } from '../../shared/tracker-config-dialog/tracker-config-dialog.component';
 
 import {
   buildPageCssFilter,
@@ -93,7 +95,9 @@ const MAGNIFIER_SQUARE_PX = 250;
     VocabularyDetailDialogComponent,
     KanjaxDetailDialogComponent,
     ReadingAssistantPanelComponent,
-    ReadingSummaryDialogComponent
+    ReadingSummaryDialogComponent,
+    TrackerSimpleDialogComponent,
+    TrackerConfigDialogComponent
   ],
   host: { class: 'block h-screen w-screen' },
   styles: [`
@@ -463,6 +467,13 @@ const MAGNIFIER_SQUARE_PX = 250;
               </button>
               @if (touchMenuOpen()) {
                 <div class="absolute right-0 top-full mt-1 w-56 rounded-xl bg-slate-900/95 backdrop-blur-md border border-slate-700 shadow-2xl py-1 z-50">
+                  <button type="button" (click)="openTracker(); touchMenuOpen.set(false)"
+                    class="w-full px-3 py-2.5 text-left text-xs font-medium text-slate-200 hover:bg-slate-800 cursor-pointer flex items-center gap-2">
+                    <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+                    </svg>
+                    Rastreamento (MAL / AniList)
+                  </button>
                   <button type="button" (click)="openPagesLink(); touchMenuOpen.set(false)"
                     class="w-full px-3 py-2.5 text-left text-xs font-medium text-slate-200 hover:bg-slate-800 cursor-pointer">
                     Vincular páginas
@@ -600,6 +611,14 @@ const MAGNIFIER_SQUARE_PX = 250;
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                 d="M7 8h10M7 12h8m-8 4h6M5 4h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z"/>
+            </svg>
+          </button>
+
+          <button type="button" (click)="openTracker()"
+            class="p-2.5 rounded-xl cursor-pointer hover:bg-slate-800 text-slate-200"
+            title="Rastreador (MAL / AniList)">
+            <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
             </svg>
           </button>
 
@@ -1057,6 +1076,24 @@ const MAGNIFIER_SQUARE_PX = 250;
           </p>
         </div>
       }
+      <app-tracker-simple-dialog
+        [open]="showTrackerSimple()"
+        [libraryId]="manga()?.fkLibrary || 0"
+        [mediaTitle]="manga()?.title || ''"
+        [mediaFilename]="manga()?.name || ''"
+        (confirmed)="showTrackerSimple.set(false)"
+        (cancel)="showTrackerSimple.set(false)"
+        (openFullConfig)="onOpenFullConfigFromSimple($event)" />
+
+      <app-tracker-config-dialog
+        [open]="showTrackerConfig()"
+        [track]="selectedTrackForConfig()"
+        [fkLibrary]="manga()?.fkLibrary || 0"
+        [initialTitle]="manga()?.title || manga()?.series || ''"
+        [initialFilename]="manga()?.name || ''"
+        (saved)="showTrackerConfig.set(false); showTrackerSimple.set(true)"
+        (deleted)="showTrackerConfig.set(false)"
+        (cancel)="showTrackerConfig.set(false)" />
     </div>
   `
 })
@@ -1076,6 +1113,7 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
   Math = Math;
 
   mangaId = Number(this.route.snapshot.paramMap.get('id'));
+  manga = signal<Manga | null>(null);
   title = signal('Leitor de Mangá');
   pages = signal<string[]>([]);
   pageCount = signal(0);
@@ -1125,6 +1163,9 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
   showTouchDemo = signal(false);
   showTouchConfig = signal(false);
   touchMenuOpen = signal(false);
+  showTrackerSimple = signal(false);
+  showTrackerConfig = signal(false);
+  selectedTrackForConfig = signal<Track | null>(null);
   stubToast = signal<string | null>(null);
   vocabDetail = signal<Vocabulary | null>(null);
   vocabKanji = signal<Kanjax | null>(null);
@@ -2105,6 +2146,20 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
     }
   }
 
+  openTracker(): void {
+    this.showChapters.set(false);
+    this.showAnnotations.set(false);
+    this.showColorFilters.set(false);
+    this.touchMenuOpen.set(false);
+    this.showTrackerSimple.set(true);
+  }
+
+  onOpenFullConfigFromSimple(track: Track | null): void {
+    this.showTrackerSimple.set(false);
+    this.selectedTrackForConfig.set(track);
+    this.showTrackerConfig.set(true);
+  }
+
   openPagesLink(): void {
     this.showChapters.set(false);
     this.showAnnotations.set(false);
@@ -2824,6 +2879,7 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
 
       const manga = await this.electron.getManga(this.mangaId);
       this.mangaMeta = manga;
+      this.manga.set(manga);
       if (manga) {
         this.title.set(manga.title || manga.name || 'Mangá');
         this.favorite.set(!!manga.favorite);

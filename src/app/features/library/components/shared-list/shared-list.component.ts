@@ -72,13 +72,15 @@ import { progressPercent } from '../../../../core/utils/reading-progress.util';
                     <app-manga-card
                       [manga]="$any(item)"
                       [cardStyle]="effectiveCardStyle"
-                      (setBookmark)="setBookmark.emit($event)">
+                      (setBookmark)="setBookmark.emit($event)"
+                      (openTracker)="openTracker.emit($event)">
                     </app-manga-card>
                   } @else {
                     <app-book-card
                       [book]="$any(item)"
                       [cardStyle]="effectiveCardStyle"
-                      (setBookmark)="setBookmark.emit($event)">
+                      (setBookmark)="setBookmark.emit($event)"
+                      (openTracker)="openTracker.emit($event)">
                     </app-book-card>
                   }
                 </div>
@@ -182,6 +184,7 @@ export class SharedListComponent {
   @Output() open = new EventEmitter<Manga | Book>();
   @Output() openDetail = new EventEmitter<Manga | Book>();
   @Output() setBookmark = new EventEmitter<Manga | Book>();
+  @Output() openTracker = new EventEmitter<Manga | Book>();
 
   public libraryStateService = inject(LibraryStateService);
   LibraryViewType = LibraryViewType;

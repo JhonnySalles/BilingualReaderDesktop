@@ -80,7 +80,14 @@ export class MangaLibraryService {
   /** Apply bookmark popup: page, completed, lastAccess + History session. */
   public async updateBookmark(
     manga: Manga,
-    payload: { page: number; lastAccess: string; completed: boolean }
+    payload: {
+      page: number;
+      lastAccess: string;
+      completed: boolean;
+      secondsRead?: number;
+      secondsReadAutomatic?: boolean;
+      wordCount?: number;
+    }
   ): Promise<Manga | null> {
     if (!window.electronAPI?.saveManga || !manga.id) return null;
     const pages = Math.max(1, manga.pages || 1);
@@ -102,7 +109,10 @@ export class MangaLibraryService {
         pages,
         completed: payload.completed,
         volume: manga.volume || '',
-        dateTime: payload.lastAccess
+        dateTime: payload.lastAccess,
+        secondsRead: payload.secondsRead,
+        secondsReadAutomatic: payload.secondsReadAutomatic,
+        wordCount: payload.wordCount
       });
     }
     if (updated) {

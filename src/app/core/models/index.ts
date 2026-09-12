@@ -24,6 +24,7 @@ export * from './entities/sharing.model';
 export * from './entities/linked-file.model';
 export * from './entities/information.model';
 export * from './entities/library.model';
+export * from './entities/track.model';
 
 // Library @ search
 export * from './library-search.model';

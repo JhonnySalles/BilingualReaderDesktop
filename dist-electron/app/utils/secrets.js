@@ -40,6 +40,8 @@ const electron_1 = require("electron");
 class Secrets {
     static _instance;
     animeListClientId = '';
+    aniListClientId = '';
+    aniListClientSecret = '';
     googleIdToken = '';
     googleOAuthClientId = '';
     googleOAuthClientSecret = '';
@@ -138,6 +140,14 @@ class Secrets {
             case 'MY_ANIME_LIST_CLIENT_ID':
                 this.animeListClientId = value;
                 break;
+            case 'ANILIST_CLIENT_ID':
+            case 'ANI_LIST_CLIENT_ID':
+                this.aniListClientId = value;
+                break;
+            case 'ANILIST_CLIENT_SECRET':
+            case 'ANI_LIST_CLIENT_SECRET':
+                this.aniListClientSecret = value;
+                break;
             case 'GOOGLE_ID_TOKEN':
                 this.googleIdToken = value;
                 break;
@@ -199,6 +209,12 @@ class Secrets {
     }
     getMyAnimeListClientId() {
         return this.animeListClientId;
+    }
+    getAniListClientId() {
+        return this.aniListClientId;
+    }
+    getAniListClientSecret() {
+        return this.aniListClientSecret;
     }
     getGoogleIdToken() {
         return this.googleIdToken;

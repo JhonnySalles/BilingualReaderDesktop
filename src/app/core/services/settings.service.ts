@@ -138,6 +138,8 @@ interface SettingsData {
   theme3DCovers?: boolean;
   libraryDefaultOrder?: OrderType;
   ebookConvertMode?: EbookConvertMode;
+  mangaAvgTimePerPage?: number;
+  bookAvgTimePerWord?: number;
 }
 
 @Injectable({
@@ -215,6 +217,10 @@ export class SettingsService {
   libraryDefaultOrder = signal<OrderType>(OrderType.Name);
   /** auto = Calibre then native; calibre = Calibre only; native = builtin only. */
   ebookConvertMode = signal<EbookConvertMode>(DEFAULT_EBOOK_CONVERT_MODE);
+  /** Average time per page in seconds (manga). Default 120s (2 min). */
+  mangaAvgTimePerPage = signal<number>(120);
+  /** Average time per word in seconds (book). Default 0.24s (~250 words per minute). */
+  bookAvgTimePerWord = signal<number>(0.24);
 
   constructor() {
     this.loadSettings();
@@ -278,7 +284,9 @@ export class SettingsService {
         themeGlassmorphism: this.themeGlassmorphism(),
         theme3DCovers: this.theme3DCovers(),
         libraryDefaultOrder: this.libraryDefaultOrder(),
-        ebookConvertMode: this.ebookConvertMode()
+        ebookConvertMode: this.ebookConvertMode(),
+        mangaAvgTimePerPage: this.mangaAvgTimePerPage(),
+        bookAvgTimePerWord: this.bookAvgTimePerWord()
       };
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(data));
       this.applyThemeDocumentAttrs();
@@ -325,6 +333,8 @@ export class SettingsService {
         void window.electronAPI.setSetting('MANGA_LIBRARY_ORDER', this.libraryDefaultOrder());
         void window.electronAPI.setSetting('BOOK_LIBRARY_ORDER', this.libraryDefaultOrder());
         void window.electronAPI.setSetting(EBOOK_CONVERT_MODE_KEY, this.ebookConvertMode());
+        void window.electronAPI.setSetting('MANGA_AVG_TIME_PER_PAGE', this.mangaAvgTimePerPage());
+        void window.electronAPI.setSetting('BOOK_AVG_TIME_PER_WORD', this.bookAvgTimePerWord());
       }
     });
   }
@@ -500,6 +510,12 @@ export class SettingsService {
         }
         if (data.ebookConvertMode != null) {
           this.ebookConvertMode.set(normalizeEbookConvertMode(data.ebookConvertMode));
+        }
+        if (typeof data.mangaAvgTimePerPage === 'number' && data.mangaAvgTimePerPage > 0) {
+          this.mangaAvgTimePerPage.set(data.mangaAvgTimePerPage);
+        }
+        if (typeof data.bookAvgTimePerWord === 'number' && data.bookAvgTimePerWord > 0) {
+          this.bookAvgTimePerWord.set(data.bookAvgTimePerWord);
         }
       } catch (e) {
         console.error('Failed to parse settings', e);

@@ -7,6 +7,7 @@
    ========================================================================== */
 
 :root {
+  color-scheme: dark;
   /* Default Dark Theme Slate Palette (Space-separated RGB for CSS Color Level 4) */
   --slate-50: 248 250 252;
   --slate-100: 241 245 249;
@@ -30,6 +31,7 @@
 
 /* Explicit Dark Theme */
 [data-theme="dark"] {
+  color-scheme: dark;
   --slate-50: 248 250 252;
   --slate-100: 241 245 249;
   --slate-200: 226 232 240;
@@ -51,6 +53,7 @@
 
 /* Light Theme (Clean Inversion) */
 [data-theme="light"] {
+  color-scheme: light;
   --slate-50: 15 23 42;
   --slate-100: 30 41 59;
   --slate-200: 51 65 85;
@@ -66,6 +69,7 @@
 
 /* Windows 11 Mica Dark Theme */
 [data-theme="win-mica-dark"] {
+  color-scheme: dark;
   --slate-50: 248 250 252;
   --slate-100: 241 245 249;
   --slate-200: 226 232 240;
@@ -87,6 +91,7 @@
 
 /* Windows 11 Mica Light Theme */
 [data-theme="win-mica-light"] {
+  color-scheme: light;
   --slate-50: 15 23 42;
   --slate-100: 30 41 59;
   --slate-200: 51 65 85;
@@ -124,6 +129,7 @@
 }
 
 [data-accent="oled"] {
+  color-scheme: dark;
   --slate-950: 0 0 0;
   --slate-900: 10 10 10;
   --slate-800: 24 24 27;
@@ -133,6 +139,28 @@
   --accent-600: 82 82 91;
   --accent-700: 63 63 70;
   --accent-950: 24 24 27;
+}
+
+/* Native Input Picker Indicators (Date, Time, etc.) */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+html:not([data-theme="light"]):not([data-theme="win-mica-light"]) input[type="date"]::-webkit-calendar-picker-indicator,
+html:not([data-theme="light"]):not([data-theme="win-mica-light"]) input[type="time"]::-webkit-calendar-picker-indicator,
+html:not([data-theme="light"]):not([data-theme="win-mica-light"]) input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.85);
+  opacity: 0.8;
+}
+
+html:not([data-theme="light"]):not([data-theme="win-mica-light"]) input[type="date"]::-webkit-calendar-picker-indicator:hover,
+html:not([data-theme="light"]):not([data-theme="win-mica-light"]) input[type="time"]::-webkit-calendar-picker-indicator:hover,
+html:not([data-theme="light"]):not([data-theme="win-mica-light"]) input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
+  filter: invert(1);
+  opacity: 1;
 }
 
 body {

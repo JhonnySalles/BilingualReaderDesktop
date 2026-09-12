@@ -18,7 +18,9 @@ import {
   LibraryBookmarkDialogComponent,
   LibraryBookmarkPayload
 } from '../../shared/library-bookmark-dialog/library-bookmark-dialog.component';
-import { Manga, Book, OrderType, HomeRecentItem } from '../../core/models';
+import { TrackerSimpleDialogComponent } from '../../shared/tracker-simple-dialog/tracker-simple-dialog.component';
+import { TrackerConfigDialogComponent } from '../../shared/tracker-config-dialog/tracker-config-dialog.component';
+import { Manga, Book, Track, OrderType, HomeRecentItem } from '../../core/models';
 import { ShareMarkType } from '../../core/models/enums/sharemark.enum';
 
 @Component({
@@ -31,7 +33,9 @@ import { ShareMarkType } from '../../core/models/enums/sharemark.enum';
     MangaFilterModalComponent,
     HomeRecentCardComponent,
     HomeReadingHeatmapComponent,
-    LibraryBookmarkDialogComponent
+    LibraryBookmarkDialogComponent,
+    TrackerSimpleDialogComponent,
+    TrackerConfigDialogComponent
   ],
   template: `
     <div class="h-full flex flex-col bg-slate-950 text-slate-100 overflow-hidden p-6 relative">
@@ -42,6 +46,8 @@ import { ShareMarkType } from '../../core/models/enums/sharemark.enum';
 
       <app-library-bookmark-dialog
         [open]="!!bookmarkTarget()"
+        [type]="activeLibType()"
+        [filePath]="bookmarkTarget()?.path"
         [accent]="activeLibType() === 'book' ? 'amber' : 'indigo'"
         [title]="bookmarkTarget()?.title || ''"
         [maxPages]="bookmarkTarget()?.pages || 1"
@@ -50,6 +56,25 @@ import { ShareMarkType } from '../../core/models/enums/sharemark.enum';
         [completed]="!!bookmarkTarget()?.completed"
         (confirm)="onBookmarkSave($event)"
         (cancel)="bookmarkTarget.set(null)" />
+
+      <app-tracker-simple-dialog
+        [open]="showTrackerModal() && !!trackerTarget()"
+        [libraryId]="trackerTarget()?.fkLibrary || 0"
+        [mediaTitle]="trackerTarget()?.title || trackerTarget()?.series || ''"
+        [mediaFilename]="trackerTarget()?.name || ''"
+        (confirmed)="showTrackerModal.set(false); trackerTarget.set(null)"
+        (cancel)="showTrackerModal.set(false); trackerTarget.set(null)"
+        (openFullConfig)="onOpenFullConfigFromSimple($event)" />
+
+      <app-tracker-config-dialog
+        [open]="showFullConfigModal()"
+        [track]="selectedTrackForConfig()"
+        [fkLibrary]="trackerTarget()?.fkLibrary || 0"
+        [initialTitle]="trackerTarget()?.title || trackerTarget()?.series || ''"
+        [initialFilename]="trackerTarget()?.name || ''"
+        (saved)="showFullConfigModal.set(false); showTrackerModal.set(true)"
+        (deleted)="showFullConfigModal.set(false); trackerTarget.set(null)"
+        (cancel)="showFullConfigModal.set(false); trackerTarget.set(null)" />
 
       @if (activeLibId() === 'home') {
         <div class="flex-1 overflow-y-auto space-y-8 pb-4">
@@ -261,7 +286,8 @@ import { ShareMarkType } from '../../core/models/enums/sharemark.enum';
               (reordered)="onReordered($event)"
               (open)="onOpenItem($event)"
               (openDetail)="onOpenDetail($event)"
-              (setBookmark)="onSetBookmark($event)">
+              (setBookmark)="onSetBookmark($event)"
+              (openTracker)="onOpenTracker($event)">
             </app-shared-list>
           }
         </div>
@@ -308,6 +334,10 @@ export class LibraryComponent implements OnInit {
   activeLibType = signal<'manga' | 'book'>('manga');
   customOrderItems = signal<(Manga | Book)[] | null>(null);
   bookmarkTarget = signal<Manga | Book | null>(null);
+  trackerTarget = signal<Manga | Book | null>(null);
+  showTrackerModal = signal<boolean>(false);
+  showFullConfigModal = signal<boolean>(false);
+  selectedTrackForConfig = signal<Track | null>(null);
   isExternalHd = signal<boolean>(false);
   isPathOnline = signal<boolean>(true);
 
@@ -582,8 +612,22 @@ export class LibraryComponent implements OnInit {
     }
   }
 
-  onSetBookmark(item: Manga | Book): void {
-    this.bookmarkTarget.set(item);
+  async onSetBookmark(item: Manga | Book): Promise<void> {
+    let target = item;
+    if (this.activeLibType() === 'book' && item?.id && (!item.pages || item.pages <= 1)) {
+      try {
+        const updated = await this.electronService.calculateBookPages(item.id);
+        if (updated) {
+          target = updated;
+          this.bookLibraryService.books.update(list =>
+            list.map(b => (b.id === updated.id ? { ...b, pages: updated.pages } : b))
+          );
+        }
+      } catch (err) {
+        console.error('Falha ao calcular páginas do livro:', err);
+      }
+    }
+    this.bookmarkTarget.set(target);
   }
 
   async onBookmarkSave(payload: LibraryBookmarkPayload): Promise<void> {
@@ -608,5 +652,16 @@ export class LibraryComponent implements OnInit {
       });
     }
     this.bookmarkTarget.set(null);
+  }
+
+  onOpenTracker(item: Manga | Book): void {
+    this.trackerTarget.set(item);
+    this.showTrackerModal.set(true);
+  }
+
+  onOpenFullConfigFromSimple(track: Track | null): void {
+    this.selectedTrackForConfig.set(track);
+    this.showTrackerModal.set(false);
+    this.showFullConfigModal.set(true);
   }
 }

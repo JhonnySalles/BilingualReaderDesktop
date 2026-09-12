@@ -1,5 +1,6 @@
 import { Injectable, signal, inject, OnDestroy } from '@angular/core';
 import { ElectronService } from '../electron.service';
+import { ConfirmDialogService } from '../confirm-dialog.service';
 import { ShareMarkCloud, ShareMarkType } from '../../models/enums/sharemark.enum';
 
 export interface ShareMarkStatusView {
@@ -24,6 +25,7 @@ export interface ShareMarkSyncResult {
 @Injectable({ providedIn: 'root' })
 export class ShareMarkUiService implements OnDestroy {
   private electron = inject(ElectronService);
+  private confirmDialog = inject(ConfirmDialogService);
   private unsubProgress: (() => void) | null = null;
   private unsubItem: (() => void) | null = null;
 
@@ -107,16 +109,29 @@ export class ShareMarkUiService implements OnDestroy {
   }
 
   async signOut(): Promise<void> {
-    if (!confirm('Deseja sair da conta Google?')) return;
+    const ok = await this.confirmDialog.confirm({
+      title: 'Desconectar Conta Google',
+      message: 'Deseja realmente sair da sua conta Google?',
+      confirmText: 'Sair',
+      confirmVariant: 'danger',
+      icon: 'danger'
+    });
+    if (!ok) return;
     const res = await this.electron.shareMarkSignOut();
     if (res?.status) this.status.set(res.status);
     this.showToast('Conta desconectada', 'info');
   }
 
   async clearLastSync(type: 'MANGA' | 'BOOK'): Promise<void> {
-    if (!confirm(`Limpar data da última sincronização de ${type === 'MANGA' ? 'mangás' : 'livros'}?`)) {
-      return;
-    }
+    const typeLabel = type === 'MANGA' ? 'mangás' : 'livros';
+    const ok = await this.confirmDialog.confirm({
+      title: 'Limpar Data de Sincronização',
+      message: `Deseja limpar a data da última sincronização de ${typeLabel}?\n\nNa próxima sincronização, todos os arquivos serão verificados novamente.`,
+      confirmText: 'Limpar',
+      confirmVariant: 'warning',
+      icon: 'sync'
+    });
+    if (!ok) return;
     const s = await this.electron.shareMarkClearLastSync(type);
     if (s) this.status.set(s);
   }
