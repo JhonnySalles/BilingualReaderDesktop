@@ -3,6 +3,7 @@ import { StorageService } from '../database/storage.service';
 import { HistoryContentType, HistoryBookmarkEditInput } from '../database/history.repository';
 import { ReadingTimeCalculatorService, RecalculateBatchOptions } from '../services/reading-time.service';
 import { EpubBookExtractor } from '../parser/book/epub-book-extractor';
+import { updateJumpListTasks } from '../main';
 
 export class StatisticsController {
   private readingTimeService: ReadingTimeCalculatorService;
@@ -124,6 +125,7 @@ export class StatisticsController {
             });
           }
         }
+        updateJumpListTasks();
         return sessionId;
       }
     );
@@ -179,6 +181,7 @@ export class StatisticsController {
           }
         }
 
+        updateJumpListTasks();
         return true;
       }
     );

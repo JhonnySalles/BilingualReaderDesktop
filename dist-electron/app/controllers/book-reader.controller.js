@@ -5,6 +5,7 @@ const electron_1 = require("electron");
 const book_reader_session_service_1 = require("../services/book-reader-session.service");
 const epub_book_extractor_1 = require("../parser/book/epub-book-extractor");
 const tracker_service_1 = require("../services/tracker.service");
+const book_image_cover_controller_1 = require("./book-image-cover.controller");
 class BookReaderController {
     storage;
     sessionService = new book_reader_session_service_1.BookReaderSessionService();
@@ -32,15 +33,15 @@ class BookReaderController {
                 return null;
             const pages = Math.max(1, payload.pages ?? book.pages ?? 1);
             const bookMark = Math.min(Math.max(0, Math.floor(payload.bookMark)), pages);
-            const now = new Date().toISOString();
             const isCompleted = bookMark >= pages;
+            const now = new Date().toISOString();
             const id = this.storage.saveBook({
                 ...book,
                 bookMark,
-                bookMarkCfi: payload.bookMarkCfi ?? book.bookMarkCfi,
-                chapter: payload.chapter ?? book.chapter,
-                chapterDescription: payload.chapterDescription ?? book.chapterDescription,
                 pages,
+                ...(payload.bookMarkCfi ? { bookMarkCfi: payload.bookMarkCfi } : {}),
+                ...(payload.chapter ? { chapter: payload.chapter } : {}),
+                ...(payload.chapterDescription ? { chapterDescription: payload.chapterDescription } : {}),
                 completed: isCompleted,
                 lastAccess: now,
                 lastAlteration: now
@@ -66,23 +67,22 @@ class BookReaderController {
         });
         electron_1.ipcMain.handle('book:calculate-pages', async (_event, bookId) => {
             const book = this.storage.findBookById(bookId);
-            if (!book?.id || !book.path)
+            if (!book?.path)
                 return null;
             try {
-                const wordCount = epub_book_extractor_1.EpubBookExtractor.countWords(book.path);
-                const calculatedPages = Math.max(1, Math.ceil(wordCount / 250));
-                const now = new Date().toISOString();
-                const id = this.storage.saveBook({
-                    ...book,
-                    pages: calculatedPages,
-                    lastAlteration: now
-                });
-                return this.storage.findBookById(id) || null;
+                const pages = await epub_book_extractor_1.EpubBookExtractor.calculatePages(book.path);
+                if (pages > 0 && pages !== book.pages) {
+                    const id = this.storage.saveBook({
+                        ...book,
+                        pages
+                    });
+                    return this.storage.findBookById(id) || null;
+                }
             }
             catch (err) {
-                console.error('[book:calculate-pages] Error calculating pages for book:', book.path, err);
-                return book;
+                console.warn(`[BookReaderController] Failed to calculate pages for book ${bookId}:`, err);
             }
+            return book;
         });
         electron_1.ipcMain.handle('book:toggle-favorite', async (_event, bookId) => {
             const book = this.storage.findBookById(bookId);
@@ -97,6 +97,8 @@ class BookReaderController {
             return this.storage.findBookById(id) || null;
         });
         electron_1.ipcMain.handle('book:get-configuration', async (_event, bookId) => {
+            if (!bookId)
+                return null;
             return this.storage.getBookConfiguration(bookId) || null;
         });
         electron_1.ipcMain.handle('book:save-configuration', async (_event, config) => {
@@ -150,6 +152,12 @@ class BookReaderController {
             if (!bookId)
                 return false;
             return this.storage.deleteAllBookSearchHistory(bookId);
+        });
+        electron_1.ipcMain.handle('book:get-cover-3d', async (_event, bookId) => {
+            const book = this.storage.findBookById(bookId);
+            if (!book)
+                return null;
+            return book_image_cover_controller_1.BookImageCoverController.instance.getBookCover3D(book);
         });
     }
 }

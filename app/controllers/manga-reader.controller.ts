@@ -2,6 +2,7 @@ import { BrowserWindow, ipcMain, dialog } from 'electron';
 import { StorageService } from '../database/storage.service';
 import { MangaReaderSessionService } from '../services/manga-reader-session.service';
 import { TrackerService } from '../services/tracker.service';
+import { MangaImageCoverController } from './manga-image-cover.controller';
 
 export class MangaReaderController {
   private sessionService = new MangaReaderSessionService();
@@ -163,6 +164,12 @@ export class MangaReaderController {
       });
       if (result.canceled || !result.filePaths[0]) return null;
       return this.sessionService.importExternalSubtitles(sessionId, result.filePaths[0]);
+    });
+
+    ipcMain.handle('manga:get-cover-3d', async (_event, mangaId: number) => {
+      const manga = this.storage.findMangaById(mangaId);
+      if (!manga) return null;
+      return MangaImageCoverController.instance.getMangaCover3D(manga);
     });
   }
 }

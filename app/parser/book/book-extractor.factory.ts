@@ -32,6 +32,9 @@ export class BookExtractorFactory {
       genre: '',
       publisher: '',
       language: '',
+      isbn: '',
+      annotation: '',
+      tags: '',
       coverImage: null
     };
   }

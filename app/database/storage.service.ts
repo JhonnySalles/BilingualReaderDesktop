@@ -24,10 +24,12 @@ import {
 } from './history.repository';
 import { StatisticsRepository } from './statistics.repository';
 import { TrackRepository } from './track.repository';
+import { TagRepository } from './tag.repository';
 import { Manga, MangaAnnotation } from '../../src/app/core/models/entities/manga.model';
 import { Book, BookAnnotation, BookConfiguration, BookSearchHistory } from '../../src/app/core/models/entities/book.model';
 import { LinkedFile } from '../../src/app/core/models/entities/linked-file.model';
 import { Track } from '../../src/app/core/models/entities/track.model';
+import { Tag } from '../../src/app/core/models/entities/tag.model';
 
 export class StorageService {
   private db!: Database.Database;
@@ -45,6 +47,7 @@ export class StorageService {
   public historyRepository!: HistoryRepository;
   public statisticsRepository!: StatisticsRepository;
   public trackRepository!: TrackRepository;
+  public tagRepository!: TagRepository;
 
   constructor() {
     this.initDatabase();
@@ -82,6 +85,7 @@ export class StorageService {
     this.historyRepository = new HistoryRepository(this.db);
     this.statisticsRepository = new StatisticsRepository(this.db);
     this.trackRepository = new TrackRepository(this.db);
+    this.tagRepository = new TagRepository(this.db);
   }
 
   /** Checkpoint WAL into the main file so a single .db copy is consistent. */
@@ -434,6 +438,18 @@ export class StorageService {
     const stmt = this.db.prepare(`SELECT id, title, type, path FROM Libraries WHERE id = ? LIMIT 1`);
     const row = stmt.get(id);
     return (row as any) ?? null;
+  }
+
+  public getTags(): Tag[] {
+    return this.tagRepository.findAll();
+  }
+
+  public saveTag(name: string): Tag {
+    return this.tagRepository.save({ name });
+  }
+
+  public deleteTag(id: number): void {
+    this.tagRepository.delete(id);
   }
 }
 

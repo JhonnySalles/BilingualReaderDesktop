@@ -57,6 +57,15 @@ class BookImageCoverController {
     generateHash(filePath) {
         return crypto.createHash('md5').update(filePath).digest('hex');
     }
+    getBookCover3D(book) {
+        const coverPath = this.ensureCover(book);
+        return {
+            fullCoverPath: null,
+            frontCoverPath: coverPath,
+            backCoverPath: null,
+            isFullCover: false
+        };
+    }
     getBookCoverFile(book) {
         if (!book.path || !fs.existsSync(book.path)) {
             return null;

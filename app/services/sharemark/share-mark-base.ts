@@ -183,7 +183,11 @@ export abstract class ShareMarkBase {
     const syncDate = parseFlexibleDate(item.sync) || new Date(0);
     const itemAccessDate = parseFlexibleDate(item.lastAccess) || new Date(0);
 
+    const localHasProgress = (manga.bookMark && manga.bookMark > 0) || manga.completed || !!manga.lastAccess;
+    const cloudHasProgress = (item.bookMark && item.bookMark > 0) || item.completed || (!!item.lastAccess && item.lastAccess !== ShareMarkBase.INITIAL_SYNC_DATE_TIME);
+
     if (
+      (!localHasProgress && cloudHasProgress) ||
       (!mangaAccessDate && !mangaAlterationDate) ||
       (mangaAlterationDate && mangaAlterationDate < syncDate) ||
       (mangaAccessDate && itemAccessDate > mangaAccessDate)
@@ -217,7 +221,11 @@ export abstract class ShareMarkBase {
     const syncDate = parseFlexibleDate(item.sync) || new Date(0);
     const itemAccessDate = parseFlexibleDate(item.lastAccess) || new Date(0);
 
+    const localHasProgress = (book.bookMark && book.bookMark > 0) || book.completed || !!book.lastAccess;
+    const cloudHasProgress = (item.bookMark && item.bookMark > 0) || item.completed || (!!item.lastAccess && item.lastAccess !== ShareMarkBase.INITIAL_SYNC_DATE_TIME);
+
     if (
+      (!localHasProgress && cloudHasProgress) ||
       (!bookAccessDate && !bookAlterationDate) ||
       (bookAlterationDate && bookAlterationDate < syncDate) ||
       (bookAccessDate && itemAccessDate > bookAccessDate)

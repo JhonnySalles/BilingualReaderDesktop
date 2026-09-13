@@ -4,10 +4,12 @@ import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { DetailService } from '../../core/services/detail.service';
 import { NavigationStackService } from '../../core/services/navigation-stack.service';
 import { ElectronService } from '../../core/services/electron.service';
-import { Manga } from '../../core/models';
+import { Manga, Track, ExternalTrackerMediaDetails, ExternalTrackerRelatedItem } from '../../core/models';
 import { DetailActionBarComponent } from './components/detail-action-bar.component';
 import { DetailMetaSectionComponent, DetailMetaField } from './components/detail-meta-section.component';
 import { DetailChaptersListComponent, DetailChapterItem } from './components/detail-chapters-list.component';
+import { DetailBookmarksListComponent, DetailBookmarkItem } from './components/detail-bookmarks-list.component';
+import { DetailWebSectionComponent } from './components/detail-web-section.component';
 import {
   LibraryBookmarkDialogComponent,
   LibraryBookmarkPayload
@@ -15,9 +17,11 @@ import {
 import { TrackerConfigDialogComponent } from '../../shared/tracker-config-dialog/tracker-config-dialog.component';
 import { TrackerSimpleDialogComponent } from '../../shared/tracker-simple-dialog/tracker-simple-dialog.component';
 import { TrackerService } from '../../core/services/tracker.service';
-import { Track } from '../../core/models';
 import { fromReaderIndex } from '../../core/utils/reading-progress.util';
 import { ConfirmDialogService } from '../../core/services/confirm-dialog.service';
+import { SettingsService } from '../../core/services/settings.service';
+import { BookCover3dComponent } from '../../shared/book-cover-3d/book-cover-3d.component';
+import { CoverViewerDialogComponent } from '../../shared/cover-viewer-dialog/cover-viewer-dialog.component';
 
 @Component({
   selector: 'app-manga-detail',
@@ -27,10 +31,14 @@ import { ConfirmDialogService } from '../../core/services/confirm-dialog.service
     RouterModule,
     DetailActionBarComponent,
     DetailMetaSectionComponent,
-    LibraryBookmarkDialogComponent,
+    DetailBookmarksListComponent,
     DetailChaptersListComponent,
+    DetailWebSectionComponent,
+    LibraryBookmarkDialogComponent,
     TrackerConfigDialogComponent,
-    TrackerSimpleDialogComponent
+    TrackerSimpleDialogComponent,
+    BookCover3dComponent,
+    CoverViewerDialogComponent
   ],
   template: `
     <div class="h-full flex flex-col bg-slate-950 text-slate-100 overflow-hidden select-none relative pt-20">
@@ -59,20 +67,45 @@ import { ConfirmDialogService } from '../../core/services/confirm-dialog.service
         <div class="flex-1 flex items-center justify-center text-sm text-slate-400">Item não encontrado.</div>
       } @else {
         <div class="flex-1 min-h-0 overflow-y-auto">
-          <!-- Hero -->
+          <!-- Hero Section -->
           <div class="relative overflow-hidden border-b border-slate-800">
-            @if (manga()!.coverPath) {
+            @if (coverUrl()) {
               <div class="absolute inset-0 opacity-30 blur-2xl scale-110"
-                [style.backgroundImage]="'url(local-cover:///' + manga()!.coverPath + ')'"
+                [style.backgroundImage]="'url(' + coverUrl() + ')'"
                 style="background-size: cover; background-position: center;"></div>
             }
             <div class="absolute inset-0 bg-gradient-to-b from-slate-950 via-slate-950 to-slate-950 opacity-80"></div>
 
             <div class="relative px-6 py-8 flex flex-col md:flex-row gap-6">
               <div class="w-40 shrink-0">
-                <div class="aspect-[2/3] rounded-xl overflow-hidden border border-slate-700 bg-slate-900 shadow-xl cover-3d-host">
-                  @if (manga()!.coverPath) {
-                    <img [src]="'local-cover:///' + manga()!.coverPath" [alt]="manga()!.title" class="cover-3d-face w-full h-full object-cover rounded-xl" />
+                <div 
+                  class="aspect-[2/3] rounded-xl overflow-hidden border border-slate-700 bg-slate-900 shadow-xl cover-3d-host relative group"
+                  (click)="onCoverClick()"
+                  (mousedown)="onCoverMouseDown($event)"
+                  (mousemove)="onCoverMouseMove($event)"
+                  (mouseup)="onCoverMouseUp()"
+                  (mouseleave)="onCoverMouseLeave()"
+                  (contextmenu)="onCoverRightClick($event)">
+                  @if (coverUrl() || cover3dUrl()) {
+                    @if (settings.theme3dCoverInDetail()) {
+                      <app-book-cover-3d 
+                        [coverUrl]="cover3dUrl() || coverUrl()" 
+                        [backCoverUrl]="backCover3dUrl()"
+                        [isPopup]="false" 
+                        [isFullCover]="isFullCover3d()"
+                        class="absolute inset-0 z-10">
+                      </app-book-cover-3d>
+                    } @else {
+                      <img [src]="coverUrl()!" [alt]="manga()!.title" class="cover-3d-face w-full h-full object-cover rounded-xl cursor-pointer" />
+                    }
+                    
+                    @if (!settings.theme3dCoverInDetail()) {
+                      <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity z-20 flex items-center justify-center pointer-events-none">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white/80" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                        </svg>
+                      </div>
+                    }
                   } @else {
                     <div class="w-full h-full flex items-center justify-center text-slate-500 text-xs">Sem capa</div>
                   }
@@ -111,6 +144,7 @@ import { ConfirmDialogService } from '../../core/services/confirm-dialog.service
           </div>
 
           <div class="p-6 space-y-8">
+            <!-- Action Bar -->
             <app-detail-action-bar
               accent="indigo"
               [isFavorite]="manga()!.favorite"
@@ -123,9 +157,33 @@ import { ConfirmDialogService } from '../../core/services/confirm-dialog.service
               (tracker)="onOpenTracker()"
               (deleteItem)="onDelete()" />
 
-            <app-detail-meta-section title="Detalhe" [fields]="metaFields()" />
+            <!-- Local Metadata Section -->
+            <app-detail-meta-section
+              title="Detalhe do Mangá"
+              [fields]="metaFields()"
+              [tags]="tagList()" />
 
-            <app-detail-chapters-list [chapters]="chapters()" (select)="onChapter($event)" />
+            <!-- Web Sync Section (MyAnimeList / AniList) -->
+            <app-detail-web-section
+              [mediaDetails]="webDetails()"
+              [loading]="loadingWeb()"
+              (openLink)="onOpenExternalLink($event)"
+              (searchManual)="onOpenTracker()"
+              (openRelated)="onOpenRelated($event)" />
+
+            <!-- Bookmarks / Annotations List -->
+            @if (bookmarks().length > 0) {
+              <app-detail-bookmarks-list
+                [bookmarks]="bookmarks()"
+                (select)="onBookmarkSelect($event)"
+                (delete)="onBookmarkDelete($event)"
+                (addBookmark)="showBookmark.set(true)" />
+            }
+
+            <!-- Chapters List -->
+            <app-detail-chapters-list
+              [chapters]="chapters()"
+              (select)="onChapter($event)" />
           </div>
         </div>
       }
@@ -167,6 +225,14 @@ import { ConfirmDialogService } from '../../core/services/confirm-dialog.service
           {{ importMessage() }}
         </div>
       }
+
+      <app-cover-viewer-dialog
+        [open]="showCoverViewer()"
+        [coverUrl]="cover3dUrl() || coverUrl()"
+        [backCoverUrl]="backCover3dUrl()"
+        [title]="manga()?.title || ''"
+        [isFullCover]="isFullCover3d()"
+        (cancel)="showCoverViewer.set(false)" />
     </div>
   `
 })
@@ -178,15 +244,30 @@ export class MangaDetailComponent implements OnInit {
   private electron = inject(ElectronService);
   private trackerService = inject(TrackerService);
   private confirmDialog = inject(ConfirmDialogService);
+  settings = inject(SettingsService);
 
   manga = signal<Manga | null>(null);
   loading = signal(true);
+  loadingWeb = signal(false);
+  webDetails = signal<ExternalTrackerMediaDetails | null>(null);
+  bookmarks = signal<DetailBookmarkItem[]>([]);
   showBookmark = signal(false);
   showTrackerSimple = signal(false);
   showTrackerConfig = signal(false);
+  showCoverViewer = signal(false);
   matchedTrack = signal<Track | null>(null);
   bookmarkPage = signal(0);
   importMessage = signal<string | null>(null);
+
+  cover3dUrl = signal<string | null>(null);
+  backCover3dUrl = signal<string | null>(null);
+  isFullCover3d = signal<boolean>(false);
+
+  coverUrl = computed(() => {
+    const path = this.manga()?.coverPath;
+    if (!path) return null;
+    return 'local-cover:///' + path.replace(/\\/g, '/');
+  });
 
   progress = computed(() => {
     const m = this.manga();
@@ -196,6 +277,8 @@ export class MangaDetailComponent implements OnInit {
 
   lastAccess = computed(() => this.detail.formatLastAccess(this.manga()?.lastAccess));
 
+  tagList = computed(() => this.detail.parseTags(this.manga()?.tags));
+
   metaFields = computed<DetailMetaField[]>(() => {
     const m = this.manga();
     if (!m) return [];
@@ -204,8 +287,13 @@ export class MangaDetailComponent implements OnInit {
     if (m.author) fields.push({ label: 'Autores', value: m.author });
     if (m.volume) fields.push({ label: 'Volume', value: m.volume });
     if (m.release) fields.push({ label: 'Lançamento', value: m.release });
-    if (m.publisher) fields.push({ label: 'Editora', value: m.publisher });
+    if (m.dateCreate) fields.push({ label: 'Publicado', value: this.formatDate(m.dateCreate) });
+    if (m.language) fields.push({ label: 'Idioma', value: m.language });
+    if (m.title) fields.push({ label: 'Título', value: m.title });
+    if (m.storyArch) fields.push({ label: 'Arco da História', value: m.storyArch });
     if (m.genre) fields.push({ label: 'Gênero', value: m.genre });
+    if (m.characters) fields.push({ label: 'Personagens', value: m.characters });
+    if (m.publisher) fields.push({ label: 'Editora', value: m.publisher });
     return fields;
   });
 
@@ -237,9 +325,97 @@ export class MangaDetailComponent implements OnInit {
       const manga = await this.detail.loadManga(id);
       this.manga.set(manga);
       this.bookmarkPage.set(manga?.bookMark ?? 0);
+
+      if (manga?.id) {
+        await Promise.all([
+          this.loadBookmarks(manga.id),
+          this.loadWebTrackerDetails(manga),
+          this.loadCover3D(manga.id)
+        ]);
+      }
     } finally {
       this.loading.set(false);
     }
+  }
+
+  private async loadCover3D(mangaId: number): Promise<void> {
+    try {
+      const res = await this.detail.loadMangaCover3D(mangaId);
+      if (res) {
+        this.isFullCover3d.set(!!res.isFullCover);
+        if (res.fullCoverPath) {
+          this.cover3dUrl.set('local-cover:///' + res.fullCoverPath.replace(/\\/g, '/'));
+        } else if (res.frontCoverPath) {
+          this.cover3dUrl.set('local-cover:///' + res.frontCoverPath.replace(/\\/g, '/'));
+        }
+        if (res.backCoverPath) {
+          this.backCover3dUrl.set('local-cover:///' + res.backCoverPath.replace(/\\/g, '/'));
+        }
+      }
+    } catch (e) {
+      console.warn('[MangaDetailComponent] Erro ao carregar capa 3D:', e);
+    }
+  }
+
+  private async loadBookmarks(mangaId: number): Promise<void> {
+    try {
+      const marks = await this.detail.loadMangaAnnotations(mangaId);
+      this.bookmarks.set(
+        (marks || []).map(m => ({
+          id: m.id,
+          page: m.page,
+          pages: m.pages,
+          note: m.note,
+          chapter: m.chapter,
+          type: m.markType,
+          dateCreate: m.dateCreate
+        }))
+      );
+    } catch (e) {
+      console.warn('[MangaDetailComponent] Erro ao carregar bookmarks:', e);
+    }
+  }
+
+  private async loadWebTrackerDetails(manga: Manga): Promise<void> {
+    this.loadingWeb.set(true);
+    try {
+      let malId: number | null = null;
+      let aniId: number | null = null;
+
+      if (manga.fkLibrary) {
+        const matchRes = await this.trackerService.matchTrack({
+          libraryId: manga.fkLibrary,
+          title: manga.title || '',
+          filename: manga.name || '',
+          comicInfoTitle: manga.title
+        });
+        if (matchRes?.track) {
+          this.matchedTrack.set(matchRes.track);
+          malId = matchRes.track.malId ?? null;
+          aniId = matchRes.track.aniId ?? null;
+        }
+      }
+
+      const searchTitle = manga.series || manga.title || manga.name;
+      const details = await this.trackerService.getMediaDetails({
+        malId,
+        aniId,
+        title: searchTitle
+      });
+
+      this.webDetails.set(details);
+    } catch (e) {
+      console.warn('[MangaDetailComponent] Erro ao sincronizar detalhes web:', e);
+    } finally {
+      this.loadingWeb.set(false);
+    }
+  }
+
+  formatDate(iso?: string | null): string {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso;
+    return d.toLocaleDateString('pt-BR');
   }
 
   goBack(): void {
@@ -308,8 +484,35 @@ export class MangaDetailComponent implements OnInit {
     if (updated) {
       this.manga.set(updated);
       this.bookmarkPage.set(updated.bookMark);
+      if (m.id) await this.loadBookmarks(m.id);
     }
     this.showBookmark.set(false);
+  }
+
+  async onBookmarkSelect(bm: DetailBookmarkItem): Promise<void> {
+    const m = this.manga();
+    if (!m?.id) return;
+    const bookMark = fromReaderIndex(bm.page, m.pages || 1);
+    const updated = await this.detail.setMangaBookMark(m, bookMark);
+    if (updated) this.manga.set(updated);
+    this.nav.openReader(this.router, 'image', m.id);
+  }
+
+  async onBookmarkDelete(bm: DetailBookmarkItem): Promise<void> {
+    if (!bm.id) return;
+    const ok = await this.confirmDialog.confirm({
+      title: 'Excluir Marcador',
+      message: `Deseja remover o marcador da página ${bm.page}?`,
+      confirmText: 'Excluir',
+      confirmVariant: 'danger'
+    });
+    if (!ok) return;
+
+    await this.detail.deleteMangaAnnotation(bm.id);
+    const m = this.manga();
+    if (m?.id) {
+      await this.loadBookmarks(m.id);
+    }
   }
 
   async onDelete(): Promise<void> {
@@ -336,6 +539,18 @@ export class MangaDetailComponent implements OnInit {
     this.nav.openReader(this.router, 'image', m.id);
   }
 
+  onOpenExternalLink(url: string): void {
+    if (url) {
+      this.electron.openExternal(url);
+    }
+  }
+
+  onOpenRelated(item: ExternalTrackerRelatedItem): void {
+    if (item.url) {
+      this.electron.openExternal(item.url);
+    }
+  }
+
   async onOpenTracker(): Promise<void> {
     const m = this.manga();
     if (!m?.fkLibrary) return;
@@ -348,19 +563,27 @@ export class MangaDetailComponent implements OnInit {
     this.showTrackerConfig.set(true);
   }
 
-  onTrackerSaved(track: Track): void {
+  async onTrackerSaved(track: Track): Promise<void> {
     this.matchedTrack.set(track);
     this.showTrackerSimple.set(false);
     this.importMessage.set('Rastreador sincronizado com sucesso!');
     setTimeout(() => this.importMessage.set(null), 3000);
+    const m = this.manga();
+    if (m) {
+      await this.loadWebTrackerDetails(m);
+    }
   }
 
-  onTrackerConfigSaved(track: Track): void {
+  async onTrackerConfigSaved(track: Track): Promise<void> {
     this.matchedTrack.set(track);
     this.showTrackerConfig.set(false);
     this.showTrackerSimple.set(true);
     this.importMessage.set('Rastreador salvo com sucesso!');
     setTimeout(() => this.importMessage.set(null), 3000);
+    const m = this.manga();
+    if (m) {
+      await this.loadWebTrackerDetails(m);
+    }
   }
 
   onTrackerDeleted(): void {
@@ -369,5 +592,59 @@ export class MangaDetailComponent implements OnInit {
     this.showTrackerSimple.set(false);
     this.importMessage.set('Rastreador removido.');
     setTimeout(() => this.importMessage.set(null), 3000);
+    this.webDetails.set(null);
+  }
+
+  private longPressTimer: any = null;
+  private pressStartX = 0;
+  private pressStartY = 0;
+
+  onCoverRightClick(event: MouseEvent): void {
+    event.preventDefault();
+    this.showCoverViewer.set(true);
+  }
+
+  onCoverMouseDown(event: MouseEvent): void {
+    if (event.button !== 0) return;
+    this.pressStartX = event.clientX;
+    this.pressStartY = event.clientY;
+
+    if (this.longPressTimer) {
+      clearTimeout(this.longPressTimer);
+    }
+
+    this.longPressTimer = setTimeout(() => {
+      this.longPressTimer = null;
+      this.showCoverViewer.set(true);
+    }, 500);
+  }
+
+  onCoverMouseMove(event: MouseEvent): void {
+    if (!this.longPressTimer) return;
+    const dist = Math.hypot(event.clientX - this.pressStartX, event.clientY - this.pressStartY);
+    if (dist > 8) {
+      clearTimeout(this.longPressTimer);
+      this.longPressTimer = null;
+    }
+  }
+
+  onCoverMouseUp(): void {
+    if (this.longPressTimer) {
+      clearTimeout(this.longPressTimer);
+      this.longPressTimer = null;
+    }
+  }
+
+  onCoverMouseLeave(): void {
+    if (this.longPressTimer) {
+      clearTimeout(this.longPressTimer);
+      this.longPressTimer = null;
+    }
+  }
+
+  onCoverClick(): void {
+    if (!this.settings.theme3dCoverInDetail()) {
+      this.showCoverViewer.set(true);
+    }
   }
 }

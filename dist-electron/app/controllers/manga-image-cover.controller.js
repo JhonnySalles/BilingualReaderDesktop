@@ -57,6 +57,76 @@ class MangaImageCoverController {
     generateHash(filePath) {
         return crypto.createHash('md5').update(filePath).digest('hex');
     }
+    async getMangaCover3D(manga) {
+        const filePath = manga.path || manga.file;
+        if (!filePath || !fs.existsSync(filePath)) {
+            return { fullCoverPath: null, frontCoverPath: null, backCoverPath: null, isFullCover: false };
+        }
+        const hash = this.generateHash(filePath);
+        const cacheDir = this.getCacheDir();
+        const fullPath = path.join(cacheDir, `${hash}_full.png`);
+        const frontPath = path.join(cacheDir, `${hash}_front.png`);
+        const backPath = path.join(cacheDir, `${hash}_back.png`);
+        if (fs.existsSync(fullPath)) {
+            return {
+                fullCoverPath: fullPath,
+                frontCoverPath: fs.existsSync(frontPath) ? frontPath : fullPath,
+                backCoverPath: fs.existsSync(backPath) ? backPath : null,
+                isFullCover: true
+            };
+        }
+        const parser = await parse_factory_1.ParseFactory.create(filePath);
+        if (!parser) {
+            const defaultCover = manga.coverPath && fs.existsSync(manga.coverPath) ? manga.coverPath : null;
+            return { fullCoverPath: defaultCover, frontCoverPath: defaultCover, backCoverPath: null, isFullCover: false };
+        }
+        try {
+            if (parser.hasFullCover()) {
+                const fullCoverBuffer = parser.getFullCover();
+                if (fullCoverBuffer) {
+                    fs.writeFileSync(fullPath, fullCoverBuffer);
+                    const coverStreams = parser.getCover();
+                    if (coverStreams.front)
+                        fs.writeFileSync(frontPath, coverStreams.front);
+                    if (coverStreams.back)
+                        fs.writeFileSync(backPath, coverStreams.back);
+                    return {
+                        fullCoverPath: fullPath,
+                        frontCoverPath: fs.existsSync(frontPath) ? frontPath : fullPath,
+                        backCoverPath: fs.existsSync(backPath) ? backPath : null,
+                        isFullCover: true
+                    };
+                }
+            }
+            const coverStreams = parser.getCover();
+            if (coverStreams.front) {
+                fs.writeFileSync(frontPath, coverStreams.front);
+            }
+            if (coverStreams.back) {
+                fs.writeFileSync(backPath, coverStreams.back);
+            }
+            const front = fs.existsSync(frontPath) ? frontPath : (manga.coverPath || null);
+            const back = fs.existsSync(backPath) ? backPath : null;
+            return {
+                fullCoverPath: null,
+                frontCoverPath: front,
+                backCoverPath: back,
+                isFullCover: false
+            };
+        }
+        catch (e) {
+            console.error('Error extracting 3D cover for manga:', manga.name, e);
+            return {
+                fullCoverPath: null,
+                frontCoverPath: manga.coverPath || null,
+                backCoverPath: null,
+                isFullCover: false
+            };
+        }
+        finally {
+            parser.destroy();
+        }
+    }
     async getMangaCoverFile(manga) {
         const filePath = manga.path || manga.file;
         if (!filePath || !fs.existsSync(filePath)) {
@@ -73,6 +143,13 @@ class MangaImageCoverController {
             return null;
         }
         try {
+            if (parser.hasFullCover()) {
+                const fullCoverBuffer = parser.getFullCover();
+                if (fullCoverBuffer) {
+                    fs.writeFileSync(coverPath, fullCoverBuffer);
+                    return coverPath;
+                }
+            }
             const cover = parser.getCover();
             const coverBuffer = cover.front;
             if (coverBuffer) {

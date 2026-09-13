@@ -101,14 +101,16 @@ export interface VirtualRow {
                         [manga]="$any(item)"
                         [cardStyle]="effectiveCardStyle"
                         (setBookmark)="setBookmark.emit($event)"
-                        (openTracker)="openTracker.emit($event)">
+                        (openTracker)="openTracker.emit($event)"
+                        (openTags)="openTags.emit($event)">
                       </app-manga-card>
                     } @else {
                       <app-book-card
                         [book]="$any(item)"
                         [cardStyle]="effectiveCardStyle"
                         (setBookmark)="setBookmark.emit($event)"
-                        (openTracker)="openTracker.emit($event)">
+                        (openTracker)="openTracker.emit($event)"
+                        (openTags)="openTags.emit($event)">
                       </app-book-card>
                     }
                   </div>
@@ -138,7 +140,8 @@ export interface VirtualRow {
                       <app-manga-list-item
                         [manga]="$any(item)"
                         (setBookmark)="setBookmark.emit($event)"
-                        (openTracker)="openTracker.emit($event)">
+                        (openTracker)="openTracker.emit($event)"
+                        (openTags)="openTags.emit($event)">
                       </app-manga-list-item>
                     } @else {
                       <div class="group bg-slate-800/40 backdrop-blur-md rounded-lg overflow-hidden border border-slate-700/40 hover:border-amber-500/40 hover:bg-slate-800/80 transition-all duration-200 cursor-pointer flex items-stretch justify-between gap-3 pr-3">
@@ -261,6 +264,7 @@ export class SharedListComponent implements OnInit, OnDestroy {
   @Output() openDetail = new EventEmitter<Manga | Book>();
   @Output() setBookmark = new EventEmitter<Manga | Book>();
   @Output() openTracker = new EventEmitter<Manga | Book>();
+  @Output() openTags = new EventEmitter<Manga | Book>();
 
   public libraryStateService = inject(LibraryStateService);
   private bookService = inject(BookLibraryService);

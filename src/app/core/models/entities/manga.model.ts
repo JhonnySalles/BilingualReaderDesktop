@@ -21,6 +21,10 @@ export interface Manga extends BaseEntity<number>, HistoryInterface {
   publisher: string;
   volume: string;
   release?: string;
+  language?: string;
+  storyArch?: string;
+  characters?: string;
+  tags?: string;
   fkLibrary?: number;
   excluded: boolean;
   dateCreate?: string;

@@ -51,6 +51,46 @@ class MigrationsManager {
             this.db.pragma('user_version = 1');
             return;
         }
+        // Ensure Tags table exists for existing databases
+        this.db.exec(`
+      CREATE TABLE IF NOT EXISTS Tags (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL UNIQUE
+      );
+      CREATE INDEX IF NOT EXISTS idx_tags_name ON Tags(name);
+    `);
+        // Ensure extra columns exist on Manga
+        try {
+            const mangaCols = this.db.pragma('table_info(Manga)');
+            const mangaColNames = new Set(mangaCols.map(c => c.name));
+            if (!mangaColNames.has('language'))
+                this.db.exec("ALTER TABLE Manga ADD COLUMN language TEXT DEFAULT ''");
+            if (!mangaColNames.has('story_arch'))
+                this.db.exec("ALTER TABLE Manga ADD COLUMN story_arch TEXT DEFAULT ''");
+            if (!mangaColNames.has('characters'))
+                this.db.exec("ALTER TABLE Manga ADD COLUMN characters TEXT DEFAULT ''");
+            if (!mangaColNames.has('tags'))
+                this.db.exec("ALTER TABLE Manga ADD COLUMN tags TEXT DEFAULT ''");
+        }
+        catch (e) {
+            console.warn('[MigrationsManager] Error updating Manga columns:', e);
+        }
+        // Ensure extra columns exist on Book
+        try {
+            const bookCols = this.db.pragma('table_info(Book)');
+            const bookColNames = new Set(bookCols.map(c => c.name));
+            if (!bookColNames.has('language'))
+                this.db.exec("ALTER TABLE Book ADD COLUMN language TEXT DEFAULT ''");
+            if (!bookColNames.has('isbn'))
+                this.db.exec("ALTER TABLE Book ADD COLUMN isbn TEXT DEFAULT ''");
+            if (!bookColNames.has('annotation'))
+                this.db.exec("ALTER TABLE Book ADD COLUMN annotation TEXT DEFAULT ''");
+            if (!bookColNames.has('tags'))
+                this.db.exec("ALTER TABLE Book ADD COLUMN tags TEXT DEFAULT ''");
+        }
+        catch (e) {
+            console.warn('[MigrationsManager] Error updating Book columns:', e);
+        }
     }
     createInitialSchema() {
         this.db.exec(`
@@ -85,6 +125,10 @@ class MigrationsManager {
         publisher TEXT DEFAULT '',
         release TEXT,
         volume TEXT DEFAULT '',
+        language TEXT DEFAULT '',
+        story_arch TEXT DEFAULT '',
+        characters TEXT DEFAULT '',
+        tags TEXT DEFAULT '',
         date_create TEXT,
         last_access TEXT,
         excluded INTEGER NOT NULL DEFAULT 0,
@@ -352,6 +396,13 @@ class MigrationsManager {
       CREATE INDEX IF NOT EXISTS idx_track_library ON Track(id_library);
       CREATE INDEX IF NOT EXISTS idx_track_malId ON Track(malId);
       CREATE INDEX IF NOT EXISTS idx_track_aniId ON Track(aniId);
+
+      CREATE TABLE IF NOT EXISTS Tags (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL UNIQUE
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_tags_name ON Tags(name);
     `);
     }
     seedInitialData() {

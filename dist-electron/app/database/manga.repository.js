@@ -36,6 +36,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.MangaRepository = void 0;
 const path = __importStar(require("path"));
 const base_repository_1 = require("./base.repository");
+const app_enums_1 = require("../../src/app/core/models/enums/app-enums");
 class MangaRepository extends base_repository_1.BaseRepository {
     constructor(db) {
         super(db, 'Manga', 'id');
@@ -62,6 +63,10 @@ class MangaRepository extends base_repository_1.BaseRepository {
             publisher: row.publisher || '',
             volume: row.volume || '',
             release: row.release,
+            language: row.language || '',
+            storyArch: row.story_arch || '',
+            characters: row.characters || '',
+            tags: row.tags || '',
             fkLibrary: row.id_library,
             excluded: Boolean(row.excluded),
             dateCreate: row.date_create,
@@ -228,34 +233,53 @@ class MangaRepository extends base_repository_1.BaseRepository {
                 manga.id = existing.id;
             }
         }
-        const chaptersJson = typeof manga.chapters === 'string' ? manga.chapters : JSON.stringify(manga.chapters || []);
-        const chaptersPagesJson = typeof manga.chaptersPages === 'string' ? manga.chaptersPages : JSON.stringify(manga.chaptersPages || {});
         if (manga.id) {
+            const existing = this.getById(manga.id);
+            const merged = {
+                ...(existing || {}),
+                ...manga
+            };
+            const chaptersJson = typeof merged.chapters === 'string' ? merged.chapters : JSON.stringify(merged.chapters || []);
+            const chaptersPagesJson = typeof merged.chaptersPages === 'string' ? merged.chaptersPages : JSON.stringify(merged.chaptersPages || {});
+            const resolvedFolder = merged.folder || (merged.path ? path.dirname(merged.path) : '');
+            const resolvedName = merged.name || (merged.path ? path.basename(merged.path) : '');
+            const resolvedTitle = merged.title || resolvedName || '';
+            const resolvedType = merged.fileType || (merged.path ? path.extname(merged.path).toUpperCase().replace('.', '') : app_enums_1.FileType.CBZ);
+            const resolvedFileAlteration = merged.fileAlteration || new Date().toISOString();
             const stmt = this.db.prepare(`
         UPDATE Manga SET
           title = ?, path = ?, folder = ?, name = ?, size = ?,
           type = ?, pages = ?, chapters = ?, chapters_pages = ?, book_mark = ?,
           completed = ?, favorite = ?, has_subtitle = ?, author = ?, series = ?,
-          genre = ?, publisher = ?, volume = ?, release = ?, id_library = ?,
-          excluded = ?, last_access = ?, last_alteration = ?, file_alteration = ?,
+          genre = ?, publisher = ?, volume = ?, release = ?,
+          language = ?, story_arch = ?, characters = ?, tags = ?,
+          id_library = ?, excluded = ?, last_access = ?, last_alteration = ?, file_alteration = ?,
           last_vocabulary_import = ?, last_verify = ?, cover_path = ?
         WHERE id = ?
       `);
-            stmt.run(manga.title, manga.path, manga.folder, manga.name, manga.fileSize ?? 0, manga.fileType, manga.pages ?? 1, chaptersJson, chaptersPagesJson, manga.bookMark ?? 0, manga.completed ? 1 : 0, manga.favorite ? 1 : 0, manga.hasSubtitle ? 1 : 0, manga.author ?? '', manga.series ?? '', manga.genre ?? '', manga.publisher ?? '', manga.volume ?? '', manga.release ?? null, manga.fkLibrary ?? null, manga.excluded ? 1 : 0, manga.lastAccess ?? null, manga.lastAlteration ?? new Date().toISOString(), manga.fileAlteration ?? new Date().toISOString(), manga.lastVocabImport ?? null, manga.lastVerify ?? null, manga.coverPath ?? null, manga.id);
+            stmt.run(resolvedTitle, merged.path, resolvedFolder, resolvedName, merged.fileSize ?? 0, resolvedType, merged.pages ?? 1, chaptersJson, chaptersPagesJson, merged.bookMark ?? 0, merged.completed ? 1 : 0, merged.favorite ? 1 : 0, merged.hasSubtitle ? 1 : 0, merged.author ?? '', merged.series ?? '', merged.genre ?? '', merged.publisher ?? '', merged.volume ?? '', merged.release ?? null, merged.language ?? '', merged.storyArch ?? '', merged.characters ?? '', merged.tags ?? '', merged.fkLibrary ?? null, merged.excluded ? 1 : 0, merged.lastAccess ?? null, merged.lastAlteration ?? new Date().toISOString(), resolvedFileAlteration, merged.lastVocabImport ?? null, merged.lastVerify ?? null, merged.coverPath ?? null, manga.id);
             return manga.id;
         }
         else {
+            const chaptersJson = typeof manga.chapters === 'string' ? manga.chapters : JSON.stringify(manga.chapters || []);
+            const chaptersPagesJson = typeof manga.chaptersPages === 'string' ? manga.chaptersPages : JSON.stringify(manga.chaptersPages || {});
+            const resolvedFolder = manga.folder || (manga.path ? path.dirname(manga.path) : '');
+            const resolvedName = manga.name || (manga.path ? path.basename(manga.path) : '');
+            const resolvedTitle = manga.title || resolvedName || '';
+            const resolvedType = manga.fileType || (manga.path ? path.extname(manga.path).toUpperCase().replace('.', '') : app_enums_1.FileType.CBZ);
+            const resolvedFileAlteration = manga.fileAlteration || new Date().toISOString();
             const stmt = this.db.prepare(`
         INSERT INTO Manga (
           title, path, folder, name, size, type, pages, chapters, chapters_pages,
           book_mark, completed, favorite, has_subtitle, author, series, genre,
-          publisher, volume, release, id_library, excluded, date_create, last_access,
+          publisher, volume, release, language, story_arch, characters, tags,
+          id_library, excluded, date_create, last_access,
           last_alteration, file_alteration, last_vocabulary_import, last_verify, cover_path
         ) VALUES (
-          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
         )
       `);
-            const info = stmt.run(manga.title, manga.path, manga.folder, manga.name, manga.fileSize ?? 0, manga.fileType, manga.pages ?? 1, chaptersJson, chaptersPagesJson, manga.bookMark ?? 0, manga.completed ? 1 : 0, manga.favorite ? 1 : 0, manga.hasSubtitle ? 1 : 0, manga.author ?? '', manga.series ?? '', manga.genre ?? '', manga.publisher ?? '', manga.volume ?? '', manga.release ?? null, manga.fkLibrary ?? null, manga.excluded ? 1 : 0, new Date().toISOString(), manga.lastAccess ?? null, manga.lastAlteration ?? new Date().toISOString(), manga.fileAlteration ?? new Date().toISOString(), manga.lastVocabImport ?? null, manga.lastVerify ?? null, manga.coverPath ?? null);
+            const info = stmt.run(resolvedTitle, manga.path, resolvedFolder, resolvedName, manga.fileSize ?? 0, resolvedType, manga.pages ?? 1, chaptersJson, chaptersPagesJson, manga.bookMark ?? 0, manga.completed ? 1 : 0, manga.favorite ? 1 : 0, manga.hasSubtitle ? 1 : 0, manga.author ?? '', manga.series ?? '', manga.genre ?? '', manga.publisher ?? '', manga.volume ?? '', manga.release ?? null, manga.language ?? '', manga.storyArch ?? '', manga.characters ?? '', manga.tags ?? '', manga.fkLibrary ?? null, manga.excluded ? 1 : 0, new Date().toISOString(), manga.lastAccess ?? null, manga.lastAlteration ?? new Date().toISOString(), resolvedFileAlteration, manga.lastVocabImport ?? null, manga.lastVerify ?? null, manga.coverPath ?? null);
             return Number(info.lastInsertRowid);
         }
     }

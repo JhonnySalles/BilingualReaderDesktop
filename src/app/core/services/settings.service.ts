@@ -136,6 +136,7 @@ interface SettingsData {
   mangaDualPageCalculate?: boolean;
   themeGlassmorphism?: boolean;
   theme3DCovers?: boolean;
+  theme3dCoverInDetail?: boolean;
   libraryDefaultOrder?: OrderType;
   ebookConvertMode?: EbookConvertMode;
   mangaAvgTimePerPage?: number;
@@ -213,6 +214,7 @@ export class SettingsService {
   mangaDualPageCalculate = signal(false);
   themeGlassmorphism = signal(true);
   theme3DCovers = signal(true);
+  theme3dCoverInDetail = signal(true);
   /** Default library sort applied to manga + book contexts. */
   libraryDefaultOrder = signal<OrderType>(OrderType.Name);
   /** auto = Calibre then native; calibre = Calibre only; native = builtin only. */
@@ -283,6 +285,7 @@ export class SettingsService {
         mangaDualPageCalculate: this.mangaDualPageCalculate(),
         themeGlassmorphism: this.themeGlassmorphism(),
         theme3DCovers: this.theme3DCovers(),
+        theme3dCoverInDetail: this.theme3dCoverInDetail(),
         libraryDefaultOrder: this.libraryDefaultOrder(),
         ebookConvertMode: this.ebookConvertMode(),
         mangaAvgTimePerPage: this.mangaAvgTimePerPage(),
@@ -504,6 +507,9 @@ export class SettingsService {
         }
         if (typeof data.theme3DCovers === 'boolean') {
           this.theme3DCovers.set(data.theme3DCovers);
+        }
+        if (typeof data.theme3dCoverInDetail === 'boolean') {
+          this.theme3dCoverInDetail.set(data.theme3dCoverInDetail);
         }
         if (data.libraryDefaultOrder && Object.values(OrderType).includes(data.libraryDefaultOrder)) {
           this.libraryDefaultOrder.set(data.libraryDefaultOrder);

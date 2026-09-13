@@ -4,6 +4,7 @@ exports.StatisticsController = void 0;
 const electron_1 = require("electron");
 const reading_time_service_1 = require("../services/reading-time.service");
 const epub_book_extractor_1 = require("../parser/book/epub-book-extractor");
+const main_1 = require("../main");
 class StatisticsController {
     storage;
     readingTimeService;
@@ -72,6 +73,7 @@ class StatisticsController {
                     });
                 }
             }
+            (0, main_1.updateJumpListTasks)();
             return sessionId;
         });
         electron_1.ipcMain.handle('history:update', async (_event, update) => {
@@ -111,6 +113,7 @@ class StatisticsController {
                     }
                 }
             }
+            (0, main_1.updateJumpListTasks)();
             return true;
         });
     }

@@ -126,12 +126,16 @@ async function run(): Promise<void> {
         }
       }
 
-      if (!existing.author) {
+      if (!existing.author || !existing.series || !existing.isbn || !existing.annotation) {
         const meta = BookExtractorFactory.getMetadata(filePath);
         if (meta.author && !existing.author) { updated.author = meta.author; needsUpdate = true; }
         if (meta.series && !existing.series) { updated.series = meta.series; needsUpdate = true; }
         if (meta.genre && !existing.genre) { updated.genre = meta.genre; needsUpdate = true; }
         if (meta.publisher && !existing.publisher) { updated.publisher = meta.publisher; needsUpdate = true; }
+        if (meta.language && !existing.language) { updated.language = meta.language; needsUpdate = true; }
+        if (meta.isbn && !existing.isbn) { updated.isbn = meta.isbn; needsUpdate = true; }
+        if (meta.annotation && !existing.annotation) { updated.annotation = meta.annotation; needsUpdate = true; }
+        if (meta.tags && !existing.tags) { updated.tags = meta.tags; needsUpdate = true; }
       }
 
       if (needsUpdate || existing.fkLibrary !== libraryId) {
@@ -161,6 +165,10 @@ async function run(): Promise<void> {
         series: meta.series || '',
         genre: meta.genre || '',
         publisher: meta.publisher || '',
+        language: meta.language || '',
+        isbn: meta.isbn || '',
+        annotation: meta.annotation || '',
+        tags: meta.tags || '',
         volume: '',
         fkLibrary: libraryId,
         excluded: false,

@@ -774,6 +774,13 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
                       [ngModel]="settingsService.theme3DCovers()"
                       (ngModelChange)="settingsService.theme3DCovers.set($event)">
                   </label>
+                  <label class="flex items-center justify-between text-xs text-slate-300 cursor-pointer">
+                    <span>Exibir Capa 3D nos Detalhes (Livro/Mangá)</span>
+                    <input type="checkbox"
+                      class="w-4 h-4 accent-indigo-600 rounded"
+                      [ngModel]="settingsService.theme3dCoverInDetail()"
+                      (ngModelChange)="settingsService.theme3dCoverInDetail.set($event)">
+                  </label>
                 </div>
               </div>
 

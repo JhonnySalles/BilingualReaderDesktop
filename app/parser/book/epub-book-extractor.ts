@@ -9,6 +9,9 @@ export interface BookMetadataResult {
   genre: string;
   publisher: string;
   language: string;
+  isbn: string;
+  annotation: string;
+  tags: string;
   coverImage: Buffer | null;
 }
 
@@ -20,6 +23,9 @@ export class EpubBookExtractor {
     let genre = '';
     let publisher = '';
     let language = '';
+    let isbn = '';
+    let annotation = '';
+    let tags = '';
     let coverImage: Buffer | null = null;
 
     try {
@@ -60,8 +66,30 @@ export class EpubBookExtractor {
           const langMatch = opfXml.match(/<dc:language[^>]*>([\s\S]*?)<\/dc:language>/i);
           if (langMatch) language = this.cleanXmlText(langMatch[1]);
 
-          const subjectMatch = opfXml.match(/<dc:subject[^>]*>([\s\S]*?)<\/dc:subject>/i);
-          if (subjectMatch) genre = this.cleanXmlText(subjectMatch[1]);
+          const descMatch = opfXml.match(/<dc:description[^>]*>([\s\S]*?)<\/dc:description>/i);
+          if (descMatch) annotation = this.cleanXmlText(descMatch[1]);
+
+          const isbnMatch = opfXml.match(/<dc:identifier[^>]*(?:scheme=["']ISBN["']|id=["'][^"']*isbn[^"']*["'])[^>]*>([\s\S]*?)<\/dc:identifier>/i) ||
+                            opfXml.match(/<dc:identifier[^>]*>(?:urn:isbn:)?([0-9Xx-]{10,17})<\/dc:identifier>/i);
+          if (isbnMatch) isbn = this.cleanXmlText(isbnMatch[1]).replace(/^urn:isbn:/i, '');
+
+          // Series from Calibre metadata or EPUB 3 belongs-to-collection
+          const seriesMatch = opfXml.match(/<meta\s+name=["']calibre:series["']\s+content=["']([^"']+)["']/i) ||
+                              opfXml.match(/<meta\s+property=["']belongs-to-collection["'][^>]*>([\s\S]*?)<\/meta>/i);
+          if (seriesMatch) series = this.cleanXmlText(seriesMatch[1]);
+
+          // Subjects / Tags
+          const subjects: string[] = [];
+          const subjectRegex = /<dc:subject[^>]*>([\s\S]*?)<\/dc:subject>/gi;
+          let subMatch: RegExpExecArray | null;
+          while ((subMatch = subjectRegex.exec(opfXml)) !== null) {
+            const cleanSub = this.cleanXmlText(subMatch[1]);
+            if (cleanSub) subjects.push(cleanSub);
+          }
+          if (subjects.length > 0) {
+            genre = subjects[0];
+            tags = subjects.join(', ');
+          }
 
           const coverHref = this.resolveCoverHref(opfXml);
           if (coverHref) {
@@ -85,6 +113,9 @@ export class EpubBookExtractor {
       genre,
       publisher,
       language,
+      isbn,
+      annotation,
+      tags,
       coverImage
     };
   }
@@ -323,4 +354,50 @@ export class EpubBookExtractor {
       return 0;
     }
   }
+
+  /**
+   * Calculate total page/spine count for an EPUB file.
+   */
+  public static calculatePages(filePath: string): number {
+    try {
+      if (!filePath || !fs.existsSync(filePath)) return 0;
+      const zip = new AdmZip(filePath);
+
+      let opfPath = '';
+      const containerEntry = zip.getEntry('META-INF/container.xml');
+      if (containerEntry) {
+        const containerXml = zip.readAsText(containerEntry);
+        const rootfileMatch = containerXml.match(/full-path=["']([^"']+)["']/i);
+        if (rootfileMatch) {
+          opfPath = rootfileMatch[1];
+        }
+      }
+
+      if (!opfPath) {
+        const opfEntries = zip.getEntries().filter(e => e.entryName.endsWith('.opf'));
+        if (opfEntries.length > 0) opfPath = opfEntries[0].entryName;
+      }
+
+      if (opfPath) {
+        const opfEntry = zip.getEntry(opfPath);
+        if (opfEntry) {
+          const opfXml = zip.readAsText(opfEntry);
+          const spineRegex = /<itemref\s+[^>]*idref=["']([^"']+)["'][^>]*>/gi;
+          let count = 0;
+          while (spineRegex.exec(opfXml) !== null) {
+            count++;
+          }
+          if (count > 0) return count;
+        }
+      }
+
+      // Fallback: count html/xhtml files
+      const htmlEntries = zip.getEntries().filter(e => !e.isDirectory && /\.(x?html|xml|htm)$/i.test(e.entryName));
+      return htmlEntries.length;
+    } catch (e) {
+      console.warn(`Error calculating pages in EPUB ${filePath}:`, e);
+      return 0;
+    }
+  }
 }
+

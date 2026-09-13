@@ -6,10 +6,12 @@ import { DetailService } from '../../core/services/detail.service';
 import { NavigationStackService } from '../../core/services/navigation-stack.service';
 import { ElectronService } from '../../core/services/electron.service';
 import { BookUnlockService } from '../../core/services/book-unlock.service';
-import { Book } from '../../core/models';
+import { Book, Track, ExternalTrackerMediaDetails, ExternalTrackerRelatedItem } from '../../core/models';
 import { bookNeedsUnlock, bookPasswordMatches } from '../../core/utils/book-password.util';
 import { DetailActionBarComponent } from './components/detail-action-bar.component';
 import { DetailMetaSectionComponent, DetailMetaField } from './components/detail-meta-section.component';
+import { DetailBookmarksListComponent, DetailBookmarkItem } from './components/detail-bookmarks-list.component';
+import { DetailWebSectionComponent } from './components/detail-web-section.component';
 import {
   LibraryBookmarkDialogComponent,
   LibraryBookmarkPayload
@@ -17,8 +19,11 @@ import {
 import { TrackerConfigDialogComponent } from '../../shared/tracker-config-dialog/tracker-config-dialog.component';
 import { TrackerSimpleDialogComponent } from '../../shared/tracker-simple-dialog/tracker-simple-dialog.component';
 import { TrackerService } from '../../core/services/tracker.service';
-import { Track } from '../../core/models';
 import { ConfirmDialogService } from '../../core/services/confirm-dialog.service';
+import { SettingsService } from '../../core/services/settings.service';
+import { BookCover3dComponent } from '../../shared/book-cover-3d/book-cover-3d.component';
+import { CoverViewerDialogComponent } from '../../shared/cover-viewer-dialog/cover-viewer-dialog.component';
+import { TagsDialogComponent } from '../../shared/tags-dialog/tags-dialog.component';
 
 @Component({
   selector: 'app-book-detail',
@@ -29,9 +34,14 @@ import { ConfirmDialogService } from '../../core/services/confirm-dialog.service
     RouterModule,
     DetailActionBarComponent,
     DetailMetaSectionComponent,
+    DetailBookmarksListComponent,
+    DetailWebSectionComponent,
     LibraryBookmarkDialogComponent,
     TrackerConfigDialogComponent,
-    TrackerSimpleDialogComponent
+    TrackerSimpleDialogComponent,
+    BookCover3dComponent,
+    CoverViewerDialogComponent,
+    TagsDialogComponent
   ],
   template: `
     <div class="h-full flex flex-col bg-slate-950 text-slate-100 overflow-hidden select-none relative pt-20">
@@ -60,19 +70,45 @@ import { ConfirmDialogService } from '../../core/services/confirm-dialog.service
         <div class="flex-1 flex items-center justify-center text-sm text-slate-400">Item não encontrado.</div>
       } @else {
         <div class="flex-1 min-h-0 overflow-y-auto">
+          <!-- Hero Section -->
           <div class="relative overflow-hidden border-b border-slate-800">
-            @if (book()!.coverPath) {
+            @if (coverUrl()) {
               <div class="absolute inset-0 opacity-30 blur-2xl scale-110"
-                [style.backgroundImage]="'url(local-cover:///' + book()!.coverPath + ')'"
+                [style.backgroundImage]="'url(' + coverUrl() + ')'"
                 style="background-size: cover; background-position: center;"></div>
             }
             <div class="absolute inset-0 bg-gradient-to-b from-slate-950 via-slate-950 to-slate-950 opacity-80"></div>
 
             <div class="relative px-6 py-8 flex flex-col md:flex-row gap-6">
               <div class="w-40 shrink-0">
-                <div class="aspect-[2/3] rounded-xl overflow-hidden border border-slate-700 bg-slate-900 shadow-xl cover-3d-host">
-                  @if (book()!.coverPath) {
-                    <img [src]="'local-cover:///' + book()!.coverPath" [alt]="book()!.title" class="cover-3d-face w-full h-full object-cover rounded-xl" />
+                <div 
+                  class="aspect-[2/3] rounded-xl overflow-hidden border border-slate-700 bg-slate-900 shadow-xl cover-3d-host relative group"
+                  (click)="onCoverClick()"
+                  (mousedown)="onCoverMouseDown($event)"
+                  (mousemove)="onCoverMouseMove($event)"
+                  (mouseup)="onCoverMouseUp()"
+                  (mouseleave)="onCoverMouseLeave()"
+                  (contextmenu)="onCoverRightClick($event)">
+                  @if (coverUrl() || cover3dUrl()) {
+                    @if (settings.theme3dCoverInDetail()) {
+                      <app-book-cover-3d 
+                        [coverUrl]="cover3dUrl() || coverUrl()" 
+                        [backCoverUrl]="backCover3dUrl()"
+                        [isPopup]="false" 
+                        [isFullCover]="isFullCover3d()"
+                        class="absolute inset-0 z-10">
+                      </app-book-cover-3d>
+                    } @else {
+                      <img [src]="coverUrl()!" [alt]="book()!.title" class="cover-3d-face w-full h-full object-cover rounded-xl cursor-pointer" />
+                    }
+                    
+                    @if (!settings.theme3dCoverInDetail()) {
+                      <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity z-20 flex items-center justify-center pointer-events-none">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white/80" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                        </svg>
+                      </div>
+                    }
                   } @else {
                     <div class="w-full h-full flex items-center justify-center text-amber-500 text-xs">{{ book()!.fileType || 'EPUB' }}</div>
                   }
@@ -105,7 +141,7 @@ import { ConfirmDialogService } from '../../core/services/confirm-dialog.service
                   <p>Último acesso: {{ lastAccess() }}</p>
                   <p>Tipo: {{ book()!.fileType || 'EPUB' }}</p>
                   @if (hasPassword()) {
-                    <p class="text-amber-300/90">Protegido por senha</p>
+                    <p class="text-amber-300/90 font-medium">🔒 Protegido por senha</p>
                   }
                 </div>
               </div>
@@ -113,6 +149,7 @@ import { ConfirmDialogService } from '../../core/services/confirm-dialog.service
           </div>
 
           <div class="p-6 space-y-8">
+            <!-- Action Bar -->
             <app-detail-action-bar
               accent="amber"
               [isFavorite]="book()!.favorite"
@@ -127,32 +164,41 @@ import { ConfirmDialogService } from '../../core/services/confirm-dialog.service
               (tracker)="onOpenTracker()"
               (deleteItem)="onDelete()" />
 
-            <section class="space-y-3">
-              <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 border-b border-slate-800 pb-2">Senha de abertura</h3>
-              <p class="text-[11px] text-slate-500">Trava o leitor deste livro. Não é senha de DRM do arquivo.</p>
-              <div class="flex flex-wrap gap-2">
-                @if (!hasPassword()) {
-                  <button type="button" (click)="openPasswordModal('set')"
-                    class="px-3 py-2 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 cursor-pointer">
-                    Definir senha
-                  </button>
-                } @else {
-                  <button type="button" (click)="openPasswordModal('change')"
-                    class="px-3 py-2 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 cursor-pointer">
-                    Alterar senha
-                  </button>
-                  <button type="button" (click)="openPasswordModal('remove')"
-                    class="px-3 py-2 rounded-lg text-xs font-semibold bg-rose-950/60 hover:bg-rose-900/50 text-rose-200 border border-rose-800/60 cursor-pointer">
-                    Remover senha
-                  </button>
-                }
+            <!-- Security / Password section -->
+            <section class="p-4 rounded-2xl border border-slate-800 bg-slate-900/40 space-y-2">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300">Senha de Abertura</h3>
+                  <p class="text-[11px] text-slate-400">Trava a leitura deste livro no aplicativo (não altera DRM).</p>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                  @if (!hasPassword()) {
+                    <button type="button" (click)="openPasswordModal('set')"
+                      class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors cursor-pointer">
+                      Definir senha
+                    </button>
+                  } @else {
+                    <button type="button" (click)="openPasswordModal('change')"
+                      class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors cursor-pointer">
+                      Alterar senha
+                    </button>
+                    <button type="button" (click)="openPasswordModal('remove')"
+                      class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-rose-950/60 hover:bg-rose-900/50 text-rose-200 border border-rose-800/60 transition-colors cursor-pointer">
+                      Remover senha
+                    </button>
+                  }
+                </div>
               </div>
             </section>
 
-            <section class="space-y-3">
-              <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 border-b border-slate-800 pb-2">Idioma do livro</h3>
+            <!-- Language configuration section -->
+            <section class="p-4 rounded-2xl border border-slate-800 bg-slate-900/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300">Idioma do Livro</h3>
+                <p class="text-[11px] text-slate-400">Define o idioma para o sintetizador de voz (TTS) e OCR.</p>
+              </div>
               <select
-                class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 max-w-xs"
+                class="bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-amber-500 cursor-pointer min-w-[160px]"
                 [ngModel]="book()!.language || ''"
                 (ngModelChange)="onLanguage($event)">
                 <option value="">Não definido</option>
@@ -162,40 +208,55 @@ import { ConfirmDialogService } from '../../core/services/confirm-dialog.service
               </select>
             </section>
 
-            <app-detail-meta-section title="Information" [fields]="metaFields()">
-              <div class="mt-4 space-y-2">
-                <p class="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Tags</p>
-                <div class="flex flex-wrap gap-2">
-                  @for (tag of tagList(); track tag) {
-                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-amber-950 text-amber-300 border border-amber-800">
-                      {{ tag }}
-                      <button type="button" class="hover:text-white cursor-pointer" (click)="removeTag(tag)">×</button>
-                    </span>
-                  }
-                  @if (tagList().length === 0) {
-                    <span class="text-xs text-slate-500">Nenhuma tag</span>
-                  }
-                </div>
-                @if (showTagInput()) {
-                  <div class="flex gap-2 max-w-md mt-2">
-                    <input
-                      type="text"
-                      class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200"
-                      placeholder="Nova tag"
-                      [(ngModel)]="newTag"
-                      (keydown.enter)="addTag()" />
-                    <button type="button" (click)="addTag()"
-                      class="px-3 py-2 rounded-lg text-xs font-semibold bg-amber-600 text-white cursor-pointer">
-                      Add
-                    </button>
-                    <button type="button" (click)="showTagInput.set(false)"
-                      class="px-3 py-2 rounded-lg text-xs font-semibold text-slate-400 hover:bg-slate-800 cursor-pointer">
-                      Fechar
-                    </button>
-                  </div>
-                }
+            <!-- Metadata Section with Horizontal Tags -->
+            <app-detail-meta-section
+              title="Detalhe do Livro"
+              [fields]="metaFields()"
+              [tags]="tagList()"
+              (tagClick)="onTagClicked($event)">
+              <div class="mt-3 flex items-center justify-between">
+                <button type="button" (click)="showTagsModal.set(true)"
+                  class="text-[11px] font-semibold text-amber-400 hover:text-amber-300 hover:underline flex items-center gap-1 cursor-pointer">
+                  🏷️ Gerenciar Todas as Tags
+                </button>
               </div>
+
+              @if (showTagInput()) {
+                <div class="flex gap-2 max-w-md mt-3">
+                  <input
+                    type="text"
+                    class="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-amber-500"
+                    placeholder="Nova tag"
+                    [(ngModel)]="newTag"
+                    (keydown.enter)="addTag()" />
+                  <button type="button" (click)="addTag()"
+                    class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-amber-600 hover:bg-amber-500 text-white transition-colors cursor-pointer">
+                    Adicionar
+                  </button>
+                  <button type="button" (click)="showTagInput.set(false)"
+                    class="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-400 hover:bg-slate-800 transition-colors cursor-pointer">
+                    Fechar
+                  </button>
+                </div>
+              }
             </app-detail-meta-section>
+
+            <!-- Web Sync Section (Light Novel / Manga / Web search) -->
+            <app-detail-web-section
+              [mediaDetails]="webDetails()"
+              [loading]="loadingWeb()"
+              (openLink)="onOpenExternalLink($event)"
+              (searchManual)="onOpenTracker()"
+              (openRelated)="onOpenRelated($event)" />
+
+            <!-- Bookmarks & Highlights List -->
+            @if (bookmarks().length > 0) {
+              <app-detail-bookmarks-list
+                [bookmarks]="bookmarks()"
+                (select)="onBookmarkSelect($event)"
+                (delete)="onBookmarkDelete($event)"
+                (addBookmark)="onOpenBookmark()" />
+            }
           </div>
         </div>
       }
@@ -231,6 +292,22 @@ import { ConfirmDialogService } from '../../core/services/confirm-dialog.service
         (saved)="onTrackerConfigSaved($event)"
         (deleted)="onTrackerDeleted()"
         (cancel)="showTrackerConfig.set(false)" />
+
+      <app-cover-viewer-dialog
+        [open]="showCoverViewer()"
+        [coverUrl]="cover3dUrl() || coverUrl()"
+        [backCoverUrl]="backCover3dUrl()"
+        [title]="book()?.title || ''"
+        [isFullCover]="isFullCover3d()"
+        (cancel)="showCoverViewer.set(false)" />
+ 
+       <app-tags-dialog
+        [open]="showTagsModal()"
+        [title]="book()?.title || ''"
+        [initialTags]="book()?.tags || ''"
+        accent="amber"
+        (confirm)="onTagsSave($event)"
+        (cancel)="showTagsModal.set(false)" />
 
       @if (passwordModal(); as mode) {
         <div class="absolute inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
@@ -308,12 +385,18 @@ export class BookDetailComponent implements OnInit {
   private bookUnlock = inject(BookUnlockService);
   private trackerService = inject(TrackerService);
   private confirmDialog = inject(ConfirmDialogService);
+  settings = inject(SettingsService);
 
   book = signal<Book | null>(null);
   loading = signal(true);
+  loadingWeb = signal(false);
+  webDetails = signal<ExternalTrackerMediaDetails | null>(null);
+  bookmarks = signal<DetailBookmarkItem[]>([]);
   showBookmark = signal(false);
   showTrackerSimple = signal(false);
   showTrackerConfig = signal(false);
+  showCoverViewer = signal(false);
+  showTagsModal = signal(false);
   matchedTrack = signal<Track | null>(null);
   showTagInput = signal(false);
   bookmarkPage = signal(0);
@@ -323,14 +406,23 @@ export class BookDetailComponent implements OnInit {
   passwordCurrent = '';
   passwordNext = '';
   passwordConfirm = '';
+  newTag = '';
+
+  cover3dUrl = signal<string | null>(null);
+  backCover3dUrl = signal<string | null>(null);
+  isFullCover3d = signal<boolean>(false);
+
+  coverUrl = computed(() => {
+    const path = this.book()?.coverPath;
+    if (!path) return null;
+    return 'local-cover:///' + path.replace(/\\/g, '/');
+  });
 
   hasPassword = computed(() => {
     const b = this.book();
     if (!b) return false;
     return !!(b.hasPassword || (b.password && b.password.length > 0));
   });
-
-  newTag = '';
 
   progress = computed(() => {
     const b = this.book();
@@ -348,14 +440,13 @@ export class BookDetailComponent implements OnInit {
     const fields: DetailMetaField[] = [];
     if (b.title) fields.push({ label: 'Título', value: b.title });
     if (b.author) fields.push({ label: 'Autores', value: b.author });
-    if (b.genre) fields.push({ label: 'Gêneros', value: b.genre });
+    if (b.genre) fields.push({ label: 'Gênero', value: b.genre });
     if (b.isbn) fields.push({ label: 'ISBN', value: b.isbn });
     if (b.language) fields.push({ label: 'Idioma', value: b.language });
     if (b.volume) fields.push({ label: 'Volume', value: b.volume });
     if (b.release) fields.push({ label: 'Lançamento', value: b.release });
     if (b.publisher) fields.push({ label: 'Editora', value: b.publisher });
-    if (b.annotation) fields.push({ label: 'Anotação', value: b.annotation });
-    if (b.path) fields.push({ label: 'Arquivo', value: b.path });
+    if (b.annotation) fields.push({ label: 'Anotação / Descrição', value: b.annotation, fullWidth: true });
     return fields;
   });
 
@@ -369,8 +460,89 @@ export class BookDetailComponent implements OnInit {
       const book = await this.detail.loadBook(id);
       this.book.set(book);
       this.bookmarkPage.set(book?.bookMark ?? 0);
+
+      if (book?.id) {
+        await Promise.all([
+          this.loadBookmarks(book.id),
+          this.loadWebTrackerDetails(book),
+          this.loadCover3D(book.id)
+        ]);
+      }
     } finally {
       this.loading.set(false);
+    }
+  }
+
+  private async loadCover3D(bookId: number): Promise<void> {
+    try {
+      const res = await this.detail.loadBookCover3D(bookId);
+      if (res) {
+        this.isFullCover3d.set(!!res.isFullCover);
+        if (res.fullCoverPath) {
+          this.cover3dUrl.set('local-cover:///' + res.fullCoverPath.replace(/\\/g, '/'));
+        } else if (res.frontCoverPath) {
+          this.cover3dUrl.set('local-cover:///' + res.frontCoverPath.replace(/\\/g, '/'));
+        }
+        if (res.backCoverPath) {
+          this.backCover3dUrl.set('local-cover:///' + res.backCoverPath.replace(/\\/g, '/'));
+        }
+      }
+    } catch (e) {
+      console.warn('[BookDetailComponent] Erro ao carregar capa 3D:', e);
+    }
+  }
+
+  private async loadBookmarks(bookId: number): Promise<void> {
+    try {
+      const marks = await this.detail.loadBookAnnotations(bookId);
+      this.bookmarks.set(
+        (marks || []).map(m => ({
+          id: m.id,
+          page: m.page,
+          pages: m.pages,
+          note: m.note || m.text,
+          chapter: m.chapter,
+          type: m.markType,
+          dateCreate: m.dateCreate,
+          color: m.color
+        }))
+      );
+    } catch (e) {
+      console.warn('[BookDetailComponent] Erro ao carregar bookmarks:', e);
+    }
+  }
+
+  private async loadWebTrackerDetails(book: Book): Promise<void> {
+    this.loadingWeb.set(true);
+    try {
+      let malId: number | null = null;
+      let aniId: number | null = null;
+
+      if (book.fkLibrary) {
+        const matchRes = await this.trackerService.matchTrack({
+          libraryId: book.fkLibrary,
+          title: book.title || '',
+          filename: book.name || ''
+        });
+        if (matchRes?.track) {
+          this.matchedTrack.set(matchRes.track);
+          malId = matchRes.track.malId ?? null;
+          aniId = matchRes.track.aniId ?? null;
+        }
+      }
+
+      const searchTitle = book.series || book.title || book.name;
+      const details = await this.trackerService.getMediaDetails({
+        malId,
+        aniId,
+        title: searchTitle
+      });
+
+      this.webDetails.set(details);
+    } catch (e) {
+      console.warn('[BookDetailComponent] Erro ao carregar detalhes web:', e);
+    } finally {
+      this.loadingWeb.set(false);
     }
   }
 
@@ -382,7 +554,6 @@ export class BookDetailComponent implements OnInit {
     const b = this.book();
     if (!b?.id) return;
     if (bookNeedsUnlock(b.password) || b.hasPassword) {
-      // Ensure we have the stored password (list redacts it).
       void this.ensurePasswordLoaded().then(ok => {
         if (!ok) return;
         if (bookNeedsUnlock(this.book()?.password)) {
@@ -467,7 +638,6 @@ export class BookDetailComponent implements OnInit {
 
     if (mode === 'change') {
       if (!bookPasswordMatches(b.password, this.passwordCurrent)) {
-        // Reload in case password was redacted
         await this.ensurePasswordLoaded();
         if (!bookPasswordMatches(this.book()?.password, this.passwordCurrent)) {
           this.passwordError.set('Senha atual incorreta');
@@ -591,8 +761,34 @@ export class BookDetailComponent implements OnInit {
     if (updated) {
       this.book.set(updated);
       this.bookmarkPage.set(updated.bookMark);
+      if (b.id) await this.loadBookmarks(b.id);
     }
     this.showBookmark.set(false);
+  }
+
+  async onBookmarkSelect(bm: DetailBookmarkItem): Promise<void> {
+    const b = this.book();
+    if (!b?.id) return;
+    const updated = await this.detail.setBookBookMark(b, bm.page);
+    if (updated) this.book.set(updated);
+    this.openReader();
+  }
+
+  async onBookmarkDelete(bm: DetailBookmarkItem): Promise<void> {
+    if (!bm.id) return;
+    const ok = await this.confirmDialog.confirm({
+      title: 'Excluir Marcador',
+      message: `Deseja remover o marcador da página ${bm.page}?`,
+      confirmText: 'Excluir',
+      confirmVariant: 'danger'
+    });
+    if (!ok) return;
+
+    await this.detail.deleteBookAnnotation(bm.id);
+    const b = this.book();
+    if (b?.id) {
+      await this.loadBookmarks(b.id);
+    }
   }
 
   async onDelete(): Promise<void> {
@@ -617,6 +813,10 @@ export class BookDetailComponent implements OnInit {
     if (updated) this.book.set(updated);
   }
 
+  onTagClicked(tag: string): void {
+    // Can be used to filter or search
+  }
+
   async addTag(): Promise<void> {
     const b = this.book();
     const tag = this.newTag.trim();
@@ -628,14 +828,6 @@ export class BookDetailComponent implements OnInit {
       this.book.set(updated);
       this.newTag = '';
     }
-  }
-
-  async removeTag(tag: string): Promise<void> {
-    const b = this.book();
-    if (!b) return;
-    const tags = this.detail.parseTags(b.tags).filter(t => t !== tag);
-    const updated = await this.detail.updateBookTags(b, this.detail.serializeTags(tags));
-    if (updated) this.book.set(updated);
   }
 
   async onOpenTracker(): Promise<void> {
@@ -650,17 +842,25 @@ export class BookDetailComponent implements OnInit {
     this.showTrackerConfig.set(true);
   }
 
-  onTrackerSaved(track: Track): void {
+  async onTrackerSaved(track: Track): Promise<void> {
     this.matchedTrack.set(track);
     this.showTrackerSimple.set(false);
     this.flash('Rastreador sincronizado com sucesso!');
+    const b = this.book();
+    if (b) {
+      await this.loadWebTrackerDetails(b);
+    }
   }
 
-  onTrackerConfigSaved(track: Track): void {
+  async onTrackerConfigSaved(track: Track): Promise<void> {
     this.matchedTrack.set(track);
     this.showTrackerConfig.set(false);
     this.showTrackerSimple.set(true);
     this.flash('Rastreador salvo com sucesso!');
+    const b = this.book();
+    if (b) {
+      await this.loadWebTrackerDetails(b);
+    }
   }
 
   onTrackerDeleted(): void {
@@ -668,5 +868,83 @@ export class BookDetailComponent implements OnInit {
     this.showTrackerConfig.set(false);
     this.showTrackerSimple.set(false);
     this.flash('Rastreador removido.');
+    this.webDetails.set(null);
+  }
+
+  async onTagsSave(tags: string[]): Promise<void> {
+    const b = this.book();
+    if (!b) return;
+    const serialized = this.detail.serializeTags(tags);
+    const updated = await this.detail.updateBookTags(b, serialized);
+    if (updated) {
+      this.book.set(updated);
+      this.flash('Tags atualizadas com sucesso!');
+    }
+    this.showTagsModal.set(false);
+  }
+
+  onOpenExternalLink(url: string): void {
+    if (url) {
+      this.electron.openExternal(url);
+    }
+  }
+
+  onOpenRelated(item: ExternalTrackerRelatedItem): void {
+    if (item.url) {
+      this.electron.openExternal(item.url);
+    }
+  }
+
+  private longPressTimer: any = null;
+  private pressStartX = 0;
+  private pressStartY = 0;
+
+  onCoverRightClick(event: MouseEvent): void {
+    event.preventDefault();
+    this.showCoverViewer.set(true);
+  }
+
+  onCoverMouseDown(event: MouseEvent): void {
+    if (event.button !== 0) return;
+    this.pressStartX = event.clientX;
+    this.pressStartY = event.clientY;
+
+    if (this.longPressTimer) {
+      clearTimeout(this.longPressTimer);
+    }
+
+    this.longPressTimer = setTimeout(() => {
+      this.longPressTimer = null;
+      this.showCoverViewer.set(true);
+    }, 500);
+  }
+
+  onCoverMouseMove(event: MouseEvent): void {
+    if (!this.longPressTimer) return;
+    const dist = Math.hypot(event.clientX - this.pressStartX, event.clientY - this.pressStartY);
+    if (dist > 8) {
+      clearTimeout(this.longPressTimer);
+      this.longPressTimer = null;
+    }
+  }
+
+  onCoverMouseUp(): void {
+    if (this.longPressTimer) {
+      clearTimeout(this.longPressTimer);
+      this.longPressTimer = null;
+    }
+  }
+
+  onCoverMouseLeave(): void {
+    if (this.longPressTimer) {
+      clearTimeout(this.longPressTimer);
+      this.longPressTimer = null;
+    }
+  }
+
+  onCoverClick(): void {
+    if (!this.settings.theme3dCoverInDetail()) {
+      this.showCoverViewer.set(true);
+    }
   }
 }

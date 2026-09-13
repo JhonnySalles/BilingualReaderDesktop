@@ -27,6 +27,9 @@ electron_1.contextBridge.exposeInMainWorld('electronAPI', {
     clearBookProgress: (id) => electron_1.ipcRenderer.invoke('book:clear-progress', id),
     markMangaRead: (id) => electron_1.ipcRenderer.invoke('manga:markRead', id),
     markBookRead: (id) => electron_1.ipcRenderer.invoke('book:markRead', id),
+    getTags: () => electron_1.ipcRenderer.invoke('tags:list'),
+    saveTag: (name) => electron_1.ipcRenderer.invoke('tags:save', name),
+    deleteTag: (id) => electron_1.ipcRenderer.invoke('tags:delete', id),
     getSetting: (key, defaultValue) => electron_1.ipcRenderer.invoke('settings:get', key, defaultValue),
     setSetting: (key, value) => electron_1.ipcRenderer.invoke('settings:set', key, value),
     getSecret: (secretKey) => electron_1.ipcRenderer.invoke('secrets:get', secretKey),
@@ -39,6 +42,7 @@ electron_1.contextBridge.exposeInMainWorld('electronAPI', {
     listLibrariesByType: (type) => electron_1.ipcRenderer.invoke('libraries:listByType', type),
     listHistoryAggregated: (options) => electron_1.ipcRenderer.invoke('history:listAggregated', options),
     listRecentReads: (limit) => electron_1.ipcRenderer.invoke('history:listRecent', limit),
+    updateJumpList: () => electron_1.ipcRenderer.invoke('app:update-jump-list'),
     getReadingActivityHeatmap: (weeks) => electron_1.ipcRenderer.invoke('statistics:heatmap', weeks),
     startHistorySession: (input) => electron_1.ipcRenderer.invoke('history:start', input),
     saveHistoryBookmarkEdit: (input) => electron_1.ipcRenderer.invoke('history:saveBookmarkEdit', input),
@@ -81,6 +85,7 @@ electron_1.contextBridge.exposeInMainWorld('electronAPI', {
     assistantAsk: (payload) => electron_1.ipcRenderer.invoke('assistant:ask', payload),
     setMangaBookmark: (mangaId, page) => electron_1.ipcRenderer.invoke('manga:set-bookmark', mangaId, page),
     toggleMangaFavorite: (mangaId) => electron_1.ipcRenderer.invoke('manga:toggle-favorite', mangaId),
+    getMangaCover3D: (mangaId) => electron_1.ipcRenderer.invoke('manga:get-cover-3d', mangaId),
     listMangaAnnotations: (mangaId) => electron_1.ipcRenderer.invoke('manga:list-annotations', mangaId),
     listAllMangaAnnotations: () => electron_1.ipcRenderer.invoke('manga:list-all-annotations'),
     saveMangaAnnotation: (annotation) => electron_1.ipcRenderer.invoke('manga:save-annotation', annotation),
@@ -93,6 +98,7 @@ electron_1.contextBridge.exposeInMainWorld('electronAPI', {
     closeFileLink: (sessionId) => electron_1.ipcRenderer.invoke('file-link:close-file', sessionId),
     openBookReader: (bookId) => electron_1.ipcRenderer.invoke('book-reader:open', bookId),
     closeBookReader: (sessionId) => electron_1.ipcRenderer.invoke('book-reader:close', sessionId),
+    getBookCover3D: (bookId) => electron_1.ipcRenderer.invoke('book:get-cover-3d', bookId),
     setBookBookmark: (payload) => electron_1.ipcRenderer.invoke('book:set-bookmark', payload),
     calculateBookPages: (bookId) => electron_1.ipcRenderer.invoke('book:calculate-pages', bookId),
     toggleBookFavorite: (bookId) => electron_1.ipcRenderer.invoke('book:toggle-favorite', bookId),
@@ -137,6 +143,7 @@ electron_1.contextBridge.exposeInMainWorld('electronAPI', {
     deleteTrack: (id) => electron_1.ipcRenderer.invoke('tracker:delete', id),
     matchTrack: (payload) => electron_1.ipcRenderer.invoke('tracker:match', payload),
     updateTrackProgress: (payload) => electron_1.ipcRenderer.invoke('tracker:updateProgress', payload),
+    trackerGetMediaDetails: (payload) => electron_1.ipcRenderer.invoke('tracker:getMediaDetails', payload),
     /* MyAnimeList APIs */
     malGetAuthStatus: () => electron_1.ipcRenderer.invoke('mal:getAuthStatus'),
     malLogin: () => electron_1.ipcRenderer.invoke('mal:login'),
@@ -144,6 +151,7 @@ electron_1.contextBridge.exposeInMainWorld('electronAPI', {
     malSearch: (query, limit) => electron_1.ipcRenderer.invoke('mal:search', query, limit),
     malGetUserStatus: (malId) => electron_1.ipcRenderer.invoke('mal:getUserStatus', malId),
     malUpdateUserStatus: (payload) => electron_1.ipcRenderer.invoke('mal:updateUserStatus', payload),
+    malGetDetails: (mangaId) => electron_1.ipcRenderer.invoke('mal:getDetails', mangaId),
     /* AniList APIs */
     anilistGetAuthStatus: () => electron_1.ipcRenderer.invoke('anilist:getAuthStatus'),
     anilistLogin: () => electron_1.ipcRenderer.invoke('anilist:login'),
@@ -151,6 +159,7 @@ electron_1.contextBridge.exposeInMainWorld('electronAPI', {
     anilistSearch: (query, limit) => electron_1.ipcRenderer.invoke('anilist:search', query, limit),
     anilistGetUserStatus: (mediaId) => electron_1.ipcRenderer.invoke('anilist:getUserStatus', mediaId),
     anilistUpdateUserStatus: (payload) => electron_1.ipcRenderer.invoke('anilist:updateUserStatus', payload),
+    anilistGetDetails: (mediaId, searchTitle) => electron_1.ipcRenderer.invoke('anilist:getDetails', mediaId, searchTitle),
     send: (channel, data) => electron_1.ipcRenderer.send(channel, data),
     on: (channel, func) => {
         const subscription = (_event, ...args) => func(...args);

@@ -8,7 +8,9 @@ import {
   ExternalTrackerSearchResult,
   ExternalTrackerUserStatus,
   ExternalTrackerUpdatePayload,
-  TrackerAuthStatus
+  TrackerAuthStatus,
+  ExternalTrackerMediaDetails,
+  ExternalTrackerRelatedItem
 } from '../../src/app/core/models/entities/track.model';
 
 export interface AnilistOAuthTokens {
@@ -435,5 +437,157 @@ export class AnilistService {
       volumesRead: entry.progressVolumes ?? 0,
       updatedAt: entry.updatedAt ? new Date(entry.updatedAt * 1000).toISOString() : null
     };
+  }
+
+  /**
+   * Obtém detalhes completos da obra no AniList (por ID ou busca por título).
+   */
+  public async getMediaDetails(mediaId?: number, searchTitle?: string): Promise<ExternalTrackerMediaDetails | null> {
+    if (!mediaId && !searchTitle) return null;
+
+    const query = `
+      query ($id: Int, $search: String) {
+        Media (id: $id, search: $search, type: MANGA) {
+          id
+          title {
+            romaji
+            english
+            native
+          }
+          description(asHtml: false)
+          meanScore
+          coverImage {
+            extraLarge
+            large
+            medium
+          }
+          bannerImage
+          chapters
+          volumes
+          status
+          format
+          genres
+          staff {
+            edges {
+              role
+              node {
+                name {
+                  full
+                }
+              }
+            }
+          }
+          startDate {
+            year
+            month
+            day
+          }
+          endDate {
+            year
+            month
+            day
+          }
+          siteUrl
+          relations {
+            edges {
+              relationType
+              node {
+                id
+                title {
+                  romaji
+                  english
+                }
+                type
+                format
+                coverImage {
+                  large
+                  medium
+                }
+                siteUrl
+              }
+            }
+          }
+          mediaListEntry {
+            status
+            score(format: POINT_10_DECIMAL)
+            progress
+            progressVolumes
+            updatedAt
+          }
+        }
+      }
+    `;
+
+    const variables: Record<string, any> = {};
+    if (mediaId) variables['id'] = mediaId;
+    else if (searchTitle) variables['search'] = searchTitle;
+
+    try {
+      const data = await this.queryGraphQL<{ Media: any }>(query, variables, false);
+      const media = data?.Media;
+      if (!media || !media.id) return null;
+
+      const title = media.title?.romaji || media.title?.english || media.title?.native || 'Sem título';
+      const score = media.meanScore != null ? Number(media.meanScore) / 10 : null; // AniList 0-100 to 0-10
+      const coverImage = media.coverImage?.extraLarge || media.coverImage?.large || media.coverImage?.medium || null;
+      const authors = (media.staff?.edges || [])
+        .filter((e: any) => e.role && (e.role.toLowerCase().includes('story') || e.role.toLowerCase().includes('art') || e.role.toLowerCase().includes('author')))
+        .map((e: any) => e.node?.name?.full)
+        .filter(Boolean);
+
+      const related: ExternalTrackerRelatedItem[] = (media.relations?.edges || []).map((edge: any) => {
+        const node = edge.node;
+        const relTitle = node.title?.romaji || node.title?.english || 'Sem título';
+        return {
+          id: node.id,
+          title: relTitle,
+          relationType: edge.relationType || node.type || 'Related',
+          mediaType: node.type || 'MANGA',
+          coverImage: node.coverImage?.large || node.coverImage?.medium || null,
+          url: node.siteUrl || `https://anilist.co/${(node.type || 'manga').toLowerCase()}/${node.id}`
+        };
+      });
+
+      const entry = media.mediaListEntry;
+      const userStatus: ExternalTrackerUserStatus | null = entry ? {
+        inList: true,
+        status: entry.status || null,
+        score: entry.score != null ? entry.score : null,
+        chaptersRead: entry.progress ?? 0,
+        volumesRead: entry.progressVolumes ?? 0,
+        updatedAt: entry.updatedAt ? new Date(entry.updatedAt * 1000).toISOString() : null
+      } : null;
+
+      let published: string | null = null;
+      if (media.startDate?.year) {
+        published = `${media.startDate.year}${media.startDate.month ? '-' + media.startDate.month : ''}`;
+        if (media.endDate?.year) {
+          published += ` até ${media.endDate.year}${media.endDate.month ? '-' + media.endDate.month : ''}`;
+        }
+      }
+
+      return {
+        id: media.id,
+        source: 'ANILIST',
+        title,
+        synopsis: media.description ? media.description.replace(/<[^>]*>/g, '') : null,
+        score,
+        coverImage,
+        bannerImage: media.bannerImage || null,
+        totalChapters: media.chapters || null,
+        totalVolumes: media.volumes || null,
+        status: media.status || null,
+        mediaType: media.format || 'MANGA',
+        genres: media.genres || [],
+        authors: authors.length > 0 ? authors : (media.staff?.edges || []).slice(0, 3).map((e: any) => e.node?.name?.full).filter(Boolean),
+        published,
+        url: media.siteUrl || `https://anilist.co/manga/${media.id}`,
+        related,
+        userStatus
+      };
+    } catch (e) {
+      console.warn('[AnilistService] Erro ao obter detalhes da obra:', e);
+      return null;
+    }
   }
 }

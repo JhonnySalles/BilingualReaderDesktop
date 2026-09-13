@@ -197,6 +197,24 @@ export class BookLibraryService {
     return updated;
   }
 
+  public async updateTags(book: Book, tags: string): Promise<Book | null> {
+    if (!window.electronAPI?.saveBook || !book.id) return null;
+    const updated = await window.electronAPI.saveBook({
+      ...book,
+      tags
+    });
+    if (updated) {
+      this.books.update(list =>
+        list.map(b =>
+          b.id === book.id
+            ? { ...b, tags: updated.tags }
+            : b
+        )
+      );
+    }
+    return updated;
+  }
+
   public async deleteBook(book: Book): Promise<void> {
     if (!window.electronAPI?.deleteBook || !book.id) return;
     const success = await window.electronAPI.deleteBook(book.id);

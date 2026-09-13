@@ -7,7 +7,9 @@ import {
   ExternalTrackerSearchResult,
   ExternalTrackerUserStatus,
   ExternalTrackerUpdatePayload,
-  TrackerAuthStatus
+  TrackerAuthStatus,
+  ExternalTrackerMediaDetails,
+  ExternalTrackerRelatedItem
 } from '../models';
 
 @Injectable({
@@ -209,5 +211,31 @@ export class TrackerService {
 
     return results;
   }
+
+  /**
+   * Obtém detalhes detalhados do mangá pelo MAL (com autores, gêneros, sinopse, relacionados)
+   */
+  async malGetDetails(mangaId: number): Promise<ExternalTrackerMediaDetails | null> {
+    return await this.electronService.malGetDetails(mangaId);
+  }
+
+  /**
+   * Obtém detalhes detalhados do mangá pelo AniList
+   */
+  async anilistGetDetails(mediaId?: number, searchTitle?: string): Promise<ExternalTrackerMediaDetails | null> {
+    return await this.electronService.anilistGetDetails(mediaId, searchTitle);
+  }
+
+  /**
+   * Obtém detalhes com fallback automático (MAL -> AniList) para a obra
+   */
+  async getMediaDetails(payload: {
+    malId?: number | null;
+    aniId?: number | null;
+    title?: string | null;
+  }): Promise<ExternalTrackerMediaDetails | null> {
+    return await this.electronService.trackerGetMediaDetails(payload);
+  }
 }
+
 

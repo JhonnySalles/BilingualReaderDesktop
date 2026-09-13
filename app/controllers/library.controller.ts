@@ -42,5 +42,18 @@ export class LibraryController {
     ipcMain.handle('book:markRead', async (_event, id: number) => {
       return this.storage.markBookRead(id) ?? null;
     });
+
+    ipcMain.handle('tags:list', async () => {
+      return this.storage.getTags();
+    });
+
+    ipcMain.handle('tags:save', async (_event, name: string) => {
+      return this.storage.saveTag(name);
+    });
+
+    ipcMain.handle('tags:delete', async (_event, id: number) => {
+      this.storage.deleteTag(id);
+      return true;
+    });
   }
 }

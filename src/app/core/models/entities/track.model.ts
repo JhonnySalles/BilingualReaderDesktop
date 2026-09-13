@@ -83,3 +83,33 @@ export interface TrackerAuthStatus {
   expiresAt?: number | null;
 }
 
+export interface ExternalTrackerRelatedItem {
+  id: number;
+  title: string;
+  relationType: string;
+  mediaType?: string;
+  coverImage?: string | null;
+  url?: string | null;
+}
+
+export interface ExternalTrackerMediaDetails {
+  id: number;
+  source: 'MAL' | 'ANILIST';
+  title: string;
+  synopsis?: string | null;
+  score?: number | null;
+  coverImage?: string | null;
+  bannerImage?: string | null;
+  totalChapters?: number | null;
+  totalVolumes?: number | null;
+  status?: string | null;
+  mediaType?: string | null;
+  genres?: string[];
+  authors?: string[];
+  published?: string | null;
+  url?: string | null;
+  related?: ExternalTrackerRelatedItem[];
+  userStatus?: ExternalTrackerUserStatus | null;
+}
+
+

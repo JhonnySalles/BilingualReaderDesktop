@@ -40,6 +40,7 @@ __exportStar(require("./entities/linked-file.model"), exports);
 __exportStar(require("./entities/information.model"), exports);
 __exportStar(require("./entities/library.model"), exports);
 __exportStar(require("./entities/track.model"), exports);
+__exportStar(require("./entities/tag.model"), exports);
 // Library @ search
 __exportStar(require("./library-search.model"), exports);
 // Aliases

@@ -258,6 +258,10 @@ class ScannerMangaService {
         let genre = '';
         let publisher = '';
         let volume = '';
+        let language = '';
+        let storyArch = '';
+        let characters = '';
+        let tags = '';
         let hasSubtitle = false;
         const parser = await parse_factory_1.ParseFactory.create(itemPath);
         if (parser) {
@@ -276,10 +280,26 @@ class ScannerMangaService {
                         publisher = comicInfo.publisher;
                     if (comicInfo.number)
                         volume = comicInfo.number;
+                    if (comicInfo.languageISO)
+                        language = comicInfo.languageISO;
+                    if (comicInfo.storyArc)
+                        storyArch = comicInfo.storyArc;
+                    if (comicInfo.characters)
+                        characters = comicInfo.characters;
+                    if (comicInfo.tags)
+                        tags = comicInfo.tags;
                 }
-                const coverStreams = parser.getCover();
-                if (coverStreams.front) {
-                    coverPath = manga_image_cover_controller_1.MangaImageCoverController.instance.saveCoverToCache(itemPath, coverStreams.front);
+                if (parser.hasFullCover()) {
+                    const fullCover = parser.getFullCover();
+                    if (fullCover) {
+                        coverPath = manga_image_cover_controller_1.MangaImageCoverController.instance.saveCoverToCache(itemPath, fullCover);
+                    }
+                }
+                if (!coverPath) {
+                    const coverStreams = parser.getCover();
+                    if (coverStreams.front) {
+                        coverPath = manga_image_cover_controller_1.MangaImageCoverController.instance.saveCoverToCache(itemPath, coverStreams.front);
+                    }
                 }
             }
             catch (e) {
@@ -308,6 +328,10 @@ class ScannerMangaService {
             genre,
             publisher,
             volume,
+            language,
+            storyArch,
+            characters,
+            tags,
             fkLibrary: libraryId,
             excluded: false,
             fileAlteration: stat.mtime.toISOString(),
@@ -333,7 +357,7 @@ class ScannerMangaService {
                 needsUpdate = true;
             }
         }
-        if (!existing.author || !existing.series) {
+        if (!existing.author || !existing.series || !existing.storyArch || !existing.characters) {
             const parser = await parse_factory_1.ParseFactory.create(itemPath);
             if (parser) {
                 try {
@@ -357,6 +381,22 @@ class ScannerMangaService {
                         }
                         if (comicInfo.number && !existing.volume) {
                             updated.volume = comicInfo.number;
+                            needsUpdate = true;
+                        }
+                        if (comicInfo.languageISO && !existing.language) {
+                            updated.language = comicInfo.languageISO;
+                            needsUpdate = true;
+                        }
+                        if (comicInfo.storyArc && !existing.storyArch) {
+                            updated.storyArch = comicInfo.storyArc;
+                            needsUpdate = true;
+                        }
+                        if (comicInfo.characters && !existing.characters) {
+                            updated.characters = comicInfo.characters;
+                            needsUpdate = true;
+                        }
+                        if (comicInfo.tags && !existing.tags) {
+                            updated.tags = comicInfo.tags;
                             needsUpdate = true;
                         }
                     }

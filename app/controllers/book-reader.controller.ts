@@ -4,6 +4,7 @@ import { BookReaderSessionService } from '../services/book-reader-session.servic
 import { BookAnnotation, BookConfiguration } from '../../src/app/core/models/entities/book.model';
 import { EpubBookExtractor } from '../parser/book/epub-book-extractor';
 import { TrackerService } from '../services/tracker.service';
+import { BookImageCoverController } from './book-image-cover.controller';
 
 
 export class BookReaderController {
@@ -58,16 +59,16 @@ export class BookReaderController {
 
         const pages = Math.max(1, payload.pages ?? book.pages ?? 1);
         const bookMark = Math.min(Math.max(0, Math.floor(payload.bookMark)), pages);
-        const now = new Date().toISOString();
         const isCompleted = bookMark >= pages;
+        const now = new Date().toISOString();
 
         const id = this.storage.saveBook({
           ...book,
           bookMark,
-          bookMarkCfi: payload.bookMarkCfi ?? book.bookMarkCfi,
-          chapter: payload.chapter ?? book.chapter,
-          chapterDescription: payload.chapterDescription ?? book.chapterDescription,
           pages,
+          ...(payload.bookMarkCfi ? { bookMarkCfi: payload.bookMarkCfi } : {}),
+          ...(payload.chapter ? { chapter: payload.chapter } : {}),
+          ...(payload.chapterDescription ? { chapterDescription: payload.chapterDescription } : {}),
           completed: isCompleted,
           lastAccess: now,
           lastAlteration: now
@@ -100,24 +101,22 @@ export class BookReaderController {
 
     ipcMain.handle('book:calculate-pages', async (_event, bookId: number) => {
       const book = this.storage.findBookById(bookId);
-      if (!book?.id || !book.path) return null;
+      if (!book?.path) return null;
 
       try {
-        const wordCount = EpubBookExtractor.countWords(book.path);
-        const calculatedPages = Math.max(1, Math.ceil(wordCount / 250));
-        const now = new Date().toISOString();
-
-        const id = this.storage.saveBook({
-          ...book,
-          pages: calculatedPages,
-          lastAlteration: now
-        });
-
-        return this.storage.findBookById(id) || null;
+        const pages = await EpubBookExtractor.calculatePages(book.path);
+        if (pages > 0 && pages !== book.pages) {
+          const id = this.storage.saveBook({
+            ...book,
+            pages
+          });
+          return this.storage.findBookById(id) || null;
+        }
       } catch (err) {
-        console.error('[book:calculate-pages] Error calculating pages for book:', book.path, err);
-        return book;
+        console.warn(`[BookReaderController] Failed to calculate pages for book ${bookId}:`, err);
       }
+
+      return book;
     });
 
     ipcMain.handle('book:toggle-favorite', async (_event, bookId: number) => {
@@ -133,6 +132,7 @@ export class BookReaderController {
     });
 
     ipcMain.handle('book:get-configuration', async (_event, bookId: number) => {
+      if (!bookId) return null;
       return this.storage.getBookConfiguration(bookId) || null;
     });
 
@@ -187,6 +187,12 @@ export class BookReaderController {
     ipcMain.handle('book:search-history-delete-all', async (_event, bookId: number) => {
       if (!bookId) return false;
       return this.storage.deleteAllBookSearchHistory(bookId);
+    });
+
+    ipcMain.handle('book:get-cover-3d', async (_event, bookId: number) => {
+      const book = this.storage.findBookById(bookId);
+      if (!book) return null;
+      return BookImageCoverController.instance.getBookCover3D(book);
     });
   }
 }

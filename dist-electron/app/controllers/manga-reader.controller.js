@@ -4,6 +4,7 @@ exports.MangaReaderController = void 0;
 const electron_1 = require("electron");
 const manga_reader_session_service_1 = require("../services/manga-reader-session.service");
 const tracker_service_1 = require("../services/tracker.service");
+const manga_image_cover_controller_1 = require("./manga-image-cover.controller");
 class MangaReaderController {
     storage;
     sessionService = new manga_reader_session_service_1.MangaReaderSessionService();
@@ -142,6 +143,12 @@ class MangaReaderController {
             if (result.canceled || !result.filePaths[0])
                 return null;
             return this.sessionService.importExternalSubtitles(sessionId, result.filePaths[0]);
+        });
+        electron_1.ipcMain.handle('manga:get-cover-3d', async (_event, mangaId) => {
+            const manga = this.storage.findMangaById(mangaId);
+            if (!manga)
+                return null;
+            return manga_image_cover_controller_1.MangaImageCoverController.instance.getMangaCover3D(manga);
         });
     }
 }

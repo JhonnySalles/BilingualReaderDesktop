@@ -27,6 +27,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   clearBookProgress: (id: number) => ipcRenderer.invoke('book:clear-progress', id),
   markMangaRead: (id: number) => ipcRenderer.invoke('manga:markRead', id),
   markBookRead: (id: number) => ipcRenderer.invoke('book:markRead', id),
+  getTags: () => ipcRenderer.invoke('tags:list'),
+  saveTag: (name: string) => ipcRenderer.invoke('tags:save', name),
+  deleteTag: (id: number) => ipcRenderer.invoke('tags:delete', id),
   getSetting: (key: string, defaultValue?: any) => ipcRenderer.invoke('settings:get', key, defaultValue),
   setSetting: (key: string, value: any) => ipcRenderer.invoke('settings:set', key, value),
   getSecret: (secretKey: string) => ipcRenderer.invoke('secrets:get', secretKey),
@@ -51,6 +54,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     filters?: Array<{ kind: string; value: string }> | null;
   }) => ipcRenderer.invoke('history:listAggregated', options),
   listRecentReads: (limit?: number) => ipcRenderer.invoke('history:listRecent', limit),
+  updateJumpList: () => ipcRenderer.invoke('app:update-jump-list'),
   getReadingActivityHeatmap: (weeks?: number) => ipcRenderer.invoke('statistics:heatmap', weeks),
   startHistorySession: (input: {
     fkLibrary: number;
@@ -157,6 +161,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   setMangaBookmark: (mangaId: number, page: number) => ipcRenderer.invoke('manga:set-bookmark', mangaId, page),
   toggleMangaFavorite: (mangaId: number) => ipcRenderer.invoke('manga:toggle-favorite', mangaId),
+  getMangaCover3D: (mangaId: number) => ipcRenderer.invoke('manga:get-cover-3d', mangaId),
   listMangaAnnotations: (mangaId: number) => ipcRenderer.invoke('manga:list-annotations', mangaId),
   listAllMangaAnnotations: () => ipcRenderer.invoke('manga:list-all-annotations'),
   saveMangaAnnotation: (annotation: any) => ipcRenderer.invoke('manga:save-annotation', annotation),
@@ -173,6 +178,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   openBookReader: (bookId: number) => ipcRenderer.invoke('book-reader:open', bookId),
   closeBookReader: (sessionId: string) => ipcRenderer.invoke('book-reader:close', sessionId),
+  getBookCover3D: (bookId: number) => ipcRenderer.invoke('book:get-cover-3d', bookId),
   setBookBookmark: (payload: {
     id: number;
     bookMark: number;
@@ -254,6 +260,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     volumesRead: number;
     status?: string;
   }) => ipcRenderer.invoke('tracker:updateProgress', payload),
+  trackerGetMediaDetails: (payload: {
+    malId?: number | null;
+    aniId?: number | null;
+    title?: string | null;
+  }) => ipcRenderer.invoke('tracker:getMediaDetails', payload),
 
   /* MyAnimeList APIs */
   malGetAuthStatus: () => ipcRenderer.invoke('mal:getAuthStatus'),
@@ -262,6 +273,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   malSearch: (query: string, limit?: number) => ipcRenderer.invoke('mal:search', query, limit),
   malGetUserStatus: (malId: number) => ipcRenderer.invoke('mal:getUserStatus', malId),
   malUpdateUserStatus: (payload: any) => ipcRenderer.invoke('mal:updateUserStatus', payload),
+  malGetDetails: (mangaId: number) => ipcRenderer.invoke('mal:getDetails', mangaId),
 
   /* AniList APIs */
   anilistGetAuthStatus: () => ipcRenderer.invoke('anilist:getAuthStatus'),
@@ -270,6 +282,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   anilistSearch: (query: string, limit?: number) => ipcRenderer.invoke('anilist:search', query, limit),
   anilistGetUserStatus: (mediaId: number) => ipcRenderer.invoke('anilist:getUserStatus', mediaId),
   anilistUpdateUserStatus: (payload: any) => ipcRenderer.invoke('anilist:updateUserStatus', payload),
+  anilistGetDetails: (mediaId?: number, searchTitle?: string) =>
+    ipcRenderer.invoke('anilist:getDetails', mediaId, searchTitle),
 
   send: (channel: string, data: any) => ipcRenderer.send(channel, data),
   on: (channel: string, func: (...args: any[]) => void) => {

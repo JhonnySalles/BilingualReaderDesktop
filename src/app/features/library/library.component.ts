@@ -20,6 +20,7 @@ import {
 } from '../../shared/library-bookmark-dialog/library-bookmark-dialog.component';
 import { TrackerSimpleDialogComponent } from '../../shared/tracker-simple-dialog/tracker-simple-dialog.component';
 import { TrackerConfigDialogComponent } from '../../shared/tracker-config-dialog/tracker-config-dialog.component';
+import { TagsDialogComponent } from '../../shared/tags-dialog/tags-dialog.component';
 import { Manga, Book, Track, OrderType, HomeRecentItem } from '../../core/models';
 import { ShareMarkType } from '../../core/models/enums/sharemark.enum';
 
@@ -35,7 +36,8 @@ import { ShareMarkType } from '../../core/models/enums/sharemark.enum';
     HomeReadingHeatmapComponent,
     LibraryBookmarkDialogComponent,
     TrackerSimpleDialogComponent,
-    TrackerConfigDialogComponent
+    TrackerConfigDialogComponent,
+    TagsDialogComponent
   ],
   template: `
     <div class="h-full flex flex-col bg-slate-950 text-slate-100 overflow-hidden relative">
@@ -75,6 +77,14 @@ import { ShareMarkType } from '../../core/models/enums/sharemark.enum';
         (saved)="showFullConfigModal.set(false); showTrackerModal.set(true)"
         (deleted)="showFullConfigModal.set(false); trackerTarget.set(null)"
         (cancel)="showFullConfigModal.set(false); trackerTarget.set(null)" />
+
+      <app-tags-dialog
+        [open]="!!tagsTarget()"
+        [title]="tagsTarget()?.title || ''"
+        [initialTags]="$any(tagsTarget())?.tags || ''"
+        [accent]="activeLibType() === 'book' ? 'amber' : 'indigo'"
+        (confirm)="onTagsSave($event)"
+        (cancel)="tagsTarget.set(null)" />
 
       @if (activeLibId() === 'home') {
         <div class="flex-1 overflow-y-auto space-y-8 px-6 pb-6 pt-24">
@@ -287,7 +297,8 @@ import { ShareMarkType } from '../../core/models/enums/sharemark.enum';
               (open)="onOpenItem($event)"
               (openDetail)="onOpenDetail($event)"
               (setBookmark)="onSetBookmark($event)"
-              (openTracker)="onOpenTracker($event)">
+              (openTracker)="onOpenTracker($event)"
+              (openTags)="onOpenTags($event)">
             </app-shared-list>
           }
         </div>
@@ -339,6 +350,7 @@ export class LibraryComponent implements OnInit {
   showTrackerModal = signal<boolean>(false);
   showFullConfigModal = signal<boolean>(false);
   selectedTrackForConfig = signal<Track | null>(null);
+  tagsTarget = signal<Manga | Book | null>(null);
   isExternalHd = signal<boolean>(false);
   isPathOnline = signal<boolean>(true);
 
@@ -678,5 +690,38 @@ export class LibraryComponent implements OnInit {
     this.selectedTrackForConfig.set(track);
     this.showTrackerModal.set(false);
     this.showFullConfigModal.set(true);
+  }
+
+  onOpenTags(item: Manga | Book): void {
+    this.tagsTarget.set(item);
+  }
+
+  async onTagsSave(tags: string[]): Promise<void> {
+    const item = this.tagsTarget();
+    if (!item || !item.id) {
+      this.tagsTarget.set(null);
+      return;
+    }
+
+    const tagsString = tags.join(', ');
+    if (this.activeLibType() === 'book' || 'isbn' in item) {
+      const updated = await this.bookLibraryService.updateTags(item as Book, tagsString);
+      if (updated) {
+        this.customOrderItems.update(list => {
+          if (!list) return list;
+          return list.map(i => (i.id === updated.id ? { ...i, tags: updated.tags } : i));
+        });
+      }
+    } else {
+      // If manga has tags or saveManga is called
+      const updated = await this.electronService.saveManga({ ...(item as Manga), ...({ tags: tagsString } as any) });
+      if (updated) {
+        this.customOrderItems.update(list => {
+          if (!list) return list;
+          return list.map(i => (i.id === updated.id ? { ...i, ...({ tags: tagsString } as any) } : i));
+        });
+      }
+    }
+    this.tagsTarget.set(null);
   }
 }

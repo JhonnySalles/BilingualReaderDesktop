@@ -56,9 +56,10 @@ const LOCAL_SCHEME_PRIVILEGES = {
 } as const;
 
 // local-book must be privileged so epub.js can fetch() the EPUB from the renderer.
-// Do NOT privilege local-cover: covers use local-cover:///{windowsPath} without a standard scheme.
+// Do NOT privilege local-cover with 'standard: true': covers use local-cover:///{windowsPath} without a standard scheme.
 protocol.registerSchemesAsPrivileged([
-  { scheme: 'local-book', privileges: { ...LOCAL_SCHEME_PRIVILEGES } }
+  { scheme: 'local-book', privileges: { ...LOCAL_SCHEME_PRIVILEGES } },
+  { scheme: 'local-cover', privileges: { secure: true, supportFetchAPI: true, bypassCSP: true, corsEnabled: true, stream: true } }
 ]);
 
 let mainWindow: BrowserWindow | null = null;
@@ -85,6 +86,76 @@ function getWindowIconPath(): string {
   }
 
   return path.join(app.getAppPath(), 'app/assets/icons/icon.ico');
+}
+
+const gotTheLock = app.requestSingleInstanceLock();
+
+function getRouteFromArgv(argv: string[]): string | null {
+  for (const arg of argv) {
+    if (arg === '--open-library') {
+      return '/';
+    }
+    const mangaMatch = arg.match(/^--open-manga=(\d+)$/);
+    if (mangaMatch) {
+      return `/detail/manga/${mangaMatch[1]}`;
+    }
+    const bookMatch = arg.match(/^--open-book=(\d+)$/);
+    if (bookMatch) {
+      return `/detail/book/${bookMatch[1]}`;
+    }
+  }
+  return null;
+}
+
+export function updateJumpListTasks(): void {
+  try {
+    if (process.platform !== 'win32' || !storageService) return;
+
+    const iconPath = getWindowIconPath();
+    const tasks: Electron.Task[] = [
+      {
+        program: process.execPath,
+        arguments: '--open-library',
+        iconPath: iconPath,
+        iconIndex: 0,
+        title: 'Biblioteca',
+        description: 'Abrir a Biblioteca'
+      }
+    ];
+
+    const recentReads = storageService.listRecentReads(3);
+    for (const item of recentReads) {
+      const isManga = item.type === 'MANGA';
+      const arg = isManga ? `--open-manga=${item.fkReference}` : `--open-book=${item.fkReference}`;
+      tasks.push({
+        program: process.execPath,
+        arguments: arg,
+        iconPath: iconPath,
+        iconIndex: 0,
+        title: item.title,
+        description: `Continuar ${isManga ? 'Mangá' : 'Livro'}`
+      });
+    }
+
+    app.setUserTasks(tasks);
+  } catch (err) {
+    console.warn('[main] Failed to update user tasks (jump list)', err);
+  }
+}
+
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on('second-instance', (_event, commandLine) => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+      const route = getRouteFromArgv(commandLine);
+      if (route) {
+        mainWindow.webContents.send('app:navigate', route);
+      }
+    }
+  });
 }
 
 function createWindow(): void {
@@ -124,6 +195,13 @@ function createWindow(): void {
     void mainWindow.loadFile(indexHtml);
   }
 
+  mainWindow.webContents.on('did-finish-load', () => {
+    const route = getRouteFromArgv(process.argv);
+    if (route && mainWindow) {
+      mainWindow.webContents.send('app:navigate', route);
+    }
+  });
+
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
@@ -133,9 +211,32 @@ app.on('ready', () => {
   try {
     // Keep the original cover handler — renderer uses local-cover:///{absoluteWindowsPath}
     protocol.handle('local-cover', (request) => {
-      const rawPath = request.url.replace(/^local-cover:\/\//, '');
-      const decodedPath = decodeURIComponent(rawPath);
-      return net.fetch('file:///' + decodedPath);
+      try {
+        const rawPath = request.url.replace(/^local-cover:\/*/, '');
+        let decodedPath = decodeURIComponent(rawPath.split('?')[0]);
+        if (decodedPath.startsWith('/') && /^\/[A-Za-z]:/.test(decodedPath)) {
+          decodedPath = decodedPath.slice(1);
+        }
+        decodedPath = path.normalize(decodedPath);
+        if (!fs.existsSync(decodedPath)) {
+          return new Response('Not Found', { status: 404 });
+        }
+        
+        let contentType = 'image/png';
+        if (decodedPath.toLowerCase().endsWith('.jpg') || decodedPath.toLowerCase().endsWith('.jpeg')) {
+          contentType = 'image/jpeg';
+        } else if (decodedPath.toLowerCase().endsWith('.webp')) {
+          contentType = 'image/webp';
+        }
+
+        const data = fs.readFileSync(decodedPath);
+        return new Response(data, {
+          headers: { 'Content-Type': contentType, 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (err) {
+        Telemetry.recordException(err, `[local-cover] failed to serve ${request.url}`);
+        return new Response('Not Found', { status: 404 });
+      }
     });
 
     storageService = new StorageService();
@@ -185,7 +286,20 @@ app.on('ready', () => {
           localPageServeLogged = true;
           console.log('[local-page] serving', decodedPath);
         }
-        return net.fetch('file:///' + decodedPath);
+        
+        let contentType = 'image/png';
+        if (decodedPath.toLowerCase().endsWith('.jpg') || decodedPath.toLowerCase().endsWith('.jpeg')) {
+          contentType = 'image/jpeg';
+        } else if (decodedPath.toLowerCase().endsWith('.webp')) {
+          contentType = 'image/webp';
+        } else if (decodedPath.toLowerCase().endsWith('.gif')) {
+          contentType = 'image/gif';
+        }
+
+        const data = fs.readFileSync(decodedPath);
+        return new Response(data, {
+          headers: { 'Content-Type': contentType, 'Access-Control-Allow-Origin': '*' }
+        });
       } catch (err) {
         Telemetry.recordException(err, `[local-page] failed to serve ${request.url}`);
         return new Response('Not Found', { status: 404 });
@@ -371,6 +485,13 @@ app.on('ready', () => {
       }
       return storageService.countMangas(targetLibraryId);
     });
+
+    ipcMain.handle('app:update-jump-list', async () => {
+      updateJumpListTasks();
+      return true;
+    });
+
+    updateJumpListTasks();
   } catch (err) {
     Telemetry.recordException(err, '[main] Failed during app ready / IPC registration');
   }

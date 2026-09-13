@@ -36,6 +36,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.BookRepository = void 0;
 const path = __importStar(require("path"));
 const base_repository_1 = require("./base.repository");
+const app_enums_1 = require("../../src/app/core/models/enums/app-enums");
 class BookRepository extends base_repository_1.BaseRepository {
     constructor(db) {
         super(db, 'Book', 'id');
@@ -244,6 +245,16 @@ class BookRepository extends base_repository_1.BaseRepository {
             }
         }
         if (book.id) {
+            const existing = this.getById(book.id);
+            const merged = {
+                ...(existing || {}),
+                ...book
+            };
+            const resolvedFolder = merged.folder || (merged.path ? path.dirname(merged.path) : '');
+            const resolvedName = merged.name || (merged.path ? path.basename(merged.path) : '');
+            const resolvedTitle = merged.title || resolvedName || '';
+            const resolvedType = merged.fileType || (merged.path ? path.extname(merged.path).toUpperCase().replace('.', '') : app_enums_1.FileType.EPUB);
+            const resolvedFileAlteration = merged.fileAlteration || new Date().toISOString();
             const stmt = this.db.prepare(`
         UPDATE Book SET
           title = ?, path = ?, folder = ?, name = ?, size = ?,
@@ -254,10 +265,15 @@ class BookRepository extends base_repository_1.BaseRepository {
           file_alteration = ?, last_vocabulary_import = ?, last_verify = ?, cover_path = ?
         WHERE id = ?
       `);
-            stmt.run(book.title, book.path, book.folder, book.name, book.fileSize ?? 0, book.fileType, book.pages ?? 1, book.bookMark ?? 0, book.bookMarkCfi ?? null, book.completed ? 1 : 0, book.favorite ? 1 : 0, book.author ?? '', book.series ?? '', book.genre ?? '', book.publisher ?? '', book.volume ?? '', book.release ?? null, book.language ?? '', book.isbn ?? '', book.annotation ?? '', book.tags ?? '', book.chapter ?? '', book.chapterDescription ?? '', book.password ?? '', book.fkLibrary ?? null, book.excluded ? 1 : 0, book.lastAccess ?? null, book.lastAlteration ?? new Date().toISOString(), book.fileAlteration ?? new Date().toISOString(), book.lastVocabImport ?? null, book.lastVerify ?? null, book.coverPath ?? null, book.id);
+            stmt.run(resolvedTitle, merged.path, resolvedFolder, resolvedName, merged.fileSize ?? 0, resolvedType, merged.pages ?? 1, merged.bookMark ?? 0, merged.bookMarkCfi ?? null, merged.completed ? 1 : 0, merged.favorite ? 1 : 0, merged.author ?? '', merged.series ?? '', merged.genre ?? '', merged.publisher ?? '', merged.volume ?? '', merged.release ?? null, merged.language ?? '', merged.isbn ?? '', merged.annotation ?? '', merged.tags ?? '', merged.chapter ?? '', merged.chapterDescription ?? '', merged.password ?? '', merged.fkLibrary ?? null, merged.excluded ? 1 : 0, merged.lastAccess ?? null, merged.lastAlteration ?? new Date().toISOString(), resolvedFileAlteration, merged.lastVocabImport ?? null, merged.lastVerify ?? null, merged.coverPath ?? null, book.id);
             return book.id;
         }
         else {
+            const resolvedFolder = book.folder || (book.path ? path.dirname(book.path) : '');
+            const resolvedName = book.name || (book.path ? path.basename(book.path) : '');
+            const resolvedTitle = book.title || resolvedName || '';
+            const resolvedType = book.fileType || (book.path ? path.extname(book.path).toUpperCase().replace('.', '') : app_enums_1.FileType.EPUB);
+            const resolvedFileAlteration = book.fileAlteration || new Date().toISOString();
             const stmt = this.db.prepare(`
         INSERT INTO Book (
           title, path, folder, name, size, type, pages,
@@ -270,7 +286,7 @@ class BookRepository extends base_repository_1.BaseRepository {
           ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
         )
       `);
-            const info = stmt.run(book.title, book.path, book.folder, book.name, book.fileSize ?? 0, book.fileType, book.pages ?? 1, book.bookMark ?? 0, book.bookMarkCfi ?? null, book.completed ? 1 : 0, book.favorite ? 1 : 0, book.author ?? '', book.series ?? '', book.genre ?? '', book.publisher ?? '', book.volume ?? '', book.release ?? null, book.language ?? '', book.isbn ?? '', book.annotation ?? '', book.tags ?? '', book.chapter ?? '', book.chapterDescription ?? '', book.password ?? '', book.fkLibrary ?? null, book.excluded ? 1 : 0, new Date().toISOString(), book.lastAccess ?? null, book.lastAlteration ?? new Date().toISOString(), book.fileAlteration ?? new Date().toISOString(), book.lastVocabImport ?? null, book.lastVerify ?? null, book.coverPath ?? null);
+            const info = stmt.run(resolvedTitle, book.path, resolvedFolder, resolvedName, book.fileSize ?? 0, resolvedType, book.pages ?? 1, book.bookMark ?? 0, book.bookMarkCfi ?? null, book.completed ? 1 : 0, book.favorite ? 1 : 0, book.author ?? '', book.series ?? '', book.genre ?? '', book.publisher ?? '', book.volume ?? '', book.release ?? null, book.language ?? '', book.isbn ?? '', book.annotation ?? '', book.tags ?? '', book.chapter ?? '', book.chapterDescription ?? '', book.password ?? '', book.fkLibrary ?? null, book.excluded ? 1 : 0, new Date().toISOString(), book.lastAccess ?? null, book.lastAlteration ?? new Date().toISOString(), resolvedFileAlteration, book.lastVocabImport ?? null, book.lastVerify ?? null, book.coverPath ?? null);
             return Number(info.lastInsertRowid);
         }
     }

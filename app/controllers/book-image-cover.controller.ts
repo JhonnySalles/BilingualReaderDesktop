@@ -27,6 +27,21 @@ export class BookImageCoverController {
     return crypto.createHash('md5').update(filePath).digest('hex');
   }
 
+  public getBookCover3D(book: Book): {
+    fullCoverPath: string | null;
+    frontCoverPath: string | null;
+    backCoverPath: string | null;
+    isFullCover: boolean;
+  } {
+    const coverPath = this.ensureCover(book);
+    return {
+      fullCoverPath: null,
+      frontCoverPath: coverPath,
+      backCoverPath: null,
+      isFullCover: false
+    };
+  }
+
   public getBookCoverFile(book: Book): string | null {
     if (!book.path || !fs.existsSync(book.path)) {
       return null;

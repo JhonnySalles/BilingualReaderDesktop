@@ -9,7 +9,9 @@ import {
   ExternalTrackerSearchResult,
   ExternalTrackerUserStatus,
   ExternalTrackerUpdatePayload,
-  TrackerAuthStatus
+  TrackerAuthStatus,
+  ExternalTrackerMediaDetails,
+  ExternalTrackerRelatedItem
 } from '../../src/app/core/models/entities/track.model';
 
 export interface MalOAuthTokens {
@@ -427,6 +429,109 @@ export class MalService {
       chaptersRead: listStatus.num_chapters_read ?? 0,
       volumesRead: listStatus.num_volumes_read ?? 0,
       updatedAt: listStatus.updated_at || null
+    };
+  }
+
+  /**
+   * Obtém os detalhes completos do mangá no MyAnimeList, incluindo sinopse, gêneros, autores e obras relacionadas.
+   */
+  public async getMangaDetails(mangaId: number): Promise<ExternalTrackerMediaDetails | null> {
+    if (!mangaId) return null;
+
+    let headers: Record<string, string> = {};
+    if (this.tokens?.access_token) {
+      try {
+        const token = await this.getValidAccessToken();
+        headers['Authorization'] = `Bearer ${token}`;
+      } catch {
+        headers['X-MAL-CLIENT-ID'] = this.getClientId();
+      }
+    } else {
+      headers['X-MAL-CLIENT-ID'] = this.getClientId();
+    }
+
+    const fields = [
+      'id', 'title', 'main_picture', 'alternative_titles', 'start_date', 'end_date',
+      'synopsis', 'mean', 'rank', 'popularity', 'num_list_users', 'num_scoring_users',
+      'genres', 'created_at', 'updated_at', 'media_type', 'status', 'my_list_status',
+      'num_volumes', 'num_chapters', 'authors{first_name,last_name,role}', 'pictures',
+      'related_anime{id,title,main_picture}', 'related_manga{id,title,main_picture}'
+    ].join(',');
+
+    const url = `https://api.myanimelist.net/v2/manga/${mangaId}?fields=${fields}`;
+
+    const res = await fetch(url, { headers });
+    if (!res.ok) {
+      if (res.status === 404) return null;
+      const text = await res.text();
+      throw new Error(`Erro ao obter detalhes do MAL (${res.status}): ${text}`);
+    }
+
+    const node = (await res.json()) as any;
+    if (!node || !node.id) return null;
+
+    const genres = (node.genres || []).map((g: any) => g.name).filter(Boolean);
+    const authors = (node.authors || []).map((a: any) => {
+      const nodeA = a.node || a;
+      return `${nodeA.first_name || ''} ${nodeA.last_name || ''}`.trim() || nodeA.name || '';
+    }).filter(Boolean);
+
+    const related: ExternalTrackerRelatedItem[] = [];
+    if (Array.isArray(node.related_manga)) {
+      for (const rel of node.related_manga) {
+        if (rel.node) {
+          related.push({
+            id: rel.node.id,
+            title: rel.node.title,
+            relationType: rel.relation_type_formatted || rel.relation_type || 'Manga',
+            mediaType: 'MANGA',
+            coverImage: rel.node.main_picture?.large || rel.node.main_picture?.medium || null,
+            url: `https://myanimelist.net/manga/${rel.node.id}`
+          });
+        }
+      }
+    }
+    if (Array.isArray(node.related_anime)) {
+      for (const rel of node.related_anime) {
+        if (rel.node) {
+          related.push({
+            id: rel.node.id,
+            title: rel.node.title,
+            relationType: rel.relation_type_formatted || rel.relation_type || 'Anime',
+            mediaType: 'ANIME',
+            coverImage: rel.node.main_picture?.large || rel.node.main_picture?.medium || null,
+            url: `https://myanimelist.net/anime/${rel.node.id}`
+          });
+        }
+      }
+    }
+
+    const listStatus = node.my_list_status ? {
+      inList: true,
+      status: node.my_list_status.status || null,
+      score: node.my_list_status.score != null ? Number(node.my_list_status.score) : null,
+      chaptersRead: node.my_list_status.num_chapters_read ?? 0,
+      volumesRead: node.my_list_status.num_volumes_read ?? 0,
+      updatedAt: node.my_list_status.updated_at || null
+    } : null;
+
+    return {
+      id: node.id,
+      source: 'MAL',
+      title: node.title,
+      synopsis: node.synopsis || null,
+      score: node.mean != null ? Number(node.mean) : null,
+      coverImage: node.main_picture?.large || node.main_picture?.medium || null,
+      totalChapters: node.num_chapters || null,
+      totalVolumes: node.num_volumes || null,
+      status: node.status || null,
+      mediaType: node.media_type || null,
+      genres,
+      authors,
+      published: node.start_date ? (node.end_date ? `${node.start_date} até ${node.end_date}` : `${node.start_date}`) : null,
+      url: `https://myanimelist.net/manga/${node.id}`,
+      related,
+      userStatus: listStatus
     };
   }
 }

@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { ElectronService } from './electron.service';
-import { Manga, Book } from '../models';
+import { Manga, Book, MangaAnnotation, BookAnnotation } from '../models';
 import {
   clampBookMark,
   isCompleted,
@@ -16,8 +16,16 @@ export class DetailService {
     return this.electron.getManga(id);
   }
 
+  loadMangaCover3D(id: number) {
+    return this.electron.getMangaCover3D(id);
+  }
+
   loadBook(id: number): Promise<Book | null> {
     return this.electron.getBook(id);
+  }
+
+  loadBookCover3D(id: number) {
+    return this.electron.getBookCover3D(id);
   }
 
   async toggleFavoriteManga(manga: Manga): Promise<Manga | null> {
@@ -151,12 +159,44 @@ export class DetailService {
     return this.electron.deleteBook(id);
   }
 
+  loadMangaAnnotations(mangaId: number): Promise<MangaAnnotation[]> {
+    return this.electron.listMangaAnnotations(mangaId);
+  }
+
+  loadBookAnnotations(bookId: number): Promise<BookAnnotation[]> {
+    return this.electron.listBookAnnotations(bookId);
+  }
+
+  deleteMangaAnnotation(id: number): Promise<boolean> {
+    return this.electron.deleteMangaAnnotation(id);
+  }
+
+  deleteBookAnnotation(id: number): Promise<boolean> {
+    return this.electron.deleteBookAnnotation(id);
+  }
+
+  async updateMangaTags(manga: Manga, tags: string): Promise<Manga | null> {
+    return this.electron.saveManga({ ...manga, tags });
+  }
+
   async updateBookLanguage(book: Book, language: string): Promise<Book | null> {
     return this.electron.saveBook({ ...book, language });
   }
 
   async updateBookTags(book: Book, tags: string): Promise<Book | null> {
     return this.electron.saveBook({ ...book, tags });
+  }
+
+  getTags(): Promise<any[]> {
+    return this.electron.getTags();
+  }
+
+  saveTag(name: string): Promise<any> {
+    return this.electron.saveTag(name);
+  }
+
+  deleteTag(id: number): Promise<boolean> {
+    return this.electron.deleteTag(id);
   }
 
   formatLastAccess(iso?: string | null): string {

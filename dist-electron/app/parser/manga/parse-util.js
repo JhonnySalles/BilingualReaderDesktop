@@ -118,6 +118,7 @@ class ParseUtil {
                 storyArc: getTagValue('StoryArc'),
                 seriesGroup: getTagValue('SeriesGroup'),
                 ageRating: getTagValue('AgeRating'),
+                tags: getTagValue('Tags'),
                 year: getTagNumber('Year'),
                 month: getTagNumber('Month'),
                 day: getTagNumber('Day'),

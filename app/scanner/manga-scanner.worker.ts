@@ -109,7 +109,7 @@ async function run(): Promise<void> {
         }
       }
 
-      if (!existing.author || !existing.series) {
+      if (!existing.author || !existing.series || !existing.storyArch || !existing.characters) {
         const parser = await ParseFactory.create(itemPath);
         if (parser) {
           try {
@@ -120,6 +120,10 @@ async function run(): Promise<void> {
               if (comicInfo.genre && !existing.genre) { updated.genre = comicInfo.genre; needsUpdate = true; }
               if (comicInfo.publisher && !existing.publisher) { updated.publisher = comicInfo.publisher; needsUpdate = true; }
               if (comicInfo.number && !existing.volume) { updated.volume = comicInfo.number; needsUpdate = true; }
+              if (comicInfo.languageISO && !existing.language) { updated.language = comicInfo.languageISO; needsUpdate = true; }
+              if (comicInfo.storyArc && !existing.storyArch) { updated.storyArch = comicInfo.storyArc; needsUpdate = true; }
+              if (comicInfo.characters && !existing.characters) { updated.characters = comicInfo.characters; needsUpdate = true; }
+              if (comicInfo.tags && !existing.tags) { updated.tags = comicInfo.tags; needsUpdate = true; }
             }
           } finally {
             parser.destroy();
@@ -145,6 +149,10 @@ async function run(): Promise<void> {
       let genre = '';
       let publisher = '';
       let volume = '';
+      let language = '';
+      let storyArch = '';
+      let characters = '';
+      let tags = '';
       let hasSubtitle = false;
 
       const parser = await ParseFactory.create(itemPath);
@@ -160,11 +168,23 @@ async function run(): Promise<void> {
             if (comicInfo.genre) genre = comicInfo.genre;
             if (comicInfo.publisher) publisher = comicInfo.publisher;
             if (comicInfo.number) volume = comicInfo.number;
+            if (comicInfo.languageISO) language = comicInfo.languageISO;
+            if (comicInfo.storyArc) storyArch = comicInfo.storyArc;
+            if (comicInfo.characters) characters = comicInfo.characters;
+            if (comicInfo.tags) tags = comicInfo.tags;
           }
 
-          const coverStreams = parser.getCover();
-          if (coverStreams.front) {
-            coverPath = MangaImageCoverController.instance.saveCoverToCache(itemPath, coverStreams.front);
+          if (parser.hasFullCover()) {
+            const fullCover = parser.getFullCover();
+            if (fullCover) {
+              coverPath = MangaImageCoverController.instance.saveCoverToCache(itemPath, fullCover);
+            }
+          }
+          if (!coverPath) {
+            const coverStreams = parser.getCover();
+            if (coverStreams.front) {
+              coverPath = MangaImageCoverController.instance.saveCoverToCache(itemPath, coverStreams.front);
+            }
           }
         } catch (e) {
           console.warn(`[manga-scanner.worker] Could not parse ${fileName}:`, e);
@@ -192,6 +212,10 @@ async function run(): Promise<void> {
         genre,
         publisher,
         volume,
+        language,
+        storyArch,
+        characters,
+        tags,
         fkLibrary: libraryId,
         excluded: false,
         fileAlteration: stat.mtime.toISOString(),

@@ -27,7 +27,10 @@ import {
   ExternalTrackerSearchResult,
   ExternalTrackerUserStatus,
   ExternalTrackerUpdatePayload,
-  TrackerAuthStatus
+  TrackerAuthStatus,
+  ExternalTrackerMediaDetails,
+  ExternalTrackerRelatedItem,
+  Tag
 } from '../models';
 
 export interface OpenFileLinkResult {
@@ -73,6 +76,9 @@ declare global {
       clearBookProgress: (id: number) => Promise<Book | null>;
       markMangaRead: (id: number) => Promise<Manga | null>;
       markBookRead: (id: number) => Promise<Book | null>;
+      getTags: () => Promise<Tag[]>;
+      saveTag: (name: string) => Promise<Tag>;
+      deleteTag: (id: number) => Promise<boolean>;
       getSetting: (key: string, defaultValue?: any) => Promise<any>;
       setSetting: (key: string, value: any) => Promise<any>;
       getSecret: (secretKey: string) => Promise<any>;
@@ -94,6 +100,7 @@ declare global {
         filters?: HistorySearchFilter[] | null;
       }) => Promise<HistoryStatisticsItem[]>;
       listRecentReads: (limit?: number) => Promise<HomeRecentItem[]>;
+      updateJumpList: () => Promise<boolean>;
       getReadingActivityHeatmap: (weeks?: number) => Promise<HeatmapDay[]>;
       startHistorySession: (input: {
         fkLibrary: number;
@@ -319,6 +326,12 @@ declare global {
       }>;
       setMangaBookmark: (mangaId: number, page: number) => Promise<Manga | null>;
       toggleMangaFavorite: (mangaId: number) => Promise<Manga | null>;
+      getMangaCover3D: (mangaId: number) => Promise<{
+        fullCoverPath: string | null;
+        frontCoverPath: string | null;
+        backCoverPath: string | null;
+        isFullCover: boolean;
+      } | null>;
       listMangaAnnotations: (mangaId: number) => Promise<MangaAnnotation[]>;
       listAllMangaAnnotations: () => Promise<
         (MangaAnnotation & { mangaTitle: string; mangaName: string })[]
@@ -344,6 +357,12 @@ declare global {
         configuration: BookConfiguration | null;
       }>;
       closeBookReader: (sessionId: string) => Promise<boolean>;
+      getBookCover3D: (bookId: number) => Promise<{
+        fullCoverPath: string | null;
+        frontCoverPath: string | null;
+        backCoverPath: string | null;
+        isFullCover: boolean;
+      } | null>;
       setBookBookmark: (payload: {
         id: number;
         bookMark: number;
@@ -426,18 +445,25 @@ declare global {
         volumesRead: number;
         status?: string;
       }) => Promise<Track | null>;
+      trackerGetMediaDetails: (payload: {
+        malId?: number | null;
+        aniId?: number | null;
+        title?: string | null;
+      }) => Promise<ExternalTrackerMediaDetails | null>;
       malGetAuthStatus: () => Promise<TrackerAuthStatus>;
       malLogin: () => Promise<TrackerAuthStatus>;
       malLogout: () => Promise<boolean>;
       malSearch: (query: string, limit?: number) => Promise<ExternalTrackerSearchResult[]>;
       malGetUserStatus: (malId: number) => Promise<ExternalTrackerUserStatus>;
       malUpdateUserStatus: (payload: ExternalTrackerUpdatePayload) => Promise<ExternalTrackerUserStatus>;
+      malGetDetails: (mangaId: number) => Promise<ExternalTrackerMediaDetails | null>;
       anilistGetAuthStatus: () => Promise<TrackerAuthStatus>;
       anilistLogin: () => Promise<TrackerAuthStatus>;
       anilistLogout: () => Promise<boolean>;
       anilistSearch: (query: string, limit?: number) => Promise<ExternalTrackerSearchResult[]>;
       anilistGetUserStatus: (mediaId: number) => Promise<ExternalTrackerUserStatus>;
       anilistUpdateUserStatus: (payload: ExternalTrackerUpdatePayload) => Promise<ExternalTrackerUserStatus>;
+      anilistGetDetails: (mediaId?: number, searchTitle?: string) => Promise<ExternalTrackerMediaDetails | null>;
       send: (channel: string, data: any) => void;
       on: (channel: string, func: (...args: any[]) => void) => () => void;
     };
@@ -448,6 +474,92 @@ declare global {
   providedIn: 'root'
 })
 export class ElectronService {
+  constructor() {
+    if (typeof window !== 'undefined' && !window.electronAPI) {
+      const mockManga = {
+        id: 1,
+        title: 'Mangá Demon Slayer (Teste 3D)',
+        name: 'demon_slayer_vol01.cbz',
+        path: 'assets/models/malha_book_cover.png',
+        coverPath: 'assets/models/malha_book_cover.png',
+        pages: 192,
+        bookMark: 45,
+        completed: false,
+        favorite: true,
+        fileType: 'CBZ',
+        series: 'Demon Slayer',
+        author: 'Koyoharu Gotouge',
+        release: '2016',
+        publisher: 'Shueisha',
+        genre: 'Ação, Fantasia',
+        fkLibrary: 1,
+        chapters: [1, 2, 3, 4],
+        chaptersPages: { 1: 'Capítulo 1: Crueldade', 2: 'Capítulo 2: Desconhecido', 3: 'Capítulo 3', 4: 'Capítulo 4' }
+      };
+
+      const mockBook = {
+        id: 1,
+        title: 'Livro de Teste 3D',
+        name: 'livro_exemplo.epub',
+        path: 'assets/models/malha_book_cover.png',
+        coverPath: 'assets/models/malha_book_cover.png',
+        pages: 320,
+        bookMark: 80,
+        completed: false,
+        favorite: true,
+        fileType: 'EPUB',
+        author: 'Autor Exemplo',
+        publisher: 'Editora Modelo',
+        genre: 'Ficção',
+        fkLibrary: 1
+      };
+
+      (window as any).electronAPI = {
+        ping: async () => 'Pong mock (Browser)',
+        listMangas: async () => [mockManga],
+        getManga: async () => mockManga,
+        listBooks: async () => [mockBook],
+        getBook: async () => mockBook,
+        getLibraryCount: async () => 1,
+        getSetting: async (key: string, def: any) => def,
+        setSetting: async (key: string, val: any) => val,
+        getTags: async () => [{ id: 1, name: 'Favorito' }, { id: 2, name: 'Lendo' }],
+        saveTag: async (name: string) => ({ id: Date.now(), name }),
+        deleteTag: async () => true,
+        listLibrariesByType: async () => [{ id: 1, name: 'Principal' }],
+        listTrackerLibraries: async () => [],
+        listTracksByLibrary: async () => [],
+        listAllTracks: async () => [],
+        getMatchedMedia: async () => [],
+        getTrack: async () => null,
+        saveTrack: async (t: any) => t,
+        deleteTrack: async () => true,
+        matchTrack: async () => ({ track: null, volume: null, chapter: null, matchedBy: 'NONE' }),
+        updateTrackProgress: async (t: any) => t,
+        trackerGetMediaDetails: async () => null,
+        malGetAuthStatus: async () => ({ isAuthenticated: false }),
+        malGetDetails: async () => null,
+        anilistGetAuthStatus: async () => ({ isAuthenticated: false }),
+        anilistGetDetails: async () => null,
+        saveManga: async (m: any) => ({ ...mockManga, ...m }),
+        saveBook: async (b: any) => ({ ...mockBook, ...b }),
+        markMangaRead: async () => ({ ...mockManga, completed: true }),
+        markBookRead: async () => ({ ...mockBook, completed: true }),
+        clearMangaProgress: async () => ({ ...mockManga, bookMark: 0, completed: false }),
+        clearBookProgress: async () => ({ ...mockBook, bookMark: 0, completed: false }),
+        setMangaBookmark: async (_id: number, page: number) => ({ ...mockManga, bookMark: page }),
+        setBookBookmark: async (payload: any) => ({ ...mockBook, bookMark: payload.bookMark }),
+        getStatistics: async () => null,
+        getStatisticsChart: async () => [],
+        getStatisticsYears: async () => [2026],
+        listHistoryAggregated: async () => [],
+        listRecentReads: async () => [],
+        updateJumpList: async () => true,
+        getReadingActivityHeatmap: async () => []
+      };
+    }
+  }
+
   get isElectron(): boolean {
     return !!(window && window.electronAPI);
   }
@@ -614,6 +726,27 @@ export class ElectronService {
     return false;
   }
 
+  async getTags(): Promise<Tag[]> {
+    if (this.isElectron && window.electronAPI?.getTags) {
+      return await window.electronAPI.getTags();
+    }
+    return [];
+  }
+
+  async saveTag(name: string): Promise<Tag | null> {
+    if (this.isElectron && window.electronAPI?.saveTag) {
+      return await window.electronAPI.saveTag(name);
+    }
+    return null;
+  }
+
+  async deleteTag(id: number): Promise<boolean> {
+    if (this.isElectron && window.electronAPI?.deleteTag) {
+      return await window.electronAPI.deleteTag(id);
+    }
+    return false;
+  }
+
   async clearMangaProgress(id: number): Promise<Manga | null> {
     if (this.isElectron && window.electronAPI?.clearMangaProgress) {
       return await window.electronAPI.clearMangaProgress(id);
@@ -692,6 +825,13 @@ export class ElectronService {
       return await window.electronAPI.listRecentReads(limit);
     }
     return [];
+  }
+
+  async updateJumpList(): Promise<boolean> {
+    if (this.isElectron && window.electronAPI?.updateJumpList) {
+      return await window.electronAPI.updateJumpList();
+    }
+    return false;
   }
 
   async getReadingActivityHeatmap(_weeks?: number): Promise<HeatmapDay[]> {
@@ -1114,6 +1254,18 @@ export class ElectronService {
     return null;
   }
 
+  async getMangaCover3D(mangaId: number): Promise<{
+    fullCoverPath: string | null;
+    frontCoverPath: string | null;
+    backCoverPath: string | null;
+    isFullCover: boolean;
+  } | null> {
+    if (this.isElectron && window.electronAPI?.getMangaCover3D) {
+      return await window.electronAPI.getMangaCover3D(mangaId);
+    }
+    return null;
+  }
+
   async listMangaAnnotations(mangaId: number): Promise<MangaAnnotation[]> {
     if (this.isElectron && window.electronAPI?.listMangaAnnotations) {
       return await window.electronAPI.listMangaAnnotations(mangaId);
@@ -1197,6 +1349,18 @@ export class ElectronService {
       return await window.electronAPI.closeBookReader(sessionId);
     }
     return false;
+  }
+
+  async getBookCover3D(bookId: number): Promise<{
+    fullCoverPath: string | null;
+    frontCoverPath: string | null;
+    backCoverPath: string | null;
+    isFullCover: boolean;
+  } | null> {
+    if (this.isElectron && window.electronAPI?.getBookCover3D) {
+      return await window.electronAPI.getBookCover3D(bookId);
+    }
+    return null;
   }
 
   async setBookBookmark(payload: {
@@ -1627,6 +1791,13 @@ export class ElectronService {
     return { inList: false };
   }
 
+  async malGetDetails(mangaId: number): Promise<ExternalTrackerMediaDetails | null> {
+    if (this.isElectron && window.electronAPI?.malGetDetails) {
+      return await window.electronAPI.malGetDetails(mangaId);
+    }
+    return null;
+  }
+
   /* ================= AniList Methods ================= */
 
   async anilistGetAuthStatus(): Promise<TrackerAuthStatus> {
@@ -1670,4 +1841,25 @@ export class ElectronService {
     }
     return { inList: false };
   }
+
+  async anilistGetDetails(mediaId?: number, searchTitle?: string): Promise<ExternalTrackerMediaDetails | null> {
+    if (this.isElectron && window.electronAPI?.anilistGetDetails) {
+      return await window.electronAPI.anilistGetDetails(mediaId, searchTitle);
+    }
+    return null;
+  }
+
+  /* ================= Unified Tracker Web Details ================= */
+
+  async trackerGetMediaDetails(payload: {
+    malId?: number | null;
+    aniId?: number | null;
+    title?: string | null;
+  }): Promise<ExternalTrackerMediaDetails | null> {
+    if (this.isElectron && window.electronAPI?.trackerGetMediaDetails) {
+      return await window.electronAPI.trackerGetMediaDetails(payload);
+    }
+    return null;
+  }
 }
+

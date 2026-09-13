@@ -56,6 +56,7 @@ const assistant_history_repository_1 = require("./assistant-history.repository")
 const history_repository_1 = require("./history.repository");
 const statistics_repository_1 = require("./statistics.repository");
 const track_repository_1 = require("./track.repository");
+const tag_repository_1 = require("./tag.repository");
 class StorageService {
     db;
     mangaRepository;
@@ -72,6 +73,7 @@ class StorageService {
     historyRepository;
     statisticsRepository;
     trackRepository;
+    tagRepository;
     constructor() {
         this.initDatabase();
     }
@@ -102,6 +104,7 @@ class StorageService {
         this.historyRepository = new history_repository_1.HistoryRepository(this.db);
         this.statisticsRepository = new statistics_repository_1.StatisticsRepository(this.db);
         this.trackRepository = new track_repository_1.TrackRepository(this.db);
+        this.tagRepository = new tag_repository_1.TagRepository(this.db);
     }
     /** Checkpoint WAL into the main file so a single .db copy is consistent. */
     checkpointWal() {
@@ -365,6 +368,15 @@ class StorageService {
         const stmt = this.db.prepare(`SELECT id, title, type, path FROM Libraries WHERE id = ? LIMIT 1`);
         const row = stmt.get(id);
         return row ?? null;
+    }
+    getTags() {
+        return this.tagRepository.findAll();
+    }
+    saveTag(name) {
+        return this.tagRepository.save({ name });
+    }
+    deleteTag(id) {
+        this.tagRepository.delete(id);
     }
 }
 exports.StorageService = StorageService;
