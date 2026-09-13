@@ -278,14 +278,16 @@ html[data-covers-3d='1'] .cover-3d-host {
 }
 
 html[data-covers-3d='1'] .cover-3d-face {
-  transform: rotateY(-6deg) rotateX(2deg);
+  transform: rotateY(-6deg) rotateX(2deg) scale(1.1);
+  transform-origin: left center;
   transform-style: preserve-3d;
   transition: transform 0.35s ease;
   box-shadow: 8px 12px 24px rgba(0, 0, 0, 0.35);
+  border-radius: inherit;
 }
 
 html[data-covers-3d='1'] .group:hover .cover-3d-face,
 html[data-covers-3d='1'] .cover-3d-host:hover .cover-3d-face {
-  transform: rotateY(0deg) rotateX(0deg);
+  transform: rotateY(0deg) rotateX(0deg) scale(1.1);
 }
 

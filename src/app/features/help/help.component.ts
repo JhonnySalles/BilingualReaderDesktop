@@ -13,7 +13,7 @@ interface HelpSection {
   imports: [CommonModule],
   template: `
     <div class="h-full overflow-y-auto bg-slate-950 text-slate-100 relative" #scroller>
-      <div class="max-w-3xl mx-auto px-6 py-10 space-y-8 pb-24">
+      <div class="max-w-3xl mx-auto px-6 pt-24 pb-24 space-y-8">
         <header class="space-y-2">
           <h1 class="text-2xl font-bold text-slate-50 tracking-tight">Ajuda</h1>
           <p class="text-sm text-slate-400">

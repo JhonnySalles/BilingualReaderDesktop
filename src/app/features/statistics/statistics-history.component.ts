@@ -37,7 +37,7 @@ interface HistoryDayGroup {
         <app-manga-filter-modal (close)="libraryState.showFilterModal.set(false)"></app-manga-filter-modal>
       }
 
-      <div class="flex-1 min-h-0 overflow-y-auto p-6">
+      <div class="flex-1 min-h-0 overflow-y-auto px-6 pb-6 pt-24">
         @if (loading()) {
           <div class="h-40 flex items-center justify-center text-sm text-slate-400 animate-pulse">
             Carregando histórico…

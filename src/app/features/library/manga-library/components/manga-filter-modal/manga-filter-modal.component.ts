@@ -92,7 +92,7 @@ export class MangaFilterModalComponent {
   viewOptions = [
     { label: 'Grid Grande', value: LibraryViewType.GRID_BIG },
     { label: 'Grid Médio', value: LibraryViewType.GRID_MEDIUM },
-    { label: 'Grid Blur (Overlay)', value: LibraryViewType.GRID_OVERLAY },
+    { label: 'Grid Blur', value: LibraryViewType.GRID_OVERLAY },
     { label: 'Grande c/ Separador', value: LibraryViewType.SEPARATOR_BIG },
     { label: 'Médio c/ Separador', value: LibraryViewType.SEPARATOR_MEDIUM },
     { label: 'Grid Blur c/ Sep.', value: LibraryViewType.SEPARATOR_OVERLAY },

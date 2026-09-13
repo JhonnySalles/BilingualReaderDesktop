@@ -38,7 +38,7 @@ import { ShareMarkType } from '../../core/models/enums/sharemark.enum';
     TrackerConfigDialogComponent
   ],
   template: `
-    <div class="h-full flex flex-col bg-slate-950 text-slate-100 overflow-hidden p-6 relative">
+    <div class="h-full flex flex-col bg-slate-950 text-slate-100 overflow-hidden relative">
       
       @if (libraryStateService.showFilterModal()) {
         <app-manga-filter-modal (close)="libraryStateService.showFilterModal.set(false)"></app-manga-filter-modal>
@@ -77,7 +77,7 @@ import { ShareMarkType } from '../../core/models/enums/sharemark.enum';
         (cancel)="showFullConfigModal.set(false); trackerTarget.set(null)" />
 
       @if (activeLibId() === 'home') {
-        <div class="flex-1 overflow-y-auto space-y-8 pb-4">
+        <div class="flex-1 overflow-y-auto space-y-8 px-6 pb-6 pt-24">
           
           <div class="relative rounded-2xl bg-gradient-to-r from-indigo-900/40 via-slate-900 to-indigo-950/40 p-8 border border-slate-800 shadow-xl overflow-hidden">
             <div class="relative z-10 max-w-xl">
@@ -192,7 +192,7 @@ import { ShareMarkType } from '../../core/models/enums/sharemark.enum';
       }
 
       @if (activeLibId() !== 'home') {
-        <div class="flex-1 flex flex-col min-h-0 overflow-y-auto">
+        <div class="flex-1 flex flex-col min-h-0 overflow-y-auto px-6 pb-6 pt-24">
           <div class="flex justify-between items-center mb-6">
             <div class="flex items-center gap-2">
               <span class="text-xs font-semibold px-2.5 py-1 rounded-md bg-slate-900 border border-slate-800 text-slate-400">

@@ -33,7 +33,7 @@ import { ConfirmDialogService } from '../../core/services/confirm-dialog.service
     TrackerSimpleDialogComponent
   ],
   template: `
-    <div class="h-full flex flex-col bg-slate-950 text-slate-100 overflow-hidden select-none relative">
+    <div class="h-full flex flex-col bg-slate-950 text-slate-100 overflow-hidden select-none relative pt-20">
       <div class="h-14 px-6 bg-slate-900 border-b border-slate-800 flex items-center justify-between gap-3 shrink-0">
         <div class="flex items-center gap-3 min-w-0">
           <button type="button" (click)="goBack()" class="p-2 text-slate-400 hover:text-slate-200 rounded-lg transition-colors cursor-pointer">
@@ -72,7 +72,7 @@ import { ConfirmDialogService } from '../../core/services/confirm-dialog.service
               <div class="w-40 shrink-0">
                 <div class="aspect-[2/3] rounded-xl overflow-hidden border border-slate-700 bg-slate-900 shadow-xl cover-3d-host">
                   @if (manga()!.coverPath) {
-                    <img [src]="'local-cover:///' + manga()!.coverPath" [alt]="manga()!.title" class="cover-3d-face w-full h-full object-cover" />
+                    <img [src]="'local-cover:///' + manga()!.coverPath" [alt]="manga()!.title" class="cover-3d-face w-full h-full object-cover rounded-xl" />
                   } @else {
                     <div class="w-full h-full flex items-center justify-center text-slate-500 text-xs">Sem capa</div>
                   }

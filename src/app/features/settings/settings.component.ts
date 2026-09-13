@@ -36,7 +36,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
       <!-- Settings Layout (Left Navigation, Right Scrollable Content) -->
       <div class="flex-1 flex overflow-hidden">
         <!-- Categories Side Nav -->
-        <div class="w-64 shrink-0 bg-slate-900/50 border-r border-slate-800 p-4 space-y-1">
+        <div class="w-64 shrink-0 bg-slate-900/50 border-r border-slate-800 p-4 pt-24 space-y-1">
           <button 
             (click)="activeTab.set('manga')"
             [class.bg-indigo-600]="activeTab() === 'manga'"
@@ -89,7 +89,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
         </div>
 
         <!-- Scrollable Details Panel -->
-        <div class="flex-1 min-w-0 overflow-y-auto p-8 space-y-8">
+        <div class="flex-1 min-w-0 overflow-y-auto px-8 pb-8 pt-24 space-y-8">
           
           <!-- ================= TAB: MANGA / COMIC ================= -->
           @if (activeTab() === 'manga') {

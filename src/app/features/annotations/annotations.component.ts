@@ -49,7 +49,7 @@ import { AnnotationPopupComponent } from './components/annotation-popup.componen
           (cancel)="editing.set(null)" />
       }
 
-      <div class="flex-1 min-h-0 overflow-y-auto p-6">
+      <div class="flex-1 min-h-0 overflow-y-auto px-6 pb-6 pt-24">
         @if (loading()) {
           <p class="text-xs text-slate-500 text-center py-16">Carregando anotações…</p>
         } @else if (rows().length === 0) {

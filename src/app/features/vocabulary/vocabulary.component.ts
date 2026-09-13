@@ -64,7 +64,7 @@ const PAGE_SIZE = 40;
         </div>
       }
 
-      <div class="flex-1 min-h-0 overflow-y-auto p-6" (scroll)="onScroll($event)">
+      <div class="flex-1 min-h-0 overflow-y-auto px-6 pb-6 pt-24" (scroll)="onScroll($event)">
         @if (ui.isScoped()) {
           <div class="max-w-3xl mx-auto mb-4 flex flex-wrap items-center gap-2">
             <span class="px-2.5 py-1 rounded-lg text-[11px] font-semibold border"

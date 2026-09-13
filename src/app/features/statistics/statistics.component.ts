@@ -14,7 +14,7 @@ import { StatisticsSectorComponent } from './components/statistics-sector.compon
         <div class="px-6 py-2 text-[10px] text-indigo-300 animate-pulse border-b border-slate-800">Atualizando…</div>
       }
 
-      <div class="flex-1 min-h-0 overflow-y-auto p-5">
+      <div class="flex-1 min-h-0 overflow-y-auto px-6 pb-6 pt-24">
         <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 h-full min-h-[640px]">
           <app-statistics-sector
             type="MANGA"

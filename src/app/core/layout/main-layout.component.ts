@@ -236,10 +236,11 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
         </div>
       </aside>
 
-      <div class="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
-        <header class="relative z-40 h-16 px-6 bg-slate-900/60 backdrop-blur border-b border-slate-800/80 flex items-center justify-between gap-4 select-none overflow-visible">
+      <div class="flex-1 flex flex-col min-w-0 h-full overflow-hidden relative">
+        <header class="absolute top-0 left-0 right-0 z-40 h-20 px-6 flex items-center justify-between gap-4 select-none overflow-visible pointer-events-none">
+          <div class="absolute inset-0 bg-gradient-to-b from-slate-950 via-slate-950/70 to-transparent backdrop-blur-md pointer-events-auto border-b border-slate-800/20"></div>
 
-          <div class="flex items-center gap-3 min-w-0">
+          <div class="relative z-10 flex items-center gap-3 min-w-0 pointer-events-auto">
             @if (headerMode() === 'history' && historyUi.fromStatistics()) {
               <a routerLink="/statistics" class="p-2 text-slate-400 hover:text-slate-200 rounded-lg transition-colors shrink-0">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -260,7 +261,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
           </div>
 
           @if (headerMode() === 'home') {
-            <div class="flex items-center gap-3 shrink-0">
+            <div class="relative z-10 flex items-center gap-3 shrink-0 pointer-events-auto">
               <button
                 type="button"
                 (click)="onContinueReading()"
@@ -295,7 +296,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
           }
 
           @if (headerMode() === 'library') {
-            <div class="flex items-center gap-3 shrink-0">
+            <div class="relative z-10 flex items-center gap-3 shrink-0 pointer-events-auto">
               <app-search-suggest-field
                 [value]="libraryStateService.searchQuery()"
                 [scope]="librarySearchScope()"
@@ -385,7 +386,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
           }
 
           @if (headerMode() === 'history') {
-            <div class="flex items-center gap-2 sm:gap-3 shrink-0 flex-wrap justify-end">
+            <div class="relative z-10 flex items-center gap-2 sm:gap-3 shrink-0 flex-wrap justify-end pointer-events-auto">
               <app-search-suggest-field
                 [value]="historyUi.search()"
                 scope="history"
@@ -501,7 +502,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
           }
 
           @if (headerMode() === 'annotations') {
-            <div class="flex items-center gap-2 sm:gap-3 shrink-0 flex-wrap justify-end">
+            <div class="relative z-10 flex items-center gap-2 sm:gap-3 shrink-0 flex-wrap justify-end pointer-events-auto">
               <div class="relative w-40 sm:w-56">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -562,7 +563,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
           }
 
           @if (headerMode() === 'vocabulary') {
-            <div class="flex items-center gap-2 sm:gap-3 shrink-0 flex-wrap justify-end">
+            <div class="relative z-10 flex items-center gap-2 sm:gap-3 shrink-0 flex-wrap justify-end pointer-events-auto">
               <div class="relative w-40 sm:w-56">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -604,7 +605,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
           }
 
           @if (headerMode() === 'settings') {
-            <div class="flex items-center gap-2 shrink-0">
+            <div class="relative z-10 flex items-center gap-2 shrink-0 pointer-events-auto">
               <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                 Configurações Salvas
               </span>
@@ -814,7 +815,7 @@ export class MainLayoutComponent implements OnInit {
     switch (view) {
       case LibraryViewType.GRID_BIG: return 'Grid Grande';
       case LibraryViewType.GRID_MEDIUM: return 'Grid Médio';
-      case LibraryViewType.GRID_OVERLAY: return 'Grid Blur (Overlay)';
+      case LibraryViewType.GRID_OVERLAY: return 'Grid Blur';
       case LibraryViewType.SEPARATOR_BIG: return 'Grande c/ Separador';
       case LibraryViewType.SEPARATOR_MEDIUM: return 'Médio c/ Separador';
       case LibraryViewType.SEPARATOR_OVERLAY: return 'Grid Blur c/ Separador';

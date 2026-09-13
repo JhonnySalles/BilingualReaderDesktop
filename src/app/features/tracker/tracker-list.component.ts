@@ -13,7 +13,7 @@ import { TrackerConfigDialogComponent } from '../../shared/tracker-config-dialog
     <div class="h-full flex flex-col bg-slate-950 text-slate-100 overflow-hidden select-none">
       
       <!-- Top Actions Bar / Filters -->
-      <div class="p-5 border-b border-slate-800/80 bg-slate-900/40 backdrop-blur-md flex flex-wrap items-center justify-between gap-4">
+      <div class="px-5 pb-5 pt-24 border-b border-slate-800/80 bg-slate-900/40 backdrop-blur-md flex flex-wrap items-center justify-between gap-4">
         <!-- Title & Subtitle -->
         <div>
           <div class="flex items-center gap-3">
