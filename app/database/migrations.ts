@@ -369,10 +369,11 @@ export class MigrationsManager {
     console.log('Seeding initial database data from assets...');
 
     const possiblePaths = [
+      process.resourcesPath ? path.join(process.resourcesPath, 'assets') : null,
       path.join(process.cwd(), 'public', 'assets'),
       path.join(app ? app.getAppPath() : process.cwd(), 'public', 'assets'),
       path.join(__dirname, '..', '..', 'public', 'assets')
-    ];
+    ].filter(Boolean) as string[];
 
     let assetsDir = '';
     for (const p of possiblePaths) {

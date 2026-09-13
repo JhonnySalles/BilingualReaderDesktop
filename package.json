@@ -10,6 +10,7 @@
     "test": "ng test",
     "compile:electron": "tsc -p tsconfig.electron.json",
     "fetch:libmobi": "powershell -ExecutionPolicy Bypass -File ./scripts/fetch-libmobi.ps1",
+    "fetch:llm": "powershell -ExecutionPolicy Bypass -File ./scripts/fetch-llm.ps1",
     "build:native": "node ./scripts/build-libmobi-addon.js",
     "test:epub-packer": "yarn compile:electron && node dist-electron/app/services/ebook-convert/epub-packer.spec.js",
     "test:ebook-convert-smoke": "yarn compile:electron && node dist-electron/app/services/ebook-convert/smoke.spec.js && node dist-electron/app/services/ebook-convert/smoke-calibre.spec.js",
@@ -17,6 +18,8 @@
     "copy:jp-assets": "powershell -ExecutionPolicy Bypass -File ./scripts/copy-japanese-assets.ps1",
     "electron:dev": "concurrently \"ng serve\" \"tsc -p tsconfig.electron.json --watch\" \"wait-on http://localhost:4200 && electron .\"",
     "build:electron": "yarn compile:electron && yarn build:native && yarn build && electron-builder",
+    "build:electron:light": "yarn compile:electron && yarn build:native && yarn build && electron-builder",
+    "build:electron:full": "yarn compile:electron && yarn build:native && yarn build && electron-builder --config electron-builder-full.json",
     "release:win": "scripts\\build-release.bat"
   },
   "build": {
@@ -59,7 +62,6 @@
       "dist/**/*",
       "dist-electron/**/*",
       "app/assets/**/*",
-      "public/**/*",
       "native/libmobi-addon/build/Release/*.node",
       "native/libmobi-addon/index.js",
       "package.json"
@@ -86,6 +88,27 @@
       {
         "from": "public/assets/fonts",
         "to": "fonts"
+      },
+      {
+        "from": "public/assets/kanji.sql",
+        "to": "assets/kanji.sql"
+      },
+      {
+        "from": "public/assets/kanjax.sql",
+        "to": "assets/kanjax.sql"
+      },
+      {
+        "from": "public/assets/vocabulary.sql",
+        "to": "assets/vocabulary.sql"
+      },
+      {
+        "from": "public/assets/llm",
+        "to": "assets/llm",
+        "filter": [
+          "llama-server.exe",
+          "*.dll",
+          "*.md"
+        ]
       },
       {
         "from": "node_modules/7zip-bin",

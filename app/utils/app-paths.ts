@@ -78,6 +78,17 @@ export function getAppCacheDir(): string {
 }
 
 /**
+ * Returns the path to local LLM models (data/models).
+ */
+export function getAppModelsDir(): string {
+  const dir = path.join(getAppDataDir(), 'models');
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+  return dir;
+}
+
+/**
  * Returns the path to native libraries and dictionaries (data/libs).
  */
 export function getAppLibsDir(): string {
@@ -125,7 +136,8 @@ export function ensureAppDirs(): void {
     path.join(cache, 'manga-pages'),
     path.join(cache, 'sharemark'),
     path.join(cache, 'temp'),
-    path.join(data, 'userData')
+    path.join(data, 'userData'),
+    path.join(data, 'models')
   ];
 
   for (const d of dirsToEnsure) {

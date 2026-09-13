@@ -289,9 +289,16 @@ class MangaRepository extends base_repository_1.BaseRepository {
         const saveTx = this.db.transaction((items) => {
             const results = [];
             for (const manga of items) {
-                const id = this.save(manga);
-                manga.id = id;
-                results.push(manga);
+                try {
+                    const id = this.save(manga);
+                    manga.id = id;
+                    results.push(manga);
+                }
+                catch (e) {
+                    console.error('[MangaRepository] saveBatch error on item:', JSON.stringify(manga, null, 2));
+                    console.error('[MangaRepository] error:', e);
+                    throw e;
+                }
             }
             return results;
         });

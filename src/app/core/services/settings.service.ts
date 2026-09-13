@@ -54,7 +54,7 @@ export const DEFAULT_OLLAMA_BASE_URL = 'http://127.0.0.1:11434/v1';
 export const DEFAULT_LM_STUDIO_BASE_URL = 'http://127.0.0.1:1234/v1';
 export const DEFAULT_LLM_LOCAL_MODEL = 'llama3.2';
 
-export type LlmProviderSetting = 'openrouter' | 'ollama' | 'lm_studio';
+export type LlmProviderSetting = 'openrouter' | 'ollama' | 'lm_studio' | 'local';
 export type LlmLocalKind = 'ollama' | 'lm_studio';
 export const DEFAULT_LLM_MAX_MANGA_PAGES = 10;
 

@@ -408,10 +408,11 @@ class MigrationsManager {
     seedInitialData() {
         console.log('Seeding initial database data from assets...');
         const possiblePaths = [
+            process.resourcesPath ? path.join(process.resourcesPath, 'assets') : null,
             path.join(process.cwd(), 'public', 'assets'),
             path.join(electron_1.app ? electron_1.app.getAppPath() : process.cwd(), 'public', 'assets'),
             path.join(__dirname, '..', '..', 'public', 'assets')
-        ];
+        ].filter(Boolean);
         let assetsDir = '';
         for (const p of possiblePaths) {
             if (fs.existsSync(p)) {

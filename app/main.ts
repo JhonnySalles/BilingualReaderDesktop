@@ -19,6 +19,8 @@ import { ShareMarkController } from './controllers/sharemark.controller';
 import { TtsController } from './controllers/tts.controller';
 import { OcrController } from './controllers/ocr.controller';
 import { LlmController } from './controllers/llm.controller';
+import { LlmServerController } from './controllers/llm-server.controller';
+import { LlmDownloaderController } from './controllers/llm-downloader.controller';
 import { AssistantController } from './controllers/assistant.controller';
 import { JapaneseController } from './controllers/japanese.controller';
 import { DatabaseMaintenanceController } from './controllers/database-maintenance.controller';
@@ -259,6 +261,9 @@ app.on('ready', () => {
     new TtsController().registerIpcHandlers();
     new OcrController(mangaReaderController.getSessionService()).registerIpcHandlers();
     new LlmController().registerIpcHandlers();
+    LlmServerController.instance.registerIpcHandlers();
+    LlmDownloaderController.instance.setWindowGetter(() => mainWindow);
+    LlmDownloaderController.instance.registerIpcHandlers();
     new AssistantController(
       storageService,
       () => mainWindow,
@@ -498,10 +503,12 @@ app.on('ready', () => {
 });
 
 app.on('before-quit', () => {
+  LlmServerController.instance.stopServer();
   TrayService.instance.destroy();
 });
 
 app.on('window-all-closed', () => {
+  LlmServerController.instance.stopServer();
   if (process.platform !== 'darwin') {
     app.quit();
   }

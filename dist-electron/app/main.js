@@ -55,6 +55,8 @@ const sharemark_controller_1 = require("./controllers/sharemark.controller");
 const tts_controller_1 = require("./controllers/tts.controller");
 const ocr_controller_1 = require("./controllers/ocr.controller");
 const llm_controller_1 = require("./controllers/llm.controller");
+const llm_server_controller_1 = require("./controllers/llm-server.controller");
+const llm_downloader_controller_1 = require("./controllers/llm-downloader.controller");
 const assistant_controller_1 = require("./controllers/assistant.controller");
 const japanese_controller_1 = require("./controllers/japanese.controller");
 const database_maintenance_controller_1 = require("./controllers/database-maintenance.controller");
@@ -270,6 +272,9 @@ electron_1.app.on('ready', () => {
         new tts_controller_1.TtsController().registerIpcHandlers();
         new ocr_controller_1.OcrController(mangaReaderController.getSessionService()).registerIpcHandlers();
         new llm_controller_1.LlmController().registerIpcHandlers();
+        llm_server_controller_1.LlmServerController.instance.registerIpcHandlers();
+        llm_downloader_controller_1.LlmDownloaderController.instance.setWindowGetter(() => mainWindow);
+        llm_downloader_controller_1.LlmDownloaderController.instance.registerIpcHandlers();
         new assistant_controller_1.AssistantController(storageService, () => mainWindow, mangaReaderController.getSessionService()).registerIpcHandlers();
         new japanese_controller_1.JapaneseController().registerIpcHandlers();
         new database_maintenance_controller_1.DatabaseMaintenanceController(storageService, () => mainWindow).registerIpcHandlers();
@@ -484,9 +489,11 @@ electron_1.app.on('ready', () => {
     }
 });
 electron_1.app.on('before-quit', () => {
+    llm_server_controller_1.LlmServerController.instance.stopServer();
     tray_service_1.TrayService.instance.destroy();
 });
 electron_1.app.on('window-all-closed', () => {
+    llm_server_controller_1.LlmServerController.instance.stopServer();
     if (process.platform !== 'darwin') {
         electron_1.app.quit();
     }

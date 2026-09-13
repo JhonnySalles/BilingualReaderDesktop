@@ -1,7 +1,7 @@
-import { Component, signal, computed, inject, OnInit } from '@angular/core';
+import { Component, signal, computed, inject, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ElectronService } from '../../core/services/electron.service';
+import { ElectronService, LlmCatalogModel, LlmDownloadProgressEvent } from '../../core/services/electron.service';
 import { ThemeService, ThemeMode, AccentColor } from '../../core/services/theme.service';
 import { SettingsService, CustomLibrary, LlmProviderSetting, LlmLocalKind, normalizeEbookConvertMode, EBOOK_CONVERT_MODE_KEY } from '../../core/services/settings.service';
 import { ShareMarkUiService } from '../../core/services/sharemark/share-mark-ui.service';
@@ -1014,10 +1014,189 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
                     class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200"
                     [ngModel]="settingsService.llmProvider()"
                     (ngModelChange)="onLlmProviderChange($event)">
+                    <option value="local">Local Embutido (Interno - Sem dependências)</option>
                     <option value="openrouter">OpenRouter (nuvem)</option>
                     <option value="ollama">Ollama (local)</option>
                     <option value="lm_studio">LM Studio (local)</option>
                   </select>
+                </div>
+              </div>
+
+              <!-- Internal Bundled LLM Server -->
+              <div class="bg-slate-900/80 rounded-xl p-5 border border-slate-800 space-y-4">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+                      <span>🤖</span>
+                      <span>Motor Local Embutido (llama-server)</span>
+                    </h3>
+                    <p class="text-[11px] text-slate-400 mt-0.5">
+                      Executável standalone empacotado que roda offline sem necessitar de softwares adicionais instalados.
+                    </p>
+                  </div>
+                  <button type="button" (click)="refreshInternalLlmStatus()"
+                    class="px-2.5 py-1 text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                    <span>Atualizar Status</span>
+                  </button>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div class="p-3 bg-slate-950 rounded-lg border border-slate-800">
+                    <div class="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Instalação / Arquivos</div>
+                    <div class="text-xs font-bold mt-1" [class.text-emerald-400]="internalLlmStatus()?.available" [class.text-amber-400]="!internalLlmStatus()?.available">
+                      {{ internalLlmStatus()?.available ? 'Pronto para Uso' : 'Requer Download' }}
+                    </div>
+                  </div>
+
+                  <div class="p-3 bg-slate-950 rounded-lg border border-slate-800">
+                    <div class="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Estado do Processo</div>
+                    <div class="text-xs font-bold mt-1 flex items-center gap-1.5" [class.text-emerald-400]="internalLlmStatus()?.running" [class.text-slate-400]="!internalLlmStatus()?.running">
+                      <span class="w-2 h-2 rounded-full" [class.bg-emerald-400]="internalLlmStatus()?.running" [class.bg-slate-600]="!internalLlmStatus()?.running"></span>
+                      {{ internalLlmStatus()?.running ? 'Em Execução (Porta ' + (internalLlmStatus()?.port || 8080) + ')' : 'Parado (Inicia sob demanda)' }}
+                    </div>
+                  </div>
+
+                  <div class="p-3 bg-slate-950 rounded-lg border border-slate-800">
+                    <div class="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Modelo Carregado / Ativo</div>
+                    <div class="text-xs text-slate-300 truncate mt-1" [title]="internalLlmStatus()?.model || getActiveModelName()">
+                      {{ internalLlmStatus()?.model || getActiveModelName() }}
+                    </div>
+                  </div>
+                </div>
+
+                @if (!internalLlmStatus()?.available && internalLlmStatus()?.error) {
+                  <div class="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-200">
+                    {{ internalLlmStatus()?.error }}
+                  </div>
+                }
+
+                <div class="flex flex-wrap gap-2 pt-1">
+                  @if (!internalLlmStatus()?.running) {
+                    <button type="button" (click)="onStartInternalLlm()"
+                      [disabled]="internalLlmLoading() || !internalLlmStatus()?.available"
+                      class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-xs font-semibold rounded-lg text-white transition-colors cursor-pointer flex items-center gap-2 shadow-md shadow-indigo-600/20">
+                      @if (internalLlmLoading()) {
+                        <svg class="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
+                          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span>Iniciando...</span>
+                      } @else {
+                        <span>▶ Iniciar Servidor Local</span>
+                      }
+                    </button>
+                  } @else {
+                    <button type="button" (click)="onStopInternalLlm()"
+                      [disabled]="internalLlmLoading()"
+                      class="px-4 py-2 bg-rose-700 hover:bg-rose-600 disabled:opacity-50 text-xs font-semibold rounded-lg text-white transition-colors cursor-pointer flex items-center gap-2">
+                      @if (internalLlmLoading()) {
+                        <svg class="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
+                          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span>Parando...</span>
+                      } @else {
+                        <span>⏹ Parar Servidor Local</span>
+                      }
+                    </button>
+                  }
+                </div>
+              </div>
+
+              <!-- Gerenciador de Modelos de Inteligência Artificial Local (GGUF) -->
+              <div class="bg-slate-900/80 rounded-xl p-5 border border-slate-800 space-y-4">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+                      <span>🧠</span>
+                      <span>Gerenciador de Modelos de IA (Download sob Demanda)</span>
+                    </h3>
+                    <p class="text-[11px] text-slate-400 mt-0.5">
+                      Baixe e selecione modelos otimizados para o seu hardware sem ocupar espaço desnecessário no instalador.
+                    </p>
+                  </div>
+                  <button type="button" (click)="loadLlmModels()"
+                    class="px-2.5 py-1 text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                    <span>Recarregar</span>
+                  </button>
+                </div>
+
+                <div class="space-y-3">
+                  @for (m of llmModels(); track m.id) {
+                    <div class="p-4 rounded-xl border transition-all"
+                      [ngClass]="activeModelId() === m.id ? 'bg-indigo-950/20 border-indigo-500/50 ring-1 ring-indigo-500/30' : 'bg-slate-950 border-slate-800'">
+                      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div class="space-y-1.5 flex-1">
+                          <div class="flex items-center gap-2 flex-wrap">
+                            <span class="text-xs font-bold text-slate-100">{{ m.name }}</span>
+                            @if (m.tier === 'basic') {
+                              <span class="px-2 py-0.5 text-[10px] font-semibold rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">Básico (Leve)</span>
+                            } @else if (m.tier === 'intermediate') {
+                              <span class="px-2 py-0.5 text-[10px] font-semibold rounded bg-sky-500/15 text-sky-300 border border-sky-500/30">Intermediário</span>
+                            } @else {
+                              <span class="px-2 py-0.5 text-[10px] font-semibold rounded bg-purple-500/15 text-purple-300 border border-purple-500/30">Avançado</span>
+                            }
+                            <span class="text-[10px] text-slate-400 font-mono bg-slate-900 px-1.5 py-0.5 rounded border border-slate-800">{{ m.sizeFormatted }}</span>
+                            <span class="text-[10px] text-slate-500">RAM Rec.: {{ m.recommendedRam }}</span>
+                          </div>
+                          <p class="text-[11px] text-slate-400 leading-relaxed">{{ m.description }}</p>
+                        </div>
+
+                        <!-- Actions & Status -->
+                        <div class="flex items-center gap-2 shrink-0">
+                          @if (m.downloading) {
+                            <div class="flex items-center gap-2">
+                              <button type="button" (click)="onCancelDownloadModel(m.id)"
+                                class="px-3 py-1.5 bg-rose-900/60 hover:bg-rose-800 text-rose-200 border border-rose-700/50 rounded-lg text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1.5">
+                                <span>Cancelar</span>
+                              </button>
+                            </div>
+                          } @else if (m.installed) {
+                            <div class="flex items-center gap-2">
+                              @if (activeModelId() === m.id) {
+                                <span class="px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-indigo-600/20">
+                                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                  <span>Modelo Ativo</span>
+                                </span>
+                              } @else {
+                                <button type="button" (click)="onSelectActiveModel(m.id)"
+                                  class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-semibold transition-colors cursor-pointer">
+                                  Usar este Modelo
+                                </button>
+                              }
+                              @if (m.installedPath && (m.installedPath.includes('data') || m.installedPath.includes('models'))) {
+                                <button type="button" (click)="onDeleteModel(m.id)"
+                                  title="Excluir arquivo do modelo baixado para liberar espaço"
+                                  class="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer">
+                                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                </button>
+                              }
+                            </div>
+                          } @else {
+                            <button type="button" (click)="onDownloadModel(m.id)"
+                              class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shadow-md shadow-indigo-600/20">
+                              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                              <span>Baixar Modelo</span>
+                            </button>
+                          }
+                        </div>
+                      </div>
+
+                      @if (m.downloading) {
+                        <div class="mt-3 space-y-1.5 pt-2.5 border-t border-slate-800/80">
+                          <div class="flex justify-between text-[11px]">
+                            <span class="text-indigo-400 font-medium">Baixando arquivo .gguf... ({{ m.downloadSpeed || 'Calculando velocidade...' }})</span>
+                            <span class="text-slate-200 font-mono font-bold">{{ m.progress }}%</span>
+                          </div>
+                          <div class="w-full bg-slate-900 rounded-full h-2 overflow-hidden border border-slate-800">
+                            <div class="h-full bg-indigo-500 transition-all duration-300 rounded-full" [style.width.%]="m.progress"></div>
+                          </div>
+                        </div>
+                      }
+                    </div>
+                  }
                 </div>
               </div>
 
@@ -1611,7 +1790,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
     </div>
   `
 })
-export class SettingsComponent implements OnInit {
+export class SettingsComponent implements OnInit, OnDestroy {
   private electronService = inject(ElectronService);
   themeService = inject(ThemeService);
   settingsService = inject(SettingsService);
@@ -1780,9 +1959,9 @@ export class SettingsComponent implements OnInit {
 
   onLlmProviderChange(value: string): void {
     const p =
-      value === 'ollama' || value === 'lm_studio' || value === 'openrouter'
+      value === 'local' || value === 'ollama' || value === 'lm_studio' || value === 'openrouter'
         ? (value as LlmProviderSetting)
-        : 'openrouter';
+        : 'local';
     this.settingsService.llmProvider.set(p);
     if (p === 'ollama' || p === 'lm_studio') {
       this.settingsService.llmLocalKind.set(p);
@@ -1928,10 +2107,191 @@ export class SettingsComponent implements OnInit {
     type: 'manga'
   };
 
+  // LLM Models State
+  llmModels = signal<LlmCatalogModel[]>([]);
+  activeModelId = signal<string>('qwen2.5-1.5b');
+  private downloadProgressUnsub: (() => void) | null = null;
+
+  getActiveModelName(): string {
+    const list = this.llmModels();
+    const activeId = this.activeModelId();
+    const found = list.find(m => m.id === activeId);
+    return found ? found.name : 'Modelo Básico (Qwen 2.5 1.5B)';
+  }
+
+  async loadLlmModels(): Promise<void> {
+    try {
+      const [list, activeId] = await Promise.all([
+        this.electronService.llmModelsList(),
+        this.electronService.llmModelsGetActive()
+      ]);
+      this.llmModels.set(list || []);
+      if (activeId) {
+        this.activeModelId.set(activeId);
+      }
+      await this.refreshInternalLlmStatus();
+    } catch (e) {
+      console.warn('Failed to load LLM models:', e);
+    }
+  }
+
+  async onSelectActiveModel(modelId: string): Promise<void> {
+    const ok = await this.electronService.llmModelsSetActive(modelId);
+    if (ok) {
+      this.activeModelId.set(modelId);
+      const found = this.llmModels().find(m => m.id === modelId);
+      this.showLocalToast(`Modelo ativo definido como "${found?.name || modelId}".`, 'success');
+
+      if (this.internalLlmStatus()?.running) {
+        await this.onStartInternalLlm();
+      } else {
+        await this.refreshInternalLlmStatus();
+      }
+    }
+  }
+
+  async onDownloadModel(modelId: string): Promise<void> {
+    const found = this.llmModels().find(m => m.id === modelId);
+    this.showLocalToast(`Iniciando download do ${found?.name || modelId}...`, 'info');
+
+    this.llmModels.update(models =>
+      models.map(m => m.id === modelId ? { ...m, downloading: true, progress: 0, downloadSpeed: 'Iniciando...' } : m)
+    );
+
+    const res = await this.electronService.llmModelsDownload(modelId);
+    if (!res.ok) {
+      this.showLocalToast(res.error || 'Falha ao iniciar download.', 'error');
+      await this.loadLlmModels();
+    }
+  }
+
+  async onCancelDownloadModel(modelId: string): Promise<void> {
+    const ok = await this.electronService.llmModelsCancelDownload(modelId);
+    if (ok) {
+      this.showLocalToast('Download cancelado.', 'info');
+      await this.loadLlmModels();
+    }
+  }
+
+  async onDeleteModel(modelId: string): Promise<void> {
+    const found = this.llmModels().find(m => m.id === modelId);
+    const ok = await this.confirmDialog.confirm({
+      title: 'Excluir Modelo',
+      message: `Deseja excluir o arquivo baixado do modelo "${found?.name || modelId}"?\n\nIsso liberará espaço em disco. Você poderá baixá-lo novamente depois.`,
+      confirmText: 'Excluir',
+      confirmVariant: 'danger',
+      icon: 'danger'
+    });
+    if (!ok) return;
+
+    const res = await this.electronService.llmModelsDelete(modelId);
+    if (res.ok) {
+      this.showLocalToast('Arquivo do modelo excluído com sucesso.', 'success');
+      await this.loadLlmModels();
+    } else {
+      this.showLocalToast(res.error || 'Não foi possível excluir o modelo.', 'error');
+    }
+  }
+
+  internalLlmStatus = signal<{
+    available: boolean;
+    running: boolean;
+    port: number;
+    model: string | null;
+    modelPath: string | null;
+    binaryPath: string | null;
+    error?: string | null;
+  } | null>(null);
+  internalLlmLoading = signal<boolean>(false);
+
+  async refreshInternalLlmStatus(): Promise<void> {
+    const s = await this.electronService.llmServerStatus(this.activeModelId());
+    this.internalLlmStatus.set(s);
+  }
+
+  async onStartInternalLlm(): Promise<void> {
+    this.internalLlmLoading.set(true);
+    try {
+      const s = await this.electronService.llmServerStart(this.activeModelId());
+      this.internalLlmStatus.set(s);
+      if (s.running) {
+        this.showLocalToast(`Servidor LLM iniciado na porta ${s.port}! Modelo: ${s.model || this.getActiveModelName()}`, 'success');
+      } else {
+        this.showLocalToast(s.error || 'Falha ao iniciar servidor LLM', 'error');
+      }
+    } finally {
+      this.internalLlmLoading.set(false);
+    }
+  }
+
+  async onStopInternalLlm(): Promise<void> {
+    this.internalLlmLoading.set(true);
+    try {
+      await this.electronService.llmServerStop();
+      const s = await this.electronService.llmServerStatus(this.activeModelId());
+      this.internalLlmStatus.set(s);
+      this.showLocalToast('Servidor LLM encerrado.', 'info');
+    } finally {
+      this.internalLlmLoading.set(false);
+    }
+  }
+
   ngOnInit(): void {
     void this.shareMark.refreshStatus();
     void this.loadTtsSettings();
     void this.loadConverterTools();
+    void this.loadLlmModels();
+
+    this.downloadProgressUnsub = this.electronService.onLlmDownloadProgress((ev) => {
+      this.llmModels.update(models =>
+        models.map(m => {
+          if (m.id === ev.modelId) {
+            if (ev.status === 'downloading') {
+              return {
+                ...m,
+                downloading: true,
+                progress: ev.progress,
+                downloadSpeed: ev.speed,
+                downloadedBytes: ev.downloadedBytes,
+                totalBytes: ev.totalBytes
+              };
+            } else if (ev.status === 'completed') {
+              return {
+                ...m,
+                downloading: false,
+                installed: true,
+                progress: 100,
+                downloadSpeed: ''
+              };
+            } else {
+              return {
+                ...m,
+                downloading: false,
+                progress: 0,
+                downloadSpeed: '',
+                error: ev.error
+              };
+            }
+          }
+          return m;
+        })
+      );
+
+      if (ev.status === 'completed') {
+        const found = this.llmModels().find(m => m.id === ev.modelId);
+        this.showLocalToast(`Download concluído: ${found?.name || ev.modelId} está pronto para uso!`, 'success');
+        void this.loadLlmModels();
+      } else if (ev.status === 'error') {
+        this.showLocalToast(`Erro no download: ${ev.error || 'Falha de conexão'}`, 'error');
+      }
+    });
+  }
+
+  ngOnDestroy(): void {
+    if (this.downloadProgressUnsub) {
+      this.downloadProgressUnsub();
+      this.downloadProgressUnsub = null;
+    }
   }
 
   private async loadConverterTools(): Promise<void> {

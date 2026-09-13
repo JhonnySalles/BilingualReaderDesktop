@@ -61,3 +61,4 @@ secrets.properties
 google-oauth.json
 /data
 /cache
+public/assets/llm/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf

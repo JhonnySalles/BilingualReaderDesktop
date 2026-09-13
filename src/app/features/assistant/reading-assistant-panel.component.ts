@@ -62,6 +62,16 @@ export interface AssistantUiMessage {
           </button>
         </header>
 
+        @if (serverStarting()) {
+          <div class="px-4 py-2 bg-indigo-950/80 border-b border-indigo-700/50 flex items-center gap-2 text-xs text-indigo-200 shrink-0">
+            <svg class="w-4 h-4 animate-spin text-indigo-400 shrink-0" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span>Iniciando motor de Inteligência Artificial local (carregando modelo)...</span>
+          </div>
+        }
+
         <div class="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-[1fr_min(34%,280px)]">
           <!-- Chat -->
           <div class="flex flex-col min-h-0 border-r border-slate-800">
@@ -134,9 +144,10 @@ export interface AssistantUiMessage {
               <select class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-[11px] text-slate-200"
                 [ngModel]="selectedProvider" name="asstProvider"
                 (ngModelChange)="onProviderChange($event)">
-                <option value="openrouter">OpenRouter</option>
-                <option value="ollama">Ollama</option>
-                <option value="lm_studio">LM Studio</option>
+                <option value="local">Local Embutido (Interno)</option>
+                <option value="openrouter">OpenRouter (Nuvem)</option>
+                <option value="ollama">Ollama (Local)</option>
+                <option value="lm_studio">LM Studio (Local)</option>
               </select>
               <label class="block text-[10px] text-slate-500 mt-1.5">Modelo</label>
               <select class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-[11px] text-slate-200"
@@ -187,11 +198,12 @@ export class ReadingAssistantPanelComponent implements OnChanges, OnDestroy {
   readonly chips = ASSISTANT_SUGGESTION_CHIPS;
   messages = signal<AssistantUiMessage[]>([]);
   streaming = signal(false);
+  serverStarting = signal(false);
   error = signal<string | null>(null);
   draft = '';
   selectedIds = signal<string[]>([]);
-  selectedProvider: LlmProviderSetting = 'openrouter';
-  selectedModel = 'openrouter/free';
+  selectedProvider: LlmProviderSetting = 'local';
+  selectedModel = 'local-model';
   modelOptions = signal<Array<{ id: string; name: string; hasVision: boolean }>>([]);
 
   private requestId: string | null = null;
@@ -262,18 +274,37 @@ export class ReadingAssistantPanelComponent implements OnChanges, OnDestroy {
       this.error.set('Ative a IA em Configurações.');
       return;
     }
-    if (status.ready === false) {
-      this.error.set(
-        status.readyReason ||
-          (status.provider === 'openrouter'
-            ? 'Configure a chave OpenRouter.'
-            : 'Provedor local offline — verifique Ollama/LM Studio e a Base URL.')
-      );
-      return;
-    }
-    if (status.provider === 'openrouter' && !status.hasApiKey) {
-      this.error.set('Configure a chave OpenRouter.');
-      return;
+
+    if (this.selectedProvider === 'local') {
+      const serverStatus = await this.electron.llmServerStatus();
+      if (!serverStatus.running) {
+        if (serverStatus.available) {
+          this.serverStarting.set(true);
+          const startRes = await this.electron.llmServerStart();
+          this.serverStarting.set(false);
+          if (!startRes.running) {
+            this.error.set(startRes.error || 'Falha ao iniciar o motor de IA local.');
+            return;
+          }
+        } else {
+          this.error.set(serverStatus.error || 'Motor de IA local (llama-server.exe) ou modelo (.gguf) não encontrado em assets/llm/.');
+          return;
+        }
+      }
+    } else {
+      if (status.ready === false) {
+        this.error.set(
+          status.readyReason ||
+            (status.provider === 'openrouter'
+              ? 'Configure a chave OpenRouter.'
+              : 'Provedor local offline — verifique Ollama/LM Studio e a Base URL.')
+        );
+        return;
+      }
+      if (status.provider === 'openrouter' && !status.hasApiKey) {
+        this.error.set('Configure a chave OpenRouter.');
+        return;
+      }
     }
 
     const built = buildContextFromSelection(this.items, this.selectedIds(), this.maxContextChars);
@@ -342,15 +373,25 @@ export class ReadingAssistantPanelComponent implements OnChanges, OnDestroy {
 
   async onProviderChange(value: string): Promise<void> {
     const p: LlmProviderSetting =
-      value === 'ollama' || value === 'lm_studio' || value === 'openrouter'
+      value === 'local' || value === 'ollama' || value === 'lm_studio' || value === 'openrouter'
         ? value
-        : 'openrouter';
+        : 'local';
     this.selectedProvider = p;
     this.settings.llmProvider.set(p);
     if (p === 'ollama' || p === 'lm_studio') {
       this.settings.llmLocalKind.set(p);
     }
     await this.electron.llmSetProvider(p);
+
+    if (p === 'local') {
+      const s = await this.electron.llmServerStatus();
+      if (!s.running && s.available) {
+        this.serverStarting.set(true);
+        await this.electron.llmServerStart();
+        this.serverStarting.set(false);
+      }
+    }
+
     await this.reloadModels();
   }
 
@@ -387,6 +428,17 @@ export class ReadingAssistantPanelComponent implements OnChanges, OnDestroy {
     this.selectedIds.set(selected);
 
     this.selectedProvider = this.settings.llmProvider();
+
+    // If active provider is local, start local server on-demand
+    if (this.selectedProvider === 'local') {
+      const s = await this.electron.llmServerStatus();
+      if (!s.running && s.available) {
+        this.serverStarting.set(true);
+        await this.electron.llmServerStart();
+        this.serverStarting.set(false);
+      }
+    }
+
     await this.reloadModels();
     this.ready = true;
   }
@@ -399,17 +451,23 @@ export class ReadingAssistantPanelComponent implements OnChanges, OnDestroy {
       const vision = opts.filter(m => m.hasVision);
       if (vision.length) opts = vision;
     }
-    const local = provider === 'ollama' || provider === 'lm_studio';
+    const local = provider === 'ollama' || provider === 'lm_studio' || provider === 'local';
     if (!opts.length) {
-      opts = local
-        ? [
-            {
-              id: this.settings.llmMangaLocalModel() || 'llama3.2',
-              name: this.settings.llmMangaLocalModel() || 'llama3.2',
-              hasVision: false
-            }
-          ]
-        : [{ id: 'openrouter/free', name: 'openrouter/free', hasVision: false }];
+      if (provider === 'local') {
+        const s = await this.electron.llmServerStatus();
+        const modelName = s.model || 'local-model';
+        opts = [{ id: modelName, name: modelName, hasVision: false }];
+      } else if (local) {
+        opts = [
+          {
+            id: this.settings.llmMangaLocalModel() || 'llama3.2',
+            name: this.settings.llmMangaLocalModel() || 'llama3.2',
+            hasVision: false
+          }
+        ];
+      } else {
+        opts = [{ id: 'openrouter/free', name: 'openrouter/free', hasVision: false }];
+      }
     }
     this.modelOptions.set(opts);
     const preferred = local

@@ -48,6 +48,36 @@ export interface OpenFileLinkResult {
   cacheDir: string;
 }
 
+export interface LlmCatalogModel {
+  id: string;
+  name: string;
+  tier: 'basic' | 'intermediate' | 'advanced';
+  description: string;
+  filename: string;
+  sizeBytes: number;
+  sizeFormatted: string;
+  recommendedRam: string;
+  url: string;
+  installed: boolean;
+  installedPath: string | null;
+  downloading: boolean;
+  progress: number;
+  downloadSpeed: string;
+  downloadedBytes: number;
+  totalBytes: number;
+  error?: string | null;
+}
+
+export interface LlmDownloadProgressEvent {
+  modelId: string;
+  status: 'downloading' | 'completed' | 'cancelled' | 'error';
+  progress: number;
+  speed: string;
+  downloadedBytes: number;
+  totalBytes: number;
+  error?: string | null;
+}
+
 declare global {
   interface Window {
     electronAPI?: {
@@ -201,6 +231,31 @@ declare global {
       }>;
       llmGetProvider: () => Promise<{ provider: string }>;
       llmSetProvider: (provider: string) => Promise<{ provider: string }>;
+      llmServerStatus: (modelId?: string) => Promise<{
+        available: boolean;
+        running: boolean;
+        port: number;
+        model: string | null;
+        modelPath: string | null;
+        binaryPath: string | null;
+        error?: string | null;
+      }>;
+      llmServerStart: (modelId?: string) => Promise<{
+        available: boolean;
+        running: boolean;
+        port: number;
+        model: string | null;
+        modelPath: string | null;
+        binaryPath: string | null;
+        error?: string | null;
+      }>;
+      llmServerStop: () => Promise<boolean>;
+      llmModelsList: () => Promise<LlmCatalogModel[]>;
+      llmModelsGetActive: () => Promise<string>;
+      llmModelsSetActive: (modelId: string) => Promise<boolean>;
+      llmModelsDownload: (modelId: string) => Promise<{ ok: boolean; error?: string }>;
+      llmModelsCancelDownload: (modelId: string) => Promise<boolean>;
+      llmModelsDelete: (modelId: string) => Promise<{ ok: boolean; error?: string }>;
       converterToolsStatus: () => Promise<{
         adapters: Array<{
           id: string;
@@ -1050,6 +1105,76 @@ export class ElectronService {
     return { provider };
   }
 
+  async llmServerStatus(modelId?: string) {
+    if (this.isElectron && window.electronAPI?.llmServerStatus) {
+      return await window.electronAPI.llmServerStatus(modelId);
+    }
+    return { available: false, running: false, port: 8080, model: null, modelPath: null, binaryPath: null };
+  }
+
+  async llmServerStart(modelId?: string) {
+    if (this.isElectron && window.electronAPI?.llmServerStart) {
+      return await window.electronAPI.llmServerStart(modelId);
+    }
+    return { available: false, running: false, port: 8080, model: null, modelPath: null, binaryPath: null, error: 'Electron IPC indisponível' };
+  }
+
+  async llmServerStop(): Promise<boolean> {
+    if (this.isElectron && window.electronAPI?.llmServerStop) {
+      return await window.electronAPI.llmServerStop();
+    }
+    return false;
+  }
+
+  async llmModelsList(): Promise<LlmCatalogModel[]> {
+    if (this.isElectron && window.electronAPI?.llmModelsList) {
+      return await window.electronAPI.llmModelsList();
+    }
+    return [];
+  }
+
+  async llmModelsGetActive(): Promise<string> {
+    if (this.isElectron && window.electronAPI?.llmModelsGetActive) {
+      return await window.electronAPI.llmModelsGetActive();
+    }
+    return 'qwen2.5-1.5b';
+  }
+
+  async llmModelsSetActive(modelId: string): Promise<boolean> {
+    if (this.isElectron && window.electronAPI?.llmModelsSetActive) {
+      return await window.electronAPI.llmModelsSetActive(modelId);
+    }
+    return false;
+  }
+
+  async llmModelsDownload(modelId: string): Promise<{ ok: boolean; error?: string }> {
+    if (this.isElectron && window.electronAPI?.llmModelsDownload) {
+      return await window.electronAPI.llmModelsDownload(modelId);
+    }
+    return { ok: false, error: 'Electron indisponível' };
+  }
+
+  async llmModelsCancelDownload(modelId: string): Promise<boolean> {
+    if (this.isElectron && window.electronAPI?.llmModelsCancelDownload) {
+      return await window.electronAPI.llmModelsCancelDownload(modelId);
+    }
+    return false;
+  }
+
+  async llmModelsDelete(modelId: string): Promise<{ ok: boolean; error?: string }> {
+    if (this.isElectron && window.electronAPI?.llmModelsDelete) {
+      return await window.electronAPI.llmModelsDelete(modelId);
+    }
+    return { ok: false, error: 'Electron indisponível' };
+  }
+
+  onLlmDownloadProgress(callback: (event: LlmDownloadProgressEvent) => void): () => void {
+    if (this.isElectron && window.electronAPI?.on) {
+      return window.electronAPI.on('llm:download-progress', callback);
+    }
+    return () => {};
+  }
+
   async converterToolsStatus(): Promise<{
     adapters: Array<{
       id: string;
@@ -1135,6 +1260,7 @@ export class ElectronService {
     }
     return { enabled: false, hasKey: false, targetLang: 'OFF', provider: 'openrouter', ready: false };
   }
+
 
   async llmTranslate(payload: {
     text?: string;

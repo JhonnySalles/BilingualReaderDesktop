@@ -18,7 +18,7 @@ import {
   type OpenRouterModelInfo
 } from './openrouter-client';
 
-export type LlmProviderId = 'openrouter' | 'ollama' | 'lm_studio';
+export type LlmProviderId = 'openrouter' | 'ollama' | 'lm_studio' | 'local';
 
 export interface LlmEndpoint {
   provider: LlmProviderId;
@@ -39,6 +39,7 @@ export interface LlmChatParams {
 const OPENROUTER_BASE = 'https://openrouter.ai/api/v1';
 const OLLAMA_DEFAULT = 'http://127.0.0.1:11434/v1';
 const LM_STUDIO_DEFAULT = 'http://127.0.0.1:1234/v1';
+const LOCAL_SERVER_DEFAULT = 'http://127.0.0.1:8080/v1';
 
 function prefs() {
   return SettingsService.instance;
@@ -53,6 +54,7 @@ export function normalizeLlmProvider(raw: unknown): LlmProviderId {
     .trim()
     .toLowerCase()
     .replace(/-/g, '_');
+  if (v === 'local' || v === 'internal' || v === 'builtin' || v === 'embedded') return 'local';
   if (v === 'ollama') return 'ollama';
   if (v === 'lm_studio' || v === 'lmstudio') return 'lm_studio';
   if (v === 'openrouter' || v === 'auto' || !v) return 'openrouter';
@@ -66,6 +68,9 @@ export class LlmProviderRouter {
 
   resolveEndpoint(providerOverride?: LlmProviderId): LlmEndpoint {
     const provider = providerOverride || this.getActiveProvider();
+    if (provider === 'local') {
+      return { provider: 'local', baseUrl: LOCAL_SERVER_DEFAULT, apiKey: '', requireApiKey: false };
+    }
     if (provider === 'ollama') {
       const baseUrl = String(prefs().get(K().OLLAMA_BASE_URL, OLLAMA_DEFAULT) || OLLAMA_DEFAULT).trim();
       const apiKey = String(prefs().get(K().OLLAMA_API_KEY, '') || '').trim();
@@ -94,7 +99,7 @@ export class LlmProviderRouter {
 
   isLocalProvider(provider?: LlmProviderId): boolean {
     const p = provider || this.getActiveProvider();
-    return p === 'ollama' || p === 'lm_studio';
+    return p === 'ollama' || p === 'lm_studio' || p === 'local';
   }
 
   resolveModel(

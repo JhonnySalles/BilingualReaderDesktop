@@ -314,9 +314,15 @@ export class MangaRepository extends BaseRepository<Manga, number> {
     const saveTx = this.db.transaction((items: Partial<Manga>[]) => {
       const results: Manga[] = [];
       for (const manga of items) {
-        const id = this.save(manga);
-        manga.id = id;
-        results.push(manga as Manga);
+        try {
+          const id = this.save(manga);
+          manga.id = id;
+          results.push(manga as Manga);
+        } catch (e) {
+          console.error('[MangaRepository] saveBatch error on item:', JSON.stringify(manga, null, 2));
+          console.error('[MangaRepository] error:', e);
+          throw e;
+        }
       }
       return results;
     });
