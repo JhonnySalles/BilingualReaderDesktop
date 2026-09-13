@@ -54,8 +54,11 @@ declare global {
       openMangaFile: () => Promise<string | null>;
       listMangas: (folderPath?: string) => Promise<any[]>;
       scanLibrary: (folderPath: string, externalHd?: boolean) => Promise<boolean>;
+      cancelMangaScan: () => Promise<boolean>;
       listBooks: (folderPath?: string) => Promise<any[]>;
       scanBookLibrary: (folderPath: string, externalHd?: boolean) => Promise<boolean>;
+      cancelBookScan: () => Promise<boolean>;
+      cancelAllScans: () => Promise<boolean>;
       getLibraryCount: (libraryId: number, type: 'MANGA' | 'BOOK') => Promise<number>;
       getManga: (id: number) => Promise<Manga | null>;
       getBook: (id: number) => Promise<Book | null>;
@@ -504,6 +507,27 @@ export class ElectronService {
       return await window.electronAPI.checkPathOnline(path);
     }
     return true;
+  }
+
+  async cancelMangaScan(): Promise<boolean> {
+    if (this.isElectron && window.electronAPI?.cancelMangaScan) {
+      return await window.electronAPI.cancelMangaScan();
+    }
+    return false;
+  }
+
+  async cancelBookScan(): Promise<boolean> {
+    if (this.isElectron && window.electronAPI?.cancelBookScan) {
+      return await window.electronAPI.cancelBookScan();
+    }
+    return false;
+  }
+
+  async cancelAllScans(): Promise<boolean> {
+    if (this.isElectron && window.electronAPI?.cancelAllScans) {
+      return await window.electronAPI.cancelAllScans();
+    }
+    return false;
   }
 
   async listMangas(folderPath?: string): Promise<Manga[]> {

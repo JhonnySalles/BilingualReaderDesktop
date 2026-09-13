@@ -382,6 +382,8 @@ export class LibraryComponent implements OnInit {
   ngOnInit(): void {
     void this.shareMark.refreshStatus();
     this.route.queryParams.subscribe(async params => {
+      void this.mangaLibraryService.cancelScan();
+      void this.bookLibraryService.cancelScan();
       this.resetScrollToTop();
       const libId = params['lib'] || 'home';
       this.activeLibId.set(libId);

@@ -13,6 +13,8 @@ import { VocabularyUiStateService } from '../services/vocabulary-ui-state.servic
 import { HomeDashboardService } from '../services/home-dashboard.service';
 import { NavigationStackService } from '../services/navigation-stack.service';
 import { LibrarySearchService } from '../services/library-search.service';
+import { MangaLibraryService } from '../services/manga-library.service';
+import { BookLibraryService } from '../services/book-library.service';
 import { LibraryViewType } from '../models';
 import { SearchSuggestFieldComponent } from '../../shared/search-suggest-field/search-suggest-field.component';
 import { LibrarySearchScope } from '../models/library-search.model';
@@ -651,6 +653,8 @@ export class MainLayoutComponent implements OnInit {
   public vocabularyUi = inject(VocabularyUiStateService);
   public home = inject(HomeDashboardService);
   private librarySearch = inject(LibrarySearchService);
+  public mangaLibraryService = inject(MangaLibraryService);
+  public bookLibraryService = inject(BookLibraryService);
 
   isExpanded = signal<boolean>(true);
   LibraryViewType = LibraryViewType;
@@ -727,6 +731,8 @@ export class MainLayoutComponent implements OnInit {
       this.settingsService.libraries();
       this.settingsService.mangaBasePath();
       this.settingsService.bookBasePath();
+      this.mangaLibraryService.mangas();
+      this.bookLibraryService.books();
       untracked(() => {
         void this.updateCounts();
       });
@@ -737,6 +743,20 @@ export class MainLayoutComponent implements OnInit {
     void this.electronService.appGetInfo().then(info => {
       this.appVersion.set(info.version || '0.0.0');
     });
+
+    if (window.electronAPI?.on) {
+      window.electronAPI.on('manga:scan-status', (data: { status: string }) => {
+        if (data?.status === 'FINISHED') {
+          void this.updateCounts();
+        }
+      });
+      window.electronAPI.on('book:scan-status', (data: { status: string }) => {
+        if (data?.status === 'FINISHED') {
+          void this.updateCounts();
+        }
+      });
+    }
+
     this.applyRoute(this.router.url);
     this.router.events
       .pipe(

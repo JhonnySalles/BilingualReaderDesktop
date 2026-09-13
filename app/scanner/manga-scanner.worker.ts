@@ -24,6 +24,13 @@ async function run(): Promise<void> {
     return;
   }
 
+  let isStopped = false;
+  parentPort.on('message', (msg: { type: string }) => {
+    if (msg?.type === 'STOP') {
+      isStopped = true;
+    }
+  });
+
   const { folderPath, libraryId, existingItemsMap, baseDir, coversDir } = workerData as WorkerInput;
   if (baseDir) {
     setAppBaseDir(baseDir);
@@ -37,6 +44,7 @@ async function run(): Promise<void> {
   let lastFlushTime = Date.now();
 
   const flushBatch = () => {
+    if (isStopped) return;
     if (batch.length > 0) {
       parentPort!.postMessage({ type: 'BATCH', items: batch });
       batch = [];
@@ -45,9 +53,11 @@ async function run(): Promise<void> {
   };
 
   const walkDirectory = async (dir: string): Promise<void> => {
+    if (isStopped) return;
     try {
       const entries = await fs.promises.readdir(dir, { withFileTypes: true });
       for (const entry of entries) {
+        if (isStopped) return;
         const fullPath = path.join(dir, entry.name);
         if (entry.isDirectory()) {
           const stat = await fs.promises.stat(fullPath);
@@ -191,6 +201,7 @@ async function run(): Promise<void> {
       batch.push(manga);
     }
 
+    if (isStopped) return;
     processedCount++;
     const now = Date.now();
     if (batch.length >= BATCH_SIZE || (batch.length > 0 && now - lastFlushTime >= 300)) {
@@ -198,7 +209,9 @@ async function run(): Promise<void> {
     }
 
     if (processedCount % 5 === 0) {
-      parentPort!.postMessage({ type: 'PROGRESS', processedCount, totalFound: foundPaths.size });
+      if (!isStopped) {
+        parentPort!.postMessage({ type: 'PROGRESS', processedCount, totalFound: foundPaths.size });
+      }
     }
 
     // Yield event loop every 5 items
@@ -209,11 +222,15 @@ async function run(): Promise<void> {
 
   try {
     await walkDirectory(folderPath);
-    flushBatch();
-    parentPort.postMessage({ type: 'DONE', foundPaths: Array.from(foundPaths) });
+    if (!isStopped) {
+      flushBatch();
+      parentPort.postMessage({ type: 'DONE', foundPaths: Array.from(foundPaths) });
+    }
   } catch (err: any) {
-    console.error('[manga-scanner.worker] Unhandled error during scan:', err);
-    parentPort.postMessage({ type: 'ERROR', message: err?.message || String(err) });
+    if (!isStopped) {
+      console.error('[manga-scanner.worker] Unhandled error during scan:', err);
+      parentPort.postMessage({ type: 'ERROR', message: err?.message || String(err) });
+    }
   }
 }
 

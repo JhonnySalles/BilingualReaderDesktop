@@ -12,6 +12,8 @@ import { getAppBaseDir, getAppCoversDir } from '../utils/app-paths';
 
 export class ScannerBookService {
   private isScanning = false;
+  private isStopping = false;
+  private currentFolderPath = '';
   private currentWorker: Worker | null = null;
 
   constructor(private storageService: StorageService) {}
@@ -20,14 +22,38 @@ export class ScannerBookService {
     return this.isScanning;
   }
 
+  public async stopScanning(window?: BrowserWindow | null): Promise<void> {
+    if (!this.isScanning && !this.currentWorker) return;
+    this.isStopping = true;
+    const stoppedFolder = this.currentFolderPath;
+    if (this.currentWorker) {
+      try {
+        this.currentWorker.postMessage({ type: 'STOP' });
+        await this.currentWorker.terminate();
+      } catch (e) {
+        console.warn('[ScannerBookService] Worker termination warning:', e);
+      }
+      this.currentWorker = null;
+    }
+    this.isScanning = false;
+    this.isStopping = false;
+    if (window) {
+      window.webContents.send('book:scan-status', { status: 'CANCELLED', folderPath: stoppedFolder });
+    }
+  }
+
   public async scanFolder(folderPath: string, window: BrowserWindow | null, externalHd?: boolean): Promise<void> {
-    if (this.isScanning) return;
+    if (this.isScanning) {
+      await this.stopScanning(window);
+    }
     this.isScanning = true;
+    this.currentFolderPath = folderPath;
 
     if (window) {
       window.webContents.send('book:scan-status', { status: 'STARTED', folderPath });
     }
 
+    let libraryId = 0;
     try {
       if (!fs.existsSync(folderPath)) {
         if (externalHd) {
@@ -46,7 +72,7 @@ export class ScannerBookService {
         }
       }
 
-      const libraryId = this.storageService.getOrCreateLibrary(folderPath, 'BOOK');
+      libraryId = this.storageService.getOrCreateLibrary(folderPath, 'BOOK');
       const existingBooks = this.storageService.listBooks(libraryId);
       const existingMap = new Map<string, Book>();
       const existingItemsMap: Record<string, Partial<Book>> = {};
@@ -86,16 +112,22 @@ export class ScannerBookService {
 
         worker.on('message', (msg: { type: string; items?: Partial<Book>[]; foundPaths?: string[]; message?: string; processedCount?: number; totalFound?: number }) => {
           try {
+            if (this.isStopping) return;
             if (msg.type === 'BATCH' && msg.items && msg.items.length > 0) {
               const savedList = this.storageService.saveBooksBatch(msg.items);
               if (window && savedList.length > 0) {
-                window.webContents.send('book:updated-batch', savedList);
+                window.webContents.send('book:updated-batch', {
+                  folderPath,
+                  libraryId,
+                  items: savedList
+                });
               }
             } else if (msg.type === 'PROGRESS') {
               if (window) {
                 window.webContents.send('book:scan-status', {
                   status: 'PROGRESS',
                   folderPath,
+                  libraryId,
                   processedCount: msg.processedCount,
                   totalFound: msg.totalFound
                 });
@@ -107,7 +139,7 @@ export class ScannerBookService {
                 if (!foundSet.has(missingPath) && missingBook.id) {
                   this.storageService.deleteBook(missingBook.id);
                   if (window) {
-                    window.webContents.send('book:updated-remove', { id: missingBook.id, path: missingPath });
+                    window.webContents.send('book:updated-remove', { id: missingBook.id, path: missingPath, folderPath, libraryId });
                   }
                 }
               }
@@ -122,6 +154,10 @@ export class ScannerBookService {
         });
 
         worker.on('error', (err) => {
+          if (this.isStopping) {
+            resolve();
+            return;
+          }
           console.error('[ScannerBookService] Worker thread error:', err);
           Telemetry.recordException(err, 'Book scanner worker error');
           reject(err);
@@ -129,7 +165,7 @@ export class ScannerBookService {
 
         worker.on('exit', (code) => {
           this.currentWorker = null;
-          if (code !== 0) {
+          if (code !== 0 && !this.isStopping) {
             console.warn(`[ScannerBookService] Worker stopped with exit code ${code}`);
           }
           resolve();
@@ -137,8 +173,10 @@ export class ScannerBookService {
       });
 
     } catch (err) {
-      console.error('Error scanning book folder:', err);
-      Telemetry.recordException(err, 'Error scanning book folder');
+      if (!this.isStopping) {
+        console.error('Error scanning book folder:', err);
+        Telemetry.recordException(err, 'Error scanning book folder');
+      }
     } finally {
       if (this.currentWorker) {
         try {
@@ -146,9 +184,10 @@ export class ScannerBookService {
         } catch {}
         this.currentWorker = null;
       }
+      const wasScanning = this.isScanning;
       this.isScanning = false;
-      if (window) {
-        window.webContents.send('book:scan-status', { status: 'FINISHED', folderPath });
+      if (window && wasScanning && !this.isStopping) {
+        window.webContents.send('book:scan-status', { status: 'FINISHED', folderPath, libraryId });
       }
     }
   }

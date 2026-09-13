@@ -267,6 +267,11 @@ app.on('ready', () => {
       return true;
     });
 
+    ipcMain.handle('manga:cancel-scan', async () => {
+      await scannerMangaService.stopScanning(mainWindow);
+      return true;
+    });
+
     ipcMain.handle('manga:get', async (_event, id: number) => {
       const manga = storageService.findMangaById(id) || null;
       if (!manga) return null;
@@ -326,6 +331,19 @@ app.on('ready', () => {
 
     ipcMain.handle('book:scan', async (_event, folderPath: string, externalHd?: boolean) => {
       await scannerBookService.scanFolder(folderPath, mainWindow, externalHd);
+      return true;
+    });
+
+    ipcMain.handle('book:cancel-scan', async () => {
+      await scannerBookService.stopScanning(mainWindow);
+      return true;
+    });
+
+    ipcMain.handle('app:cancel-all-scans', async () => {
+      await Promise.all([
+        scannerMangaService.stopScanning(mainWindow),
+        scannerBookService.stopScanning(mainWindow)
+      ]);
       return true;
     });
 

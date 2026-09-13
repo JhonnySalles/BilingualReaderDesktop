@@ -265,6 +265,10 @@ electron_1.app.on('ready', () => {
             await scannerMangaService.scanFolder(folderPath, mainWindow, externalHd);
             return true;
         });
+        electron_1.ipcMain.handle('manga:cancel-scan', async () => {
+            await scannerMangaService.stopScanning(mainWindow);
+            return true;
+        });
         electron_1.ipcMain.handle('manga:get', async (_event, id) => {
             const manga = storageService.findMangaById(id) || null;
             if (!manga)
@@ -321,6 +325,17 @@ electron_1.app.on('ready', () => {
         });
         electron_1.ipcMain.handle('book:scan', async (_event, folderPath, externalHd) => {
             await scannerBookService.scanFolder(folderPath, mainWindow, externalHd);
+            return true;
+        });
+        electron_1.ipcMain.handle('book:cancel-scan', async () => {
+            await scannerBookService.stopScanning(mainWindow);
+            return true;
+        });
+        electron_1.ipcMain.handle('app:cancel-all-scans', async () => {
+            await Promise.all([
+                scannerMangaService.stopScanning(mainWindow),
+                scannerBookService.stopScanning(mainWindow)
+            ]);
             return true;
         });
         electron_1.ipcMain.handle('library:get-count', async (_event, libIdOrPath, type) => {

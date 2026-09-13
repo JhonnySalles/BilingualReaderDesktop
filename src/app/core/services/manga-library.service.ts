@@ -18,26 +18,62 @@ export class MangaLibraryService {
   }
 
   private currentFolderPath?: string;
+  private loadSequenceId = 0;
+
+  private normalizePath(p?: string): string {
+    return (p || '').replace(/\\/g, '/').toLowerCase().replace(/\/+$/, '');
+  }
+
+  private isItemFromCurrentFolder(itemPath?: string): boolean {
+    if (!this.currentFolderPath || !itemPath) return true;
+    const normFolder = this.normalizePath(this.currentFolderPath);
+    const normItem = this.normalizePath(itemPath);
+    return normItem.startsWith(normFolder);
+  }
+
+  public async cancelScan(): Promise<void> {
+    this.isScanning.set(false);
+    if (window.electronAPI?.cancelMangaScan) {
+      await window.electronAPI.cancelMangaScan();
+    }
+  }
 
   private initElectronListeners(): void {
     if (window.electronAPI?.on) {
-      window.electronAPI.on('manga:scan-status', (data: { status: string; folderPath?: string; processedCount?: number; totalFound?: number }) => {
+      window.electronAPI.on('manga:scan-status', (data: { status: string; folderPath?: string; libraryId?: number; processedCount?: number; totalFound?: number }) => {
+        if (data.folderPath && this.currentFolderPath) {
+          if (this.normalizePath(data.folderPath) !== this.normalizePath(this.currentFolderPath)) {
+            return;
+          }
+        }
         if (data.status === 'STARTED' || data.status === 'PROGRESS') {
           this.isScanning.set(true);
+        } else if (data.status === 'CANCELLED') {
+          this.isScanning.set(false);
         } else {
           this.isScanning.set(false);
           this.loadMangas(data.folderPath || this.currentFolderPath);
         }
       });
 
-      window.electronAPI.on('manga:updated-batch', (batch: Manga[]) => {
+      window.electronAPI.on('manga:updated-batch', (payload: { folderPath?: string; libraryId?: number; items: Manga[] } | Manga[]) => {
+        const batch = Array.isArray(payload) ? payload : (payload?.items || []);
+        const payloadFolder = Array.isArray(payload) ? undefined : payload?.folderPath;
+        if (payloadFolder && this.currentFolderPath) {
+          if (this.normalizePath(payloadFolder) !== this.normalizePath(this.currentFolderPath)) {
+            return;
+          }
+        }
         if (!batch || batch.length === 0) return;
+        const filteredBatch = batch.filter(m => this.isItemFromCurrentFolder(m.path));
+        if (filteredBatch.length === 0) return;
+
         this.mangas.update(list => {
           const map = new Map<number, Manga>();
           for (const m of list) {
             if (m.id) map.set(m.id, m);
           }
-          for (const m of batch) {
+          for (const m of filteredBatch) {
             if (m.id) map.set(m.id, m);
           }
           return Array.from(map.values());
@@ -46,6 +82,7 @@ export class MangaLibraryService {
 
       window.electronAPI.on('manga:updated-add', (manga: Manga) => {
         if (!manga || !manga.id) return;
+        if (!this.isItemFromCurrentFolder(manga.path)) return;
         this.mangas.update(list => {
           const idx = list.findIndex(m => m.id === manga.id);
           if (idx >= 0) {
@@ -57,7 +94,12 @@ export class MangaLibraryService {
         });
       });
 
-      window.electronAPI.on('manga:updated-remove', (data: { id: number }) => {
+      window.electronAPI.on('manga:updated-remove', (data: { id: number; path?: string; folderPath?: string }) => {
+        if (data.folderPath && this.currentFolderPath) {
+          if (this.normalizePath(data.folderPath) !== this.normalizePath(this.currentFolderPath)) {
+            return;
+          }
+        }
         this.mangas.update(list => list.filter(m => m.id !== data.id));
       });
     }
@@ -80,8 +122,12 @@ export class MangaLibraryService {
 
   public async loadMangas(folderPath?: string): Promise<void> {
     if (!window.electronAPI?.listMangas) return;
+    this.currentFolderPath = folderPath;
+    const seq = ++this.loadSequenceId;
     const mangas = await window.electronAPI.listMangas(folderPath);
-    this.mangas.set(mangas || []);
+    if (seq === this.loadSequenceId) {
+      this.mangas.set(mangas || []);
+    }
   }
 
   public async toggleFavorite(manga: Manga): Promise<void> {
