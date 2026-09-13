@@ -280,4 +280,18 @@ export class MangaRepository extends BaseRepository<Manga, number> {
       return Number(info.lastInsertRowid);
     }
   }
+
+  public saveBatch(mangas: Partial<Manga>[]): Manga[] {
+    if (!mangas || mangas.length === 0) return [];
+    const saveTx = this.db.transaction((items: Partial<Manga>[]) => {
+      const results: Manga[] = [];
+      for (const manga of items) {
+        const id = this.save(manga);
+        manga.id = id;
+        results.push(manga as Manga);
+      }
+      return results;
+    });
+    return saveTx(mangas);
+  }
 }

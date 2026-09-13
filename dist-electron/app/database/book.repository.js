@@ -274,6 +274,20 @@ class BookRepository extends base_repository_1.BaseRepository {
             return Number(info.lastInsertRowid);
         }
     }
+    saveBatch(books) {
+        if (!books || books.length === 0)
+            return [];
+        const saveTx = this.db.transaction((items) => {
+            const results = [];
+            for (const book of items) {
+                const id = this.save(book);
+                book.id = id;
+                results.push(this.redactPassword(book));
+            }
+            return results;
+        });
+        return saveTx(books);
+    }
     setPassword(id, password) {
         const book = this.getById(id);
         if (!book)

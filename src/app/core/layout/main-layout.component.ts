@@ -66,9 +66,8 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
             <a
               routerLink="/"
               [queryParams]="{ lib: 'home' }"
-              routerLinkActive="bg-indigo-600/15 text-indigo-400 font-semibold border-r-2 border-indigo-500"
-              [routerLinkActiveOptions]="{exact: true}"
-              class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer">
+              [ngClass]="isHomeActive() ? 'bg-indigo-600/15 text-indigo-400 font-semibold border-r-2 border-indigo-500' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'"
+              class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs transition-all cursor-pointer">
               <svg class="w-5 h-5 min-w-[1.25rem]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
               </svg>
@@ -84,26 +83,36 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
 
             <button
               (click)="selectLibrary(defaultMangaLibrary())"
-              class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer">
+              [ngClass]="getNavMangaButtonClass(defaultMangaLibrary().id)"
+              class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-all cursor-pointer">
               <div class="flex items-center gap-3 overflow-hidden">
                 <span class="text-base min-w-[1.25rem] text-center">🎨</span>
                 @if (isExpanded()) { <span class="truncate font-medium">{{ defaultMangaLibrary().name }}</span> }
               </div>
               @if (isExpanded()) {
-                <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">{{ defaultMangaLibrary().count }}</span>
+                <span
+                  class="text-[10px] px-1.5 py-0.5 rounded transition-colors"
+                  [ngClass]="getNavMangaBadgeClass(defaultMangaLibrary().id)">
+                  {{ defaultMangaLibrary().count }}
+                </span>
               }
             </button>
 
             @for (lib of customMangaLibraries(); track lib.id) {
               <button
                 (click)="selectLibrary(lib)"
-                class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer">
+                [ngClass]="getNavMangaButtonClass(lib.id)"
+                class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-all cursor-pointer">
                 <div class="flex items-center gap-3 overflow-hidden">
                   <span class="text-base min-w-[1.25rem] text-center">🎨</span>
                   @if (isExpanded()) { <span class="truncate">{{ lib.name }}</span> }
                 </div>
                 @if (isExpanded()) {
-                  <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">{{ lib.count }}</span>
+                  <span
+                    class="text-[10px] px-1.5 py-0.5 rounded transition-colors"
+                    [ngClass]="getNavMangaBadgeClass(lib.id)">
+                    {{ lib.count }}
+                  </span>
                 }
               </button>
             }
@@ -117,26 +126,36 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
 
             <button
               (click)="selectLibrary(defaultBookLibrary())"
-              class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer">
+              [ngClass]="getNavBookButtonClass(defaultBookLibrary().id)"
+              class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-all cursor-pointer">
               <div class="flex items-center gap-3 overflow-hidden">
                 <span class="text-base min-w-[1.25rem] text-center">📚</span>
                 @if (isExpanded()) { <span class="truncate font-medium">{{ defaultBookLibrary().name }}</span> }
               </div>
               @if (isExpanded()) {
-                <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">{{ defaultBookLibrary().count }}</span>
+                <span
+                  class="text-[10px] px-1.5 py-0.5 rounded transition-colors"
+                  [ngClass]="getNavBookBadgeClass(defaultBookLibrary().id)">
+                  {{ defaultBookLibrary().count }}
+                </span>
               }
             </button>
 
             @for (lib of customBookLibraries(); track lib.id) {
               <button
                 (click)="selectLibrary(lib)"
-                class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer">
+                [ngClass]="getNavBookButtonClass(lib.id)"
+                class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-all cursor-pointer">
                 <div class="flex items-center gap-3 overflow-hidden">
                   <span class="text-base min-w-[1.25rem] text-center">📚</span>
                   @if (isExpanded()) { <span class="truncate">{{ lib.name }}</span> }
                 </div>
                 @if (isExpanded()) {
-                  <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">{{ lib.count }}</span>
+                  <span
+                    class="text-[10px] px-1.5 py-0.5 rounded transition-colors"
+                    [ngClass]="getNavBookBadgeClass(lib.id)">
+                    {{ lib.count }}
+                  </span>
                 }
               </button>
             }
@@ -637,6 +656,8 @@ export class MainLayoutComponent implements OnInit {
   LibraryViewType = LibraryViewType;
   headerMode = signal<HeaderMode>('home');
   appVersion = signal('…');
+  currentPath = signal<string>('/');
+  currentLibId = signal<string>('home');
 
   defaultMangaLibrary = signal<NavLibrary>({ id: 'manga-default', name: 'Biblioteca de Mangás', type: 'manga', icon: 'ico_manga', count: 0 });
   defaultBookLibrary = signal<NavLibrary>({ id: 'book-default', name: 'Biblioteca de Livros', type: 'book', icon: 'ico_book', count: 0 });
@@ -646,6 +667,40 @@ export class MainLayoutComponent implements OnInit {
   readonly librarySearchScope = computed<LibrarySearchScope>(() =>
     this.libraryStateService.activeLibrary().type === 'book' ? 'book' : 'manga'
   );
+
+  isHomeActive(): boolean {
+    const p = this.currentPath();
+    return (p === '/' || p === '') && this.currentLibId() === 'home';
+  }
+
+  isLibActive(libId: string): boolean {
+    const p = this.currentPath();
+    return (p === '/' || p === '') && this.currentLibId() === libId;
+  }
+
+  getNavMangaButtonClass(libId: string): string {
+    return this.isLibActive(libId)
+      ? 'bg-indigo-600/15 text-indigo-400 font-semibold border-r-2 border-indigo-500'
+      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60';
+  }
+
+  getNavMangaBadgeClass(libId: string): string {
+    return this.isLibActive(libId)
+      ? 'bg-indigo-600/30 text-indigo-300'
+      : 'bg-slate-800 text-slate-400';
+  }
+
+  getNavBookButtonClass(libId: string): string {
+    return this.isLibActive(libId)
+      ? 'bg-amber-600/15 text-amber-400 font-semibold border-r-2 border-amber-500'
+      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60';
+  }
+
+  getNavBookBadgeClass(libId: string): string {
+    return this.isLibActive(libId)
+      ? 'bg-amber-600/30 text-amber-300'
+      : 'bg-slate-800 text-slate-400';
+  }
 
   readonly headerTitle = computed(() => {
     const mode = this.headerMode();
@@ -696,6 +751,9 @@ export class MainLayoutComponent implements OnInit {
     const query = url.includes('?') ? url.split('?')[1] : '';
     const params = new URLSearchParams(query);
     const lib = params.get('lib') || 'home';
+
+    this.currentPath.set(path);
+    this.currentLibId.set(lib);
 
     if (path === '/' || path === '') {
       if (lib === 'home') {
@@ -808,6 +866,8 @@ export class MainLayoutComponent implements OnInit {
   }
 
   selectLibrary(lib: NavLibrary) {
+    this.currentPath.set('/');
+    this.currentLibId.set(lib.id);
     this.router.navigate(['/'], { queryParams: { lib: lib.id } });
   }
 

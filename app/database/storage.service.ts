@@ -124,6 +124,10 @@ export class StorageService {
     return this.mangaRepository.save(manga);
   }
 
+  public saveMangasBatch(mangas: Partial<Manga>[]): Manga[] {
+    return this.mangaRepository.saveBatch(mangas);
+  }
+
   public countMangas(libraryId?: number): number {
     return this.mangaRepository.getMangaCount(libraryId);
   }
@@ -168,6 +172,10 @@ export class StorageService {
 
   public saveBook(book: Partial<Book>): number {
     return this.bookRepository.save(book);
+  }
+
+  public saveBooksBatch(books: Partial<Book>[]): Book[] {
+    return this.bookRepository.saveBatch(books);
   }
 
   public setBookPassword(id: number, password: string): Book | undefined {

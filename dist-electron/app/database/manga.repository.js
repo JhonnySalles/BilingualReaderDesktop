@@ -259,5 +259,19 @@ class MangaRepository extends base_repository_1.BaseRepository {
             return Number(info.lastInsertRowid);
         }
     }
+    saveBatch(mangas) {
+        if (!mangas || mangas.length === 0)
+            return [];
+        const saveTx = this.db.transaction((items) => {
+            const results = [];
+            for (const manga of items) {
+                const id = this.save(manga);
+                manga.id = id;
+                results.push(manga);
+            }
+            return results;
+        });
+        return saveTx(mangas);
+    }
 }
 exports.MangaRepository = MangaRepository;

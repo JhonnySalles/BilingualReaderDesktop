@@ -137,6 +137,9 @@ class StorageService {
     saveManga(manga) {
         return this.mangaRepository.save(manga);
     }
+    saveMangasBatch(mangas) {
+        return this.mangaRepository.saveBatch(mangas);
+    }
     countMangas(libraryId) {
         return this.mangaRepository.getMangaCount(libraryId);
     }
@@ -170,6 +173,9 @@ class StorageService {
     }
     saveBook(book) {
         return this.bookRepository.save(book);
+    }
+    saveBooksBatch(books) {
+        return this.bookRepository.saveBatch(books);
     }
     setBookPassword(id, password) {
         return this.bookRepository.setPassword(id, password);

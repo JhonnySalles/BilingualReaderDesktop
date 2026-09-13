@@ -1,13 +1,56 @@
-import { app } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
+
+let customBaseDir: string | null = null;
+let customCoversDir: string | null = null;
+
+export function setAppBaseDir(dir: string): void {
+  customBaseDir = dir;
+}
+
+export function setAppCoversDir(dir: string): void {
+  customCoversDir = dir;
+}
+
+function getElectronApp(): any {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const electron = require('electron');
+    return electron?.app || (electron?.remote?.app) || null;
+  } catch {
+    return null;
+  }
+}
+
+export function isAppPackaged(): boolean {
+  const electronApp = getElectronApp();
+  if (electronApp) {
+    return Boolean(electronApp.isPackaged);
+  }
+  // Fallback for worker_threads or environments where electron is not directly resolvable:
+  if (process.resourcesPath || (typeof __dirname === 'string' && __dirname.includes('app.asar'))) {
+    return true;
+  }
+  if (process.execPath) {
+    const execName = path.basename(process.execPath).toLowerCase();
+    return execName !== 'electron.exe' && execName !== 'electron' && !execName.startsWith('node');
+  }
+  return false;
+}
 
 /**
  * Returns the base root directory where executable (.exe) or project root is located.
  */
 export function getAppBaseDir(): string {
-  if (app && app.isPackaged) {
-    return path.dirname(app.getPath('exe'));
+  if (customBaseDir) {
+    return customBaseDir;
+  }
+  const electronApp = getElectronApp();
+  if (electronApp && electronApp.isPackaged) {
+    return path.dirname(electronApp.getPath('exe'));
+  }
+  if (isAppPackaged() && process.execPath) {
+    return path.dirname(process.execPath);
   }
   return process.cwd();
 }
@@ -49,6 +92,12 @@ export function getAppLibsDir(): string {
  * Returns the path to cover images (data/covers).
  */
 export function getAppCoversDir(): string {
+  if (customCoversDir) {
+    if (!fs.existsSync(customCoversDir)) {
+      fs.mkdirSync(customCoversDir, { recursive: true });
+    }
+    return customCoversDir;
+  }
   const dir = path.join(getAppDataDir(), 'covers');
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });

@@ -549,11 +549,11 @@ export class MangaSpreadViewportComponent {
     const wasDrag = this.didDrag;
     const wasPager = this.pagerDragActive && wasDrag && !this.isLongStrip();
     const wasCurl = this.curlDragging;
-    const startPage = this.panStartPage;
-    const startLeft = this.panStartScrollLeft;
-    const startTop = this.panStartScrollTop;
-    const startTime = this.panStartTime;
-    const totalDx = ev.clientX - this.panStartX;
+    const startPage = this.panStartPage ?? this.currentPage;
+    const startLeft = this.panStartScrollLeft ?? 0;
+    const startTop = this.panStartScrollTop ?? 0;
+    const startTime = this.panStartTime || performance.now();
+    const totalDx = ev.clientX - (this.panStartX || ev.clientX);
 
     this.panPointerId = null;
     this.panTarget = null;
@@ -589,7 +589,7 @@ export class MangaSpreadViewportComponent {
 
     if (!wasPager || !el) return;
 
-    const elapsed = Math.max(1, performance.now() - startTime) / 1000;
+    const elapsed = Math.max(1, (performance.now() - startTime) || 1) / 1000;
     const pageCount = this.pages.length;
     if (this.isHorizontal()) {
       const delta = el.scrollLeft - startLeft;

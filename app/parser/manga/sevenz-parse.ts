@@ -20,21 +20,40 @@ function resolve7za(): string {
     candidates.push(process.env['BILINGUAL_7ZA_PATH']);
   }
   // Packaged app: extraResources/7zip-bin/...
+  let isPackaged = false;
   try {
     const { app } = require('electron') as typeof import('electron');
     if (app?.isPackaged) {
-      const platformDir =
-        process.platform === 'win32' ? 'win' : process.platform === 'darwin' ? 'mac' : 'linux';
-      const arch = process.arch === 'arm64' ? 'arm64' : 'x64';
-      const exe = process.platform === 'win32' ? '7za.exe' : '7za';
-      candidates.push(
-        path.join(process.resourcesPath, '7zip-bin', platformDir, arch, exe),
-        path.join(process.resourcesPath, '7zip-bin', exe)
-      );
+      isPackaged = true;
     }
   } catch {
-    /* not in electron context */
+    /* not in electron main context */
   }
+  if (!isPackaged) {
+    if (process.resourcesPath || (typeof __dirname === 'string' && __dirname.includes('app.asar'))) {
+      isPackaged = true;
+    } else if (process.execPath) {
+      const execName = path.basename(process.execPath).toLowerCase();
+      if (execName !== 'electron.exe' && execName !== 'electron' && !execName.startsWith('node')) {
+        isPackaged = true;
+      }
+    }
+  }
+
+  if (isPackaged) {
+    const resPath = process.resourcesPath || (process.execPath ? path.join(path.dirname(process.execPath), 'resources') : '');
+    const platformDir =
+      process.platform === 'win32' ? 'win' : process.platform === 'darwin' ? 'mac' : 'linux';
+    const arch = process.arch === 'arm64' ? 'arm64' : 'x64';
+    const exe = process.platform === 'win32' ? '7za.exe' : '7za';
+    if (resPath) {
+      candidates.push(
+        path.join(resPath, '7zip-bin', platformDir, arch, exe),
+        path.join(resPath, '7zip-bin', exe)
+      );
+    }
+  }
+
   candidates.push(path7za);
   for (const c of candidates) {
     if (c && fs.existsSync(c)) return c;

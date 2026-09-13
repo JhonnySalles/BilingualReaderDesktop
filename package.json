@@ -48,7 +48,9 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Bilingual Reader",
-      "artifactName": "BilingualReader-Setup-${version}.${ext}"
+      "artifactName": "BilingualReader-Setup-${version}.${ext}",
+      "include": "scripts/installer.nsh",
+      "deleteAppDataOnUninstall": false
     },
     "portable": {
       "artifactName": "BilingualReader-Portable-${version}.${ext}"

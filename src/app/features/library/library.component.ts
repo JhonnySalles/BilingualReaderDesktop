@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, computed, signal } from '@angular/core';
+import { Component, OnInit, inject, computed, signal, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { LibraryStateService } from '../../core/services/library-state.service';
@@ -192,8 +192,8 @@ import { ShareMarkType } from '../../core/models/enums/sharemark.enum';
       }
 
       @if (activeLibId() !== 'home') {
-        <div class="flex-1 flex flex-col min-h-0 overflow-y-auto px-6 pb-6 pt-24">
-          <div class="flex justify-between items-center mb-6">
+        <div class="flex-1 flex flex-col min-h-0 overflow-y-auto px-6 pb-6 pt-24 custom-scrollbar">
+          <div class="flex justify-between items-center mb-6 shrink-0">
             <div class="flex items-center gap-2">
               <span class="text-xs font-semibold px-2.5 py-1 rounded-md bg-slate-900 border border-slate-800 text-slate-400">
                 {{ filteredItems().length }} itens encontrados
@@ -255,7 +255,7 @@ import { ShareMarkType } from '../../core/models/enums/sharemark.enum';
           </div>
 
           @if (isExternalHd() && !isPathOnline()) {
-            <div class="rounded-2xl border border-red-900/50 bg-red-950/30 p-4 mb-4 flex items-center gap-3 text-red-300 text-xs">
+            <div class="rounded-2xl border border-red-900/50 bg-red-950/30 p-4 mb-4 flex items-center gap-3 text-red-300 text-xs shrink-0">
               <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 shrink-0 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
@@ -329,6 +329,7 @@ export class LibraryComponent implements OnInit {
   private librarySearch = inject(LibrarySearchService);
   public shareMark = inject(ShareMarkUiService);
   private electronService = inject(ElectronService);
+  private elRef = inject(ElementRef);
 
   activeLibId = signal<string>('home');
   activeLibType = signal<'manga' | 'book'>('manga');
@@ -353,6 +354,17 @@ export class LibraryComponent implements OnInit {
     this.settingsService.libraries().filter(l => l.type === 'book')
   );
 
+  private resetScrollToTop(): void {
+    requestAnimationFrame(() => {
+      if (this.elRef?.nativeElement) {
+        const scrollContainers = this.elRef.nativeElement.querySelectorAll('.overflow-y-auto');
+        scrollContainers.forEach((el: HTMLElement) => {
+          el.scrollTop = 0;
+        });
+      }
+    });
+  }
+
   private async checkPathAndAutoScan(pathToScan: string, isExternalHd: boolean): Promise<void> {
     this.isExternalHd.set(isExternalHd);
     if (isExternalHd) {
@@ -370,6 +382,7 @@ export class LibraryComponent implements OnInit {
   ngOnInit(): void {
     void this.shareMark.refreshStatus();
     this.route.queryParams.subscribe(async params => {
+      this.resetScrollToTop();
       const libId = params['lib'] || 'home';
       this.activeLibId.set(libId);
       this.customOrderItems.set(null);

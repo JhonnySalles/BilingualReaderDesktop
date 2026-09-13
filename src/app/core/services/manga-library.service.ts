@@ -21,16 +21,40 @@ export class MangaLibraryService {
 
   private initElectronListeners(): void {
     if (window.electronAPI?.on) {
-      window.electronAPI.on('manga:scan-status', (data: { status: string; folderPath?: string }) => {
-        const isStarted = data.status === 'STARTED';
-        this.isScanning.set(isStarted);
-        if (!isStarted) {
+      window.electronAPI.on('manga:scan-status', (data: { status: string; folderPath?: string; processedCount?: number; totalFound?: number }) => {
+        if (data.status === 'STARTED' || data.status === 'PROGRESS') {
+          this.isScanning.set(true);
+        } else {
+          this.isScanning.set(false);
           this.loadMangas(data.folderPath || this.currentFolderPath);
         }
       });
 
+      window.electronAPI.on('manga:updated-batch', (batch: Manga[]) => {
+        if (!batch || batch.length === 0) return;
+        this.mangas.update(list => {
+          const map = new Map<number, Manga>();
+          for (const m of list) {
+            if (m.id) map.set(m.id, m);
+          }
+          for (const m of batch) {
+            if (m.id) map.set(m.id, m);
+          }
+          return Array.from(map.values());
+        });
+      });
+
       window.electronAPI.on('manga:updated-add', (manga: Manga) => {
-        this.mangas.update(list => [...list.filter(m => m.id !== manga.id), manga]);
+        if (!manga || !manga.id) return;
+        this.mangas.update(list => {
+          const idx = list.findIndex(m => m.id === manga.id);
+          if (idx >= 0) {
+            const copy = [...list];
+            copy[idx] = manga;
+            return copy;
+          }
+          return [...list, manga];
+        });
       });
 
       window.electronAPI.on('manga:updated-remove', (data: { id: number }) => {

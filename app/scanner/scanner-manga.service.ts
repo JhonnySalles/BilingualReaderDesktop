@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { Worker } from 'worker_threads';
 import { BrowserWindow } from 'electron';
 import { StorageService } from '../database/storage.service';
 import { Manga } from '../../src/app/core/models/entities/manga.model';
@@ -7,11 +8,11 @@ import { FileType, getMangaFileType } from '../../src/app/core/models/enums/app-
 import { ParseFactory } from '../parser/manga/parse-factory';
 import { MangaImageCoverController } from '../controllers/manga-image-cover.controller';
 import { Telemetry } from '../utils/telemetry';
-
-const MANGA_EXTENSIONS = new Set(['.cbz', '.cbr', '.cb7', '.cbt', '.zip', '.rar', '.7z', '.tar']);
+import { getAppBaseDir, getAppCoversDir } from '../utils/app-paths';
 
 export class ScannerMangaService {
   private isScanning = false;
+  private currentWorker: Worker | null = null;
 
   constructor(private storageService: StorageService) {}
 
@@ -33,80 +34,119 @@ export class ScannerMangaService {
           if (window) {
             window.webContents.send('manga:scan-status', { status: 'SKIPPED_EXTERNAL_HD', folderPath });
           }
+          this.isScanning = false;
           return;
         }
         try {
           fs.mkdirSync(folderPath, { recursive: true });
         } catch (e) {
           console.warn(`Could not create directory ${folderPath}:`, e);
+          this.isScanning = false;
           return;
         }
       }
 
-      const libraryId = this.storageService.getOrCreateLibrary(folderPath);
+      const libraryId = this.storageService.getOrCreateLibrary(folderPath, 'MANGA');
       const existingMangas = this.storageService.listMangas(libraryId);
       const existingMap = new Map<string, Manga>();
+      const existingItemsMap: Record<string, Partial<Manga>> = {};
+
       existingMangas.forEach(m => {
         const p = m.path || (m as any).file || '';
         if (p) {
-          existingMap.set(path.normalize(p).toLowerCase(), m);
+          const normKey = path.normalize(p).toLowerCase();
+          existingMap.set(normKey, m);
+          existingItemsMap[normKey] = {
+            id: m.id,
+            path: m.path,
+            title: m.title,
+            coverPath: m.coverPath,
+            author: m.author,
+            series: m.series,
+            genre: m.genre,
+            publisher: m.publisher,
+            volume: m.volume,
+            fkLibrary: m.fkLibrary
+          };
         }
       });
 
-      const foundPaths = new Set<string>();
-      await this.walkDirectory(folderPath, async (itemPath, stat, isDir) => {
-        if (isDir) {
-          // Check if directory itself is a chapter/manga (e.g. contains images)
-          const parser = await ParseFactory.create(itemPath);
-          if (parser) {
-            try {
-              if (parser.numPages() >= 4) {
-                foundPaths.add(itemPath);
-                const normKey = path.normalize(itemPath).toLowerCase();
-                if (!existingMap.has(normKey)) {
-                  await this.processNewManga(itemPath, stat, libraryId, window, true);
-                } else {
-                  const existingItem = existingMap.get(normKey)!;
-                  await this.checkAndRecoverMetadata(existingItem, itemPath, stat, libraryId, window);
-                  existingMap.delete(normKey);
+      const workerPath = path.join(__dirname, 'manga-scanner.worker.js');
+
+      await new Promise<void>((resolve, reject) => {
+        const worker = new Worker(workerPath, {
+          workerData: {
+            folderPath,
+            libraryId,
+            existingItemsMap,
+            baseDir: getAppBaseDir(),
+            coversDir: getAppCoversDir()
+          }
+        });
+        this.currentWorker = worker;
+
+        worker.on('message', (msg: { type: string; items?: Partial<Manga>[]; foundPaths?: string[]; message?: string; processedCount?: number; totalFound?: number }) => {
+          try {
+            if (msg.type === 'BATCH' && msg.items && msg.items.length > 0) {
+              const savedList = this.storageService.saveMangasBatch(msg.items);
+              if (window && savedList.length > 0) {
+                window.webContents.send('manga:updated-batch', savedList);
+              }
+            } else if (msg.type === 'PROGRESS') {
+              if (window) {
+                window.webContents.send('manga:scan-status', {
+                  status: 'PROGRESS',
+                  folderPath,
+                  processedCount: msg.processedCount,
+                  totalFound: msg.totalFound
+                });
+              }
+            } else if (msg.type === 'DONE') {
+              const foundSet = new Set<string>((msg.foundPaths || []).map((p: string) => path.normalize(p).toLowerCase()));
+              // Remove missing mangas
+              for (const [missingPath, missingManga] of existingMap.entries()) {
+                if (!foundSet.has(missingPath) && missingManga.id) {
+                  this.storageService.deleteManga(missingManga.id);
+                  if (window) {
+                    window.webContents.send('manga:updated-remove', { id: missingManga.id, path: missingPath });
+                  }
                 }
               }
-            } finally {
-              parser.destroy();
+              resolve();
+            } else if (msg.type === 'ERROR') {
+              console.error('[ScannerMangaService] Worker reported error:', msg.message);
+              reject(new Error(msg.message || 'Worker error'));
             }
+          } catch (handlerErr) {
+            console.error('[ScannerMangaService] Error handling worker message:', handlerErr);
           }
-          return;
-        }
+        });
 
-        const ext = path.extname(itemPath).toLowerCase();
-        if (MANGA_EXTENSIONS.has(ext)) {
-          foundPaths.add(itemPath);
-          const normKey = path.normalize(itemPath).toLowerCase();
-          if (!existingMap.has(normKey)) {
-            // New Manga Found
-            await this.processNewManga(itemPath, stat, libraryId, window, false);
-          } else {
-            const existingItem = existingMap.get(normKey)!;
-            await this.checkAndRecoverMetadata(existingItem, itemPath, stat, libraryId, window);
-            existingMap.delete(normKey);
+        worker.on('error', (err) => {
+          console.error('[ScannerMangaService] Worker thread error:', err);
+          Telemetry.recordException(err, 'Manga scanner worker error');
+          reject(err);
+        });
+
+        worker.on('exit', (code) => {
+          this.currentWorker = null;
+          if (code !== 0) {
+            console.warn(`[ScannerMangaService] Worker stopped with exit code ${code}`);
           }
-        }
+          resolve();
+        });
       });
 
-      // Remove missing mangas
-      for (const [missingPath, missingManga] of existingMap.entries()) {
-        if (missingManga.id) {
-          this.storageService.deleteManga(missingManga.id);
-          if (window) {
-            window.webContents.send('manga:updated-remove', { id: missingManga.id, path: missingPath });
-          }
-        }
-      }
-
     } catch (err) {
-      console.error('Error scanning folder:', err);
+      console.error('Error scanning manga folder:', err);
       Telemetry.recordException(err, 'Error scanning manga folder');
     } finally {
+      if (this.currentWorker) {
+        try {
+          this.currentWorker.terminate();
+        } catch {}
+        this.currentWorker = null;
+      }
       this.isScanning = false;
       if (window) {
         window.webContents.send('manga:scan-status', { status: 'FINISHED', folderPath });
@@ -114,25 +154,26 @@ export class ScannerMangaService {
     }
   }
 
-  private async walkDirectory(
-    dir: string, 
-    callback: (itemPath: string, stat: fs.Stats, isDirectory: boolean) => Promise<void>
-  ): Promise<void> {
+  public async processSingleFile(filePath: string, window: BrowserWindow | null): Promise<Manga | null> {
     try {
-      const entries = await fs.promises.readdir(dir, { withFileTypes: true });
-      for (const entry of entries) {
-        const fullPath = path.join(dir, entry.name);
-        if (entry.isDirectory()) {
-          const stat = await fs.promises.stat(fullPath);
-          await callback(fullPath, stat, true);
-          await this.walkDirectory(fullPath, callback);
-        } else if (entry.isFile()) {
-          const stat = await fs.promises.stat(fullPath);
-          await callback(fullPath, stat, false);
-        }
+      if (!fs.existsSync(filePath)) return null;
+      const stat = await fs.promises.stat(filePath);
+      const isDir = stat.isDirectory();
+      const folder = isDir ? filePath : path.dirname(filePath);
+      const libraryId = this.storageService.getOrCreateLibrary(folder, 'MANGA');
+
+      const existingInDb = this.storageService.findMangaByPath(filePath);
+      if (existingInDb && existingInDb.id) {
+        await this.checkAndRecoverMetadata(existingInDb, filePath, stat, libraryId, window);
+        return this.storageService.findMangaById(existingInDb.id) || existingInDb;
       }
-    } catch (err) {
-      console.warn(`Could not read directory ${dir}:`, err);
+
+      await this.processNewManga(filePath, stat, libraryId, window, isDir);
+      return this.storageService.findMangaByPath(filePath) || null;
+    } catch (e) {
+      console.error('Failed to process single manga file:', filePath, e);
+      Telemetry.recordException(e, `Failed to process single manga file: ${filePath}`);
+      return null;
     }
   }
 
@@ -158,7 +199,6 @@ export class ScannerMangaService {
     let volume = '';
     let hasSubtitle = false;
 
-    // Use ParseFactory to inspect comic/manga file or directory
     const parser = await ParseFactory.create(itemPath);
     if (parser) {
       try {
@@ -267,29 +307,4 @@ export class ScannerMangaService {
       }
     }
   }
-
-  public async processSingleFile(filePath: string, window: BrowserWindow | null): Promise<Manga | null> {
-    try {
-      if (!fs.existsSync(filePath)) return null;
-      const stat = await fs.promises.stat(filePath);
-      const isDir = stat.isDirectory();
-      const folder = isDir ? filePath : path.dirname(filePath);
-      const libraryId = this.storageService.getOrCreateLibrary(folder, 'MANGA');
-
-      const existingInDb = this.storageService.findMangaByPath(filePath);
-      if (existingInDb && existingInDb.id) {
-        await this.checkAndRecoverMetadata(existingInDb, filePath, stat, libraryId, window);
-        return this.storageService.findMangaById(existingInDb.id) || existingInDb;
-      }
-
-      await this.processNewManga(filePath, stat, libraryId, window, isDir);
-      return this.storageService.findMangaByPath(filePath) || null;
-    } catch (e) {
-      console.error('Failed to process single manga file:', filePath, e);
-      Telemetry.recordException(e, `Failed to process single manga file: ${filePath}`);
-      return null;
-    }
-  }
 }
-
-

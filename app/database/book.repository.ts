@@ -316,6 +316,20 @@ export class BookRepository extends BaseRepository<Book, number> {
     }
   }
 
+  public saveBatch(books: Partial<Book>[]): Book[] {
+    if (!books || books.length === 0) return [];
+    const saveTx = this.db.transaction((items: Partial<Book>[]) => {
+      const results: Book[] = [];
+      for (const book of items) {
+        const id = this.save(book);
+        book.id = id;
+        results.push(this.redactPassword(book as Book));
+      }
+      return results;
+    });
+    return saveTx(books);
+  }
+
   public setPassword(id: number, password: string): Book | undefined {
     const book = this.getById(id);
     if (!book) return undefined;

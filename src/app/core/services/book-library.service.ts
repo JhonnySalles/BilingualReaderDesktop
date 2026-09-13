@@ -21,16 +21,40 @@ export class BookLibraryService {
 
   private initElectronListeners(): void {
     if (window.electronAPI?.on) {
-      window.electronAPI.on('book:scan-status', (data: { status: string; folderPath?: string }) => {
-        const isStarted = data.status === 'STARTED';
-        this.isScanning.set(isStarted);
-        if (!isStarted) {
+      window.electronAPI.on('book:scan-status', (data: { status: string; folderPath?: string; processedCount?: number; totalFound?: number }) => {
+        if (data.status === 'STARTED' || data.status === 'PROGRESS') {
+          this.isScanning.set(true);
+        } else {
+          this.isScanning.set(false);
           this.loadBooks(data.folderPath || this.currentFolderPath);
         }
       });
 
+      window.electronAPI.on('book:updated-batch', (batch: Book[]) => {
+        if (!batch || batch.length === 0) return;
+        this.books.update(list => {
+          const map = new Map<number, Book>();
+          for (const b of list) {
+            if (b.id) map.set(b.id, b);
+          }
+          for (const b of batch) {
+            if (b.id) map.set(b.id, b);
+          }
+          return Array.from(map.values());
+        });
+      });
+
       window.electronAPI.on('book:updated-add', (book: Book) => {
-        this.books.update(list => [...list.filter(b => b.id !== book.id), book]);
+        if (!book || !book.id) return;
+        this.books.update(list => {
+          const idx = list.findIndex(b => b.id === book.id);
+          if (idx >= 0) {
+            const copy = [...list];
+            copy[idx] = book;
+            return copy;
+          }
+          return [...list, book];
+        });
       });
 
       window.electronAPI.on('book:updated-remove', (data: { id: number }) => {
