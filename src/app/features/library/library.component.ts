@@ -429,6 +429,7 @@ export class LibraryComponent implements OnInit {
           count: this.mangaLibraryService.mangas().length
         });
         await this.mangaLibraryService.loadMangas(pathToScan);
+        this.libraryStateService.activeLibrary.update(cur => ({ ...cur, count: this.mangaLibraryService.mangas().length }));
         await this.checkPathAndAutoScan(pathToScan, extHd);
       } else if (libId === 'book-default') {
         this.activeLibType.set('book');
@@ -442,6 +443,7 @@ export class LibraryComponent implements OnInit {
           count: this.bookLibraryService.books().length
         });
         await this.bookLibraryService.loadBooks(pathToScan);
+        this.libraryStateService.activeLibrary.update(cur => ({ ...cur, count: this.bookLibraryService.books().length }));
         await this.checkPathAndAutoScan(pathToScan, extHd);
       } else {
         const found = this.settingsService.libraries().find(l => l.id === libId);
@@ -458,8 +460,10 @@ export class LibraryComponent implements OnInit {
           });
           if (found.type === 'manga') {
             await this.mangaLibraryService.loadMangas(pathToScan);
+            this.libraryStateService.activeLibrary.update(cur => ({ ...cur, count: this.mangaLibraryService.mangas().length }));
           } else {
             await this.bookLibraryService.loadBooks(pathToScan);
+            this.libraryStateService.activeLibrary.update(cur => ({ ...cur, count: this.bookLibraryService.books().length }));
           }
           await this.checkPathAndAutoScan(pathToScan, extHd);
         }

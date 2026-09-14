@@ -28,6 +28,7 @@ export class ShareMarkUiService implements OnDestroy {
   private confirmDialog = inject(ConfirmDialogService);
   private unsubProgress: (() => void) | null = null;
   private unsubItem: (() => void) | null = null;
+  private unsubSessionExpired: (() => void) | null = null;
 
   status = signal<ShareMarkStatusView>({
     enabled: false,
@@ -58,12 +59,17 @@ export class ShareMarkUiService implements OnDestroy {
       this.unsubItem = window.electronAPI.on('sharemark:item-updated', () => {
         // consumers can listen via refresh callbacks
       });
+      this.unsubSessionExpired = window.electronAPI.on('sharemark:session-expired', () => {
+        this.status.update((s) => ({ ...s, signedIn: false, email: null }));
+        this.showToast('Sessão expirada ou não autorizada. Faça login novamente nas configurações.', 'error', 6000);
+      });
     }
   }
 
   ngOnDestroy(): void {
     this.unsubProgress?.();
     this.unsubItem?.();
+    this.unsubSessionExpired?.();
     if (this.toastTimer) clearTimeout(this.toastTimer);
   }
 
@@ -192,6 +198,8 @@ export class ShareMarkUiService implements OnDestroy {
         return 'Nenhuma alteração para sincronizar';
       case ShareMarkType.NOT_SIGN_IN:
         return 'Conta Google não conectada';
+      case ShareMarkType.UNAUTHORIZED:
+        return 'Não autorizado ou sessão expirada — faça login novamente';
       case ShareMarkType.ERROR_NETWORK:
         return 'Sem conexão de rede';
       case ShareMarkType.ERROR_DOWNLOAD:

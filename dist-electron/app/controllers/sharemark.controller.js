@@ -80,7 +80,19 @@ class ShareMarkController {
             catch (e) {
                 console.error('[ShareMark] sync failed:', e);
                 telemetry_1.Telemetry.recordException(e, '[ShareMark] sync failed');
-                result = sharemark_enum_1.ShareMarkType.ERROR;
+                if (e?.message?.includes('401') ||
+                    e?.message?.includes('UNAUTHENTICATED') ||
+                    e?.message?.includes('invalid_grant') ||
+                    e?.message === 'NOT_SIGN_IN') {
+                    result = sharemark_enum_1.ShareMarkType.UNAUTHORIZED;
+                }
+                else {
+                    result = sharemark_enum_1.ShareMarkType.ERROR;
+                }
+            }
+            if (result === sharemark_enum_1.ShareMarkType.UNAUTHORIZED) {
+                await google_auth_service_1.GoogleAuthService.instance.signOut();
+                win?.webContents.send('sharemark:session-expired');
             }
             return {
                 result,

@@ -39,14 +39,21 @@ export class ShareMarkFirebaseService extends ShareMarkBase {
       this.idToken = await GoogleAuthService.instance.getFirebaseIdToken();
       if (!this.idToken) {
         // Try refreshing Google token then Firebase again
-        await GoogleAuthService.instance.getAuthenticatedClient();
-        this.idToken = await GoogleAuthService.instance.getFirebaseIdToken();
+        await GoogleAuthService.instance.getAuthenticatedClient(true);
+        this.idToken = await GoogleAuthService.instance.getFirebaseIdToken(true);
       }
-      if (!this.idToken) return ShareMarkType.NOT_CONNECT_FIREBASE;
+      if (!this.idToken) return ShareMarkType.UNAUTHORIZED;
       return ShareMarkType.SUCCESS;
-    } catch (e) {
+    } catch (e: any) {
       console.error('[ShareMarkFirebase] initialize:', e);
       Telemetry.recordException(e, '[ShareMarkFirebase] initialize');
+      if (
+        e?.message === 'NOT_SIGN_IN' ||
+        e?.message?.includes('invalid_grant') ||
+        e?.message?.includes('UNAUTHENTICATED')
+      ) {
+        return ShareMarkType.UNAUTHORIZED;
+      }
       return ShareMarkType.NOT_CONNECT_FIREBASE;
     }
   }
@@ -59,13 +66,25 @@ export class ShareMarkFirebaseService extends ShareMarkBase {
     return `https://firestore.googleapis.com/v1/projects/${this.projectId}/databases/(default)/documents/${this.collectionId(kind)}`;
   }
 
-  private async firestoreFetch(url: string, init?: RequestInit): Promise<Response> {
+  private async firestoreFetch(url: string, init?: RequestInit, isRetry = false): Promise<Response> {
     const headers: Record<string, string> = {
       Authorization: `Bearer ${this.idToken}`,
       'Content-Type': 'application/json',
       ...(init?.headers as Record<string, string> | undefined)
     };
-    return fetch(url, { ...init, headers });
+    const response = await fetch(url, { ...init, headers });
+
+    // If 401 UNAUTHENTICATED, try auto-healing with force token refresh once
+    if (response.status === 401 && !isRetry) {
+      console.warn('[ShareMarkFirebase] Received 401, attempting token refresh...');
+      const freshToken = await GoogleAuthService.instance.getFirebaseIdToken(true);
+      if (freshToken) {
+        this.idToken = freshToken;
+        return this.firestoreFetch(url, init, true);
+      }
+    }
+
+    return response;
   }
 
   private fromFirestoreValue(value: any): unknown {
@@ -227,9 +246,16 @@ export class ShareMarkFirebaseService extends ShareMarkBase {
     try {
       share = await this.runQuery('manga', lastSync);
       index = await this.getIndexDoc('manga');
-    } catch (e) {
+    } catch (e: any) {
       console.error('[ShareMarkFirebase] download manga:', e);
       Telemetry.recordException(e, '[ShareMarkFirebase] download manga');
+      if (
+        e?.message?.includes('401') ||
+        e?.message?.includes('UNAUTHENTICATED') ||
+        e?.message?.includes('invalid_grant')
+      ) {
+        return ShareMarkType.UNAUTHORIZED;
+      }
       return ShareMarkType.ERROR_DOWNLOAD;
     }
 
@@ -290,9 +316,16 @@ export class ShareMarkFirebaseService extends ShareMarkBase {
         }
         await this.setDocument('manga', '_manga', indexPayload);
         result = ShareMarkType.SUCCESS;
-      } catch (e) {
+      } catch (e: any) {
         console.error('[ShareMarkFirebase] upload manga:', e);
         Telemetry.recordException(e, '[ShareMarkFirebase] upload manga');
+        if (
+          e?.message?.includes('401') ||
+          e?.message?.includes('UNAUTHENTICATED') ||
+          e?.message?.includes('invalid_grant')
+        ) {
+          return ShareMarkType.UNAUTHORIZED;
+        }
         result = ShareMarkType.ERROR_UPLOAD;
       }
     } else if (share.length > 0) {
@@ -319,9 +352,16 @@ export class ShareMarkFirebaseService extends ShareMarkBase {
     try {
       share = await this.runQuery('book', lastSync);
       index = await this.getIndexDoc('book');
-    } catch (e) {
+    } catch (e: any) {
       console.error('[ShareMarkFirebase] download book:', e);
       Telemetry.recordException(e, '[ShareMarkFirebase] download book');
+      if (
+        e?.message?.includes('401') ||
+        e?.message?.includes('UNAUTHENTICATED') ||
+        e?.message?.includes('invalid_grant')
+      ) {
+        return ShareMarkType.UNAUTHORIZED;
+      }
       return ShareMarkType.ERROR_DOWNLOAD;
     }
 
@@ -382,9 +422,16 @@ export class ShareMarkFirebaseService extends ShareMarkBase {
         }
         await this.setDocument('book', '_book', indexPayload);
         result = ShareMarkType.SUCCESS;
-      } catch (e) {
+      } catch (e: any) {
         console.error('[ShareMarkFirebase] upload book:', e);
         Telemetry.recordException(e, '[ShareMarkFirebase] upload book');
+        if (
+          e?.message?.includes('401') ||
+          e?.message?.includes('UNAUTHENTICATED') ||
+          e?.message?.includes('invalid_grant')
+        ) {
+          return ShareMarkType.UNAUTHORIZED;
+        }
         result = ShareMarkType.ERROR_UPLOAD;
       }
     } else if (share.length > 0) {

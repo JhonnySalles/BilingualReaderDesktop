@@ -103,7 +103,7 @@ class GoogleAuthService {
         }
         return new google_auth_library_1.OAuth2Client(clientId, clientSecret, redirectUri);
     }
-    async getAuthenticatedClient() {
+    async getAuthenticatedClient(forceRefresh = false) {
         if (!this.tokens?.refresh_token && !this.tokens?.access_token) {
             throw new Error('NOT_SIGN_IN');
         }
@@ -128,9 +128,9 @@ class GoogleAuthService {
             };
             this.saveTokens(merged);
         });
-        // Force refresh if expired
+        // Force refresh if expired or explicitly requested
         const expiry = this.tokens.expiry_date ?? 0;
-        if (expiry && expiry < Date.now() + 60_000) {
+        if (forceRefresh || !this.tokens.access_token || (expiry && expiry < Date.now() + 60_000)) {
             const { credentials } = await client.refreshAccessToken();
             this.saveTokens({
                 ...this.tokens,
@@ -183,6 +183,7 @@ class GoogleAuthService {
                 const fb = await this.signInWithFirebase(tokens.id_token);
                 stored.firebase_id_token = fb.idToken;
                 stored.firebase_refresh_token = fb.refreshToken;
+                stored.firebase_expiry_date = Date.now() + (Number(fb.expiresIn) || 3600) * 1000;
             }
             catch (e) {
                 console.warn('[GoogleAuth] Firebase sign-in skipped:', e);
@@ -203,27 +204,78 @@ class GoogleAuthService {
             telemetry_1.Telemetry.recordException(e, '[GoogleAuth] Failed to delete tokens');
         }
     }
-    async getFirebaseIdToken() {
+    async getFirebaseIdToken(forceRefresh = false) {
         if (!this.tokens)
             return null;
-        if (this.tokens.firebase_id_token) {
+        const now = Date.now();
+        const fbExpiry = this.tokens.firebase_expiry_date ?? 0;
+        const isExpired = !this.tokens.firebase_id_token || (fbExpiry > 0 && fbExpiry < now + 60_000);
+        if (!forceRefresh && !isExpired && this.tokens.firebase_id_token) {
             return this.tokens.firebase_id_token;
         }
-        if (this.tokens.id_token && secrets_1.Secrets.instance.getFirebaseApiKey()) {
+        // 1. Attempt refresh using Firebase refresh_token
+        if (this.tokens.firebase_refresh_token) {
             try {
-                const fb = await this.signInWithFirebase(this.tokens.id_token);
+                const refreshed = await this.refreshFirebaseIdToken(this.tokens.firebase_refresh_token);
+                if (refreshed) {
+                    return refreshed;
+                }
+            }
+            catch (e) {
+                console.warn('[GoogleAuth] refreshFirebaseIdToken failed:', e);
+            }
+        }
+        // 2. Fallback: refresh Google OAuth token to get a fresh id_token, then exchange with Firebase
+        try {
+            const client = await this.getAuthenticatedClient(true);
+            const googleIdToken = this.tokens.id_token || client.credentials?.id_token;
+            if (googleIdToken && secrets_1.Secrets.instance.getFirebaseApiKey()) {
+                const fb = await this.signInWithFirebase(googleIdToken);
+                const expiresInSec = Number(fb.expiresIn) || 3600;
                 this.saveTokens({
                     ...this.tokens,
                     firebase_id_token: fb.idToken,
-                    firebase_refresh_token: fb.refreshToken
+                    firebase_refresh_token: fb.refreshToken,
+                    firebase_expiry_date: Date.now() + expiresInSec * 1000
                 });
                 return fb.idToken;
             }
-            catch {
-                return null;
-            }
+        }
+        catch (e) {
+            console.error('[GoogleAuth] Fallback Firebase sign-in failed:', e);
         }
         return null;
+    }
+    async refreshFirebaseIdToken(refreshToken) {
+        const apiKey = secrets_1.Secrets.instance.getFirebaseApiKey();
+        if (!apiKey)
+            return null;
+        const url = `https://securetoken.googleapis.com/v1/token?key=${apiKey}`;
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+                grant_type: 'refresh_token',
+                refresh_token: refreshToken
+            }).toString()
+        });
+        if (!res.ok) {
+            const text = await res.text();
+            console.warn(`[GoogleAuth] SecureToken refresh failed: ${res.status} ${text}`);
+            return null;
+        }
+        const data = (await res.json());
+        const newIdToken = data.id_token || data.access_token;
+        if (!newIdToken || !this.tokens)
+            return null;
+        const expiresInSec = Number(data.expires_in) || 3600;
+        this.saveTokens({
+            ...this.tokens,
+            firebase_id_token: newIdToken,
+            firebase_refresh_token: data.refresh_token || this.tokens.firebase_refresh_token,
+            firebase_expiry_date: Date.now() + expiresInSec * 1000
+        });
+        return newIdToken;
     }
     async signInWithFirebase(googleIdToken) {
         const apiKey = secrets_1.Secrets.instance.getFirebaseApiKey();
@@ -243,7 +295,7 @@ class GoogleAuthService {
             throw new Error(`Firebase signInWithIdp failed: ${res.status} ${text}`);
         }
         const data = (await res.json());
-        return { idToken: data.idToken, refreshToken: data.refreshToken };
+        return data;
     }
     async fetchEmail(accessToken) {
         try {

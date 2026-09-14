@@ -41,18 +41,16 @@ export class MangaLibraryService {
   private initElectronListeners(): void {
     if (window.electronAPI?.on) {
       window.electronAPI.on('manga:scan-status', (data: { status: string; folderPath?: string; libraryId?: number; processedCount?: number; totalFound?: number }) => {
-        if (data.folderPath && this.currentFolderPath) {
-          if (this.normalizePath(data.folderPath) !== this.normalizePath(this.currentFolderPath)) {
-            return;
-          }
-        }
         if (data.status === 'STARTED' || data.status === 'PROGRESS') {
-          this.isScanning.set(true);
+          if (!data.folderPath || !this.currentFolderPath || this.normalizePath(data.folderPath) === this.normalizePath(this.currentFolderPath)) {
+            this.isScanning.set(true);
+          }
         } else if (data.status === 'CANCELLED') {
           this.isScanning.set(false);
+          void this.loadMangas(this.currentFolderPath);
         } else {
           this.isScanning.set(false);
-          this.loadMangas(data.folderPath || this.currentFolderPath);
+          void this.loadMangas(this.currentFolderPath);
         }
       });
 

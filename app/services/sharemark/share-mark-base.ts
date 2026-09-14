@@ -168,8 +168,16 @@ export abstract class ShareMarkBase {
       const result = await process();
       this.emitProgress('done', type);
       return result;
-    } catch (e) {
+    } catch (e: any) {
       Telemetry.recordException(e, '[ShareMark] sync error');
+      if (
+        e?.message?.includes('401') ||
+        e?.message?.includes('UNAUTHENTICATED') ||
+        e?.message?.includes('invalid_grant') ||
+        e?.message === 'NOT_SIGN_IN'
+      ) {
+        return ShareMarkType.UNAUTHORIZED;
+      }
       return this.notConnectErrorType;
     } finally {
       ShareMarkBase.inSync = false;

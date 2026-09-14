@@ -100,6 +100,7 @@ let scannerBookService;
 let mangaReaderController;
 let bookReaderController;
 let fileLinkController;
+let lastOpenedDirectory;
 function getWindowIconPath() {
     const candidates = [
         path.join(__dirname, '../assets/icons/icon.ico'),
@@ -121,6 +122,10 @@ function getRouteFromArgv(argv) {
         if (arg === '--open-library') {
             return '/';
         }
+        const libMatch = arg.match(/^--open-library=(.+)$/);
+        if (libMatch) {
+            return `/?lib=${libMatch[1]}`;
+        }
         const mangaMatch = arg.match(/^--open-manga=(\d+)$/);
         if (mangaMatch) {
             return `/detail/manga/${mangaMatch[1]}`;
@@ -136,29 +141,61 @@ function updateJumpListTasks() {
     try {
         if (process.platform !== 'win32' || !storageService)
             return;
-        const iconPath = getWindowIconPath();
+        const rawIconPath = getWindowIconPath();
+        const iconPath = fs.existsSync(rawIconPath) && rawIconPath.endsWith('.ico')
+            ? rawIconPath
+            : process.execPath;
         const tasks = [
             {
                 program: process.execPath,
-                arguments: '--open-library',
+                arguments: '--open-library=manga-default',
                 iconPath: iconPath,
                 iconIndex: 0,
-                title: 'Biblioteca',
-                description: 'Abrir a Biblioteca'
+                title: 'Biblioteca de Mangás',
+                description: 'Abrir a Biblioteca de Mangás Padrão'
+            },
+            {
+                program: process.execPath,
+                arguments: '--open-library=book-default',
+                iconPath: iconPath,
+                iconIndex: 0,
+                title: 'Biblioteca de Livros',
+                description: 'Abrir a Biblioteca de Livros Padrão'
             }
         ];
-        const recentReads = storageService.listRecentReads(3);
-        for (const item of recentReads) {
-            const isManga = item.type === 'MANGA';
-            const arg = isManga ? `--open-manga=${item.fkReference}` : `--open-book=${item.fkReference}`;
-            tasks.push({
-                program: process.execPath,
-                arguments: arg,
-                iconPath: iconPath,
-                iconIndex: 0,
-                title: item.title,
-                description: `Continuar ${isManga ? 'Mangá' : 'Livro'}`
-            });
+        try {
+            const allLibs = storageService.listAllLibraries();
+            for (const lib of allLibs) {
+                tasks.push({
+                    program: process.execPath,
+                    arguments: `--open-library=${lib.id}`,
+                    iconPath: iconPath,
+                    iconIndex: 0,
+                    title: lib.title,
+                    description: `Biblioteca: ${lib.title} (${lib.type === 'MANGA' ? 'Mangá' : 'Livro'})`
+                });
+            }
+        }
+        catch (libErr) {
+            console.warn('[main] Failed to list custom libraries for jump list', libErr);
+        }
+        try {
+            const recentReads = storageService.listRecentReads(3);
+            for (const item of recentReads) {
+                const isManga = item.type === 'MANGA';
+                const arg = isManga ? `--open-manga=${item.fkReference}` : `--open-book=${item.fkReference}`;
+                tasks.push({
+                    program: process.execPath,
+                    arguments: arg,
+                    iconPath: iconPath,
+                    iconIndex: 0,
+                    title: item.title,
+                    description: `Continuar ${isManga ? 'Mangá' : 'Livro'}`
+                });
+            }
+        }
+        catch (recentErr) {
+            console.warn('[main] Failed to list recent reads for jump list', recentErr);
         }
         electron_1.app.setUserTasks(tasks);
     }
@@ -363,11 +400,13 @@ electron_1.app.on('ready', () => {
                 return null;
             const result = await electron_1.dialog.showOpenDialog(mainWindow, {
                 title: 'Selecionar Diretório de Biblioteca',
+                defaultPath: lastOpenedDirectory,
                 properties: ['openDirectory', 'createDirectory']
             });
             if (result.canceled || result.filePaths.length === 0) {
                 return null;
             }
+            lastOpenedDirectory = result.filePaths[0];
             return result.filePaths[0];
         });
         electron_1.ipcMain.handle('manga:list', async (_event, folderPath) => {

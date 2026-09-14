@@ -214,7 +214,7 @@ export class SettingsService {
   mangaDualPageCalculate = signal(false);
   themeGlassmorphism = signal(true);
   theme3DCovers = signal(true);
-  theme3dCoverInDetail = signal(true);
+  theme3dCoverInDetail = signal(false);
   /** Default library sort applied to manga + book contexts. */
   libraryDefaultOrder = signal<OrderType>(OrderType.Name);
   /** auto = Calibre then native; calibre = Calibre only; native = builtin only. */

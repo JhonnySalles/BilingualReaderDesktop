@@ -57,7 +57,14 @@ export class ShareMarkGDriveService extends ShareMarkBase {
     } catch (e: any) {
       console.error('[ShareMarkGDrive] initialize:', e);
       Telemetry.recordException(e, '[ShareMarkGDrive] initialize');
-      if (e?.message === 'NOT_SIGN_IN') return ShareMarkType.NOT_SIGN_IN;
+      if (
+        e?.message === 'NOT_SIGN_IN' ||
+        e?.message?.includes('invalid_grant') ||
+        e?.code === 401 ||
+        e?.status === 401
+      ) {
+        return ShareMarkType.UNAUTHORIZED;
+      }
       return ShareMarkType.NOT_CONNECT_DRIVE;
     }
   }
@@ -114,6 +121,14 @@ export class ShareMarkGDriveService extends ShareMarkBase {
     } catch (e: any) {
       console.error('[ShareMarkGDrive] getShareFiles:', e);
       Telemetry.recordException(e, '[ShareMarkGDrive] getShareFiles');
+      if (
+        e?.message?.includes('invalid_grant') ||
+        e?.code === 401 ||
+        e?.status === 401 ||
+        e?.message?.includes('UNAUTHENTICATED')
+      ) {
+        return ShareMarkType.UNAUTHORIZED;
+      }
       if (e?.code === 'ENOTFOUND' || e?.code === 'ECONNREFUSED') {
         return ShareMarkType.ERROR_NETWORK;
       }

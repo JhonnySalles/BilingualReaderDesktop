@@ -98,10 +98,24 @@ export class ShareMarkController {
           contentType === 'MANGA'
             ? await share.mangaShareMark(onUpdate)
             : await share.bookShareMark(onUpdate);
-      } catch (e) {
+      } catch (e: any) {
         console.error('[ShareMark] sync failed:', e);
         Telemetry.recordException(e, '[ShareMark] sync failed');
-        result = ShareMarkType.ERROR;
+        if (
+          e?.message?.includes('401') ||
+          e?.message?.includes('UNAUTHENTICATED') ||
+          e?.message?.includes('invalid_grant') ||
+          e?.message === 'NOT_SIGN_IN'
+        ) {
+          result = ShareMarkType.UNAUTHORIZED;
+        } else {
+          result = ShareMarkType.ERROR;
+        }
+      }
+
+      if (result === ShareMarkType.UNAUTHORIZED) {
+        await GoogleAuthService.instance.signOut();
+        win?.webContents.send('sharemark:session-expired');
       }
 
       return {
