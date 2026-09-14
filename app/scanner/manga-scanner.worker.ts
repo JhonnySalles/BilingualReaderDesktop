@@ -98,7 +98,8 @@ async function run(): Promise<void> {
 
     if (existing) {
       const currentAlteration = stat.mtime.toISOString();
-      const hasAlterationMatch = existing.fileAlteration && existing.fileAlteration === currentAlteration;
+      const existingAlt = existing.fileAlteration || '';
+      const hasAlterationMatch = existingAlt && existingAlt.split('.')[0] === currentAlteration.split('.')[0];
 
       // Fast-path: Se a data de alteração do arquivo no windows for igual e a biblioteca correta, não processa nada
       if (hasAlterationMatch) {
