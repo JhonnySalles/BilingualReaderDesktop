@@ -71,6 +71,16 @@ if errorlevel 1 (
 )
 
 echo.
+echo Running electron-builder for AI version...
+echo.
+call yarn run electron-builder --config electron-builder-full.json
+if errorlevel 1 (
+  echo.
+  echo ERROR: AI version build failed.
+  exit /b 1
+)
+
+echo.
 echo === Build finished ===
 echo Artifacts in: %CD%\exec
 echo.
@@ -81,6 +91,7 @@ if errorlevel 1 (
   echo.
   echo Installer:  look for BilingualReader-Setup-*.exe
   echo Portable:   look for BilingualReader-Portable-*.exe
+  echo IA Version: look for BilingualReader-Setup-AI-*.exe and BilingualReader-Portable-AI-*.exe
 )
 echo.
 exit /b 0
