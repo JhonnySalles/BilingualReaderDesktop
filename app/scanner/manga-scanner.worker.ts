@@ -97,9 +97,20 @@ async function run(): Promise<void> {
     const existing = existingItemsMap[normKey];
 
     if (existing) {
-      // Existing manga: check if metadata/cover needs recovery
+      const currentAlteration = stat.mtime.toISOString();
+      const hasAlterationMatch = existing.fileAlteration && existing.fileAlteration === currentAlteration;
+
+      // Fast-path: Se a data de alteração do arquivo no windows for igual e a biblioteca correta, não processa nada
+      if (hasAlterationMatch) {
+        if (existing.fkLibrary !== libraryId) {
+          batch.push({ id: existing.id, fkLibrary: libraryId });
+        }
+        return;
+      }
+
+      // Existing manga: check if metadata/cover needs recovery or if file was altered
       let needsUpdate = false;
-      const updated: Partial<Manga> = { ...existing };
+      const updated: Partial<Manga> = { ...existing, fileAlteration: currentAlteration, fileSize: stat.size };
 
       if (!existing.coverPath || !fs.existsSync(existing.coverPath)) {
         const extractedCover = await MangaImageCoverController.instance.getMangaCoverFile(existing as Manga);
@@ -109,21 +120,21 @@ async function run(): Promise<void> {
         }
       }
 
-      if (!existing.author || !existing.series || !existing.storyArch || !existing.characters) {
+      if (!existing.author || !existing.series || !existing.storyArch || !existing.characters || !hasAlterationMatch) {
         const parser = await ParseFactory.create(itemPath);
         if (parser) {
           try {
             const comicInfo = parser.getComicInfo();
             if (comicInfo) {
-              if (comicInfo.writer && !existing.author) { updated.author = comicInfo.writer; needsUpdate = true; }
-              if (comicInfo.series && !existing.series) { updated.series = comicInfo.series; needsUpdate = true; }
-              if (comicInfo.genre && !existing.genre) { updated.genre = comicInfo.genre; needsUpdate = true; }
-              if (comicInfo.publisher && !existing.publisher) { updated.publisher = comicInfo.publisher; needsUpdate = true; }
-              if (comicInfo.number && !existing.volume) { updated.volume = comicInfo.number; needsUpdate = true; }
-              if (comicInfo.languageISO && !existing.language) { updated.language = comicInfo.languageISO; needsUpdate = true; }
-              if (comicInfo.storyArc && !existing.storyArch) { updated.storyArch = comicInfo.storyArc; needsUpdate = true; }
-              if (comicInfo.characters && !existing.characters) { updated.characters = comicInfo.characters; needsUpdate = true; }
-              if (comicInfo.tags && !existing.tags) { updated.tags = comicInfo.tags; needsUpdate = true; }
+              if (comicInfo.writer && (!existing.author || !hasAlterationMatch)) { updated.author = comicInfo.writer; needsUpdate = true; }
+              if (comicInfo.series && (!existing.series || !hasAlterationMatch)) { updated.series = comicInfo.series; needsUpdate = true; }
+              if (comicInfo.genre && (!existing.genre || !hasAlterationMatch)) { updated.genre = comicInfo.genre; needsUpdate = true; }
+              if (comicInfo.publisher && (!existing.publisher || !hasAlterationMatch)) { updated.publisher = comicInfo.publisher; needsUpdate = true; }
+              if (comicInfo.number && (!existing.volume || !hasAlterationMatch)) { updated.volume = comicInfo.number; needsUpdate = true; }
+              if (comicInfo.languageISO && (!existing.language || !hasAlterationMatch)) { updated.language = comicInfo.languageISO; needsUpdate = true; }
+              if (comicInfo.storyArc && (!existing.storyArch || !hasAlterationMatch)) { updated.storyArch = comicInfo.storyArc; needsUpdate = true; }
+              if (comicInfo.characters && (!existing.characters || !hasAlterationMatch)) { updated.characters = comicInfo.characters; needsUpdate = true; }
+              if (comicInfo.tags && (!existing.tags || !hasAlterationMatch)) { updated.tags = comicInfo.tags; needsUpdate = true; }
             }
           } finally {
             parser.destroy();
@@ -131,7 +142,7 @@ async function run(): Promise<void> {
         }
       }
 
-      if (needsUpdate || existing.fkLibrary !== libraryId) {
+      if (needsUpdate || !hasAlterationMatch || existing.fkLibrary !== libraryId) {
         updated.fkLibrary = libraryId;
         batch.push(updated);
       }

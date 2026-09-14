@@ -92,7 +92,9 @@ export class ScannerMangaService {
             genre: m.genre,
             publisher: m.publisher,
             volume: m.volume,
-            fkLibrary: m.fkLibrary
+            fkLibrary: m.fkLibrary,
+            fileAlteration: m.fileAlteration,
+            fileSize: m.fileSize
           };
         }
       });
@@ -329,8 +331,15 @@ export class ScannerMangaService {
     libraryId: number,
     window: BrowserWindow | null
   ): Promise<void> {
+    const currentAlteration = stat.mtime.toISOString();
+    const hasAlterationMatch = existing.fileAlteration && existing.fileAlteration === currentAlteration;
+
+    if (hasAlterationMatch && existing.fkLibrary === libraryId && existing.coverPath && fs.existsSync(existing.coverPath)) {
+      return;
+    }
+
     let needsUpdate = false;
-    const updated: Partial<Manga> = { ...existing };
+    const updated: Partial<Manga> = { ...existing, fileAlteration: currentAlteration, fileSize: stat.size };
 
     if (!existing.coverPath || !fs.existsSync(existing.coverPath)) {
       const extractedCover = await MangaImageCoverController.instance.getMangaCoverFile(existing);

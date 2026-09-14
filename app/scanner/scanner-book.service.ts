@@ -91,7 +91,13 @@ export class ScannerBookService {
             genre: b.genre,
             publisher: b.publisher,
             volume: b.volume,
-            fkLibrary: b.fkLibrary
+            language: b.language,
+            isbn: b.isbn,
+            annotation: b.annotation,
+            tags: b.tags,
+            fkLibrary: b.fkLibrary,
+            fileAlteration: b.fileAlteration,
+            fileSize: b.fileSize
           };
         }
       });
@@ -274,8 +280,15 @@ export class ScannerBookService {
     libraryId: number,
     window: BrowserWindow | null
   ): Promise<void> {
+    const currentAlteration = stat.mtime.toISOString();
+    const hasAlterationMatch = existing.fileAlteration && existing.fileAlteration === currentAlteration;
+
+    if (hasAlterationMatch && existing.fkLibrary === libraryId && existing.coverPath && fs.existsSync(existing.coverPath)) {
+      return;
+    }
+
     let needsUpdate = false;
-    const updated: Partial<Book> = { ...existing };
+    const updated: Partial<Book> = { ...existing, fileAlteration: currentAlteration, fileSize: stat.size };
 
     if (!existing.coverPath || !fs.existsSync(existing.coverPath)) {
       const extractedCover = BookImageCoverController.instance.getBookCoverFile(existing);

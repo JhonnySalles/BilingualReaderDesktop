@@ -122,7 +122,9 @@ class ScannerMangaService {
                         genre: m.genre,
                         publisher: m.publisher,
                         volume: m.volume,
-                        fkLibrary: m.fkLibrary
+                        fkLibrary: m.fkLibrary,
+                        fileAlteration: m.fileAlteration,
+                        fileSize: m.fileSize
                     };
                 }
             });
@@ -348,8 +350,13 @@ class ScannerMangaService {
         }
     }
     async checkAndRecoverMetadata(existing, itemPath, stat, libraryId, window) {
+        const currentAlteration = stat.mtime.toISOString();
+        const hasAlterationMatch = existing.fileAlteration && existing.fileAlteration === currentAlteration;
+        if (hasAlterationMatch && existing.fkLibrary === libraryId && existing.coverPath && fs.existsSync(existing.coverPath)) {
+            return;
+        }
         let needsUpdate = false;
-        const updated = { ...existing };
+        const updated = { ...existing, fileAlteration: currentAlteration, fileSize: stat.size };
         if (!existing.coverPath || !fs.existsSync(existing.coverPath)) {
             const extractedCover = await manga_image_cover_controller_1.MangaImageCoverController.instance.getMangaCoverFile(existing);
             if (extractedCover) {

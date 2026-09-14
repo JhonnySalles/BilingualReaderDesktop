@@ -115,8 +115,20 @@ async function run(): Promise<void> {
     const existing = existingItemsMap[normKey];
 
     if (existing) {
+      const currentAlteration = stat.mtime.toISOString();
+      const hasAlterationMatch = existing.fileAlteration && existing.fileAlteration === currentAlteration;
+
+      // Fast-path: Se a data de alteração do arquivo no windows for igual e a biblioteca correta, não processa nada
+      if (hasAlterationMatch) {
+        if (existing.fkLibrary !== libraryId) {
+          batch.push({ id: existing.id, fkLibrary: libraryId });
+        }
+        return;
+      }
+
+      // Existing book: check if metadata/cover needs recovery or if file was altered
       let needsUpdate = false;
-      const updated: Partial<Book> = { ...existing };
+      const updated: Partial<Book> = { ...existing, fileAlteration: currentAlteration, fileSize: stat.size };
 
       if (!existing.coverPath || !fs.existsSync(existing.coverPath)) {
         const extractedCover = BookImageCoverController.instance.getBookCoverFile(existing as Book);
@@ -126,19 +138,19 @@ async function run(): Promise<void> {
         }
       }
 
-      if (!existing.author || !existing.series || !existing.isbn || !existing.annotation) {
+      if (!existing.author || !existing.series || !existing.isbn || !existing.annotation || !hasAlterationMatch) {
         const meta = BookExtractorFactory.getMetadata(filePath);
-        if (meta.author && !existing.author) { updated.author = meta.author; needsUpdate = true; }
-        if (meta.series && !existing.series) { updated.series = meta.series; needsUpdate = true; }
-        if (meta.genre && !existing.genre) { updated.genre = meta.genre; needsUpdate = true; }
-        if (meta.publisher && !existing.publisher) { updated.publisher = meta.publisher; needsUpdate = true; }
-        if (meta.language && !existing.language) { updated.language = meta.language; needsUpdate = true; }
-        if (meta.isbn && !existing.isbn) { updated.isbn = meta.isbn; needsUpdate = true; }
-        if (meta.annotation && !existing.annotation) { updated.annotation = meta.annotation; needsUpdate = true; }
-        if (meta.tags && !existing.tags) { updated.tags = meta.tags; needsUpdate = true; }
+        if (meta.author && (!existing.author || !hasAlterationMatch)) { updated.author = meta.author; needsUpdate = true; }
+        if (meta.series && (!existing.series || !hasAlterationMatch)) { updated.series = meta.series; needsUpdate = true; }
+        if (meta.genre && (!existing.genre || !hasAlterationMatch)) { updated.genre = meta.genre; needsUpdate = true; }
+        if (meta.publisher && (!existing.publisher || !hasAlterationMatch)) { updated.publisher = meta.publisher; needsUpdate = true; }
+        if (meta.language && (!existing.language || !hasAlterationMatch)) { updated.language = meta.language; needsUpdate = true; }
+        if (meta.isbn && (!existing.isbn || !hasAlterationMatch)) { updated.isbn = meta.isbn; needsUpdate = true; }
+        if (meta.annotation && (!existing.annotation || !hasAlterationMatch)) { updated.annotation = meta.annotation; needsUpdate = true; }
+        if (meta.tags && (!existing.tags || !hasAlterationMatch)) { updated.tags = meta.tags; needsUpdate = true; }
       }
 
-      if (needsUpdate || existing.fkLibrary !== libraryId) {
+      if (needsUpdate || !hasAlterationMatch || existing.fkLibrary !== libraryId) {
         updated.fkLibrary = libraryId;
         batch.push(updated);
       }
