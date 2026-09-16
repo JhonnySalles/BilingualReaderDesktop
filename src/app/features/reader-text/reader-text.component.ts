@@ -1550,7 +1550,8 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
 
   chapterDotPercent(location: number): number {
     const max = Math.max(1, this.pageCount() - 1);
-    return (location / max) * 100;
+    const pct = (location / max) * 100;
+    return Math.min(100, Math.max(0, pct));
   }
 
   /**
@@ -2401,7 +2402,14 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       !!this.editingAnnotation() ||
       this.showTouchDemo() ||
       this.showTouchConfig() ||
-      !!this.switchConfirm()
+      !!this.switchConfirm() ||
+      this.showAssistant() ||
+      this.showAssistantSummary() ||
+      this.showTrackerSimple() ||
+      this.showTrackerConfig() ||
+      this.showTtsPopup() ||
+      !!this.vocabDetail() ||
+      !!this.vocabKanji()
     );
   }
 
@@ -4679,11 +4687,39 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       };
       walk(nav?.toc || []);
 
-      // Drop consecutive duplicates (nested TOC pointing at the same spine item).
+      // If any items have invalid locations, try to extrapolate from valid neighbouring items
+      const maxLoc = Math.max(0, this.pageCount() - 1);
+      for (let i = 0; i < flat.length; i++) {
+        if (flat[i].location < 0) {
+          // If first item has no location, default to 0
+          if (i === 0) {
+            flat[i].location = 0;
+          } else {
+            // Find next valid
+            let nextValid = -1;
+            for (let j = i + 1; j < flat.length; j++) {
+              if (flat[j].location >= 0) {
+                nextValid = flat[j].location;
+                break;
+              }
+            }
+            const prevValid = flat[i - 1].location >= 0 ? flat[i - 1].location : 0;
+            if (nextValid >= 0 && nextValid >= prevValid) {
+              flat[i].location = Math.min(maxLoc, prevValid);
+            } else {
+              flat[i].location = Math.min(maxLoc, prevValid);
+            }
+          }
+        }
+      }
+
+      // Drop consecutive duplicates (nested TOC pointing at the same spine item/location with identical label).
       const deduped: TocEntry[] = [];
       for (const entry of flat) {
         const prev = deduped[deduped.length - 1];
-        if (prev && prev.location >= 0 && entry.location === prev.location) continue;
+        if (prev && prev.location >= 0 && entry.location === prev.location && prev.label === entry.label) {
+          continue;
+        }
         deduped.push(entry);
       }
       this.toc.set(deduped);
@@ -4698,32 +4734,48 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     const section = this.resolveSpineSection(book, href);
     if (!section) return -1;
 
-    const cfi = section.cfiBase as string | undefined;
-    if (cfi) {
-      const fromCfi = this.locationFromCfiValue(book, cfi);
+    const locs: string[] = (book.locations as any)?._locations;
+    const cfiBase: string = (section.cfiBase || '').replace(/^epubcfi\(|\)$/g, '');
+
+    // 1. Direct lookup in generated locations list by section's cfiBase
+    if (cfiBase && Array.isArray(locs) && locs.length > 0) {
+      const idx = locs.findIndex(loc => loc && loc.includes(cfiBase));
+      if (idx >= 0) return idx;
+    }
+
+    // 2. Try CFI resolution via epub.js Locations API
+    if (cfiBase) {
+      const fromCfi = this.locationFromCfiValue(book, cfiBase);
       if (fromCfi >= 0) return fromCfi;
     }
 
-    // Fallback: map spine index proportionally onto the locations timeline.
+    // 3. Fallback: map spine index proportionally onto the locations timeline.
     try {
-      const spineLen = Number((book as any).spine?.length) || 0;
-      const idx = typeof section.index === 'number' ? section.index : -1;
-      const locLen = Math.max(1, book.locations.length() - 1);
+      const spine = (book as any).spine;
+      const items: any[] = spine?.spineItems || spine?.items || (Array.isArray(spine) ? spine : []);
+      const spineLen = Math.max(Number(spine?.length) || 0, items.length);
+      const idx = typeof section.index === 'number' ? section.index : items.indexOf(section);
+      const locLen = Math.max(1, (book.locations?.length?.() ?? this.pageCount()) - 1);
+
       if (idx === 0) return 0;
       if (idx > 0 && spineLen > 1) {
         return Math.min(locLen, Math.max(0, Math.round((idx / (spineLen - 1)) * locLen)));
       }
+      if (idx > 0 && spineLen === 1) {
+        return 0;
+      }
     } catch { /* ignore */ }
+
     return -1;
   }
 
   private resolveSpineSection(book: EpubBook, href: string): any | null {
     const spine = (book as any).spine;
-    if (!spine?.get) return null;
+    if (!spine) return null;
 
     const raw = (href || '').trim();
     if (!raw) return null;
-    const noHash = raw.split('#')[0];
+    const noHash = raw.split('#')[0].replace(/^\.\//, '');
     let decoded = noHash;
     try {
       decoded = decodeURIComponent(noHash);
@@ -4741,30 +4793,63 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     } catch { /* ignore */ }
 
     try {
-      const canon = typeof (book as any).canonical === 'function'
-        ? (book as any).canonical(noHash)
+      const canon = typeof spine.canonical === 'function'
+        ? spine.canonical(noHash)
         : null;
       if (canon) candidates.add(String(canon));
     } catch { /* ignore */ }
 
-    for (const c of candidates) {
-      try {
-        const section = spine.get(c);
-        if (section) return section;
-      } catch { /* try next */ }
+    // 1. Try spine.get with candidates
+    if (typeof spine.get === 'function') {
+      for (const c of candidates) {
+        try {
+          const section = spine.get(c);
+          if (section) return section;
+        } catch { /* try next */ }
+      }
     }
+
+    // 2. Direct search across spine items list
+    const items: any[] = spine.spineItems || spine.items || (Array.isArray(spine) ? spine : []);
+    if (Array.isArray(items) && items.length > 0) {
+      const cleanTarget = noHash.toLowerCase();
+      const baseTarget = (base || '').toLowerCase();
+
+      for (const item of items) {
+        if (!item) continue;
+        const itemHref = String(item.href || '').toLowerCase();
+        const itemCanon = String(item.canonical || '').toLowerCase();
+        const itemId = String(item.idref || item.id || '').toLowerCase();
+        const itemBase = itemHref.split('/').pop() || '';
+
+        if (
+          itemHref === cleanTarget ||
+          itemCanon === cleanTarget ||
+          itemId === cleanTarget ||
+          (baseTarget && itemBase === baseTarget) ||
+          (cleanTarget && itemHref.endsWith(cleanTarget)) ||
+          (cleanTarget && cleanTarget.endsWith(itemHref))
+        ) {
+          return item;
+        }
+      }
+    }
+
     return null;
   }
 
   private locationFromCfiValue(book: EpubBook, cfi: string): number {
     if (!cfi || !book.locations) return -1;
+    const cleanCfi = cfi.trim();
+    const formattedCfi = cleanCfi.startsWith('epubcfi(') ? cleanCfi : `epubcfi(${cleanCfi})`;
+
     try {
-      const raw = book.locations.locationFromCfi(cfi) as unknown;
+      const raw = book.locations.locationFromCfi(formattedCfi) as unknown;
       const n = typeof raw === 'number' ? raw : Number(raw);
       if (Number.isFinite(n) && n >= 0) return Math.round(n);
     } catch { /* try percentage */ }
     try {
-      const pctRaw = book.locations.percentageFromCfi(cfi) as unknown;
+      const pctRaw = book.locations.percentageFromCfi(formattedCfi) as unknown;
       const pct = typeof pctRaw === 'number' ? pctRaw : Number(pctRaw);
       if (Number.isFinite(pct) && pct >= 0) {
         const len = Math.max(1, book.locations.length() - 1);

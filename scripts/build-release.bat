@@ -61,22 +61,12 @@ if not exist ".env.production" (
 )
 
 echo.
-echo Running yarn build:electron (compile + native + Angular + electron-builder^)...
+echo Running yarn build:electron:release (compile + native + Angular + electron-builder normal + electron-builder AI^)...
 echo.
-call yarn build:electron
+call yarn build:electron:release
 if errorlevel 1 (
   echo.
-  echo ERROR: build:electron failed.
-  exit /b 1
-)
-
-echo.
-echo Running electron-builder for AI version...
-echo.
-call yarn run electron-builder --config electron-builder-full.json
-if errorlevel 1 (
-  echo.
-  echo ERROR: AI version build failed.
+  echo ERROR: build:electron:release failed.
   exit /b 1
 )
 

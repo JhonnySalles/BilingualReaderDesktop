@@ -165,11 +165,23 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
                 <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Preferências de Exibição e Legenda</h3>
                 <div class="grid grid-cols-2 gap-4">
                   <div>
-                    <label class="block text-xs text-slate-300 mb-1 font-medium">Ordem de Exibição Padrão</label>
+                    <label class="block text-xs text-slate-300 mb-1 font-medium">Ordem Padrão de Mangás</label>
                     <select
                       class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200"
-                      [ngModel]="settingsService.libraryDefaultOrder()"
-                      (ngModelChange)="onLibraryDefaultOrder($event)">
+                      [ngModel]="settingsService.mangaLibraryOrder()"
+                      (ngModelChange)="onMangaLibraryDefaultOrder($event)">
+                      <option [ngValue]="OrderType.Name">Nome do Arquivo (A-Z)</option>
+                      <option [ngValue]="OrderType.LastAccess">Últimos Lidos</option>
+                      <option [ngValue]="OrderType.Date">Data de Modificação</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label class="block text-xs text-slate-300 mb-1 font-medium">Ordem Padrão de Livros</label>
+                    <select
+                      class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200"
+                      [ngModel]="settingsService.bookLibraryOrder()"
+                      (ngModelChange)="onBookLibraryDefaultOrder($event)">
                       <option [ngValue]="OrderType.Name">Nome do Arquivo (A-Z)</option>
                       <option [ngValue]="OrderType.LastAccess">Últimos Lidos</option>
                       <option [ngValue]="OrderType.Date">Data de Modificação</option>
@@ -1328,31 +1340,38 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
                     <label class="block text-xs text-slate-300 mb-1 font-medium">Modelo Q&amp;A (livro)</label>
-                    <input list="local-llm-models" type="text"
+                    <select
                       class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200"
                       [ngModel]="settingsService.llmBookLocalModel()"
-                      (ngModelChange)="settingsService.llmBookLocalModel.set($event)" />
+                      (ngModelChange)="settingsService.llmBookLocalModel.set($event)">
+                      @for (m of localModelOptions(); track m) {
+                        <option [value]="m">{{ m }}</option>
+                      }
+                    </select>
                   </div>
                   <div>
                     <label class="block text-xs text-slate-300 mb-1 font-medium">Modelo resumo (livro)</label>
-                    <input list="local-llm-models" type="text"
+                    <select
                       class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200"
                       [ngModel]="settingsService.llmBookLocalModelSummary()"
-                      (ngModelChange)="settingsService.llmBookLocalModelSummary.set($event)" />
+                      (ngModelChange)="settingsService.llmBookLocalModelSummary.set($event)">
+                      @for (m of localModelOptions(); track m) {
+                        <option [value]="m">{{ m }}</option>
+                      }
+                    </select>
                   </div>
                   <div>
                     <label class="block text-xs text-slate-300 mb-1 font-medium">Modelo mangá / OCR</label>
-                    <input list="local-llm-models" type="text"
+                    <select
                       class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200"
                       [ngModel]="settingsService.llmMangaLocalModel()"
-                      (ngModelChange)="settingsService.llmMangaLocalModel.set($event)" />
+                      (ngModelChange)="settingsService.llmMangaLocalModel.set($event)">
+                      @for (m of localModelOptions(); track m) {
+                        <option [value]="m">{{ m }}</option>
+                      }
+                    </select>
                   </div>
                 </div>
-                <datalist id="local-llm-models">
-                  @for (m of localModelIds(); track m) {
-                    <option [value]="m"></option>
-                  }
-                </datalist>
               </div>
 
               <div class="bg-slate-900/80 rounded-xl p-5 border border-slate-800 space-y-4">
@@ -1815,6 +1834,22 @@ export class SettingsComponent implements OnInit, OnDestroy {
   localTesting = signal(false);
   localModelsLoading = signal(false);
   localModelIds = signal<string[]>([]);
+  localModelOptions = computed<string[]>(() => {
+    const list = this.localModelIds();
+    const current1 = this.settingsService.llmBookLocalModel();
+    const current2 = this.settingsService.llmBookLocalModelSummary();
+    const current3 = this.settingsService.llmMangaLocalModel();
+    const set = new Set<string>();
+    for (const m of list) if (m) set.add(m);
+    if (current1) set.add(current1);
+    if (current2) set.add(current2);
+    if (current3) set.add(current3);
+    if (set.size === 0) {
+      set.add('llama3.2');
+      set.add('qwen2.5:7b');
+    }
+    return Array.from(set);
+  });
   localToast = signal<{ message: string; kind: 'info' | 'success' | 'error' } | null>(null);
   converterTools = signal<{ pandoc: boolean; calibre: boolean } | null>(null);
   converterAdapters = signal<
@@ -1859,9 +1894,13 @@ export class SettingsComponent implements OnInit, OnDestroy {
     this.localToast.set(null);
   }
 
-  onLibraryDefaultOrder(order: OrderType): void {
-    this.settingsService.libraryDefaultOrder.set(order);
+  onMangaLibraryDefaultOrder(order: OrderType): void {
+    this.settingsService.mangaLibraryOrder.set(order);
     this.libraryState.setCurrentOrder(order, 'manga');
+  }
+
+  onBookLibraryDefaultOrder(order: OrderType): void {
+    this.settingsService.bookLibraryOrder.set(order);
     this.libraryState.setCurrentOrder(order, 'book');
   }
 
@@ -1971,6 +2010,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
   onLocalKindChange(value: string): void {
     const kind: LlmLocalKind = value === 'lm_studio' ? 'lm_studio' : 'ollama';
     this.settingsService.llmLocalKind.set(kind);
+    void this.onRefreshLocalModels();
   }
 
   localBaseUrl(): string {
@@ -2013,6 +2053,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
           `Local OK${typeof result.models === 'number' ? ` (${result.models} modelos)` : ''}`,
           'success'
         );
+        void this.onRefreshLocalModels();
       } else {
         this.showLocalToast(result.error || 'Falha na conexão local', 'error');
       }

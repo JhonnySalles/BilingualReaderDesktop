@@ -51,6 +51,15 @@ function normalizeBaseUrl(baseUrl: string): string {
     .replace(/\/+$/, '');
 }
 
+function resolveChatUrl(baseUrl: string): string {
+  const base = normalizeBaseUrl(baseUrl);
+  if (!base) return '';
+  if (base.endsWith('/chat/completions')) return base;
+  if (base.endsWith('/v1')) return `${base}/chat/completions`;
+  if (base.includes('/v1/')) return `${base}/chat/completions`;
+  return `${base}/v1/chat/completions`;
+}
+
 function buildHeaders(apiKey: string | undefined, extra?: Record<string, string>): Record<string, string> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -58,7 +67,7 @@ function buildHeaders(apiKey: string | undefined, extra?: Record<string, string>
   };
   const key = (apiKey || '').trim();
   if (key) {
-    headers.Authorization = `Bearer ${key}`;
+    headers['Authorization'] = `Bearer ${key}`;
   }
   return headers;
 }
@@ -90,8 +99,8 @@ function assertModel(model: string): void {
 }
 
 export async function openAiCompatChatCompletion(input: OpenAiCompatChatInput): Promise<string> {
-  const base = normalizeBaseUrl(input.baseUrl);
-  if (!base) throw new OpenAiCompatError('Base URL ausente', undefined, 'api');
+  const chatUrl = resolveChatUrl(input.baseUrl);
+  if (!chatUrl) throw new OpenAiCompatError('Base URL ausente', undefined, 'api');
   assertModel(input.model);
   if (input.requireApiKey && !(input.apiKey || '').trim()) {
     throw new OpenAiCompatError('API key ausente', 401, 'unauthorized');
@@ -99,7 +108,7 @@ export async function openAiCompatChatCompletion(input: OpenAiCompatChatInput): 
 
   let res: Response;
   try {
-    res = await fetch(`${base}/chat/completions`, {
+    res = await fetch(chatUrl, {
       method: 'POST',
       headers: buildHeaders(input.apiKey, input.extraHeaders),
       body: JSON.stringify({
@@ -135,8 +144,8 @@ export async function openAiCompatChatCompletionStream(
   input: OpenAiCompatChatInput,
   onChunk: (delta: string) => void
 ): Promise<string> {
-  const base = normalizeBaseUrl(input.baseUrl);
-  if (!base) throw new OpenAiCompatError('Base URL ausente', undefined, 'api');
+  const chatUrl = resolveChatUrl(input.baseUrl);
+  if (!chatUrl) throw new OpenAiCompatError('Base URL ausente', undefined, 'api');
   assertModel(input.model);
   if (input.requireApiKey && !(input.apiKey || '').trim()) {
     throw new OpenAiCompatError('API key ausente', 401, 'unauthorized');
@@ -144,7 +153,7 @@ export async function openAiCompatChatCompletionStream(
 
   let res: Response;
   try {
-    res = await fetch(`${base}/chat/completions`, {
+    res = await fetch(chatUrl, {
       method: 'POST',
       headers: buildHeaders(input.apiKey, input.extraHeaders),
       body: JSON.stringify({
@@ -209,42 +218,85 @@ export async function openAiCompatListModels(
   const base = normalizeBaseUrl(baseUrl);
   if (!base) throw new OpenAiCompatError('Base URL ausente', undefined, 'api');
 
-  let res: Response;
+  // Derive origin/root (e.g., http://127.0.0.1:11434 from http://127.0.0.1:11434/v1)
+  let root = base;
   try {
-    res = await fetch(`${base}/models`, {
-      method: 'GET',
-      headers: buildHeaders(apiKey, extraHeaders)
-    });
-  } catch (e: any) {
-    throw new OpenAiCompatError(e?.message || 'Falha de rede ao listar modelos', undefined, 'network');
+    const u = new URL(base.startsWith('http') ? base : `http://${base}`);
+    root = `${u.protocol}//${u.host}`;
+  } catch {
+    root = base.replace(/\/v1$/, '');
   }
-  if (!res.ok) await throwForHttp(res);
 
-  const json = (await res.json()) as {
-    data?: Array<{
-      id?: string;
-      name?: string;
-      owned_by?: string;
-    }>;
-  };
+  const candidates = Array.from(
+    new Set([
+      `${base}/models`,
+      `${root}/v1/models`,
+      `${root}/api/tags`,
+      `${root}/api/v0/models`,
+      `${root}/models`
+    ])
+  );
 
   const out: OpenAiCompatModelInfo[] = [];
   const seen = new Set<string>();
-  for (const m of json.data || []) {
-    const id = String(m.id || '').trim();
-    if (!id || seen.has(id)) continue;
-    seen.add(id);
-    const name = String(m.name || id);
-    const lower = `${id} ${name}`.toLowerCase();
-    const hasVision =
-      lower.includes('vision') ||
-      lower.includes('llava') ||
-      lower.includes('gpt-4o') ||
-      lower.includes('gemini') ||
-      lower.includes('qwen2-vl') ||
-      lower.includes('minicpm-v');
-    out.push({ id, name, hasVision });
+  let lastError: string | undefined;
+
+  for (const candidateUrl of candidates) {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 6000);
+      const res = await fetch(candidateUrl, {
+        method: 'GET',
+        headers: buildHeaders(apiKey, extraHeaders),
+        signal: controller.signal
+      });
+      clearTimeout(timer);
+
+      if (!res.ok) continue;
+
+      const json = await res.json();
+      const items: any[] = Array.isArray(json)
+        ? json
+        : Array.isArray(json?.data)
+          ? json.data
+          : Array.isArray(json?.models)
+            ? json.models
+            : [];
+
+      for (const m of items) {
+        const id = String(m.id || m.name || m.model || '').trim();
+        if (!id || seen.has(id)) continue;
+        seen.add(id);
+        const name = String(m.name || m.id || id);
+        const lower = `${id} ${name}`.toLowerCase();
+        const hasVision =
+          lower.includes('vision') ||
+          lower.includes('llava') ||
+          lower.includes('gpt-4o') ||
+          lower.includes('gemini') ||
+          lower.includes('qwen2-vl') ||
+          lower.includes('minicpm-v') ||
+          lower.includes('pixtral') ||
+          Boolean(
+            m.details?.families?.some(
+              (f: string) => f.toLowerCase().includes('clip') || f.toLowerCase().includes('vision')
+            )
+          );
+        out.push({ id, name, hasVision });
+      }
+
+      if (out.length > 0) {
+        break;
+      }
+    } catch (e: any) {
+      lastError = e?.message || String(e);
+    }
   }
+
+  if (out.length === 0 && lastError) {
+    throw new OpenAiCompatError(lastError, undefined, 'network');
+  }
+
   out.sort((a, b) => a.id.localeCompare(b.id));
   return out;
 }

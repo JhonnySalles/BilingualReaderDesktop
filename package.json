@@ -20,6 +20,7 @@
     "build:electron": "yarn compile:electron && yarn build:native && yarn build && electron-builder",
     "build:electron:light": "yarn compile:electron && yarn build:native && yarn build && electron-builder",
     "build:electron:full": "yarn compile:electron && yarn build:native && yarn build && electron-builder --config electron-builder-full.json",
+    "build:electron:release": "yarn compile:electron && yarn build:native && yarn build && electron-builder && electron-builder --config electron-builder-full.json",
     "release:win": "scripts\\build-release.bat"
   },
   "build": {

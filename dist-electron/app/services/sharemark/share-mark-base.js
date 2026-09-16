@@ -254,11 +254,54 @@ class ShareMarkBase {
         const fkLibrary = manga.fkLibrary ?? 0;
         if (item.history) {
             const local = this.storage.historyRepository.listByReference('MANGA', manga.id);
-            const localStarts = new Set(local.map((h) => ((0, share_item_mapper_1.parseFlexibleDate)(h.date_time_start)?.getTime() ?? 0)));
+            const localByStart = new Map();
+            for (const h of local) {
+                const t = (0, share_item_mapper_1.parseFlexibleDate)(h.date_time_start)?.getTime();
+                if (t != null)
+                    localByStart.set(t, h);
+            }
             for (const shared of Object.values(item.history)) {
                 const start = (0, share_item_mapper_1.parseFlexibleDate)(shared.start);
-                if (!start || localStarts.has(start.getTime()))
+                if (!start)
                     continue;
+                const existing = localByStart.get(start.getTime());
+                if (existing) {
+                    const sharedPageStart = shared.pageStart ?? 0;
+                    const sharedPageEnd = shared.pageEnd ?? 0;
+                    const sharedPages = shared.pages ?? 1;
+                    const sharedCompleted = Boolean(shared.completed);
+                    const sharedSecondsRead = shared.secondsRead ?? 0;
+                    const sharedAverageTime = shared.averageTimeByPage ?? 0;
+                    const sharedChaptersRead = shared.chaptersRead ?? 0;
+                    const sharedUseTTS = Boolean(shared.useTTS);
+                    const sharedVolume = shared.volume ?? '';
+                    const sharedEnd = shared.end || existing.date_time_end;
+                    const isDiff = (existing.page_start ?? 0) !== sharedPageStart ||
+                        (existing.page_end ?? 0) !== sharedPageEnd ||
+                        (existing.pages ?? 1) !== sharedPages ||
+                        Boolean(existing.completed) !== sharedCompleted ||
+                        (existing.seconds_read ?? 0) !== sharedSecondsRead ||
+                        (existing.average_time_page ?? 0) !== sharedAverageTime ||
+                        (existing.chapters_read ?? 0) !== sharedChaptersRead ||
+                        Boolean(existing.use_tts) !== sharedUseTTS ||
+                        (existing.volume || '') !== sharedVolume ||
+                        (shared.end && existing.date_time_end !== shared.end);
+                    if (isDiff) {
+                        this.storage.historyRepository.updateSharedSession(existing.id, {
+                            pageStart: sharedPageStart,
+                            pageEnd: sharedPageEnd,
+                            pages: sharedPages,
+                            completed: sharedCompleted,
+                            volume: sharedVolume,
+                            chaptersRead: sharedChaptersRead,
+                            dateTimeEnd: sharedEnd,
+                            secondsRead: sharedSecondsRead,
+                            averageTimeByPage: sharedAverageTime,
+                            useTTS: sharedUseTTS
+                        });
+                    }
+                    continue;
+                }
                 this.storage.historyRepository.insertSharedSession({
                     fkLibrary,
                     fkReference: manga.id,
@@ -314,11 +357,54 @@ class ShareMarkBase {
         const fkLibrary = book.fkLibrary ?? 0;
         if (item.history) {
             const local = this.storage.historyRepository.listByReference('BOOK', book.id);
-            const localStarts = new Set(local.map((h) => ((0, share_item_mapper_1.parseFlexibleDate)(h.date_time_start)?.getTime() ?? 0)));
+            const localByStart = new Map();
+            for (const h of local) {
+                const t = (0, share_item_mapper_1.parseFlexibleDate)(h.date_time_start)?.getTime();
+                if (t != null)
+                    localByStart.set(t, h);
+            }
             for (const shared of Object.values(item.history)) {
                 const start = (0, share_item_mapper_1.parseFlexibleDate)(shared.start);
-                if (!start || localStarts.has(start.getTime()))
+                if (!start)
                     continue;
+                const existing = localByStart.get(start.getTime());
+                if (existing) {
+                    const sharedPageStart = shared.pageStart ?? 0;
+                    const sharedPageEnd = shared.pageEnd ?? 0;
+                    const sharedPages = shared.pages ?? 1;
+                    const sharedCompleted = Boolean(shared.completed);
+                    const sharedSecondsRead = shared.secondsRead ?? 0;
+                    const sharedAverageTime = shared.averageTimeByPage ?? 0;
+                    const sharedChaptersRead = shared.chaptersRead ?? 0;
+                    const sharedUseTTS = Boolean(shared.useTTS);
+                    const sharedVolume = shared.volume ?? '';
+                    const sharedEnd = shared.end || existing.date_time_end;
+                    const isDiff = (existing.page_start ?? 0) !== sharedPageStart ||
+                        (existing.page_end ?? 0) !== sharedPageEnd ||
+                        (existing.pages ?? 1) !== sharedPages ||
+                        Boolean(existing.completed) !== sharedCompleted ||
+                        (existing.seconds_read ?? 0) !== sharedSecondsRead ||
+                        (existing.average_time_page ?? 0) !== sharedAverageTime ||
+                        (existing.chapters_read ?? 0) !== sharedChaptersRead ||
+                        Boolean(existing.use_tts) !== sharedUseTTS ||
+                        (existing.volume || '') !== sharedVolume ||
+                        (shared.end && existing.date_time_end !== shared.end);
+                    if (isDiff) {
+                        this.storage.historyRepository.updateSharedSession(existing.id, {
+                            pageStart: sharedPageStart,
+                            pageEnd: sharedPageEnd,
+                            pages: sharedPages,
+                            completed: sharedCompleted,
+                            volume: sharedVolume,
+                            chaptersRead: sharedChaptersRead,
+                            dateTimeEnd: sharedEnd,
+                            secondsRead: sharedSecondsRead,
+                            averageTimeByPage: sharedAverageTime,
+                            useTTS: sharedUseTTS
+                        });
+                    }
+                    continue;
+                }
                 this.storage.historyRepository.insertSharedSession({
                     fkLibrary,
                     fkReference: book.id,

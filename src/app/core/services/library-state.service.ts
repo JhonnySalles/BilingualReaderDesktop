@@ -20,11 +20,7 @@ interface StoredViewPreferences {
   bookOrder?: OrderType;
   bookIsAscending?: boolean;
   historyMangaView?: LibraryViewType;
-  historyMangaOrder?: OrderType;
-  historyMangaIsAscending?: boolean;
   historyBookView?: LibraryViewType;
-  historyBookOrder?: OrderType;
-  historyBookIsAscending?: boolean;
 }
 
 @Injectable({
@@ -113,11 +109,7 @@ export class LibraryStateService {
         bookOrder: this.bookOrder(),
         bookIsAscending: this.bookIsAscending(),
         historyMangaView: this.historyMangaView(),
-        historyMangaOrder: this.historyMangaOrder(),
-        historyMangaIsAscending: this.historyMangaIsAscending(),
-        historyBookView: this.historyBookView(),
-        historyBookOrder: this.historyBookOrder(),
-        historyBookIsAscending: this.historyBookIsAscending()
+        historyBookView: this.historyBookView()
       };
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
@@ -156,21 +148,9 @@ export class LibraryStateService {
       if (data.historyMangaView && Object.values(LibraryViewType).includes(data.historyMangaView)) {
         this.historyMangaView.set(data.historyMangaView);
       }
-      if (data.historyMangaOrder && Object.values(OrderType).includes(data.historyMangaOrder)) {
-        this.historyMangaOrder.set(data.historyMangaOrder);
-      }
-      if (typeof data.historyMangaIsAscending === 'boolean') {
-        this.historyMangaIsAscending.set(data.historyMangaIsAscending);
-      }
 
       if (data.historyBookView && Object.values(LibraryViewType).includes(data.historyBookView)) {
         this.historyBookView.set(data.historyBookView);
-      }
-      if (data.historyBookOrder && Object.values(OrderType).includes(data.historyBookOrder)) {
-        this.historyBookOrder.set(data.historyBookOrder);
-      }
-      if (typeof data.historyBookIsAscending === 'boolean') {
-        this.historyBookIsAscending.set(data.historyBookIsAscending);
       }
     } catch (e) {
       console.error('Failed to load library view preferences from localStorage', e);

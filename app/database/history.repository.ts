@@ -343,6 +343,54 @@ export class HistoryRepository extends BaseRepository<HistoryRow, number> {
     return Number(result.lastInsertRowid);
   }
 
+  /** Update an existing session from cloud sync without re-notifying or modifying other fields. */
+  public updateSharedSession(
+    id: number,
+    input: {
+      pageStart?: number;
+      pageEnd?: number;
+      pages?: number;
+      completed?: boolean;
+      volume?: string;
+      chaptersRead?: number;
+      dateTimeEnd?: string;
+      secondsRead?: number;
+      averageTimeByPage?: number;
+      useTTS?: boolean;
+      wordCount?: number;
+    }
+  ): void {
+    const stmt = this.db.prepare(`
+      UPDATE History SET
+        page_start = COALESCE(?, page_start),
+        page_end = COALESCE(?, page_end),
+        pages = COALESCE(?, pages),
+        completed = COALESCE(?, completed),
+        volume = COALESCE(?, volume),
+        chapters_read = COALESCE(?, chapters_read),
+        date_time_end = COALESCE(?, date_time_end),
+        seconds_read = COALESCE(?, seconds_read),
+        average_time_page = COALESCE(?, average_time_page),
+        use_tts = COALESCE(?, use_tts),
+        word_count = COALESCE(?, word_count)
+      WHERE id = ?
+    `);
+    stmt.run(
+      input.pageStart !== undefined ? input.pageStart : null,
+      input.pageEnd !== undefined ? input.pageEnd : null,
+      input.pages !== undefined ? input.pages : null,
+      input.completed !== undefined ? (input.completed ? 1 : 0) : null,
+      input.volume !== undefined ? input.volume : null,
+      input.chaptersRead !== undefined ? input.chaptersRead : null,
+      input.dateTimeEnd !== undefined ? input.dateTimeEnd : null,
+      input.secondsRead !== undefined ? input.secondsRead : null,
+      input.averageTimeByPage !== undefined ? input.averageTimeByPage : null,
+      input.useTTS !== undefined ? (input.useTTS ? 1 : 0) : null,
+      input.wordCount !== undefined ? input.wordCount : null,
+      id
+    );
+  }
+
   public listYears(type: HistoryContentType): number[] {
     const stmt = this.db.prepare(`
       SELECT DISTINCT CAST(SUBSTR(date_time_start, 1, 4) AS INTEGER) AS year
