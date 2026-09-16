@@ -91,6 +91,16 @@ class MigrationsManager {
         catch (e) {
             console.warn('[MigrationsManager] Error updating Book columns:', e);
         }
+        // Ensure extra columns exist on History
+        try {
+            const historyCols = this.db.pragma('table_info(History)');
+            const historyColNames = new Set(historyCols.map(c => c.name));
+            if (!historyColNames.has('altered'))
+                this.db.exec("ALTER TABLE History ADD COLUMN altered INTEGER NOT NULL DEFAULT 0");
+        }
+        catch (e) {
+            console.warn('[MigrationsManager] Error updating History columns:', e);
+        }
     }
     createInitialSchema() {
         this.db.exec(`
@@ -330,7 +340,8 @@ class MigrationsManager {
         use_tts INTEGER NOT NULL DEFAULT 0,
         notified INTEGER NOT NULL DEFAULT 0,
         word_count INTEGER NOT NULL DEFAULT 0,
-        seconds_read_automatic INTEGER NOT NULL DEFAULT 0
+        seconds_read_automatic INTEGER NOT NULL DEFAULT 0,
+        altered INTEGER NOT NULL DEFAULT 0
       );
 
       CREATE INDEX IF NOT EXISTS index_History_reference_library ON History(id_reference, id_library);

@@ -28,6 +28,7 @@ import {
 } from './share-item.mapper';
 import { scaleBookBookmarkFromCloud } from '../../../src/app/core/utils/share-mark-compare';
 import { scaleAnnotationPageFromCloud } from '../../../src/app/core/utils/share-annotation-reconcile';
+import { reconcileHistorySession } from '../../../src/app/core/utils/share-history-reconcile';
 import { ShareAnnotation } from '../../../src/app/core/models/entities/share-item.model';
 
 export type ShareMarkContentType = 'MANGA' | 'BOOK';
@@ -188,8 +189,6 @@ export abstract class ShareMarkBase {
   /** @returns true if cloud data was applied to local entity */
   protected compareManga(item: ShareItem, manga: Manga): boolean {
     const mangaAccessDate = manga.lastAccess ? parseFlexibleDate(manga.lastAccess) : null;
-    const mangaAlterationDate = manga.lastAlteration ? parseFlexibleDate(manga.lastAlteration) : null;
-    const syncDate = parseFlexibleDate(item.sync) || new Date(0);
     const itemAccessDate = parseFlexibleDate(item.lastAccess) || new Date(0);
 
     const localHasProgress = (manga.bookMark && manga.bookMark > 0) || manga.completed || !!manga.lastAccess;
@@ -197,8 +196,7 @@ export abstract class ShareMarkBase {
 
     if (
       (!localHasProgress && cloudHasProgress) ||
-      (!mangaAccessDate && !mangaAlterationDate) ||
-      (mangaAlterationDate && mangaAlterationDate < syncDate) ||
+      !mangaAccessDate ||
       (mangaAccessDate && itemAccessDate > mangaAccessDate)
     ) {
       manga.bookMark =
@@ -226,8 +224,6 @@ export abstract class ShareMarkBase {
 
   protected compareBook(item: ShareItem, book: Book): boolean {
     const bookAccessDate = book.lastAccess ? parseFlexibleDate(book.lastAccess) : null;
-    const bookAlterationDate = book.lastAlteration ? parseFlexibleDate(book.lastAlteration) : null;
-    const syncDate = parseFlexibleDate(item.sync) || new Date(0);
     const itemAccessDate = parseFlexibleDate(item.lastAccess) || new Date(0);
 
     const localHasProgress = (book.bookMark && book.bookMark > 0) || book.completed || !!book.lastAccess;
@@ -235,8 +231,7 @@ export abstract class ShareMarkBase {
 
     if (
       (!localHasProgress && cloudHasProgress) ||
-      (!bookAccessDate && !bookAlterationDate) ||
-      (bookAlterationDate && bookAlterationDate < syncDate) ||
+      !bookAccessDate ||
       (bookAccessDate && itemAccessDate > bookAccessDate)
     ) {
       if ((book.pages ?? 1) <= 1 && item.pages > 1) {
@@ -291,6 +286,10 @@ export abstract class ShareMarkBase {
     if (!manga.id) return;
     const fkLibrary = manga.fkLibrary ?? 0;
 
+    if (this.storage.historyRepository.hasAltered('MANGA', manga.id)) {
+      item.alter = true;
+    }
+
     if (item.history) {
       const local = this.storage.historyRepository.listByReference('MANGA', manga.id);
       const localByStart = new Map<number, HistoryRow>();
@@ -305,42 +304,12 @@ export abstract class ShareMarkBase {
 
         const existing = localByStart.get(start.getTime());
         if (existing) {
-          const sharedPageStart = shared.pageStart ?? 0;
-          const sharedPageEnd = shared.pageEnd ?? 0;
-          const sharedPages = shared.pages ?? 1;
-          const sharedCompleted = Boolean(shared.completed);
-          const sharedSecondsRead = shared.secondsRead ?? 0;
-          const sharedAverageTime = shared.averageTimeByPage ?? 0;
-          const sharedChaptersRead = shared.chaptersRead ?? 0;
-          const sharedUseTTS = Boolean(shared.useTTS);
-          const sharedVolume = shared.volume ?? '';
-          const sharedEnd = shared.end || existing.date_time_end;
-
-          const isDiff =
-            (existing.page_start ?? 0) !== sharedPageStart ||
-            (existing.page_end ?? 0) !== sharedPageEnd ||
-            (existing.pages ?? 1) !== sharedPages ||
-            Boolean(existing.completed) !== sharedCompleted ||
-            (existing.seconds_read ?? 0) !== sharedSecondsRead ||
-            (existing.average_time_page ?? 0) !== sharedAverageTime ||
-            (existing.chapters_read ?? 0) !== sharedChaptersRead ||
-            Boolean(existing.use_tts) !== sharedUseTTS ||
-            (existing.volume || '') !== sharedVolume ||
-            (shared.end && existing.date_time_end !== shared.end);
-
-          if (isDiff) {
-            this.storage.historyRepository.updateSharedSession(existing.id, {
-              pageStart: sharedPageStart,
-              pageEnd: sharedPageEnd,
-              pages: sharedPages,
-              completed: sharedCompleted,
-              volume: sharedVolume,
-              chaptersRead: sharedChaptersRead,
-              dateTimeEnd: sharedEnd,
-              secondsRead: sharedSecondsRead,
-              averageTimeByPage: sharedAverageTime,
-              useTTS: sharedUseTTS
-            });
+          const reconcile = reconcileHistorySession(existing, shared);
+          if (reconcile.localChanged && reconcile.localUpdate) {
+            this.storage.historyRepository.updateSharedSession(existing.id, reconcile.localUpdate);
+          }
+          if (reconcile.needsCloudUpload) {
+            item.alter = true;
           }
           continue;
         }
@@ -361,6 +330,24 @@ export abstract class ShareMarkBase {
           averageTimeByPage: shared.averageTimeByPage,
           useTTS: shared.useTTS
         });
+      }
+
+      // Check if local has history sessions not present in cloud
+      const cloudStarts = new Set(
+        Object.values(item.history)
+          .map((s) => parseFlexibleDate(s.start)?.getTime())
+          .filter((t): t is number => t != null)
+      );
+      for (const h of local) {
+        const t = parseFlexibleDate(h.date_time_start)?.getTime();
+        if (t != null && !cloudStarts.has(t)) {
+          item.alter = true;
+        }
+      }
+    } else {
+      const local = this.storage.historyRepository.listByReference('MANGA', manga.id);
+      if (local.length > 0) {
+        item.alter = true;
       }
     }
 
@@ -399,6 +386,10 @@ export abstract class ShareMarkBase {
     if (!book.id) return;
     const fkLibrary = book.fkLibrary ?? 0;
 
+    if (this.storage.historyRepository.hasAltered('BOOK', book.id)) {
+      item.alter = true;
+    }
+
     if (item.history) {
       const local = this.storage.historyRepository.listByReference('BOOK', book.id);
       const localByStart = new Map<number, HistoryRow>();
@@ -413,42 +404,12 @@ export abstract class ShareMarkBase {
 
         const existing = localByStart.get(start.getTime());
         if (existing) {
-          const sharedPageStart = shared.pageStart ?? 0;
-          const sharedPageEnd = shared.pageEnd ?? 0;
-          const sharedPages = shared.pages ?? 1;
-          const sharedCompleted = Boolean(shared.completed);
-          const sharedSecondsRead = shared.secondsRead ?? 0;
-          const sharedAverageTime = shared.averageTimeByPage ?? 0;
-          const sharedChaptersRead = shared.chaptersRead ?? 0;
-          const sharedUseTTS = Boolean(shared.useTTS);
-          const sharedVolume = shared.volume ?? '';
-          const sharedEnd = shared.end || existing.date_time_end;
-
-          const isDiff =
-            (existing.page_start ?? 0) !== sharedPageStart ||
-            (existing.page_end ?? 0) !== sharedPageEnd ||
-            (existing.pages ?? 1) !== sharedPages ||
-            Boolean(existing.completed) !== sharedCompleted ||
-            (existing.seconds_read ?? 0) !== sharedSecondsRead ||
-            (existing.average_time_page ?? 0) !== sharedAverageTime ||
-            (existing.chapters_read ?? 0) !== sharedChaptersRead ||
-            Boolean(existing.use_tts) !== sharedUseTTS ||
-            (existing.volume || '') !== sharedVolume ||
-            (shared.end && existing.date_time_end !== shared.end);
-
-          if (isDiff) {
-            this.storage.historyRepository.updateSharedSession(existing.id, {
-              pageStart: sharedPageStart,
-              pageEnd: sharedPageEnd,
-              pages: sharedPages,
-              completed: sharedCompleted,
-              volume: sharedVolume,
-              chaptersRead: sharedChaptersRead,
-              dateTimeEnd: sharedEnd,
-              secondsRead: sharedSecondsRead,
-              averageTimeByPage: sharedAverageTime,
-              useTTS: sharedUseTTS
-            });
+          const reconcile = reconcileHistorySession(existing, shared);
+          if (reconcile.localChanged && reconcile.localUpdate) {
+            this.storage.historyRepository.updateSharedSession(existing.id, reconcile.localUpdate);
+          }
+          if (reconcile.needsCloudUpload) {
+            item.alter = true;
           }
           continue;
         }
@@ -469,6 +430,24 @@ export abstract class ShareMarkBase {
           averageTimeByPage: shared.averageTimeByPage,
           useTTS: shared.useTTS
         });
+      }
+
+      // Check if local has history sessions not present in cloud
+      const cloudStarts = new Set(
+        Object.values(item.history)
+          .map((s) => parseFlexibleDate(s.start)?.getTime())
+          .filter((t): t is number => t != null)
+      );
+      for (const h of local) {
+        const t = parseFlexibleDate(h.date_time_start)?.getTime();
+        if (t != null && !cloudStarts.has(t)) {
+          item.alter = true;
+        }
+      }
+    } else {
+      const local = this.storage.historyRepository.listByReference('BOOK', book.id);
+      if (local.length > 0) {
+        item.alter = true;
       }
     }
 

@@ -260,6 +260,14 @@ export class ShareMarkFirebaseService extends ShareMarkBase {
     }
 
     const locals = this.storage.mangaRepository.listSync(lastSync);
+    const alteredMangaIds = this.storage.historyRepository.listAlteredReferenceIds('MANGA');
+    for (const id of alteredMangaIds) {
+      const m = this.storage.mangaRepository.getById(id);
+      if (m && !locals.some((x) => x.id === m.id)) {
+        locals.push(m);
+      }
+    }
+
     for (const manga of locals) {
       let item = share.find((s) => s.file === manga.name);
       if (item) {
@@ -280,7 +288,7 @@ export class ShareMarkFirebaseService extends ShareMarkBase {
         } else {
           share.push(this.createMangaShareItem(manga));
         }
-      } else if ((manga.bookMark ?? 0) > 0) {
+      } else if ((manga.bookMark ?? 0) > 0 || (manga.id && this.storage.historyRepository.hasAltered('MANGA', manga.id))) {
         share.push(this.createMangaShareItem(manga));
       }
     }
@@ -307,7 +315,12 @@ export class ShareMarkFirebaseService extends ShareMarkBase {
           index[item.file] = sync;
           item.sync = formatShareMarkDate(sync);
           const manga = this.storage.mangaRepository.getByFileName(item.file);
-          if (manga) this.refreshMangaItem(item, manga);
+          if (manga) {
+            this.refreshMangaItem(item, manga);
+            if (manga.id) {
+              this.storage.historyRepository.clearAlteredByReference('MANGA', manga.id);
+            }
+          }
           await this.setDocument('manga', item.file, serializeShareItemForCloud(item, true));
         }
         const indexPayload: Record<string, unknown> = {};
@@ -366,6 +379,14 @@ export class ShareMarkFirebaseService extends ShareMarkBase {
     }
 
     const locals = this.storage.bookRepository.listSync(lastSync);
+    const alteredBookIds = this.storage.historyRepository.listAlteredReferenceIds('BOOK');
+    for (const id of alteredBookIds) {
+      const b = this.storage.bookRepository.getById(id);
+      if (b && !locals.some((x) => x.id === b.id)) {
+        locals.push(b);
+      }
+    }
+
     for (const book of locals) {
       let item = share.find((s) => s.file === book.name);
       if (item) {
@@ -386,7 +407,7 @@ export class ShareMarkFirebaseService extends ShareMarkBase {
         } else {
           share.push(await this.createBookShareItem(book));
         }
-      } else if ((book.bookMark ?? 0) > 0) {
+      } else if ((book.bookMark ?? 0) > 0 || (book.id && this.storage.historyRepository.hasAltered('BOOK', book.id))) {
         share.push(await this.createBookShareItem(book));
       }
     }
@@ -413,7 +434,12 @@ export class ShareMarkFirebaseService extends ShareMarkBase {
           index[item.file] = sync;
           item.sync = formatShareMarkDate(sync);
           const book = this.storage.bookRepository.getByFileName(item.file);
-          if (book) await this.refreshBookItem(item, book);
+          if (book) {
+            await this.refreshBookItem(item, book);
+            if (book.id) {
+              this.storage.historyRepository.clearAlteredByReference('BOOK', book.id);
+            }
+          }
           await this.setDocument('book', item.file, serializeShareItemForCloud(item, true));
         }
         const indexPayload: Record<string, unknown> = {};

@@ -25,7 +25,8 @@ class HistoryRepository extends base_repository_1.BaseRepository {
             use_tts: row.use_tts ?? 0,
             notified: row.notified ?? 0,
             word_count: row.word_count ?? 0,
-            seconds_read_automatic: row.seconds_read_automatic ?? 0
+            seconds_read_automatic: row.seconds_read_automatic ?? 0,
+            altered: row.altered ?? 0
         };
     }
     find(id) {
@@ -124,16 +125,41 @@ class HistoryRepository extends base_repository_1.BaseRepository {
     `);
         return stmt.all(type).map((row) => this.mapRow(row));
     }
-    updateHistoryCalculatedTime(id, secondsRead, averageTimePage, wordCount, secondsReadAutomatic) {
+    updateHistoryCalculatedTime(id, secondsRead, averageTimePage, wordCount, secondsReadAutomatic, altered = 1) {
         const stmt = this.db.prepare(`
       UPDATE History SET
         seconds_read = ?,
         average_time_page = ?,
         word_count = ?,
-        seconds_read_automatic = ?
+        seconds_read_automatic = ?,
+        altered = ?
       WHERE id = ?
     `);
-        stmt.run(secondsRead, averageTimePage, wordCount, secondsReadAutomatic, id);
+        stmt.run(secondsRead, averageTimePage, wordCount, secondsReadAutomatic, altered, id);
+    }
+    listAlteredReferenceIds(type) {
+        const stmt = this.db.prepare(`
+      SELECT DISTINCT id_reference
+      FROM History
+      WHERE type = ? AND altered = 1
+    `);
+        const rows = stmt.all(type);
+        return rows.map((r) => r.id_reference);
+    }
+    hasAltered(type, fkReference) {
+        const stmt = this.db.prepare(`
+      SELECT 1 FROM History
+      WHERE type = ? AND id_reference = ? AND altered = 1
+      LIMIT 1
+    `);
+        return Boolean(stmt.get(type, fkReference));
+    }
+    clearAlteredByReference(type, fkReference) {
+        const stmt = this.db.prepare(`
+      UPDATE History SET altered = 0
+      WHERE type = ? AND id_reference = ? AND altered = 1
+    `);
+        stmt.run(type, fkReference);
     }
     /** Insert a completed session received from cloud sync (notified = 0). */
     insertSharedSession(input) {

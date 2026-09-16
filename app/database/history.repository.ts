@@ -22,6 +22,7 @@ export interface HistoryRow {
   notified: number;
   word_count: number;
   seconds_read_automatic: number;
+  altered: number;
 }
 
 export interface HistorySessionInput {
@@ -130,7 +131,8 @@ export class HistoryRepository extends BaseRepository<HistoryRow, number> {
       use_tts: row.use_tts ?? 0,
       notified: row.notified ?? 0,
       word_count: row.word_count ?? 0,
-      seconds_read_automatic: row.seconds_read_automatic ?? 0
+      seconds_read_automatic: row.seconds_read_automatic ?? 0,
+      altered: row.altered ?? 0
     };
   }
 
@@ -283,17 +285,46 @@ export class HistoryRepository extends BaseRepository<HistoryRow, number> {
     secondsRead: number,
     averageTimePage: number,
     wordCount: number,
-    secondsReadAutomatic: number
+    secondsReadAutomatic: number,
+    altered = 1
   ): void {
     const stmt = this.db.prepare(`
       UPDATE History SET
         seconds_read = ?,
         average_time_page = ?,
         word_count = ?,
-        seconds_read_automatic = ?
+        seconds_read_automatic = ?,
+        altered = ?
       WHERE id = ?
     `);
-    stmt.run(secondsRead, averageTimePage, wordCount, secondsReadAutomatic, id);
+    stmt.run(secondsRead, averageTimePage, wordCount, secondsReadAutomatic, altered, id);
+  }
+
+  public listAlteredReferenceIds(type: HistoryContentType): number[] {
+    const stmt = this.db.prepare(`
+      SELECT DISTINCT id_reference
+      FROM History
+      WHERE type = ? AND altered = 1
+    `);
+    const rows = stmt.all(type) as Array<{ id_reference: number }>;
+    return rows.map((r) => r.id_reference);
+  }
+
+  public hasAltered(type: HistoryContentType, fkReference: number): boolean {
+    const stmt = this.db.prepare(`
+      SELECT 1 FROM History
+      WHERE type = ? AND id_reference = ? AND altered = 1
+      LIMIT 1
+    `);
+    return Boolean(stmt.get(type, fkReference));
+  }
+
+  public clearAlteredByReference(type: HistoryContentType, fkReference: number): void {
+    const stmt = this.db.prepare(`
+      UPDATE History SET altered = 0
+      WHERE type = ? AND id_reference = ? AND altered = 1
+    `);
+    stmt.run(type, fkReference);
   }
 
   /** Insert a completed session received from cloud sync (notified = 0). */

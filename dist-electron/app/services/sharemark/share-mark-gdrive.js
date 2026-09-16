@@ -266,6 +266,13 @@ class ShareMarkGDriveService extends share_mark_base_1.ShareMarkBase {
             return s && s > lastSync;
         });
         const locals = this.storage.mangaRepository.listSync(lastSync);
+        const alteredMangaIds = this.storage.historyRepository.listAlteredReferenceIds('MANGA');
+        for (const id of alteredMangaIds) {
+            const m = this.storage.mangaRepository.getById(id);
+            if (m && !locals.some((x) => x.id === m.id)) {
+                locals.push(m);
+            }
+        }
         for (const manga of locals) {
             const existing = share.marks.find((m) => m.file === manga.name);
             if (existing) {
@@ -297,6 +304,13 @@ class ShareMarkGDriveService extends share_mark_base_1.ShareMarkBase {
         if (isUpdate) {
             for (const m of share.marks.filter((i) => i.alter)) {
                 m.sync = (0, share_item_mapper_1.formatShareMarkDate)(sync);
+                const manga = this.storage.mangaRepository.getByFileName(m.file);
+                if (manga) {
+                    this.refreshMangaItem(m, manga);
+                    if (manga.id) {
+                        this.storage.historyRepository.clearAlteredByReference('MANGA', manga.id);
+                    }
+                }
             }
             const filePath = this.writeShareFile(share, MANGA_FILE_FULL);
             result = await this.saveShareFile(this.idManga, MANGA_FILE, filePath);
@@ -330,6 +344,13 @@ class ShareMarkGDriveService extends share_mark_base_1.ShareMarkBase {
             return s && s > lastSync;
         });
         const locals = this.storage.bookRepository.listSync(lastSync);
+        const alteredBookIds = this.storage.historyRepository.listAlteredReferenceIds('BOOK');
+        for (const id of alteredBookIds) {
+            const b = this.storage.bookRepository.getById(id);
+            if (b && !locals.some((x) => x.id === b.id)) {
+                locals.push(b);
+            }
+        }
         for (const book of locals) {
             const existing = list.find((m) => m.file === book.name);
             if (existing) {
@@ -361,6 +382,13 @@ class ShareMarkGDriveService extends share_mark_base_1.ShareMarkBase {
         if (isUpdate) {
             for (const m of share.marks.filter((i) => i.alter)) {
                 m.sync = (0, share_item_mapper_1.formatShareMarkDate)(sync);
+                const book = this.storage.bookRepository.getByFileName(m.file);
+                if (book) {
+                    await this.refreshBookItem(m, book);
+                    if (book.id) {
+                        this.storage.historyRepository.clearAlteredByReference('BOOK', book.id);
+                    }
+                }
             }
             const filePath = this.writeShareFile(share, BOOK_FILE_FULL);
             result = await this.saveShareFile(this.idBook, BOOK_FILE, filePath);

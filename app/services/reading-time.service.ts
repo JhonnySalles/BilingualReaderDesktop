@@ -101,28 +101,9 @@ export class ReadingTimeCalculatorService {
           calculatedSeconds,
           averageTimePage,
           calculatedWordCount,
-          1 // seconds_read_automatic = true
+          1, // seconds_read_automatic = true
+          1  // altered = 1
         );
-
-        // Update lastAlteration on parent entity for Cloud Sync (ShareMark)
-        const now = new Date().toISOString();
-        if (type === 'MANGA') {
-          const manga = this.storage.findMangaById(h.id_reference);
-          if (manga) {
-            this.storage.saveManga({
-              ...manga,
-              lastAlteration: now
-            });
-          }
-        } else {
-          const book = this.storage.findBookById(h.id_reference);
-          if (book) {
-            this.storage.saveBook({
-              ...book,
-              lastAlteration: now
-            });
-          }
-        }
 
         updated++;
       }
