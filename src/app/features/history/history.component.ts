@@ -1,7 +1,7 @@
 import { Component, OnInit, OnDestroy, ElementRef, inject, signal, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
-import { StatisticsService } from '../../core/services/statistics.service';
+import { StatisticsService, formatShortDuration } from '../../core/services/statistics.service';
 import { ElectronService } from '../../core/services/electron.service';
 import { HistoryUiStateService } from '../../core/services/history-ui-state.service';
 import { LibraryStateService } from '../../core/services/library-state.service';
@@ -10,10 +10,9 @@ import { LibrarySearchService } from '../../core/services/library-search.service
 import { MangaLibraryService } from '../../core/services/manga-library.service';
 import { BookLibraryService } from '../../core/services/book-library.service';
 import { HistoryStatisticsItem, LibraryViewType, OrderType } from '../../core/models';
-import { HistoryStatsCardComponent } from './components/history-stats-card.component';
-import { HistoryStatsListItemComponent } from './components/history-stats-list-item.component';
+import { HistoryStatsCardComponent } from '../statistics/components/history-stats-card.component';
+import { HistoryStatsListItemComponent } from '../statistics/components/history-stats-list-item.component';
 import { MangaFilterModalComponent } from '../library/manga-library/components/manga-filter-modal/manga-filter-modal.component';
-import { formatShortDuration } from '../../core/services/statistics.service';
 import { parseLibrarySearch } from '../../core/utils/library-search.parser';
 
 interface HistoryDayGroup {
@@ -35,7 +34,7 @@ export interface VirtualHistoryGroup {
 }
 
 @Component({
-  selector: 'app-statistics-history',
+  selector: 'app-history',
   standalone: true,
   imports: [
     CommonModule,
@@ -112,7 +111,7 @@ export interface VirtualHistoryGroup {
     </div>
   `
 })
-export class StatisticsHistoryComponent implements OnInit, OnDestroy {
+export class HistoryComponent implements OnInit, OnDestroy {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private stats = inject(StatisticsService);
@@ -490,5 +489,3 @@ export class StatisticsHistoryComponent implements OnInit, OnDestroy {
     }
   }
 }
-
-

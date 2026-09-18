@@ -29,7 +29,7 @@ export const routes: Routes = [
       {
         path: 'history',
         loadComponent: () =>
-          import('./features/statistics/statistics-history.component').then(m => m.StatisticsHistoryComponent)
+          import('./features/history/history.component').then(m => m.HistoryComponent)
       },
       {
         path: 'annotations',
