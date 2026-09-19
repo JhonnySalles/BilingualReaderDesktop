@@ -143,13 +143,6 @@ class MangaImageCoverController {
             return null;
         }
         try {
-            if (parser.hasFullCover()) {
-                const fullCoverBuffer = parser.getFullCover();
-                if (fullCoverBuffer) {
-                    fs.writeFileSync(coverPath, fullCoverBuffer);
-                    return coverPath;
-                }
-            }
             const cover = parser.getCover();
             const coverBuffer = cover.front;
             if (coverBuffer) {

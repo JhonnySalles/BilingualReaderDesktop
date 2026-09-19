@@ -291,17 +291,9 @@ class ScannerMangaService {
                     if (comicInfo.tags)
                         tags = comicInfo.tags;
                 }
-                if (parser.hasFullCover()) {
-                    const fullCover = parser.getFullCover();
-                    if (fullCover) {
-                        coverPath = manga_image_cover_controller_1.MangaImageCoverController.instance.saveCoverToCache(itemPath, fullCover);
-                    }
-                }
-                if (!coverPath) {
-                    const coverStreams = parser.getCover();
-                    if (coverStreams.front) {
-                        coverPath = manga_image_cover_controller_1.MangaImageCoverController.instance.saveCoverToCache(itemPath, coverStreams.front);
-                    }
+                const coverStreams = parser.getCover();
+                if (coverStreams.front) {
+                    coverPath = manga_image_cover_controller_1.MangaImageCoverController.instance.saveCoverToCache(itemPath, coverStreams.front);
                 }
             }
             catch (e) {

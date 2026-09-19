@@ -186,17 +186,9 @@ async function run(): Promise<void> {
             if (comicInfo.tags) tags = comicInfo.tags;
           }
 
-          if (parser.hasFullCover()) {
-            const fullCover = parser.getFullCover();
-            if (fullCover) {
-              coverPath = MangaImageCoverController.instance.saveCoverToCache(itemPath, fullCover);
-            }
-          }
-          if (!coverPath) {
-            const coverStreams = parser.getCover();
-            if (coverStreams.front) {
-              coverPath = MangaImageCoverController.instance.saveCoverToCache(itemPath, coverStreams.front);
-            }
+          const coverStreams = parser.getCover();
+          if (coverStreams.front) {
+            coverPath = MangaImageCoverController.instance.saveCoverToCache(itemPath, coverStreams.front);
           }
         } catch (e) {
           console.warn(`[manga-scanner.worker] Could not parse ${fileName}:`, e);
