@@ -426,9 +426,12 @@ const TAP_DEDUPE_MS = 350;
       <!-- Always-visible progress track + marker (full book width) -->
       @if (!loading() && !error()) {
         <div data-br-chrome="progress" class="absolute bottom-0 inset-x-0 z-20 pointer-events-none">
-          <div class="relative h-0.5 bg-slate-800">
+          <div class="relative z-10 h-0.5 bg-slate-800">
             <div
-              class="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-indigo-400 shadow-sm transition-[left] duration-200"
+              class="absolute top-0 bottom-0 left-0 bg-slate-400 transition-[width] duration-200"
+              [style.width.%]="progressMarkerPercent()"></div>
+            <div
+              class="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-slate-300 shadow-sm transition-[left] duration-200 z-10"
               [style.left.%]="progressMarkerPercent()"></div>
           </div>
           <div class="flex items-center justify-between px-4 py-1 bg-slate-950/50 backdrop-blur-sm">
@@ -643,7 +646,7 @@ const TAP_DEDUPE_MS = 350;
                     <button type="button" (click)="openTracker(); touchMenuOpen.set(false)"
                       class="w-full px-3 py-2 text-left text-xs font-medium text-slate-200 hover:bg-slate-800 cursor-pointer flex items-center gap-2.5">
                       <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                       </svg>
                       Rastreamento (MAL / AniList)
                     </button>
@@ -809,7 +812,7 @@ const TAP_DEDUPE_MS = 350;
             class="p-2.5 rounded-xl cursor-pointer hover:bg-slate-800 text-slate-200"
             title="Rastreador (MAL / AniList)">
             <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
             </svg>
           </button>
 

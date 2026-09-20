@@ -654,7 +654,7 @@ const MAGNIFIER_SQUARE_PX = 250;
                     <button type="button" (click)="openTracker(); touchMenuOpen.set(false)"
                       class="w-full px-3 py-2 text-left text-xs font-medium text-slate-200 hover:bg-slate-800 cursor-pointer flex items-center gap-2.5">
                       <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                       </svg>
                       Rastreamento (MAL / AniList)
                     </button>
@@ -827,7 +827,7 @@ const MAGNIFIER_SQUARE_PX = 250;
             class="p-2.5 rounded-xl cursor-pointer hover:bg-slate-800 text-slate-200"
             title="Rastreador (MAL / AniList)">
             <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
             </svg>
           </button>
 
@@ -875,6 +875,17 @@ const MAGNIFIER_SQUARE_PX = 250;
               </div>
             }
           </div>
+
+          <button type="button" (click)="openPagesLink()"
+            class="p-2.5 rounded-xl cursor-pointer hover:bg-slate-800 transition-colors"
+            [class.text-indigo-300]="hasFileLink()"
+            [class.text-slate-200]="!hasFileLink()"
+            title="Vincular páginas">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+            </svg>
+          </button>
 
           <button type="button" (click)="goNext()"
             class="p-2.5 rounded-xl text-slate-200 hover:bg-slate-800 cursor-pointer" title="Próxima página">
