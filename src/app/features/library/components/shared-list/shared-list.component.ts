@@ -11,7 +11,7 @@ import {
   OnDestroy
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Manga, Book, LibraryViewType } from '../../../../core/models';
+import { Manga, Book, LibraryViewType, OrderType } from '../../../../core/models';
 import { MangaCardComponent } from '../../manga-library/components/manga-card/manga-card.component';
 import { MangaListItemComponent } from '../../manga-library/components/manga-list-item/manga-list-item.component';
 import { BookCardComponent } from '../book-card/book-card.component';
@@ -26,6 +26,69 @@ export interface VirtualRow {
   groupTitle?: string;
   items: (Manga | Book)[];
   isLine: boolean;
+}
+
+function formatSeparatorDate(dateStr?: string | null): string {
+  if (!dateStr || !dateStr.trim()) return 'Sem data';
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return 'Sem data';
+
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const itemDateStart = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const diffDays = Math.floor((todayStart - itemDateStart) / (1000 * 60 * 60 * 24));
+
+  if (diffDays <= 0) {
+    return 'Hoje';
+  }
+  if (diffDays === 1) {
+    return 'Ontem';
+  }
+  if (diffDays <= 7) {
+    return 'Esta semana';
+  }
+  if (d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()) {
+    return 'Este mês';
+  }
+
+  const monthName = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  return monthName.charAt(0).toUpperCase() + monthName.slice(1);
+}
+
+function getItemSeparatorTitle(item: Manga | Book, order: OrderType): string {
+  switch (order) {
+    case OrderType.Name: {
+      const letter = (item.title || '?').trim()[0]?.toUpperCase() || '#';
+      return /[A-Z0-9]/.test(letter) ? letter : '#';
+    }
+    case OrderType.Author: {
+      const author = item.author?.trim();
+      return author ? author : 'Sem autor';
+    }
+    case OrderType.Date: {
+      const dateCreate = (item as any).dateCreate;
+      return formatSeparatorDate(dateCreate);
+    }
+    case OrderType.LastAccess: {
+      const lastAccess = (item as any).lastAccess;
+      return formatSeparatorDate(lastAccess);
+    }
+    case OrderType.Favorite: {
+      return item.favorite ? 'Favoritos' : 'Outros';
+    }
+    case OrderType.Genre: {
+      const genre = (item as any).genre?.trim();
+      return genre ? genre : 'Sem gênero';
+    }
+    case OrderType.Series: {
+      const series = (item as any).series?.trim();
+      return series ? series : 'Sem série';
+    }
+    default: {
+      const letter = (item.title || '?').trim()[0]?.toUpperCase() || '#';
+      return /[A-Z0-9]/.test(letter) ? letter : '#';
+    }
+  }
 }
 
 @Component({
@@ -443,19 +506,17 @@ export class SharedListComponent implements OnInit, OnDestroy {
       return rows;
     }
 
+    const order = this.libraryStateService.currentOrder();
     const groups: Map<string, (Manga | Book)[]> = new Map();
     for (const item of items) {
-      const letter = (item.title || '?')[0].toUpperCase();
-      const key = /[A-Z0-9]/.test(letter) ? letter : '#';
-      if (!groups.has(key)) {
-        groups.set(key, []);
+      const title = getItemSeparatorTitle(item, order);
+      if (!groups.has(title)) {
+        groups.set(title, []);
       }
-      groups.get(key)!.push(item);
+      groups.get(title)!.push(item);
     }
 
-    const sortedGroups = Array.from(groups.entries()).sort((a, b) => a[0].localeCompare(b[0]));
-
-    for (const [title, groupItems] of sortedGroups) {
+    for (const [title, groupItems] of groups.entries()) {
       for (let i = 0; i < groupItems.length; i += cols) {
         const chunk = groupItems.slice(i, i + cols);
         const firstId = this.getItemKey(chunk[0]);

@@ -565,15 +565,30 @@ export class LibraryComponent implements OnInit {
           break;
         case OrderType.Date:
           comparison = ((a as any).dateCreate || '').localeCompare((b as any).dateCreate || '');
+          if (comparison === 0) {
+            comparison = a.title.localeCompare(b.title);
+          }
           break;
         case OrderType.LastAccess:
           comparison = ((a as any).lastAccess || '').localeCompare((b as any).lastAccess || '');
+          if (comparison === 0) {
+            comparison = a.title.localeCompare(b.title);
+          }
           break;
         case OrderType.Favorite:
           comparison = (b.favorite ? 1 : 0) - (a.favorite ? 1 : 0);
+          if (comparison === 0) {
+            comparison = a.title.localeCompare(b.title);
+          }
           break;
         case OrderType.Author:
           comparison = (a.author || '').localeCompare(b.author || '');
+          if (comparison === 0) {
+            comparison = a.title.localeCompare(b.title);
+          }
+          break;
+        default:
+          comparison = a.title.localeCompare(b.title);
           break;
       }
       return isAsc ? comparison : -comparison;
