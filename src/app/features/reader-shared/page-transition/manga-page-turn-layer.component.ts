@@ -3,6 +3,7 @@ import {
   Component,
   ElementRef,
   EventEmitter,
+  HostBinding,
   Input,
   OnChanges,
   OnDestroy,
@@ -14,73 +15,170 @@ import { CommonModule } from '@angular/common';
 import { MangaFitMode, PageTransitionType } from '../../../core/models';
 import type { TurnAxis, TurnDir } from '../../../core/models/enums/page-transition.enums';
 import { PAGE_TURN_DURATION_MS } from '../../../core/models/enums/page-transition.enums';
-import { drawCurl, positionToCurl } from './page-curl.canvas';
-import { playPageTurn } from './page-transition.player';
+import { accelerateDecelerate } from './page-transition.math';
+import { PageTurnDriver } from './page-transition.driver';
+import {
+  curlFoldingLeaf,
+  drawCurl,
+  positionToCurl,
+  progressToCurlPosition,
+  progressToTurnPosition
+} from './page-curl.canvas';
+import {
+  pageImageClasses,
+  pageWrapperClasses,
+  pageWrapperStyle
+} from '../../reader-image/manga-page-geometry';
 
 export interface TurnLayerPage {
   urls: string[];
 }
 
+/** Slot scroll / content offset captured from the live reader viewport. */
+export interface TurnSlotView {
+  scrollLeft: number;
+  scrollTop: number;
+  /**
+   * Content top-left relative to the visible slot.
+   * null = use centered pageFitRect (no capture).
+   */
+  offsetX: number | null;
+  offsetY: number | null;
+}
+
+const EMPTY_VIEW: TurnSlotView = {
+  scrollLeft: 0,
+  scrollTop: 0,
+  offsetX: null,
+  offsetY: null
+};
+
 @Component({
   selector: 'app-manga-page-turn-layer',
   standalone: true,
   imports: [CommonModule],
-  host: { class: 'absolute inset-0 z-20 pointer-events-none overflow-hidden' },
+  host: {
+    class: 'absolute inset-0 z-20 pointer-events-none overflow-hidden turn-layer-host'
+  },
   styles: [`
-    .turn-page {
+    :host.turn-layer-host {
+      background: var(--reader-surface, #0f172a);
+    }
+    .turn-underlay {
       position: absolute;
       inset: 0;
+      z-index: 0;
+      overflow: hidden;
+      background: var(--reader-surface, #0f172a);
+    }
+    .turn-underlay:has(.turn-content-centered),
+    .turn-page:has(.turn-content-centered) {
       display: flex;
       align-items: center;
       justify-content: center;
-      background: #0f172a;
+    }
+    .turn-content {
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+    .turn-content-centered {
+      position: relative;
+      top: auto;
+      left: auto;
+    }
+    .turn-page {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      overflow: hidden;
+      display: block;
+      background: transparent;
       will-change: transform, opacity;
+    }
+    .turn-page.has-fill {
+      background: var(--reader-surface, #0f172a);
     }
     .turn-page img {
       -webkit-user-drag: none;
       user-drag: none;
-      object-fit: contain;
-      max-height: 100%;
-      max-width: 100%;
     }
     .turn-canvas {
       position: absolute;
       inset: 0;
+      z-index: 1;
       width: 100%;
       height: 100%;
     }
+    .reader-zoom-original {
+      zoom: var(--reader-zoom, 1);
+      max-width: none;
+    }
   `],
   template: `
-    <div #outgoingEl class="turn-page" [style.zIndex]="2">
-      @if (isCurl()) {
-        <canvas #outCanvas class="turn-canvas"></canvas>
-      } @else {
-        <div class="flex items-center justify-center gap-0.5 h-full w-full" [style.--reader-zoom]="zoom">
-          @for (u of outgoing.urls; track $index) {
+    <div class="turn-underlay" aria-hidden="true">
+      <div class="turn-content"
+        [class.turn-content-centered]="underlayView().offsetX == null"
+        [style.left.px]="underlayView().offsetX"
+        [style.top.px]="underlayView().offsetY"
+        [style.--reader-zoom]="zoom">
+        <div [class]="wrapperClass()"
+          [style.width.%]="widthPercent()"
+          [style.height.%]="heightPercent()">
+          @for (u of underlayPage().urls; track $index) {
             <img [src]="u" alt="" draggable="false" [class]="imgClass()"
-              [style.filter]="cssFilter || null"
-              [style.height.%]="heightPercent()"
-              [style.width.%]="widthPercent()" />
+              [style.filter]="cssFilter || null" />
           }
         </div>
-      }
-    </div>
-    <div #incomingEl class="turn-page" [style.zIndex]="1">
-      <div class="flex items-center justify-center gap-0.5 h-full w-full" [style.--reader-zoom]="zoom">
-        @for (u of incoming.urls; track $index) {
-          <img [src]="u" alt="" draggable="false" [class]="imgClass()"
-            [style.filter]="cssFilter || null"
-            [style.height.%]="heightPercent()"
-            [style.width.%]="widthPercent()" />
-        }
       </div>
     </div>
+
+    @if (isCurl()) {
+      <canvas #outCanvas class="turn-canvas"></canvas>
+    } @else {
+      <div #outgoingEl class="turn-page has-fill">
+        <div class="turn-content"
+          [class.turn-content-centered]="outgoingView.offsetX == null"
+          [style.left.px]="outgoingView.offsetX"
+          [style.top.px]="outgoingView.offsetY"
+          [style.--reader-zoom]="zoom">
+          <div [class]="wrapperClass()"
+            [style.width.%]="widthPercent()"
+            [style.height.%]="heightPercent()">
+            @for (u of outgoing.urls; track $index) {
+              <img [src]="u" alt="" draggable="false" [class]="imgClass()"
+                [style.filter]="cssFilter || null" />
+            }
+          </div>
+        </div>
+      </div>
+      <div #incomingEl class="turn-page has-fill">
+        <div class="turn-content"
+          [class.turn-content-centered]="incomingView.offsetX == null"
+          [style.left.px]="incomingView.offsetX"
+          [style.top.px]="incomingView.offsetY"
+          [style.--reader-zoom]="zoom">
+          <div [class]="wrapperClass()"
+            [style.width.%]="widthPercent()"
+            [style.height.%]="heightPercent()">
+            @for (u of incoming.urls; track $index) {
+              <img [src]="u" alt="" draggable="false" [class]="imgClass()"
+                [style.filter]="cssFilter || null" />
+            }
+          </div>
+        </div>
+      </div>
+    }
   `
 })
 export class MangaPageTurnLayerComponent implements AfterViewInit, OnChanges, OnDestroy {
   @ViewChild('outgoingEl') outgoingRef?: ElementRef<HTMLElement>;
   @ViewChild('incomingEl') incomingRef?: ElementRef<HTMLElement>;
   @ViewChild('outCanvas') outCanvasRef?: ElementRef<HTMLCanvasElement>;
+
+  @HostBinding('attr.data-effect') get effectAttr(): string {
+    return this.effect;
+  }
 
   @Input({ required: true }) outgoing!: TurnLayerPage;
   @Input({ required: true }) incoming!: TurnLayerPage;
@@ -90,14 +188,17 @@ export class MangaPageTurnLayerComponent implements AfterViewInit, OnChanges, On
   @Input() fitMode: MangaFitMode = MangaFitMode.FitHeight;
   @Input() zoom = 1;
   @Input() cssFilter = '';
+  /** View state of the page that is leaving (FROM slot). */
+  @Input() outgoingView: TurnSlotView = EMPTY_VIEW;
+  /** View state of the page that is entering (usually land start → zeros). */
+  @Input() incomingView: TurnSlotView = EMPTY_VIEW;
   /**
-   * Interactive curl while dragging (-1..0).
+   * Interactive progress 0..1 while dragging.
    * null = auto-play full animation on mount.
-   * When set, parent drives painting; set curlCommit to finish.
    */
-  @Input() curlFactor: number | null = null;
-  /** When non-null with curl, animate remaining curl then emit finished. */
-  @Input() curlCommit: boolean | null = null;
+  @Input() progress: number | null = null;
+  /** When non-null, animate remaining progress then emit finished. */
+  @Input() progressCommit: boolean | null = null;
 
   @Output() finished = new EventEmitter<void>();
 
@@ -105,6 +206,10 @@ export class MangaPageTurnLayerComponent implements AfterViewInit, OnChanges, On
   private bitmaps = new Map<string, ImageBitmap>();
   private started = false;
   private finishing = false;
+  private emitted = false;
+  private rafId = 0;
+  private driver: PageTurnDriver | null = null;
+  private bitmapsReady: Promise<void> | null = null;
 
   isCurl(): boolean {
     return (
@@ -113,19 +218,29 @@ export class MangaPageTurnLayerComponent implements AfterViewInit, OnChanges, On
     );
   }
 
+  /** Static page under the animated leaves — destination on next, current on prev. */
+  underlayPage(): TurnLayerPage {
+    return this.dir > 0 ? this.incoming : this.outgoing;
+  }
+
+  underlayView(): TurnSlotView {
+    return this.dir > 0 ? this.incomingView : this.outgoingView;
+  }
+
+  wrapperClass(): string {
+    return pageWrapperClasses(this.zoom);
+  }
+
   imgClass(): string {
-    const base = 'block object-contain';
-    if (this.fitMode === MangaFitMode.FitHeight) return `${base} w-auto h-full`;
-    if (this.fitMode === MangaFitMode.Original) return `${base} reader-zoom-original w-auto h-auto`;
-    return `${base} h-auto w-full`;
+    return pageImageClasses(this.fitMode, this.zoom);
   }
 
   heightPercent(): number | null {
-    return this.fitMode === MangaFitMode.FitHeight ? 100 * this.zoom : null;
+    return pageWrapperStyle(this.fitMode, this.zoom).heightPercent;
   }
 
   widthPercent(): number | null {
-    return this.fitMode === MangaFitMode.FitWidth ? 100 * this.zoom : null;
+    return pageWrapperStyle(this.fitMode, this.zoom).widthPercent;
   }
 
   ngAfterViewInit(): void {
@@ -133,16 +248,37 @@ export class MangaPageTurnLayerComponent implements AfterViewInit, OnChanges, On
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['curlFactor'] && this.isCurl() && this.curlFactor != null && !this.finishing) {
-      void this.paintCurl(this.curlFactor);
+    if (changes['progress'] && this.isCurl() && this.progress != null && !this.finishing) {
+      void this.paintCurlAtProgress(this.progress);
     }
-    if (changes['curlCommit'] && this.curlCommit != null && this.isCurl() && !this.finishing) {
-      void this.finishCurl(this.curlCommit);
+    if (changes['progressCommit'] && this.progressCommit != null && this.isCurl() && !this.finishing) {
+      void this.finishCurl(this.progressCommit);
+    }
+    if (
+      changes['progress'] &&
+      !this.isCurl() &&
+      this.progress != null &&
+      this.driver &&
+      !this.finishing
+    ) {
+      this.driver.setPosition(progressToTurnPosition(this.progress, this.dir));
+    }
+    if (
+      changes['progressCommit'] &&
+      this.progressCommit != null &&
+      !this.isCurl() &&
+      this.driver &&
+      !this.finishing
+    ) {
+      void this.finishCssTurn(this.progressCommit);
     }
   }
 
   ngOnDestroy(): void {
     this.abort?.abort();
+    if (this.rafId) cancelAnimationFrame(this.rafId);
+    this.driver?.release();
+    this.driver = null;
     for (const bmp of this.bitmaps.values()) {
       try {
         bmp.close();
@@ -151,16 +287,37 @@ export class MangaPageTurnLayerComponent implements AfterViewInit, OnChanges, On
       }
     }
     this.bitmaps.clear();
+    this.emitFinished();
+  }
+
+  private emitFinished(): void {
+    if (this.emitted) return;
+    this.emitted = true;
+    this.finished.emit();
   }
 
   private async begin(): Promise<void> {
     if (this.started) return;
     this.started = true;
 
+    if (this.isCurl()) {
+      await this.ensureBitmaps();
+      if (this.progress != null) {
+        await this.paintCurlAtProgress(this.progress);
+        return;
+      }
+      await this.playCurlAnimation();
+      this.emitFinished();
+      return;
+    }
+
+    // Wait a frame so ViewChild leaves exist
+    await new Promise<void>(r => requestAnimationFrame(() => r()));
+
     const out = this.outgoingRef?.nativeElement;
     const inn = this.incomingRef?.nativeElement;
     if (!out || !inn) {
-      this.finished.emit();
+      this.emitFinished();
       return;
     }
 
@@ -169,57 +326,79 @@ export class MangaPageTurnLayerComponent implements AfterViewInit, OnChanges, On
         ? out.clientWidth || window.innerWidth
         : out.clientHeight || window.innerHeight;
 
-    if (this.isCurl() && this.curlFactor != null) {
-      await this.paintCurl(this.curlFactor);
-      return;
-    }
-
-    if (this.isCurl()) {
-      await this.playCurlAnimation();
-      this.finished.emit();
-      return;
-    }
-
-    this.abort = new AbortController();
-    await playPageTurn({
+    this.driver = new PageTurnDriver({
       outgoing: out,
       incoming: inn,
       effect: this.effect,
       axis: this.axis,
       dir: this.dir,
       size,
-      durationMs: PAGE_TURN_DURATION_MS,
-      signal: this.abort.signal
+      variant: 'manga'
     });
-    this.finished.emit();
+
+    if (this.progress != null) {
+      this.driver.setPosition(progressToTurnPosition(this.progress, this.dir));
+      return;
+    }
+
+    this.abort = new AbortController();
+    await this.driver.animateTo(-this.dir, PAGE_TURN_DURATION_MS);
+    this.emitFinished();
+  }
+
+  private async finishCssTurn(commit: boolean): Promise<void> {
+    if (!this.driver) {
+      this.emitFinished();
+      return;
+    }
+    this.finishing = true;
+    const target = commit ? -this.dir : 0;
+    await this.driver.animateTo(target, PAGE_TURN_DURATION_MS);
+    this.emitFinished();
   }
 
   private async finishCurl(commit: boolean): Promise<void> {
     this.finishing = true;
-    const start = this.curlFactor ?? 0;
-    const end = commit ? -1 : 0;
-    const steps = 12;
-    for (let i = 1; i <= steps; i++) {
-      const t = i / steps;
-      const eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-      await this.paintCurl(start + (end - start) * eased);
-      await new Promise(r => setTimeout(r, PAGE_TURN_DURATION_MS / steps));
-    }
-    this.finished.emit();
+    await this.ensureBitmaps();
+    const start = this.progress ?? 0;
+    const end = commit ? 1 : 0;
+    await this.animateProgressRange(start, end, PAGE_TURN_DURATION_MS);
+    this.emitFinished();
   }
 
   private async playCurlAnimation(): Promise<void> {
-    const steps = 16;
-    const stepMs = PAGE_TURN_DURATION_MS / steps;
-    for (let i = 0; i <= steps; i++) {
-      const t = i / steps;
-      const eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-      await this.paintCurl(-eased);
-      await new Promise(r => setTimeout(r, stepMs));
-    }
+    await this.animateProgressRange(0, 1, PAGE_TURN_DURATION_MS);
   }
 
-  private async paintCurl(curl: number): Promise<void> {
+  private animateProgressRange(from: number, to: number, durationMs: number): Promise<void> {
+    return new Promise(resolve => {
+      const start = performance.now();
+      const tick = (now: number) => {
+        const t = Math.min(1, (now - start) / Math.max(1, durationMs));
+        const eased = accelerateDecelerate(t);
+        const progress = from + (to - from) * eased;
+        void this.paintCurlAtProgress(progress).then(() => {
+          if (t >= 1) {
+            this.rafId = 0;
+            resolve();
+            return;
+          }
+          this.rafId = requestAnimationFrame(tick);
+        });
+      };
+      this.rafId = requestAnimationFrame(tick);
+    });
+  }
+
+  private async ensureBitmaps(): Promise<void> {
+    if (!this.bitmapsReady) {
+      const urls = [...new Set([...this.outgoing.urls, ...this.incoming.urls].filter(Boolean))];
+      this.bitmapsReady = Promise.all(urls.map(u => this.getBitmap(u))).then(() => undefined);
+    }
+    await this.bitmapsReady;
+  }
+
+  private async paintCurlAtProgress(progress: number): Promise<void> {
     const canvas = this.outCanvasRef?.nativeElement;
     if (!canvas) return;
     const parent = canvas.parentElement;
@@ -232,17 +411,63 @@ export class MangaPageTurnLayerComponent implements AfterViewInit, OnChanges, On
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const url = this.outgoing.urls[0];
-    if (!url) return;
-    const bmp = await this.getBitmap(url);
-    if (!bmp) return;
+    await this.ensureBitmaps();
+
+    const outUrl = this.outgoing.urls[0];
+    const inUrl = this.incoming.urls[0];
+    if (!outUrl) return;
+
+    const outBmp = await this.getBitmap(outUrl);
+    if (!outBmp) return;
+    const inBmp = inUrl ? await this.getBitmap(inUrl) : outBmp;
+
+    const leaf = curlFoldingLeaf(this.dir);
+    const foldBmp = leaf === 'outgoing' ? outBmp : inBmp ?? outBmp;
+    const underBmp = leaf === 'outgoing' ? inBmp ?? outBmp : outBmp;
+    // Verso = opposite page (not a mirror of the folding leaf)
+    const backBmp = underBmp;
+    const curlPos = progressToCurlPosition(progress, this.dir);
+
+    const foldView = leaf === 'outgoing' ? this.outgoingView : this.incomingView;
+    const underView = leaf === 'outgoing' ? this.incomingView : this.outgoingView;
+
+    // Convert captured viewport offsets into scroll deltas relative to centered fit
+    const foldScrollLeft =
+      foldView.offsetX == null ? foldView.scrollLeft : 0;
+    const foldScrollTop =
+      foldView.offsetY == null ? foldView.scrollTop : 0;
+    // When we have absolute offsets, pass them via scrolled helper by
+    // computing delta from a synthetic center — drawCurl uses scroll as subtract.
+    // Prefer absolute: encode as scrollLeft/Top from centered rect after size known inside drawCurl.
+    // Here we pass scrollLeft/Top from the slot when offsets are null; when offsets
+    // are set we pass negative offsets as the draw position via scroll fields paired
+    // with zero-centered path — see drawCurl scrollLeft = -offset means draw at offset
+    // only if base.x is 0. So pass explicit scroll from slot:
+    const useFoldAbs = foldView.offsetX != null && foldView.offsetY != null;
+    const useUnderAbs = underView.offsetX != null && underView.offsetY != null;
 
     drawCurl(ctx, {
-      front: bmp,
-      back: bmp,
-      curl: positionToCurl(curl <= 0 ? curl : -Math.abs(curl)),
+      front: foldBmp,
+      back: backBmp,
+      under: underBmp,
+      curl: positionToCurl(curlPos),
       mode: this.effect === PageTransitionType.Curl3DPage ? '3d' : '2d',
-      surfaceColor: '#0f172a'
+      surfaceColor: '#0f172a',
+      dir: this.dir,
+      fitMode: this.fitMode,
+      zoom: this.zoom,
+      scrollLeft: useFoldAbs ? undefined : foldScrollLeft,
+      scrollTop: useFoldAbs ? undefined : foldScrollTop,
+      underScrollLeft: useUnderAbs ? undefined : underView.scrollLeft,
+      underScrollTop: useUnderAbs ? undefined : underView.scrollTop,
+      frontOffset:
+        useFoldAbs && foldView.offsetX != null && foldView.offsetY != null
+          ? { x: foldView.offsetX, y: foldView.offsetY }
+          : null,
+      underOffset:
+        useUnderAbs && underView.offsetX != null && underView.offsetY != null
+          ? { x: underView.offsetX, y: underView.offsetY }
+          : null
     });
   }
 

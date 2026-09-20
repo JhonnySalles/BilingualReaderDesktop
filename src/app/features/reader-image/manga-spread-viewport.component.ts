@@ -28,6 +28,18 @@ import {
   resolvePagerDragTarget,
   type PageLand
 } from './manga-reader-navigation';
+import {
+  pageImageClasses as sharedPageImageClasses,
+  pageWrapperClasses,
+  pageWrapperStyle
+} from './manga-page-geometry';
+
+/** Interactive turn-drag progress (0..1); commit null while dragging. */
+export interface TurnDragEvent {
+  progress: number;
+  goingNext: boolean;
+  commit: boolean | null;
+}
 
 const WHEEL_PAGE_THRESHOLD = 200;
 const PROGRAMMATIC_SCROLL_FALLBACK_MS = 1000;
@@ -56,11 +68,16 @@ const PROGRAMMATIC_SCROLL_FALLBACK_MS = 1000;
     }
     .reader-viewport {
       overscroll-behavior: contain;
+      background: var(--reader-surface, #0f172a);
     }
     .reader-viewport.is-panning,
     .reader-viewport.is-turning {
       scroll-behavior: auto !important;
       scroll-snap-type: none !important;
+    }
+    .reader-page {
+      will-change: transform, opacity;
+      background: var(--reader-surface, #0f172a);
     }
   `],
   template: `
@@ -146,6 +163,7 @@ const PROGRAMMATIC_SCROLL_FALLBACK_MS = 1000;
             [class]="pagedSlotClasses()">
             @if (isShowingLinked(i) && linkedList(i).length > 1) {
               <div class="flex items-center justify-center gap-0.5 h-full"
+                [class]="wrapperClasses()"
                 [style.width.%]="zoomWidthPercent()"
                 [style.height.%]="zoomHeightPercent()"
                 [style.--reader-zoom]="zoom">
@@ -163,7 +181,7 @@ const PROGRAMMATIC_SCROLL_FALLBACK_MS = 1000;
                 }
               </div>
             } @else {
-              <div class="relative inline-block max-h-full max-w-full"
+              <div [class]="wrapperClasses()"
                 [style.width.%]="zoomWidthPercent()"
                 [style.height.%]="zoomHeightPercent()"
                 [style.--reader-zoom]="zoom">
@@ -242,12 +260,10 @@ export class MangaSpreadViewportComponent {
   @Output() linkedImageLoad = new EventEmitter<number>();
   @Output() selectText = new EventEmitter<NormalizedSubtitleText>();
   @Output() dragFlag = new EventEmitter<boolean>();
-  /** Interactive curl drag progress; commit null while dragging. */
-  @Output() curlDrag = new EventEmitter<{
-    factor: number;
-    goingNext: boolean;
-    commit: boolean | null;
-  }>();
+  /** Interactive turn-drag progress (any overlay effect); commit null while dragging. */
+  @Output() turnDrag = new EventEmitter<TurnDragEvent>();
+  /** Wheel/gesture request that should go through the turn overlay. */
+  @Output() turnRequest = new EventEmitter<{ page: number; land: PageLand }>();
 
   panning = signal(false);
 
@@ -267,6 +283,7 @@ export class MangaSpreadViewportComponent {
   private pagerDragActive = false;
   private gestureModePending = false;
   private curlDragging = false;
+  private turnDragging = false;
   private scrollSyncLock = false;
   private scrollLockTimer: ReturnType<typeof setTimeout> | null = null;
   private scrollEndHandler: (() => void) | null = null;
@@ -313,11 +330,36 @@ export class MangaSpreadViewportComponent {
     return Math.abs(index - this.currentPage) <= 2;
   }
 
+  /** True when gestures should drive the turn overlay (all effects including Default). */
+  private usesTurnOverlay(): boolean {
+    if (this.zoom > 1) return false;
+    if (this.isLongStrip()) return false;
+    return true;
+  }
+
   private isCurlEffect(): boolean {
     return (
       this.effect === PageTransitionType.CurlPage ||
       this.effect === PageTransitionType.Curl3DPage
     );
+  }
+
+  wrapperClasses(): string {
+    return pageWrapperClasses(this.zoom);
+  }
+
+  pageImageClasses(): string {
+    return sharedPageImageClasses(this.fitMode, this.zoom, this.isLongStrip());
+  }
+
+  zoomWidthPercent(): number | null {
+    if (this.isLongStrip()) return null;
+    return pageWrapperStyle(this.fitMode, this.zoom).widthPercent;
+  }
+
+  zoomHeightPercent(): number | null {
+    if (this.isLongStrip()) return null;
+    return pageWrapperStyle(this.fitMode, this.zoom).heightPercent;
   }
 
   viewportClasses(): string {
@@ -344,32 +386,6 @@ export class MangaSpreadViewportComponent {
     return zoomed
       ? 'w-full min-h-full h-full overflow-y-auto overflow-x-auto overscroll-contain'
       : 'w-full min-h-full h-full overflow-y-auto overflow-x-hidden overscroll-contain';
-  }
-
-  pageImageClasses(): string {
-    const base = 'reader-zoom-img block object-contain [-webkit-user-drag:none]';
-    if (this.isLongStrip()) {
-      return `${base} w-full h-auto`;
-    }
-    if (this.fitMode === MangaFitMode.FitHeight) {
-      return `${base} w-auto max-w-full`;
-    }
-    if (this.fitMode === MangaFitMode.Original) {
-      return `${base} reader-zoom-original w-auto h-auto`;
-    }
-    return `${base} h-auto w-full max-w-full`;
-  }
-
-  zoomWidthPercent(): number | null {
-    if (this.isLongStrip()) return null;
-    if (this.fitMode === MangaFitMode.FitWidth) return 100 * this.zoom;
-    return null;
-  }
-
-  zoomHeightPercent(): number | null {
-    if (this.isLongStrip()) return null;
-    if (this.fitMode === MangaFitMode.FitHeight) return 100 * this.zoom;
-    return null;
   }
 
   onHostClick(ev: MouseEvent): void {
@@ -421,7 +437,11 @@ export class MangaSpreadViewportComponent {
         ? this.currentPage + 1
         : this.currentPage - 1;
     const land: PageLand = next > this.currentPage ? 'start' : 'end';
-    this.pageChange.emit({ page: next, land });
+    if (this.usesTurnOverlay()) {
+      this.turnRequest.emit({ page: next, land });
+    } else {
+      this.pageChange.emit({ page: next, land });
+    }
   }
 
   onPointerDown(ev: PointerEvent): void {
@@ -450,6 +470,7 @@ export class MangaSpreadViewportComponent {
     this.pagerDragActive = false;
     this.gestureModePending = !this.isLongStrip();
     this.curlDragging = false;
+    this.turnDragging = false;
 
     ev.preventDefault();
     try {
@@ -515,16 +536,24 @@ export class MangaSpreadViewportComponent {
 
     this.pagerDragActive = true;
 
-    // Interactive curl follows the finger (horizontal paged only).
-    if (this.isCurlEffect() && this.isHorizontal()) {
-      this.curlDragging = true;
-      const w = viewport.clientWidth || 1;
-      const goingNext = this.isRtl() ? totalDx > 0 : totalDx < 0;
-      const progress = Math.min(1, Math.abs(totalDx) / Math.max(w * 0.45, 1));
-      // Hold carousel on the start page while curl paints over it.
+    // Interactive turn overlay: freeze carousel and scrub progress for ANY effect.
+    if (this.usesTurnOverlay() && (this.isHorizontal() || this.scrollingMode === MangaScrollingMode.Vertical)) {
+      this.turnDragging = true;
+      this.curlDragging = this.isCurlEffect();
+      const size = this.isHorizontal()
+        ? viewport.clientWidth || 1
+        : viewport.clientHeight || 1;
+      const delta = this.isHorizontal() ? totalDx : totalDy;
+      const goingNext = this.isHorizontal()
+        ? this.isRtl()
+          ? delta > 0
+          : delta < 0
+        : delta < 0;
+      const progress = Math.min(1, Math.abs(delta) / Math.max(size * 0.45, 1));
+      // Hold carousel on the start page while overlay paints over it.
       viewport.scrollLeft = this.panStartScrollLeft;
       viewport.scrollTop = this.panStartScrollTop;
-      this.curlDrag.emit({ factor: -progress, goingNext, commit: null });
+      this.turnDrag.emit({ progress, goingNext, commit: null });
       return;
     }
 
@@ -548,12 +577,13 @@ export class MangaSpreadViewportComponent {
 
     const wasDrag = this.didDrag;
     const wasPager = this.pagerDragActive && wasDrag && !this.isLongStrip();
-    const wasCurl = this.curlDragging;
+    const wasTurn = this.turnDragging;
     const startPage = this.panStartPage ?? this.currentPage;
     const startLeft = this.panStartScrollLeft ?? 0;
     const startTop = this.panStartScrollTop ?? 0;
     const startTime = this.panStartTime || performance.now();
     const totalDx = ev.clientX - (this.panStartX || ev.clientX);
+    const totalDy = ev.clientY - (this.panStartY || ev.clientY);
 
     this.panPointerId = null;
     this.panTarget = null;
@@ -561,26 +591,23 @@ export class MangaSpreadViewportComponent {
     this.pagerDragActive = false;
     this.gestureModePending = false;
     this.curlDragging = false;
+    this.turnDragging = false;
     this.panning.set(false);
 
-    if (wasCurl && this.isHorizontal()) {
-      const w = el?.clientWidth || 1;
-      const commit = Math.abs(totalDx) >= DRAG_THRESHOLD_PX;
-      const goingNext = this.isRtl() ? totalDx > 0 : totalDx < 0;
-      const progress = Math.min(1, Math.abs(totalDx) / Math.max(w * 0.45, 1));
-      this.curlDrag.emit({ factor: -progress, goingNext, commit });
-      if (commit) {
-        const target = goingNext ? startPage + 1 : startPage - 1;
-        const max = Math.max(0, this.pages.length - 1);
-        const page = Math.min(Math.max(0, target), max);
-        if (page !== startPage) {
-          const land: PageLand = page > startPage ? 'start' : 'end';
-          this.pageChange.emit({ page, land });
-        } else if (el) {
-          el.scrollLeft = startLeft;
-          el.scrollTop = startTop;
-        }
-      } else if (el) {
+    if (wasTurn) {
+      const size = this.isHorizontal()
+        ? el?.clientWidth || 1
+        : el?.clientHeight || 1;
+      const delta = this.isHorizontal() ? totalDx : totalDy;
+      const commit = Math.abs(delta) >= DRAG_THRESHOLD_PX;
+      const goingNext = this.isHorizontal()
+        ? this.isRtl()
+          ? delta > 0
+          : delta < 0
+        : delta < 0;
+      const progress = Math.min(1, Math.abs(delta) / Math.max(size * 0.45, 1));
+      this.turnDrag.emit({ progress, goingNext, commit });
+      if (!commit && el) {
         el.scrollLeft = startLeft;
         el.scrollTop = startTop;
       }
@@ -699,6 +726,41 @@ export class MangaSpreadViewportComponent {
       slot.scrollTop = 0;
       slot.scrollLeft = 0;
     }
+  }
+
+  /**
+   * Capture the visible content offset of the current (or given) page slot
+   * so the turn overlay can match zoom + scroll.
+   */
+  slotViewState(page = this.currentPage): {
+    scrollLeft: number;
+    scrollTop: number;
+    offsetX: number | null;
+    offsetY: number | null;
+  } {
+    const slot = this.pageSlotAt(page);
+    if (!slot) {
+      return { scrollLeft: 0, scrollTop: 0, offsetX: null, offsetY: null };
+    }
+    const content =
+      (slot.querySelector(':scope > div') as HTMLElement | null) ||
+      (slot.querySelector('img')?.parentElement as HTMLElement | null);
+    if (!content) {
+      return {
+        scrollLeft: slot.scrollLeft,
+        scrollTop: slot.scrollTop,
+        offsetX: null,
+        offsetY: null
+      };
+    }
+    const sr = slot.getBoundingClientRect();
+    const cr = content.getBoundingClientRect();
+    return {
+      scrollLeft: slot.scrollLeft,
+      scrollTop: slot.scrollTop,
+      offsetX: cr.left - sr.left,
+      offsetY: cr.top - sr.top
+    };
   }
 
   private beginProgrammaticScroll(smooth: boolean): void {

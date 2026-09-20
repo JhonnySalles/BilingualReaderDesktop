@@ -32,6 +32,11 @@ export class LibraryStateService {
   /** Debounced / committed query used for list filtering (pauses during incomplete @). */
   filterQuery = signal<string>('');
 
+  clearSearch(): void {
+    this.searchQuery.set('');
+    this.filterQuery.set('');
+  }
+
   // Active Library Information (when browsing libraries)
   activeLibrary = signal<ActiveLibraryInfo>({
     id: 'home',

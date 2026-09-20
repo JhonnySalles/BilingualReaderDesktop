@@ -55,9 +55,12 @@ import { ReaderTouchOverlayComponent } from '../reader-shared/reader-touch-overl
 import { ReaderTouchConfigComponent } from '../reader-shared/reader-touch-config.component';
 import { handleReaderTouchTap, TouchActionHandlers } from '../reader-shared/touch-action.util';
 import {
-  playCssCurlTurn,
+  cancelActivePageTurns,
+  playFoldTurn,
   playPageTurn
 } from '../reader-shared/page-transition/page-transition.player';
+import { PageTurnDriver } from '../reader-shared/page-transition/page-transition.driver';
+import { PAGE_TURN_DURATION_MS } from '../../core/models/enums/page-transition.enums';
 import { AnnotationPopupComponent } from '../annotations/components/annotation-popup.component';
 import { AnnotationListOverlayComponent } from './annotation-list-overlay.component';
 import { TextSelectPopupComponent } from './text-select-popup.component';
@@ -1289,6 +1292,12 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
   private typographyTimer: ReturnType<typeof setTimeout> | null = null;
   private resizeObserver: ResizeObserver | null = null;
   private turningPage = false;
+  /** Signal mirror of turningPage so transform bindings can suspend during WAAPI. */
+  readonly turningSignal = signal(false);
+  /** Interactive drag is feeding PageTurnDriver (suppress Angular transforms). */
+  readonly driverActive = signal(false);
+  private turnDriver: PageTurnDriver | null = null;
+  private turnDriverDir: 1 | -1 = 1;
   private ended = false;
   private bookMeta: Book | null = null;
   private epubBook: EpubBook | null = null;
@@ -1393,6 +1402,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
   );
 
   readonly viewerTransform = computed(() => {
+    if (this.turningSignal() || this.driverActive()) return null;
     const x = this.overscrollXSignal();
     const y = this.overscrollYSignal();
     if (x === 0 && y === 0) return 'none';
@@ -1401,13 +1411,21 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /** Adjacent page offset (ViewPager): enters from the edge, slides with current. */
   readonly peekTransform = computed(() => {
+    if (this.turningSignal() || this.driverActive()) return null;
     const x = this.overscrollXSignal();
     const y = this.overscrollYSignal();
-    if (x === 0 && y === 0) return 'none';
 
     if (this.isHorizontalMode()) {
       const w = this.peekViewportW() || window.innerWidth;
-      if (x === 0) return 'none';
+      if (x === 0) {
+        // Keep peek parked OFF-SCREEN while active to avoid text overlap flash
+        if (this.peekLayerActive()) {
+          const parkedDir = this.peekDirection || 1;
+          const side = this.usesRtlPageKeys() ? -parkedDir : parkedDir;
+          return `translate(${side * w}px, 0)`;
+        }
+        return 'none';
+      }
       // LTR next (x<0): +w; LTR prev (x>0): -w; RTL inverts
       const dir = this.usesRtlPageKeys() ? (x > 0 ? 1 : -1) : (x < 0 ? 1 : -1);
       const side = this.usesRtlPageKeys() ? -dir : dir;
@@ -1415,13 +1433,21 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     const h = this.peekViewportH() || window.innerHeight;
+    if (y === 0) {
+      if (this.peekLayerActive()) {
+        const parkedDir = this.peekDirection || 1;
+        return `translate(0, ${parkedDir * h}px)`;
+      }
+      return 'none';
+    }
     const dir = y < 0 ? 1 : -1;
     return `translate(0, ${y + dir * h}px)`;
   });
 
-  readonly viewerTransition = computed(() =>
-    this.overscrollAnimatingSignal() ? 'transform 180ms ease-out' : 'none'
-  );
+  readonly viewerTransition = computed(() => {
+    if (this.turningSignal() || this.driverActive()) return null;
+    return this.overscrollAnimatingSignal() ? 'transform 180ms ease-out' : 'none';
+  });
 
   ngOnInit(): void {
     document.addEventListener('fullscreenchange', this.onFsChange);
@@ -2064,18 +2090,54 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     void this.turnWithEffect(1);
   }
 
-  prevPage(): void {
-    if (!this.rendition) return;
-    void this.rendition.prev();
+  prevPage(): Promise<void> {
+    if (!this.rendition) return Promise.resolve();
+    return Promise.resolve(this.rendition.prev()).then(() => undefined);
   }
 
-  nextPage(): void {
-    if (!this.rendition) return;
+  nextPage(): Promise<void> {
+    if (!this.rendition) return Promise.resolve();
     if (this.isAtBookEnd()) {
       this.requestAdjacentFile('next');
-      return;
+      return Promise.resolve();
     }
-    void this.rendition.next();
+    return Promise.resolve(this.rendition.next()).then(() => undefined);
+  }
+
+  /**
+   * Navigate one page and wait for relocated (or a short timeout) so the
+   * animation layer can release its last frame over the new content.
+   */
+  private async turnPageAndSettle(dir: 1 | -1): Promise<void> {
+    if (!this.rendition) return;
+    const beforeCfi = this.currentCfi() || this.rendition.location?.start?.cfi || '';
+    await new Promise<void>(resolve => {
+      let settled = false;
+      const done = () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        try {
+          this.rendition?.off?.('relocated', onRelocated);
+        } catch {
+          /* ignore */
+        }
+        resolve();
+      };
+      const onRelocated = (location: any) => {
+        const cfi = location?.start?.cfi || '';
+        if (!beforeCfi || cfi !== beforeCfi) done();
+      };
+      const timer = setTimeout(done, Math.max(120, PAGE_TURN_DURATION_MS));
+      try {
+        this.rendition?.on?.('relocated', onRelocated);
+      } catch {
+        /* ignore */
+      }
+      void (dir > 0 ? this.nextPage() : this.prevPage()).then(() => {
+        // If next/prev resolved synchronously without relocated, still wait briefly
+      });
+    });
   }
 
   /** True when EPUB location reports end or current page is the last location. */
@@ -2747,7 +2809,9 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
 
     rendition.on('relocated', (location: any) => {
       if (this.relocating) return;
-      this.invalidatePeek();
+      if (!this.turningPage) {
+        this.invalidatePeek();
+      }
       const cfi = location?.start?.cfi || '';
       this.currentCfi.set(cfi);
       let loc = this.locationFromCfiSafe(cfi, location);
@@ -2850,7 +2914,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private onRenditionSelected = (cfiRange: string, contents: any): void => {
-    if (this.loading() || this.error() || this.editingAnnotation()) return;
+    if (this.loading() || this.error() || this.editingAnnotation() || this.didDrag) return;
     const sel = contents?.window?.getSelection?.();
     const text = (sel?.toString() || '').trim();
     if (!text || !cfiRange) return;
@@ -3788,8 +3852,27 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       doc.body.style.cursor = 'grab';
     } catch { /* ignore */ }
 
+    const setDocUserSelect = (enabled: boolean): void => {
+      try {
+        const val = enabled ? '' : 'none';
+        doc.documentElement.style.userSelect = val;
+        doc.documentElement.style.webkitUserSelect = val;
+        if (doc.body) {
+          doc.body.style.userSelect = val;
+          doc.body.style.webkitUserSelect = val;
+        }
+      } catch { /* ignore */ }
+    };
+
     const onSelectionChange = (): void => {
       if (this.panPointerId == null || this.panSelectMode) return;
+      // Se já está arrastando a página, desconsidera alterações espúrias de seleção nativa
+      if (this.didDrag) {
+        try {
+          win.getSelection()?.removeAllRanges();
+        } catch { /* ignore */ }
+        return;
+      }
       if (this.hasSelectionInWindow(win)) {
         this.abortPanForSelect();
       }
@@ -3841,16 +3924,21 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       this.panVelocityY = dy / dt;
       this.panLastMoveAt = now;
 
-      // Selection started during this gesture — abort pan before stealing it
-      if (this.hasSelectionInWindow(win)) {
-        this.abortPanForSelect();
-        return;
+      if (!this.didDrag) {
+        if (Math.abs(dx) + Math.abs(dy) <= DRAG_THRESHOLD_PX) {
+          // Permite seleção nativa até ultrapassar o limiar de arrasto
+          if (this.hasSelectionInWindow(win)) {
+            this.abortPanForSelect();
+          }
+          return;
+        }
+        this.didDrag = true;
+        // Ao ultrapassar o limiar de arraste da página, desativa temporariamente a seleção nativa
+        setDocUserSelect(false);
+        try {
+          win.getSelection()?.removeAllRanges();
+        } catch { /* ignore */ }
       }
-
-      if (Math.abs(dx) + Math.abs(dy) <= DRAG_THRESHOLD_PX && !this.didDrag) {
-        return; // allow native text selection until drag threshold
-      }
-      this.didDrag = true;
 
       try {
         if (this.isContinuousScrollMode()) {
@@ -3885,6 +3973,12 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
             if (this.overscrollX !== 0) {
               this.peekLayerActive.set(true);
               this.ensurePeekForOverscroll();
+              const dir = this.overscrollPageDirection();
+              if (dir && !prefersReducedMotion()) {
+                void this.ensureDragDriver(dir, maxX).then(ok => {
+                  if (ok) this.scrubDriverFromOverscroll(maxX);
+                });
+              }
             }
             return;
           }
@@ -3906,6 +4000,12 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
           if (this.overscrollY !== 0) {
             this.peekLayerActive.set(true);
             this.ensurePeekForOverscroll();
+            const dir = this.overscrollPageDirection();
+            if (dir && !prefersReducedMotion()) {
+              void this.ensureDragDriver(dir, maxY).then(ok => {
+                if (ok) this.scrubDriverFromOverscroll(maxY);
+              });
+            }
           }
           return;
         }
@@ -3917,13 +4017,32 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
 
     const onUp = (ev: PointerEvent) => {
       if (this.panPointerId !== ev.pointerId) return;
-      const wasSelect = this.panSelectMode || this.hasSelectionInWindow(win);
+      const hadDrag = this.didDrag;
+      const wasSelect = this.panSelectMode || (!hadDrag && this.hasSelectionInWindow(win));
       this.panPointerId = null;
       this.panSelectMode = false;
       this.panning.set(false);
+      setDocUserSelect(true);
+
       try {
         doc.body.style.cursor = 'grab';
       } catch { /* ignore */ }
+
+      if (hadDrag) {
+        // Se arrastou a página, descarta qualquer seleção acidental e executa transição
+        try {
+          win.getSelection()?.removeAllRanges();
+        } catch { /* ignore */ }
+        this.pendingSelectShow = null;
+
+        if (this.isPaginatedMode()) {
+          this.commitOrSnapOverscroll();
+        } else {
+          this.resetOverscroll(true);
+          this.deactivatePeekLayer();
+        }
+        return;
+      }
 
       if (wasSelect) {
         this.resetOverscroll(false);
@@ -3933,12 +4052,8 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
         return;
       }
 
-      if (this.isPaginatedMode() && this.didDrag) {
-        this.commitOrSnapOverscroll();
-      } else {
-        this.resetOverscroll(true);
-        this.deactivatePeekLayer();
-      }
+      this.resetOverscroll(true);
+      this.deactivatePeekLayer();
     };
 
     doc.addEventListener('pointerdown', onDown);
@@ -3948,6 +4063,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     doc.addEventListener('selectionchange', onSelectionChange);
 
     this.contentCleanups.push(() => {
+      setDocUserSelect(true);
       doc.removeEventListener('pointerdown', onDown);
       doc.removeEventListener('pointermove', onMove);
       doc.removeEventListener('pointerup', onUp);
@@ -3995,78 +4111,101 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     void this.loadPeek(dir);
   }
 
-  private async loadPeek(dir: 1 | -1): Promise<void> {
-    if (!this.epubBook || !this.rendition || !this.isPaginatedMode()) return;
+  /**
+   * Load adjacent visual page for ViewPager-style peek.
+   * Reuses a single peek Rendition to avoid leaking spine.hooks.content handlers.
+   * @returns true when peek shows a distinct page from the main viewer.
+   */
+  private async loadPeek(dir: 1 | -1): Promise<boolean> {
+    if (!this.epubBook || !this.rendition || !this.isPaginatedMode()) return false;
     const peekEl = this.viewerPeekRef?.nativeElement;
-    if (!peekEl) return;
+    if (!peekEl) return false;
 
-    // Visual page edge — not locations index (±1 char chunk)
     const mainLoc = this.rendition.location;
-    if (dir > 0 && mainLoc?.atEnd) return;
-    if (dir < 0 && mainLoc?.atStart) return;
+    if (dir > 0 && mainLoc?.atEnd) return false;
+    if (dir < 0 && mainLoc?.atStart) return false;
 
     const cfi = this.currentCfi() || mainLoc?.start?.cfi;
-    if (!cfi) return;
+    if (!cfi) return false;
 
-    this.destroyPeekRendition(false);
     this.peekDirection = dir;
     this.peekStale = false;
     const token = ++this.peekLoadToken;
 
     try {
-      // Do NOT use book.renderTo — it overwrites book.rendition and breaks the main viewer
-      const peekOpts = this.buildRenditionOptions();
-      // Peek is always paginated (never continuous)
-      delete peekOpts['manager'];
-      peekOpts['flow'] = 'paginated';
-      const peek = new Rendition(this.epubBook, peekOpts as any);
-      await peek.attachTo(peekEl);
-      if (token !== this.peekLoadToken) {
-        try {
-          peek.destroy();
-        } catch { /* ignore */ }
-        return;
+      let peek = this.peekRendition;
+      if (!peek) {
+        // Do NOT use book.renderTo — it overwrites book.rendition and breaks the main viewer
+        const peekOpts = this.buildRenditionOptions();
+        delete peekOpts['manager'];
+        peekOpts['flow'] = 'paginated';
+        peek = new Rendition(this.epubBook, peekOpts as any);
+        await peek.attachTo(peekEl);
+        if (token !== this.peekLoadToken) {
+          try {
+            peek.destroy();
+          } catch {
+            /* ignore */
+          }
+          return false;
+        }
+        this.peekRendition = peek;
+        this.applyTypography(peek);
       }
-      this.peekRendition = peek;
-      this.applyTypography(peek);
-      await peek.display(cfi);
-      if (token !== this.peekLoadToken) return;
 
-      // Same visual step as nextPage() / prevPage()
+      await peek.display(cfi);
+      if (token !== this.peekLoadToken) return false;
+
       if (dir > 0) await peek.next();
       else await peek.prev();
-      if (token !== this.peekLoadToken) return;
+      if (token !== this.peekLoadToken) return false;
 
       const afterCfi = peek.location?.start?.cfi;
       if (!afterCfi || afterCfi === cfi) {
-        this.destroyPeekRendition(false);
+        this.peekStale = true;
+        this.peekDirection = 0;
+        return false;
       }
+      return true;
     } catch (e) {
       console.warn('[reader-text] peek load failed', e);
-      this.destroyPeekRendition(false);
+      this.peekStale = true;
+      this.peekDirection = 0;
+      return false;
     }
   }
 
-  /** @param hideLayer when false, keep ViewPager layer visible (reload mid-gesture). */
-  private destroyPeekRendition(hideLayer = true): void {
+  /**
+   * Soft-invalidate peek state without destroying the Rendition (keeps hooks).
+   * @param hideLayer when true, hide the peek layer visually.
+   * @param destroy when true, fully destroy the peek Rendition (book close only).
+   */
+  private destroyPeekRendition(hideLayer = true, destroy = false): void {
     this.peekLoadToken++;
-    try {
-      this.peekRendition?.destroy();
-    } catch { /* ignore */ }
-    this.peekRendition = null;
     this.peekDirection = 0;
     this.peekStale = true;
-    const peekEl = this.viewerPeekRef?.nativeElement;
-    if (peekEl) {
+    if (destroy) {
       try {
-        peekEl.innerHTML = '';
-      } catch { /* ignore */ }
+        this.peekRendition?.destroy();
+      } catch {
+        /* ignore */
+      }
+      this.peekRendition = null;
+      const peekEl = this.viewerPeekRef?.nativeElement;
+      if (peekEl) {
+        try {
+          peekEl.innerHTML = '';
+        } catch {
+          /* ignore */
+        }
+      }
     }
     if (hideLayer) this.deactivatePeekLayer();
   }
 
   private invalidatePeek(): void {
-    this.destroyPeekRendition(true);
+    // Soft invalidate — keep the reusable peek rendition alive
+    this.destroyPeekRendition(true, false);
   }
 
   /** On pointerup: turn page if past threshold / fling, else snap back (anchor). */
@@ -4089,36 +4228,127 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       Math.sign(velocity) === Math.sign(amount);
 
     if (dir !== 0 && (Math.abs(amount) >= threshold || fling)) {
-      this.resetOverscroll(false);
-      void this.finishOverscrollWithEffect(dir);
+      void this.commitDriverTurn(dir, viewportSize);
       return;
     }
 
-    this.resetOverscroll(true);
-    setTimeout(() => {
-      if (!this.panning() && this.overscrollX === 0 && this.overscrollY === 0) {
-        this.deactivatePeekLayer();
-      }
-    }, 200);
+    // Snap back — hide peek synchronously to avoid overlap flash
+    void this.cancelDriverTurn();
   }
 
-  private async finishOverscrollWithEffect(dir: 1 | -1): Promise<void> {
-    const effect = this.effectiveBookTransition();
-    if (effect === PageTransitionType.Default || this.turningPage) {
-      this.invalidatePeek();
-      if (dir > 0) this.nextPage();
-      else this.prevPage();
-      return;
+  private async ensureDragDriver(dir: 1 | -1, viewportSize: number): Promise<boolean> {
+    const viewer = this.viewerRef?.nativeElement;
+    const peek = this.viewerPeekRef?.nativeElement;
+    if (!viewer || !peek) return false;
+
+    if (this.turnDriver && this.turnDriverDir === dir) {
+      return true;
     }
-    // Peek should already be loaded from the drag; ensure it exists
-    if (this.peekDirection !== dir || this.peekStale) {
-      await this.loadPeek(dir);
-    }
+
+    this.turnDriver?.release();
+    this.turnDriver = null;
+
+    const peekOk = await this.loadPeek(dir);
+    if (!peekOk) return false;
+
     this.peekLayerActive.set(true);
-    await this.animateViewerTurn(dir, effect);
-    if (dir > 0) this.nextPage();
-    else this.prevPage();
-    this.destroyPeekRendition(true);
+    const effect = this.effectiveBookTransition();
+    const axis: TurnAxis = this.isHorizontalMode() ? 'x' : 'y';
+    const isCurl =
+      effect === PageTransitionType.CurlPage || effect === PageTransitionType.Curl3DPage;
+    const playEffect =
+      isCurl && !this.isHorizontalMode()
+        ? PageTransitionType.Fade
+        : isCurl
+          ? PageTransitionType.Fade // drag uses CSS path; curl fold is commit-only
+          : effect;
+
+    this.turnDriver = new PageTurnDriver({
+      outgoing: viewer,
+      incoming: peek,
+      effect: playEffect,
+      axis,
+      dir: dir as TurnDir,
+      size: viewportSize,
+      variant: 'book'
+    });
+    this.turnDriverDir = dir;
+    this.driverActive.set(true);
+    this.overscrollXSignal.set(0);
+    this.overscrollYSignal.set(0);
+    return true;
+  }
+
+  private scrubDriverFromOverscroll(viewportSize: number): void {
+    if (!this.turnDriver) return;
+    const amount = this.isHorizontalMode() ? this.overscrollX : this.overscrollY;
+    // Convert pixel overscroll to ViewPager position: next (amount<0 LTR) → negative
+    const dir = this.turnDriverDir;
+    const progress = Math.min(1, Math.abs(amount) / Math.max(viewportSize, 1));
+    const position = -dir * progress;
+    this.turnDriver.setPosition(position);
+  }
+
+  private async commitDriverTurn(dir: 1 | -1, viewportSize: number): Promise<void> {
+    const effect = this.effectiveBookTransition();
+    const isCurl =
+      (effect === PageTransitionType.CurlPage || effect === PageTransitionType.Curl3DPage) &&
+      this.isHorizontalMode();
+
+    // Ensure peek + driver exist
+    if (!this.turnDriver || this.turnDriverDir !== dir) {
+      const ok = await this.ensureDragDriver(dir, viewportSize);
+      if (!ok) {
+        this.resetOverscroll(false);
+        this.deactivatePeekLayer();
+        await this.turnPageAndSettle(dir);
+        return;
+      }
+    }
+
+    this.turningPage = true;
+    this.turningSignal.set(true);
+    this.resetOverscroll(false);
+
+    try {
+      if (isCurl) {
+        // Fold animation from current state
+        this.turnDriver?.release();
+        this.turnDriver = null;
+        this.driverActive.set(false);
+        this.peekLayerActive.set(true);
+        await this.animateViewerTurn(dir, effect, () => this.turnPageAndSettle(dir));
+      } else {
+        await this.turnDriver!.animateTo(-dir, PAGE_TURN_DURATION_MS, () =>
+          this.turnPageAndSettle(dir)
+        );
+      }
+    } finally {
+      this.turnDriver = null;
+      this.driverActive.set(false);
+      this.deactivatePeekLayer();
+      this.peekStale = true;
+      this.peekDirection = 0;
+      this.turningPage = false;
+      this.turningSignal.set(false);
+      this.clearViewerAnimStyles();
+    }
+  }
+
+  private async cancelDriverTurn(): Promise<void> {
+    if (this.turnDriver) {
+      this.turningSignal.set(true);
+      this.driverActive.set(true);
+      try {
+        await this.turnDriver.animateTo(0, Math.min(180, PAGE_TURN_DURATION_MS));
+      } finally {
+        this.turnDriver = null;
+        this.driverActive.set(false);
+        this.turningSignal.set(false);
+      }
+    }
+    this.resetOverscroll(false);
+    this.deactivatePeekLayer();
     this.clearViewerAnimStyles();
   }
 
@@ -4517,35 +4747,46 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private async turnWithEffect(dir: 1 | -1): Promise<void> {
     if (!this.rendition || this.turningPage) {
-      if (dir > 0) this.nextPage();
-      else this.prevPage();
+      await this.turnPageAndSettle(dir);
+      return;
+    }
+    if (prefersReducedMotion() || this.isContinuousScrollMode()) {
+      await this.turnPageAndSettle(dir);
       return;
     }
     const effect = this.effectiveBookTransition();
-    if (effect === PageTransitionType.Default) {
-      if (dir > 0) this.nextPage();
-      else this.prevPage();
-      return;
-    }
 
     this.turningPage = true;
+    this.turningSignal.set(true);
     try {
-      await this.loadPeek(dir);
+      const peekOk = await this.loadPeek(dir);
+      if (!peekOk) {
+        await this.turnPageAndSettle(dir);
+        return;
+      }
       this.peekLayerActive.set(true);
-      await this.animateViewerTurn(dir, effect);
-      if (dir > 0) this.nextPage();
-      else this.prevPage();
+      await this.animateViewerTurn(dir, effect, () => this.turnPageAndSettle(dir));
     } finally {
-      this.destroyPeekRendition(true);
-      this.clearViewerAnimStyles();
+      this.deactivatePeekLayer();
+      this.peekStale = true;
+      this.peekDirection = 0;
       this.turningPage = false;
+      this.turningSignal.set(false);
+      this.clearViewerAnimStyles();
     }
   }
 
-  private async animateViewerTurn(dir: 1 | -1, effect: PageTransitionType): Promise<void> {
+  private async animateViewerTurn(
+    dir: 1 | -1,
+    effect: PageTransitionType,
+    commit?: () => void | Promise<void>
+  ): Promise<void> {
     const viewer = this.viewerRef?.nativeElement;
     const peek = this.viewerPeekRef?.nativeElement;
-    if (!viewer || !peek) return;
+    if (!viewer || !peek) {
+      if (commit) await commit();
+      return;
+    }
 
     this.overscrollAnimatingSignal.set(false);
     // Clear overscroll translates so WAAPI owns the transform
@@ -4564,8 +4805,15 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       effect === PageTransitionType.CurlPage || effect === PageTransitionType.Curl3DPage;
 
     if (isCurl && this.isHorizontalMode()) {
-      // CSS 3D fold — iframe can't be cheaply rasterized for canvas curl
-      await playCssCurlTurn(viewer, turnDir);
+      await playFoldTurn({
+        el: viewer,
+        dir: turnDir,
+        size,
+        mode: effect === PageTransitionType.Curl3DPage ? '3d' : '2d',
+        underneath: peek,
+        commit,
+        owner: 'book-reader'
+      });
       return;
     }
 
@@ -4576,11 +4824,16 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       effect: playEffect,
       axis,
       dir: turnDir,
-      size
+      size,
+      variant: 'book',
+      commit,
+      owner: 'book-reader'
     });
   }
 
   private clearViewerAnimStyles(): void {
+    cancelActivePageTurns('book-reader');
+    if (this.turningSignal()) return;
     const viewer = this.viewerRef?.nativeElement;
     const peek = this.viewerPeekRef?.nativeElement;
     for (const el of [viewer, peek]) {
@@ -4590,6 +4843,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       el.style.boxShadow = '';
       el.style.zIndex = '';
       el.style.transformOrigin = '';
+      el.style.willChange = '';
     }
   }
 
@@ -4932,7 +5186,10 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     } catch {}
     this.clearContentPanListeners();
     this.resetOverscroll(false);
-    this.destroyPeekRendition();
+    this.turnDriver?.release();
+    this.turnDriver = null;
+    this.driverActive.set(false);
+    this.destroyPeekRendition(true, true);
     try {
       this.rendition?.destroy();
     } catch {}

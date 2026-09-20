@@ -772,8 +772,13 @@ export class MainLayoutComponent implements OnInit {
     const params = new URLSearchParams(query);
     const lib = params.get('lib') || 'home';
 
+    const previousLib = this.currentLibId();
     this.currentPath.set(path);
     this.currentLibId.set(lib);
+
+    if (previousLib !== lib) {
+      this.libraryStateService.clearSearch();
+    }
 
     if (path === '/' || path === '') {
       if (lib === 'home') {
@@ -886,6 +891,7 @@ export class MainLayoutComponent implements OnInit {
   }
 
   selectLibrary(lib: NavLibrary) {
+    this.libraryStateService.clearSearch();
     this.currentPath.set('/');
     this.currentLibId.set(lib.id);
     this.router.navigate(['/'], { queryParams: { lib: lib.id } });

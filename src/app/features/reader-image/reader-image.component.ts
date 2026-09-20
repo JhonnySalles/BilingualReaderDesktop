@@ -25,13 +25,18 @@ import { ReaderTouchConfigComponent } from '../reader-shared/reader-touch-config
 import { handleReaderTouchTap, TouchActionHandlers } from '../reader-shared/touch-action.util';
 import {
   MangaPageTurnLayerComponent,
-  type TurnLayerPage
+  type TurnLayerPage,
+  type TurnSlotView
 } from '../reader-shared/page-transition/manga-page-turn-layer.component';
-import type { TurnAxis, TurnDir } from '../../core/models/enums/page-transition.enums';
+import {
+  PAGE_TURN_DURATION_MS,
+  type TurnAxis,
+  type TurnDir
+} from '../../core/models/enums/page-transition.enums';
 import { PagesLinkOverlayComponent } from './pages-link/pages-link-overlay.component';
 import { LinkedFile } from '../../core/models/entities/linked-file.model';
 import { PAGE_EMPTY } from '../../core/models/enums/page-link-enums';
-import { MangaSpreadViewportComponent } from './manga-spread-viewport.component';
+import { MangaSpreadViewportComponent, type TurnDragEvent } from './manga-spread-viewport.component';
 import { MangaDualSpreadViewportComponent } from './dual/manga-dual-spread-viewport.component';
 import {
   buildSpreads,
@@ -203,7 +208,8 @@ const MAGNIFIER_SQUARE_PX = 250;
     }
   `],
   template: `
-    <div class="h-screen w-screen relative bg-black text-slate-100 overflow-hidden select-none">
+    <div class="h-screen w-screen relative text-slate-100 overflow-hidden select-none"
+      style="background: var(--reader-surface, #0f172a)">
       <!-- Loading overlay -->
       @if (loading()) {
         <div class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-slate-950 gap-4">
@@ -268,7 +274,7 @@ const MAGNIFIER_SQUARE_PX = 250;
             (viewportWheel)="onViewportWheel($event)"
             (shiftMagnify)="onMagnifierStart($event)"
             (selectText)="onSubtitleSelect($event)"
-            (curlDrag)="onDualCurlDrag($event)" />
+            (turnDrag)="onDualTurnDrag($event)" />
         </div>
       } @else {
         <div class="absolute inset-0 z-0">
@@ -294,6 +300,7 @@ const MAGNIFIER_SQUARE_PX = 250;
             [loading]="loading()"
             (pageChange)="onSinglePageChange($event)"
             (pageSync)="onSinglePageSync($event)"
+            (turnRequest)="onSingleTurnRequest($event)"
             (viewportClick)="onViewportClick($event)"
             (viewportWheel)="onViewportWheel($event)"
             (shiftMagnify)="onMagnifierStart($event)"
@@ -302,7 +309,7 @@ const MAGNIFIER_SQUARE_PX = 250;
             (linkedImageLoad)="onLinkedImageLoad($event)"
             (selectText)="onSubtitleSelect($event)"
             (dragFlag)="onDragFlag($event)"
-            (curlDrag)="onSingleCurlDrag($event)" />
+            (turnDrag)="onSingleTurnDrag($event)" />
         </div>
       }
 
@@ -316,8 +323,10 @@ const MAGNIFIER_SQUARE_PX = 250;
           [fitMode]="fitMode()"
           [zoom]="zoom()"
           [cssFilter]="pageCssFilter()"
-          [curlFactor]="turn.curlFactor"
-          [curlCommit]="turn.curlCommit"
+          [outgoingView]="turn.outgoingView"
+          [incomingView]="turn.incomingView"
+          [progress]="turn.progress"
+          [progressCommit]="turn.progressCommit"
           (finished)="onTurnFinished()" />
       }
 
@@ -1368,12 +1377,17 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
     effect: PageTransitionType;
     axis: TurnAxis;
     dir: TurnDir;
-    curlFactor: number | null;
-    curlCommit: boolean | null;
+    progress: number | null;
+    progressCommit: boolean | null;
+    outgoingView: TurnSlotView;
+    incomingView: TurnSlotView;
   } | null>(null);
   /** True while a page-turn FX (incl. interactive curl) is in progress. Bound to single viewport. */
   turning = false;
+  private targetPageAfterTurn: number | null = null;
+  private targetSpreadAfterTurn: number | null = null;
   private turnResolve: (() => void) | null = null;
+  private turnWatchdog: ReturnType<typeof setTimeout> | null = null;
   spreadIndex = signal(0);
   /** Active page within the current dual spread (for linked toggle). */
   activeDualPage = signal(0);
@@ -1486,6 +1500,7 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
     this.stopMagnifier();
     if (this.clickTimer) clearTimeout(this.clickTimer);
     if (this.stubToastTimer) clearTimeout(this.stubToastTimer);
+    this.clearTurnWatchdog();
     this.unsubProgress?.();
     void this.cleanup();
   }
@@ -1636,7 +1651,6 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
   effectivePageTransition(): PageTransitionType {
     if (prefersReducedMotion()) return PageTransitionType.Default;
     if (this.isLongStrip()) return PageTransitionType.Default;
-    if (this.zoom() > 1) return PageTransitionType.Default;
     return this.pageTransition();
   }
 
@@ -1890,15 +1904,22 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
   onSinglePageChange(ev: { page: number; land: PageLand }): void {
     const max = Math.max(0, this.pageCount() - 1);
     const page = Math.min(Math.max(0, ev.page), max);
-    if (page === this.currentPage()) {
-      this.singleViewportRef?.scrollToPage(page, true, ev.land);
-      return;
-    }
     if (page > max) {
       this.requestAdjacentFile('next');
       return;
     }
-    this.seekTo(page, ev.land);
+    const from = this.currentPage();
+    if (Math.abs(page - from) === 1 && !this.isLongStrip() && !prefersReducedMotion()) {
+      void this.turnToPage(page, ev.land);
+      return;
+    }
+    // Direct gesture scroll snap (keeps physical swipe continuous for multi-page / long-strip)
+    this.seekBarPage.set(page);
+    this.singleViewportRef?.scrollToPage(page, true, ev.land);
+  }
+
+  onSingleTurnRequest(ev: { page: number; land: PageLand }): void {
+    void this.turnToPage(ev.page, ev.land);
   }
 
   onSinglePageSync(page: number): void {
@@ -1978,10 +1999,86 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
   }
 
   onTurnFinished(): void {
+    this.clearTurnWatchdog();
+    const target = this.targetPageAfterTurn;
+    const spreadTarget = this.targetSpreadAfterTurn;
+    this.targetPageAfterTurn = null;
+    this.targetSpreadAfterTurn = null;
+
+    // Keep overlay opaque covering the carousel while we commit the real page,
+    // then drop it on the next frames to avoid a flash of the wrong page.
+    if (spreadTarget != null) {
+      this.applySpreadChange(spreadTarget);
+    } else if (target != null && target !== this.currentPage()) {
+      const land: PageLand = target > this.currentPage() ? 'start' : 'end';
+      this.currentPage.set(target);
+      this.seekBarPage.set(target);
+      this.singleViewportRef?.scrollToPage(target, false, land);
+      this.scheduleProgressUpdate();
+    }
+
+    const resolve = this.turnResolve;
+    this.turnResolve = null;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        this.turnLayer.set(null);
+        this.turning = false;
+        resolve?.();
+      });
+    });
+  }
+
+  /** Force-finish any in-flight turn so a new one can start cleanly. */
+  private finishTurnImmediately(): void {
+    if (!this.turning && !this.turnLayer()) return;
+    this.clearTurnWatchdog();
+    const target = this.targetPageAfterTurn;
+    const spreadTarget = this.targetSpreadAfterTurn;
+    this.targetPageAfterTurn = null;
+    this.targetSpreadAfterTurn = null;
     this.turnLayer.set(null);
     this.turning = false;
-    this.turnResolve?.();
+    if (spreadTarget != null) {
+      this.applySpreadChange(spreadTarget);
+    } else if (target != null && target !== this.currentPage()) {
+      const land: PageLand = target > this.currentPage() ? 'start' : 'end';
+      this.currentPage.set(target);
+      this.seekBarPage.set(target);
+      this.singleViewportRef?.scrollToPage(target, false, land);
+      this.scheduleProgressUpdate();
+    }
+    const resolve = this.turnResolve;
     this.turnResolve = null;
+    resolve?.();
+  }
+
+  private armTurnWatchdog(): void {
+    this.clearTurnWatchdog();
+    this.turnWatchdog = setTimeout(() => {
+      this.turnWatchdog = null;
+      if (this.turning || this.turnLayer()) {
+        console.warn('[reader-image] page-turn watchdog fired');
+        this.onTurnFinished();
+      }
+    }, PAGE_TURN_DURATION_MS * 3);
+  }
+
+  private clearTurnWatchdog(): void {
+    if (this.turnWatchdog != null) {
+      clearTimeout(this.turnWatchdog);
+      this.turnWatchdog = null;
+    }
+  }
+
+  private resetCurlTurnState(): void {
+    this.clearTurnWatchdog();
+    this.turnLayer.set(null);
+    this.turning = false;
+    this.targetPageAfterTurn = null;
+    this.targetSpreadAfterTurn = null;
+    const resolve = this.turnResolve;
+    this.turnResolve = null;
+    resolve?.();
   }
 
   private applySpreadChange(index: number): void {
@@ -2015,28 +2112,49 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
     return this.isVerticalMode() ? 'y' : 'x';
   }
 
+  private emptySlotView(): TurnSlotView {
+    return { scrollLeft: 0, scrollTop: 0, offsetX: null, offsetY: null };
+  }
+
+  /** Capture FROM page slot scroll/offset for the turn overlay. */
+  private captureOutgoingView(page?: number): TurnSlotView {
+    const p = page ?? this.currentPage();
+    const state = this.singleViewportRef?.slotViewState(p);
+    if (!state) return this.emptySlotView();
+    return state;
+  }
+
   private async turnToPage(page: number, land: PageLand): Promise<void> {
-    const effect = this.effectivePageTransition();
-    if (effect === PageTransitionType.Default || this.turning) {
-      this.singleViewportRef?.scrollToPage(page, effect === PageTransitionType.Default, land);
+    if (this.isLongStrip() || prefersReducedMotion()) {
+      this.singleViewportRef?.scrollToPage(page, true, land);
       return;
     }
+    if (this.turning) {
+      this.finishTurnImmediately();
+    }
     const from = this.currentPage();
+    const effect = this.effectivePageTransition();
     const dir: TurnDir = page > from ? 1 : -1;
     const animDir: TurnDir =
       this.isRtl() && this.isHorizontal() ? ((-dir) as TurnDir) : dir;
 
+    this.targetPageAfterTurn = page;
+    this.targetSpreadAfterTurn = null;
     this.turning = true;
+    this.armTurnWatchdog();
     this.turnLayer.set({
       outgoing: { urls: this.urlsForPage(from) },
       incoming: { urls: this.urlsForPage(page) },
       effect,
       axis: this.turnAxis(),
       dir: animDir,
-      curlFactor: null,
-      curlCommit: null
+      progress: null,
+      progressCommit: null,
+      outgoingView: this.captureOutgoingView(from),
+      // Destination lands at start/end after commit; animate from centered start
+      incomingView: this.emptySlotView()
     });
-    this.singleViewportRef?.scrollToPage(page, false, land);
+    // Do NOT jump viewport underneath while overlay is animating; onTurnFinished will sync smoothly
     await new Promise<void>(resolve => {
       this.turnResolve = resolve;
     });
@@ -2050,9 +2168,12 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
     const effect = this.effectivePageTransition();
     const adjacent = Math.abs(clamped - from) === 1;
 
-    if (!adjacent || effect === PageTransitionType.Default || this.turning) {
+    if (!adjacent || prefersReducedMotion()) {
       this.applySpreadChange(clamped);
       return;
+    }
+    if (this.turning) {
+      this.finishTurnImmediately();
     }
 
     const dir: TurnDir = clamped > from ? 1 : -1;
@@ -2060,36 +2181,28 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
     const outSpread = spreads[from];
     const inSpread = spreads[clamped];
 
+    this.targetSpreadAfterTurn = clamped;
+    this.targetPageAfterTurn = null;
     this.turning = true;
+    this.armTurnWatchdog();
     this.turnLayer.set({
       outgoing: { urls: this.urlsForSpread(outSpread) },
       incoming: { urls: this.urlsForSpread(inSpread) },
       effect,
       axis: this.turnAxis(),
       dir: animDir,
-      curlFactor: null,
-      curlCommit: null
+      progress: null,
+      progressCommit: null,
+      outgoingView: this.emptySlotView(),
+      incomingView: this.emptySlotView()
     });
-    this.applySpreadChange(clamped);
     await new Promise<void>(resolve => {
       this.turnResolve = resolve;
     });
   }
 
-  onDualCurlDrag(
-    ev: { factor: number; goingNext: boolean; commit: boolean | null } | null
-  ): void {
-    if (!ev) {
-      this.turnLayer.set(null);
-      return;
-    }
-    const effect = this.effectivePageTransition();
-    if (
-      effect !== PageTransitionType.CurlPage &&
-      effect !== PageTransitionType.Curl3DPage
-    ) {
-      return;
-    }
+  onDualTurnDrag(ev: TurnDragEvent): void {
+    if (prefersReducedMotion() || this.zoom() > 1) return;
     const spreads = this.spreads();
     const from = this.spreadIndex();
     const delta = ev.goingNext ? 1 : -1;
@@ -2100,40 +2213,37 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
       : ((ev.goingNext ? 1 : -1) as TurnDir);
 
     const existing = this.turnLayer();
-    if (!existing || existing.curlFactor == null) {
+    if (!existing || existing.progress == null) {
       this.turning = true;
+      this.armTurnWatchdog();
       this.turnLayer.set({
         outgoing: { urls: this.urlsForSpread(spreads[from]) },
         incoming: { urls: this.urlsForSpread(spreads[to]) },
-        effect,
+        effect: this.effectivePageTransition(),
         axis: 'x',
         dir: animDir,
-        curlFactor: ev.factor,
-        curlCommit: ev.commit
+        progress: ev.progress,
+        progressCommit: ev.commit,
+        outgoingView: this.emptySlotView(),
+        incomingView: this.emptySlotView()
       });
     } else {
       this.turnLayer.update(t =>
         t
-          ? { ...t, curlFactor: ev.factor, curlCommit: ev.commit, dir: animDir }
+          ? { ...t, progress: ev.progress, progressCommit: ev.commit, dir: animDir }
           : t
       );
     }
+    if (ev.commit === true) {
+      this.targetSpreadAfterTurn = to;
+      this.targetPageAfterTurn = null;
+    } else if (ev.commit === false) {
+      this.targetSpreadAfterTurn = null;
+    }
   }
 
-  onSingleCurlDrag(
-    ev: { factor: number; goingNext: boolean; commit: boolean | null } | null
-  ): void {
-    if (!ev) {
-      this.turnLayer.set(null);
-      return;
-    }
-    const effect = this.effectivePageTransition();
-    if (
-      effect !== PageTransitionType.CurlPage &&
-      effect !== PageTransitionType.Curl3DPage
-    ) {
-      return;
-    }
+  onSingleTurnDrag(ev: TurnDragEvent): void {
+    if (prefersReducedMotion() || this.zoom() > 1 || this.isLongStrip()) return;
     const from = this.currentPage();
     const to = ev.goingNext ? from + 1 : from - 1;
     const max = Math.max(0, this.pageCount() - 1);
@@ -2143,25 +2253,32 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
       : ((ev.goingNext ? 1 : -1) as TurnDir);
 
     const existing = this.turnLayer();
-    if (!existing || existing.curlFactor == null) {
+    if (!existing || existing.progress == null) {
       this.turning = true;
+      this.armTurnWatchdog();
       this.turnLayer.set({
         outgoing: { urls: this.urlsForPage(from) },
         incoming: { urls: this.urlsForPage(to) },
-        effect,
+        effect: this.effectivePageTransition(),
         axis: this.turnAxis(),
         dir: animDir,
-        curlFactor: ev.factor,
-        curlCommit: ev.commit
+        progress: ev.progress,
+        progressCommit: ev.commit,
+        outgoingView: this.captureOutgoingView(from),
+        incomingView: this.emptySlotView()
       });
     } else {
       this.turnLayer.update(t =>
         t
-          ? { ...t, curlFactor: ev.factor, curlCommit: ev.commit, dir: animDir }
+          ? { ...t, progress: ev.progress, progressCommit: ev.commit, dir: animDir }
           : t
       );
     }
-    // On commit, pageChange → seekTo → turnToPage sees turning=true and only scrolls.
+    if (ev.commit === true) {
+      this.targetPageAfterTurn = to;
+    } else if (ev.commit === false) {
+      this.targetPageAfterTurn = null;
+    }
   }
 
   onDualImageSized(ev: { page: number; width: number; height: number }): void {

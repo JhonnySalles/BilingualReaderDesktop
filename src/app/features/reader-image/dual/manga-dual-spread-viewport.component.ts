@@ -18,6 +18,7 @@ import {
   visualOrder
 } from './manga-dual-spread';
 import { DRAG_THRESHOLD_PX } from '../manga-reader-navigation';
+import type { TurnDragEvent } from '../manga-spread-viewport.component';
 
 /**
  * Dual-page (spread) viewport for desktop manga reading.
@@ -207,12 +208,8 @@ export class MangaDualSpreadViewportComponent implements OnChanges {
   /** Shift+pointerdown — parent handles magnifier; dual must not pan. */
   @Output() shiftMagnify = new EventEmitter<PointerEvent>();
   @Output() selectText = new EventEmitter<NormalizedSubtitleText>();
-  /** Interactive curl drag progress; null = cancelled/idle. */
-  @Output() curlDrag = new EventEmitter<{
-    factor: number;
-    goingNext: boolean;
-    commit: boolean | null;
-  } | null>();
+  /** Interactive turn-drag for any overlay effect. */
+  @Output() turnDrag = new EventEmitter<TurnDragEvent>();
 
   panning = signal(false);
 
@@ -342,18 +339,13 @@ export class MangaDualSpreadViewportComponent implements OnChanges {
       return;
     }
 
-    // Interactive curl follows the finger
-    if (
-      this.pagerDrag &&
-      this.moved &&
-      (this.effect === PageTransitionType.CurlPage ||
-        this.effect === PageTransitionType.Curl3DPage)
-    ) {
+    // Interactive turn overlay follows the finger for any effect
+    if (this.pagerDrag && this.moved && this.zoom <= 1) {
       const w = el.clientWidth || 1;
       const goingNext = this.rtl ? dx > 0 : dx < 0;
       const progress = Math.min(1, Math.abs(dx) / Math.max(w * 0.45, 1));
       this.curlDragging = true;
-      this.curlDrag.emit({ factor: -progress, goingNext, commit: null });
+      this.turnDrag.emit({ progress, goingNext, commit: null });
     }
   }
 
@@ -381,10 +373,8 @@ export class MangaDualSpreadViewportComponent implements OnChanges {
       const goingNext = this.rtl ? dx > 0 : dx < 0;
       const w = el?.clientWidth || 1;
       const progress = Math.min(1, Math.abs(dx) / Math.max(w * 0.45, 1));
-      this.curlDrag.emit({ factor: -progress, goingNext, commit });
-      if (commit) {
-        this.emitSpreadDelta(goingNext ? 1 : -1);
-      }
+      // Spread change is applied by parent onTurnFinished after curl completes.
+      this.turnDrag.emit({ progress, goingNext, commit });
       return;
     }
 

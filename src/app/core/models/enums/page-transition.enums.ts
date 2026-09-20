@@ -40,9 +40,15 @@ export type TurnDir = 1 | -1;
 export interface PageTurnStyle {
   transform: string;
   opacity: number;
+  /**
+   * Legacy field kept for callers that still read it; the player applies
+   * z-index once from `elevated`, not per keyframe.
+   */
   zIndex: number;
   /** Elevation / shadow intensity 0–1 (for CSS box-shadow). */
   shadow: number;
+  /** Android translationZ / elevation — elevated layer sits above. */
+  elevated: boolean;
 }
 
 export function isPageTransitionType(value: unknown): value is PageTransitionType {

@@ -398,6 +398,9 @@ export class LibraryComponent implements OnInit {
       void this.bookLibraryService.cancelScan();
       this.resetScrollToTop();
       const libId = params['lib'] || 'home';
+      if (this.activeLibId() !== libId) {
+        this.libraryStateService.clearSearch();
+      }
       this.activeLibId.set(libId);
       this.customOrderItems.set(null);
       this.nav.rememberLibrary(libId);
