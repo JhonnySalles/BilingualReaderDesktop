@@ -3,7 +3,9 @@ import {
   ElementRef,
   EventEmitter,
   Input,
+  OnChanges,
   Output,
+  SimpleChanges,
   ViewChild,
   signal
 } from '@angular/core';
@@ -108,6 +110,9 @@ const PROGRAMMATIC_SCROLL_FALLBACK_MS = 1000;
                   <img
                     [src]="lu"
                     [alt]="'Tradução ' + (i + 1)"
+                    [attr.width]="sizedAttr(i, 'w')"
+                    [attr.height]="sizedAttr(i, 'h')"
+                    [style.aspect-ratio]="aspectRatio(i)"
                     [loading]="eagerNear(i) ? 'eager' : 'lazy'"
                     draggable="false"
                     [class]="pageImageClasses()"
@@ -123,6 +128,9 @@ const PROGRAMMATIC_SCROLL_FALLBACK_MS = 1000;
                   [attr.data-page]="i"
                   [src]="displayUrl(i)"
                   [alt]="'Página ' + (i + 1)"
+                  [attr.width]="sizedAttr(i, 'w')"
+                  [attr.height]="sizedAttr(i, 'h')"
+                  [style.aspect-ratio]="aspectRatio(i)"
                   [loading]="eagerNear(i) ? 'eager' : 'lazy'"
                   draggable="false"
                   [class]="pageImageClasses()"
@@ -171,6 +179,9 @@ const PROGRAMMATIC_SCROLL_FALLBACK_MS = 1000;
                   <img
                     [src]="lu"
                     [alt]="'Tradução ' + (i + 1)"
+                    [attr.width]="sizedAttr(i, 'w')"
+                    [attr.height]="sizedAttr(i, 'h')"
+                    [style.aspect-ratio]="aspectRatio(i)"
                     [loading]="eagerNear(i) ? 'eager' : 'lazy'"
                     draggable="false"
                     [class]="pageImageClasses()"
@@ -189,6 +200,9 @@ const PROGRAMMATIC_SCROLL_FALLBACK_MS = 1000;
                   [attr.data-page]="i"
                   [src]="displayUrl(i)"
                   [alt]="'Página ' + (i + 1)"
+                  [attr.width]="sizedAttr(i, 'w')"
+                  [attr.height]="sizedAttr(i, 'h')"
+                  [style.aspect-ratio]="aspectRatio(i)"
                   [loading]="eagerNear(i) ? 'eager' : 'lazy'"
                   draggable="false"
                   [class]="pageImageClasses()"
@@ -225,7 +239,7 @@ const PROGRAMMATIC_SCROLL_FALLBACK_MS = 1000;
     </div>
   `
 })
-export class MangaSpreadViewportComponent {
+export class MangaSpreadViewportComponent implements OnChanges {
   @ViewChild('viewport') viewportRef?: ElementRef<HTMLElement>;
 
   MangaScrollingMode = MangaScrollingMode;
@@ -289,9 +303,22 @@ export class MangaSpreadViewportComponent {
   private scrollEndHandler: (() => void) | null = null;
   private pendingJump: number | null = null;
   private pendingPageLand: PageLand = 'start';
+  /** Viewport scroll frozen while parent overlay turn is active. */
+  private turnFreezeLeft = 0;
+  private turnFreezeTop = 0;
 
   get viewportEl(): HTMLElement | null {
     return this.viewportRef?.nativeElement ?? null;
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['turning']) {
+      const el = this.viewportEl;
+      if (this.turning && el) {
+        this.turnFreezeLeft = el.scrollLeft;
+        this.turnFreezeTop = el.scrollTop;
+      }
+    }
   }
 
   isLongStrip(): boolean {
@@ -326,7 +353,20 @@ export class MangaSpreadViewportComponent {
     return this.pageNaturals[page] || { w: 1, h: 1 };
   }
 
+  /** HTML width/height attrs when natural size is known (avoids LayoutImageUnsized). */
+  sizedAttr(page: number, axis: 'w' | 'h'): number | null {
+    const n = this.naturalSize(page);
+    const v = axis === 'w' ? n.w : n.h;
+    return v > 1 ? v : null;
+  }
+
+  aspectRatio(page: number): string | null {
+    const n = this.naturalSize(page);
+    return n.w > 1 && n.h > 1 ? `${n.w} / ${n.h}` : null;
+  }
+
   eagerNear(index: number): boolean {
+    if (this.turning) return index === this.currentPage;
     return Math.abs(index - this.currentPage) <= 2;
   }
 
@@ -648,6 +688,16 @@ export class MangaSpreadViewportComponent {
   }
 
   onViewportScroll(): void {
+    // Allow programmatic commit (scrollToPage) to move the carousel while the
+    // overlay is still up; only block user/snap scroll during interactive turns.
+    if (this.turning && !this.scrollSyncLock) {
+      const el = this.viewportEl;
+      if (el && (el.scrollLeft !== this.turnFreezeLeft || el.scrollTop !== this.turnFreezeTop)) {
+        el.scrollLeft = this.turnFreezeLeft;
+        el.scrollTop = this.turnFreezeTop;
+      }
+      return;
+    }
     if (this.scrollSyncLock || this.loading) return;
     this.syncCurrentPageFromDom();
   }

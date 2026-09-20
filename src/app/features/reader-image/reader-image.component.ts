@@ -50,6 +50,7 @@ import {
 } from './dual/manga-dual-spread';
 import { fromReaderIndex, toReaderIndex } from '../../core/utils/reading-progress.util';
 import { type PageLand } from './manga-reader-navigation';
+import { pageFitRect, synthesizeLandView } from './manga-page-geometry';
 import { MangaSubtitlePanelComponent } from './subtitle/manga-subtitle-panel.component';
 import { chaptersForLanguage, findSubtitlePage } from './subtitle/subtitle-match.util';
 import {
@@ -244,7 +245,8 @@ const MAGNIFIER_SQUARE_PX = 250;
 
       <!-- Page viewport -->
       @if (useDualSpread()) {
-        <div class="absolute inset-0 z-0">
+        <div class="absolute inset-0 z-0"
+          [style.visibility]="turnLayer() ? 'hidden' : null">
           <app-manga-dual-spread-viewport
             [pages]="pages()"
             [spreads]="spreads()"
@@ -277,7 +279,8 @@ const MAGNIFIER_SQUARE_PX = 250;
             (turnDrag)="onDualTurnDrag($event)" />
         </div>
       } @else {
-        <div class="absolute inset-0 z-0">
+        <div class="absolute inset-0 z-0"
+          [style.visibility]="turnLayer() ? 'hidden' : null">
           <app-manga-spread-viewport
             [pages]="pages()"
             [currentPage]="currentPage()"
@@ -320,6 +323,7 @@ const MAGNIFIER_SQUARE_PX = 250;
           [effect]="turn.effect"
           [axis]="turn.axis"
           [dir]="turn.dir"
+          [mirror]="turn.mirror"
           [fitMode]="fitMode()"
           [zoom]="zoom()"
           [cssFilter]="pageCssFilter()"
@@ -1377,6 +1381,7 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
     effect: PageTransitionType;
     axis: TurnAxis;
     dir: TurnDir;
+    mirror: boolean;
     progress: number | null;
     progressCommit: boolean | null;
     outgoingView: TurnSlotView;
@@ -2004,9 +2009,12 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
     const spreadTarget = this.targetSpreadAfterTurn;
     this.targetPageAfterTurn = null;
     this.targetSpreadAfterTurn = null;
+    this.markTurn('commit');
 
-    // Keep overlay opaque covering the carousel while we commit the real page,
-    // then drop it on the next frames to avoid a flash of the wrong page.
+    // Release scroll freeze before committing the carousel so scrollToPage is
+    // not snapped back to the FROM page. Overlay (turnLayer) still covers.
+    this.turning = false;
+
     if (spreadTarget != null) {
       this.applySpreadChange(spreadTarget);
     } else if (target != null && target !== this.currentPage()) {
@@ -2022,7 +2030,7 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         this.turnLayer.set(null);
-        this.turning = false;
+        this.markTurn('end');
         resolve?.();
       });
     });
@@ -2103,6 +2111,27 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
     return url ? [url] : [];
   }
 
+  private layerPageFor(page: number): TurnLayerPage {
+    const nat = this.pageNaturalSize(page);
+    return {
+      urls: this.urlsForPage(page),
+      naturalW: nat.w > 1 ? nat.w : undefined,
+      naturalH: nat.h > 1 ? nat.h : undefined
+    };
+  }
+
+  private layerPageForSpread(spread: MangaSpread): TurnLayerPage {
+    const ordered = visualOrder(spread.left, spread.right, this.isRtl());
+    const urls = this.urlsForSpread(spread);
+    const first = ordered[0] ?? primaryPageOfSpread(spread);
+    const nat = this.pageNaturalSize(first);
+    return {
+      urls,
+      naturalW: nat.w > 1 ? nat.w : undefined,
+      naturalH: nat.h > 1 ? nat.h : undefined
+    };
+  }
+
   private urlsForSpread(spread: MangaSpread): string[] {
     const ordered = visualOrder(spread.left, spread.right, this.isRtl());
     return ordered.flatMap(p => this.urlsForPage(p));
@@ -2124,6 +2153,38 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
     return state;
   }
 
+  /**
+   * Incoming leaf must already show land start/end scroll so the post-turn
+   * scrollToPage does not visually snap.
+   */
+  private buildIncomingView(targetPage: number, land: PageLand): TurnSlotView {
+    const slot = this.singleViewportRef?.pageSlotAt(targetPage);
+    const vp = this.singleViewportRef?.viewportEl;
+    const W = slot?.clientWidth || vp?.clientWidth || window.innerWidth;
+    const H = slot?.clientHeight || vp?.clientHeight || window.innerHeight;
+    const nat = this.pageNaturalSize(targetPage);
+    const rect = pageFitRect(nat.w, nat.h, W, H, this.fitMode(), this.zoom());
+    const content = slot
+      ? ((slot.querySelector(':scope > div') as HTMLElement | null) ||
+          (slot.querySelector('img')?.parentElement as HTMLElement | null))
+      : null;
+    const contentW = content?.offsetWidth || rect.w;
+    const contentH = content?.offsetHeight || rect.h;
+    return synthesizeLandView(contentW, contentH, W, H, land, this.isRtl());
+  }
+
+  private turnMirror(): boolean {
+    return this.isRtl() && this.isHorizontal();
+  }
+
+  private markTurn(phase: 'start' | 'paint' | 'commit' | 'end'): void {
+    try {
+      performance.mark(`manga-turn:${phase}`);
+    } catch {
+      /* ignore */
+    }
+  }
+
   private async turnToPage(page: number, land: PageLand): Promise<void> {
     if (this.isLongStrip() || prefersReducedMotion()) {
       this.singleViewportRef?.scrollToPage(page, true, land);
@@ -2134,27 +2195,26 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
     }
     const from = this.currentPage();
     const effect = this.effectivePageTransition();
-    const dir: TurnDir = page > from ? 1 : -1;
-    const animDir: TurnDir =
-      this.isRtl() && this.isHorizontal() ? ((-dir) as TurnDir) : dir;
+    const logicalDir: TurnDir = page > from ? 1 : -1;
+    const resolvedLand: PageLand = land ?? (page > from ? 'start' : 'end');
 
     this.targetPageAfterTurn = page;
     this.targetSpreadAfterTurn = null;
     this.turning = true;
     this.armTurnWatchdog();
+    this.markTurn('start');
     this.turnLayer.set({
-      outgoing: { urls: this.urlsForPage(from) },
-      incoming: { urls: this.urlsForPage(page) },
+      outgoing: this.layerPageFor(from),
+      incoming: this.layerPageFor(page),
       effect,
       axis: this.turnAxis(),
-      dir: animDir,
+      dir: logicalDir,
+      mirror: this.turnMirror(),
       progress: null,
       progressCommit: null,
       outgoingView: this.captureOutgoingView(from),
-      // Destination lands at start/end after commit; animate from centered start
-      incomingView: this.emptySlotView()
+      incomingView: this.buildIncomingView(page, resolvedLand)
     });
-    // Do NOT jump viewport underneath while overlay is animating; onTurnFinished will sync smoothly
     await new Promise<void>(resolve => {
       this.turnResolve = resolve;
     });
@@ -2176,8 +2236,7 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
       this.finishTurnImmediately();
     }
 
-    const dir: TurnDir = clamped > from ? 1 : -1;
-    const animDir: TurnDir = this.isRtl() ? ((-dir) as TurnDir) : dir;
+    const logicalDir: TurnDir = clamped > from ? 1 : -1;
     const outSpread = spreads[from];
     const inSpread = spreads[clamped];
 
@@ -2185,12 +2244,14 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
     this.targetPageAfterTurn = null;
     this.turning = true;
     this.armTurnWatchdog();
+    this.markTurn('start');
     this.turnLayer.set({
-      outgoing: { urls: this.urlsForSpread(outSpread) },
-      incoming: { urls: this.urlsForSpread(inSpread) },
+      outgoing: this.layerPageForSpread(outSpread),
+      incoming: this.layerPageForSpread(inSpread),
       effect,
       axis: this.turnAxis(),
-      dir: animDir,
+      dir: logicalDir,
+      mirror: this.isRtl(),
       progress: null,
       progressCommit: null,
       outgoingView: this.emptySlotView(),
@@ -2208,20 +2269,20 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
     const delta = ev.goingNext ? 1 : -1;
     const to = from + delta;
     if (to < 0 || to >= spreads.length) return;
-    const animDir: TurnDir = this.isRtl()
-      ? ((ev.goingNext ? -1 : 1) as TurnDir)
-      : ((ev.goingNext ? 1 : -1) as TurnDir);
+    const logicalDir: TurnDir = (ev.goingNext ? 1 : -1) as TurnDir;
 
     const existing = this.turnLayer();
     if (!existing || existing.progress == null) {
       this.turning = true;
       this.armTurnWatchdog();
+      this.markTurn('start');
       this.turnLayer.set({
-        outgoing: { urls: this.urlsForSpread(spreads[from]) },
-        incoming: { urls: this.urlsForSpread(spreads[to]) },
+        outgoing: this.layerPageForSpread(spreads[from]),
+        incoming: this.layerPageForSpread(spreads[to]),
         effect: this.effectivePageTransition(),
         axis: 'x',
-        dir: animDir,
+        dir: logicalDir,
+        mirror: this.isRtl(),
         progress: ev.progress,
         progressCommit: ev.commit,
         outgoingView: this.emptySlotView(),
@@ -2230,7 +2291,7 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
     } else {
       this.turnLayer.update(t =>
         t
-          ? { ...t, progress: ev.progress, progressCommit: ev.commit, dir: animDir }
+          ? { ...t, progress: ev.progress, progressCommit: ev.commit, dir: logicalDir }
           : t
       );
     }
@@ -2248,29 +2309,30 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
     const to = ev.goingNext ? from + 1 : from - 1;
     const max = Math.max(0, this.pageCount() - 1);
     if (to < 0 || to > max) return;
-    const animDir: TurnDir = this.isRtl()
-      ? ((ev.goingNext ? -1 : 1) as TurnDir)
-      : ((ev.goingNext ? 1 : -1) as TurnDir);
+    const logicalDir: TurnDir = (ev.goingNext ? 1 : -1) as TurnDir;
+    const land: PageLand = ev.goingNext ? 'start' : 'end';
 
     const existing = this.turnLayer();
     if (!existing || existing.progress == null) {
       this.turning = true;
       this.armTurnWatchdog();
+      this.markTurn('start');
       this.turnLayer.set({
-        outgoing: { urls: this.urlsForPage(from) },
-        incoming: { urls: this.urlsForPage(to) },
+        outgoing: this.layerPageFor(from),
+        incoming: this.layerPageFor(to),
         effect: this.effectivePageTransition(),
         axis: this.turnAxis(),
-        dir: animDir,
+        dir: logicalDir,
+        mirror: this.turnMirror(),
         progress: ev.progress,
         progressCommit: ev.commit,
         outgoingView: this.captureOutgoingView(from),
-        incomingView: this.emptySlotView()
+        incomingView: this.buildIncomingView(to, land)
       });
     } else {
       this.turnLayer.update(t =>
         t
-          ? { ...t, progress: ev.progress, progressCommit: ev.commit, dir: animDir }
+          ? { ...t, progress: ev.progress, progressCommit: ev.commit, dir: logicalDir }
           : t
       );
     }

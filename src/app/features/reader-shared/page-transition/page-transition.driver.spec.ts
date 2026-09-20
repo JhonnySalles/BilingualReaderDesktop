@@ -92,7 +92,7 @@ describe('curl folding leaf mapping', () => {
 
   it('verso of the fold is the opposite leaf (under), not the folding leaf', () => {
     // Documented contract used by manga-page-turn-layer paintCurlAtProgress:
-    // backBmp === underBmp !== foldBmp (when pages differ)
+    // 3D backBmp === underBmp !== foldBmp (when pages differ)
     const nextLeaf = curlFoldingLeaf(1);
     const nextUnder = nextLeaf === 'outgoing' ? 'incoming' : 'outgoing';
     expect(nextLeaf).toBe('outgoing');
@@ -102,6 +102,15 @@ describe('curl folding leaf mapping', () => {
     const prevUnder = prevLeaf === 'outgoing' ? 'incoming' : 'outgoing';
     expect(prevLeaf).toBe('incoming');
     expect(prevUnder).toBe('outgoing');
+  });
+
+  it('logical prev folds incoming even when visual mirror would flip CSS dir', () => {
+    // mirror only affects visualDir; curlFoldingLeaf always uses logicalDir
+    expect(curlFoldingLeaf(-1)).toBe('incoming');
+    const logicalDir = -1 as const;
+    const mirroredVisual = (-logicalDir) as 1 | -1;
+    expect(mirroredVisual).toBe(1);
+    expect(curlFoldingLeaf(logicalDir)).toBe('incoming');
   });
 
   it('progressToCurlPosition maps next 0→-1 and prev -1→0', () => {

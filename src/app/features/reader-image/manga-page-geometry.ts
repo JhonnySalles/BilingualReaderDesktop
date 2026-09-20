@@ -141,3 +141,29 @@ export function slotContentViewportOffset(
     y: cr.top - sr.top
   };
 }
+
+/**
+ * Absolute content offset for an incoming turn leaf at land start/end,
+ * matching pageLandOffsets scroll semantics.
+ */
+export function synthesizeLandView(
+  contentW: number,
+  contentH: number,
+  viewportW: number,
+  viewportH: number,
+  land: 'start' | 'end',
+  rtl = false
+): { scrollLeft: number; scrollTop: number; offsetX: number; offsetY: number } {
+  const maxX = Math.max(0, contentW - viewportW);
+  const maxY = Math.max(0, contentH - viewportH);
+  const scrollLeft = land === 'start' ? (rtl ? maxX : 0) : rtl ? 0 : maxX;
+  const scrollTop = land === 'start' ? 0 : maxY;
+  const baseX = (viewportW - contentW) / 2;
+  const baseY = (viewportH - contentH) / 2;
+  return {
+    scrollLeft,
+    scrollTop,
+    offsetX: baseX - scrollLeft,
+    offsetY: baseY - scrollTop
+  };
+}

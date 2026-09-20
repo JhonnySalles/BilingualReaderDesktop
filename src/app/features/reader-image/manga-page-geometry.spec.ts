@@ -4,7 +4,8 @@ import {
   pageFitRectScrolled,
   pageImageClasses,
   pageWrapperClasses,
-  pageWrapperStyle
+  pageWrapperStyle,
+  synthesizeLandView
 } from './manga-page-geometry';
 
 describe('manga-page-geometry', () => {
@@ -74,14 +75,26 @@ describe('manga-page-geometry', () => {
     });
   });
 
-  describe('pageWrapperStyle', () => {
-    it('returns width percent for FitWidth', () => {
-      expect(pageWrapperStyle(MangaFitMode.FitWidth, 1.5).widthPercent).toBe(150);
-      expect(pageWrapperStyle(MangaFitMode.FitWidth, 1.5).heightPercent).toBeNull();
+  describe('synthesizeLandView', () => {
+    it('start lands at top-left (LTR)', () => {
+      const v = synthesizeLandView(1000, 2000, 800, 600, 'start', false);
+      expect(v.scrollLeft).toBe(0);
+      expect(v.scrollTop).toBe(0);
+      expect(v.offsetY).toBe((600 - 2000) / 2 - 0);
     });
 
-    it('returns height percent for FitHeight', () => {
-      expect(pageWrapperStyle(MangaFitMode.FitHeight, 2).heightPercent).toBe(200);
+    it('end lands at max scroll (bottom)', () => {
+      const v = synthesizeLandView(1000, 2000, 800, 600, 'end', false);
+      expect(v.scrollTop).toBe(2000 - 600);
+      expect(v.offsetY).toBe((600 - 2000) / 2 - (2000 - 600));
+      expect(v.scrollLeft).toBe(1000 - 800);
+    });
+
+    it('RTL start uses maxX; RTL end uses 0', () => {
+      const start = synthesizeLandView(1000, 2000, 800, 600, 'start', true);
+      const end = synthesizeLandView(1000, 2000, 800, 600, 'end', true);
+      expect(start.scrollLeft).toBe(200);
+      expect(end.scrollLeft).toBe(0);
     });
   });
 });

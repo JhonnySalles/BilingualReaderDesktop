@@ -32,6 +32,9 @@ import {
 
 export interface TurnLayerPage {
   urls: string[];
+  /** Optional intrinsic size for layout hints on overlay <img>s. */
+  naturalW?: number;
+  naturalH?: number;
 }
 
 /** Slot scroll / content offset captured from the live reader viewport. */
@@ -116,22 +119,8 @@ const EMPTY_VIEW: TurnSlotView = {
     }
   `],
   template: `
-    <div class="turn-underlay" aria-hidden="true">
-      <div class="turn-content"
-        [class.turn-content-centered]="underlayView().offsetX == null"
-        [style.left.px]="underlayView().offsetX"
-        [style.top.px]="underlayView().offsetY"
-        [style.--reader-zoom]="zoom">
-        <div [class]="wrapperClass()"
-          [style.width.%]="widthPercent()"
-          [style.height.%]="heightPercent()">
-          @for (u of underlayPage().urls; track $index) {
-            <img [src]="u" alt="" draggable="false" [class]="imgClass()"
-              [style.filter]="cssFilter || null" />
-          }
-        </div>
-      </div>
-    </div>
+    <!-- Opaque mask only — never paint destination bitmap (avoids Depth/Zoom ghost). -->
+    <div class="turn-underlay" aria-hidden="true"></div>
 
     @if (isCurl()) {
       <canvas #outCanvas class="turn-canvas"></canvas>
@@ -147,6 +136,9 @@ const EMPTY_VIEW: TurnSlotView = {
             [style.height.%]="heightPercent()">
             @for (u of outgoing.urls; track $index) {
               <img [src]="u" alt="" draggable="false" [class]="imgClass()"
+                [attr.width]="outgoing.naturalW || null"
+                [attr.height]="outgoing.naturalH || null"
+                [style.aspect-ratio]="pageAspect(outgoing)"
                 [style.filter]="cssFilter || null" />
             }
           </div>
@@ -163,6 +155,9 @@ const EMPTY_VIEW: TurnSlotView = {
             [style.height.%]="heightPercent()">
             @for (u of incoming.urls; track $index) {
               <img [src]="u" alt="" draggable="false" [class]="imgClass()"
+                [attr.width]="incoming.naturalW || null"
+                [attr.height]="incoming.naturalH || null"
+                [style.aspect-ratio]="pageAspect(incoming)"
                 [style.filter]="cssFilter || null" />
             }
           </div>
@@ -184,13 +179,19 @@ export class MangaPageTurnLayerComponent implements AfterViewInit, OnChanges, On
   @Input({ required: true }) incoming!: TurnLayerPage;
   @Input() effect: PageTransitionType = PageTransitionType.Default;
   @Input() axis: TurnAxis = 'x';
+  /** Logical turn direction: +1 = next page index, -1 = previous. */
   @Input() dir: TurnDir = 1;
+  /**
+   * When true (RTL horizontal), mirror the curl edge / CSS slide without
+   * changing which leaf folds (logical dir).
+   */
+  @Input() mirror = false;
   @Input() fitMode: MangaFitMode = MangaFitMode.FitHeight;
   @Input() zoom = 1;
   @Input() cssFilter = '';
   /** View state of the page that is leaving (FROM slot). */
   @Input() outgoingView: TurnSlotView = EMPTY_VIEW;
-  /** View state of the page that is entering (usually land start → zeros). */
+  /** View state of the page that is entering (land start/end). */
   @Input() incomingView: TurnSlotView = EMPTY_VIEW;
   /**
    * Interactive progress 0..1 while dragging.
@@ -218,13 +219,9 @@ export class MangaPageTurnLayerComponent implements AfterViewInit, OnChanges, On
     );
   }
 
-  /** Static page under the animated leaves — destination on next, current on prev. */
-  underlayPage(): TurnLayerPage {
-    return this.dir > 0 ? this.incoming : this.outgoing;
-  }
-
-  underlayView(): TurnSlotView {
-    return this.dir > 0 ? this.incomingView : this.outgoingView;
+  /** Visual dir for CSS transforms / curl edge mirroring. */
+  private visualDir(): TurnDir {
+    return (this.mirror ? -this.dir : this.dir) as TurnDir;
   }
 
   wrapperClass(): string {
@@ -233,6 +230,13 @@ export class MangaPageTurnLayerComponent implements AfterViewInit, OnChanges, On
 
   imgClass(): string {
     return pageImageClasses(this.fitMode, this.zoom);
+  }
+
+  pageAspect(page: TurnLayerPage): string | null {
+    if (page.naturalW && page.naturalH && page.naturalW > 1 && page.naturalH > 1) {
+      return `${page.naturalW} / ${page.naturalH}`;
+    }
+    return null;
   }
 
   heightPercent(): number | null {
@@ -261,7 +265,7 @@ export class MangaPageTurnLayerComponent implements AfterViewInit, OnChanges, On
       this.driver &&
       !this.finishing
     ) {
-      this.driver.setPosition(progressToTurnPosition(this.progress, this.dir));
+      this.driver.setPosition(progressToTurnPosition(this.progress, this.visualDir()));
     }
     if (
       changes['progressCommit'] &&
@@ -304,8 +308,11 @@ export class MangaPageTurnLayerComponent implements AfterViewInit, OnChanges, On
       await this.ensureBitmaps();
       if (this.progress != null) {
         await this.paintCurlAtProgress(this.progress);
+        this.markPaint();
         return;
       }
+      await this.paintCurlAtProgress(0);
+      this.markPaint();
       await this.playCurlAnimation();
       this.emitFinished();
       return;
@@ -326,24 +333,36 @@ export class MangaPageTurnLayerComponent implements AfterViewInit, OnChanges, On
         ? out.clientWidth || window.innerWidth
         : out.clientHeight || window.innerHeight;
 
+    const vDir = this.visualDir();
     this.driver = new PageTurnDriver({
       outgoing: out,
       incoming: inn,
       effect: this.effect,
       axis: this.axis,
-      dir: this.dir,
+      dir: vDir,
       size,
       variant: 'manga'
     });
 
     if (this.progress != null) {
-      this.driver.setPosition(progressToTurnPosition(this.progress, this.dir));
+      this.driver.setPosition(progressToTurnPosition(this.progress, vDir));
+      this.markPaint();
       return;
     }
 
+    this.driver.setPosition(0);
+    this.markPaint();
     this.abort = new AbortController();
-    await this.driver.animateTo(-this.dir, PAGE_TURN_DURATION_MS);
+    await this.driver.animateTo(-vDir, PAGE_TURN_DURATION_MS);
     this.emitFinished();
+  }
+
+  private markPaint(): void {
+    try {
+      performance.mark('manga-turn:paint');
+    } catch {
+      /* ignore */
+    }
   }
 
   private async finishCssTurn(commit: boolean): Promise<void> {
@@ -352,7 +371,8 @@ export class MangaPageTurnLayerComponent implements AfterViewInit, OnChanges, On
       return;
     }
     this.finishing = true;
-    const target = commit ? -this.dir : 0;
+    const vDir = this.visualDir();
+    const target = commit ? -vDir : 0;
     await this.driver.animateTo(target, PAGE_TURN_DURATION_MS);
     this.emitFinished();
   }
@@ -421,28 +441,23 @@ export class MangaPageTurnLayerComponent implements AfterViewInit, OnChanges, On
     if (!outBmp) return;
     const inBmp = inUrl ? await this.getBitmap(inUrl) : outBmp;
 
+    // Leaf selection uses LOGICAL dir (next folds outgoing; prev folds incoming).
     const leaf = curlFoldingLeaf(this.dir);
     const foldBmp = leaf === 'outgoing' ? outBmp : inBmp ?? outBmp;
     const underBmp = leaf === 'outgoing' ? inBmp ?? outBmp : outBmp;
-    // Verso = opposite page (not a mirror of the folding leaf)
-    const backBmp = underBmp;
+    const is3d = this.effect === PageTransitionType.Curl3DPage;
+    // 3D verso = opposite page; 2D flap is surface only (no next-page paint).
+    const backBmp = is3d ? underBmp : null;
     const curlPos = progressToCurlPosition(progress, this.dir);
+    const visualDir = this.visualDir();
 
     const foldView = leaf === 'outgoing' ? this.outgoingView : this.incomingView;
     const underView = leaf === 'outgoing' ? this.incomingView : this.outgoingView;
 
-    // Convert captured viewport offsets into scroll deltas relative to centered fit
     const foldScrollLeft =
       foldView.offsetX == null ? foldView.scrollLeft : 0;
     const foldScrollTop =
       foldView.offsetY == null ? foldView.scrollTop : 0;
-    // When we have absolute offsets, pass them via scrolled helper by
-    // computing delta from a synthetic center — drawCurl uses scroll as subtract.
-    // Prefer absolute: encode as scrollLeft/Top from centered rect after size known inside drawCurl.
-    // Here we pass scrollLeft/Top from the slot when offsets are null; when offsets
-    // are set we pass negative offsets as the draw position via scroll fields paired
-    // with zero-centered path — see drawCurl scrollLeft = -offset means draw at offset
-    // only if base.x is 0. So pass explicit scroll from slot:
     const useFoldAbs = foldView.offsetX != null && foldView.offsetY != null;
     const useUnderAbs = underView.offsetX != null && underView.offsetY != null;
 
@@ -451,9 +466,9 @@ export class MangaPageTurnLayerComponent implements AfterViewInit, OnChanges, On
       back: backBmp,
       under: underBmp,
       curl: positionToCurl(curlPos),
-      mode: this.effect === PageTransitionType.Curl3DPage ? '3d' : '2d',
+      mode: is3d ? '3d' : '2d',
       surfaceColor: '#0f172a',
-      dir: this.dir,
+      dir: visualDir,
       fitMode: this.fitMode,
       zoom: this.zoom,
       scrollLeft: useFoldAbs ? undefined : foldScrollLeft,

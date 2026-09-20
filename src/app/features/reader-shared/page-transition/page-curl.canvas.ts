@@ -123,19 +123,6 @@ export function drawCurl(ctx: CanvasRenderingContext2D, opts: DrawCurlOptions): 
   const rect = opts.frontOffset
     ? { x: opts.frontOffset.x, y: opts.frontOffset.y, w: rectBase.w, h: rectBase.h }
     : rectBase;
-  const back = opts.back ?? under ?? front;
-  const backBase = getFitRect(
-    back,
-    W,
-    H,
-    fitMode,
-    zoom,
-    underScrollLeft,
-    underScrollTop
-  );
-  const backRect = opts.underOffset
-    ? { x: opts.underOffset.x, y: opts.underOffset.y, w: backBase.w, h: backBase.h }
-    : backBase;
 
   ctx.clearRect(0, 0, W, H);
 
@@ -171,6 +158,19 @@ export function drawCurl(ctx: CanvasRenderingContext2D, opts: DrawCurlOptions): 
   factor = clamp(factor, 0, 1);
 
   if (mode === '3d') {
+    const back = opts.back ?? under ?? front;
+    const backBase = getFitRect(
+      back,
+      W,
+      H,
+      fitMode,
+      zoom,
+      underScrollLeft,
+      underScrollTop
+    );
+    const backRect = opts.underOffset
+      ? { x: opts.underOffset.x, y: opts.underOffset.y, w: backBase.w, h: backBase.h }
+      : backBase;
     drawCurl3d(
       ctx,
       front,
@@ -185,22 +185,21 @@ export function drawCurl(ctx: CanvasRenderingContext2D, opts: DrawCurlOptions): 
       surfaceColor
     );
   } else {
-    drawCurl2d(ctx, front, back, factor, foldingPage, W, H, rect, backRect, surfaceColor);
+    drawCurl2d(ctx, front, factor, foldingPage, W, H, rect, surfaceColor);
   }
 
   ctx.restore();
 }
 
+/** CurlPage (2D): flap is surface + shadow only — never paints the opposite page. */
 function drawCurl2d(
   ctx: CanvasRenderingContext2D,
   front: CanvasImageSource,
-  back: CanvasImageSource,
   factor: number,
   _foldingPage: boolean,
   W: number,
   H: number,
   rect: { x: number; y: number; w: number; h: number },
-  backRect: { x: number; y: number; w: number; h: number },
   surfaceColor: string
 ): void {
   const bottomFold = { x: W * factor, y: H };
@@ -241,7 +240,7 @@ function drawCurl2d(
   ctx.drawImage(front, rect.x, rect.y, rect.w, rect.h);
   ctx.restore();
 
-  // Curled flap — paint the opposite page (verso), mirrored across the crease
+  // Curled flap — 2D wave uses surface color only (no next-page verso paint)
   ctx.save();
   ctx.beginPath();
   ctx.moveTo(bottomFold.x, bottomFold.y);
@@ -249,19 +248,23 @@ function drawCurl2d(
   ctx.lineTo(topFoldTip.x, topFoldTip.y);
   ctx.lineTo(topFold.x, topFold.y);
   ctx.closePath();
-  ctx.clip();
 
-  ctx.translate(xMid(topFold.x, bottomFold.x), 0);
-  ctx.scale(-1, 1);
-  ctx.translate(-xMid(topFold.x, bottomFold.x), 0);
-
-  ctx.drawImage(back, backRect.x, backRect.y, backRect.w, backRect.h);
+  ctx.shadowColor = 'rgba(0,0,0,0.55)';
+  ctx.shadowBlur = 14;
+  ctx.fillStyle = surfaceColor;
+  ctx.fill();
+  ctx.shadowBlur = 0;
 
   const overlay = ctx.createLinearGradient(bottomFold.x, 0, bottomFoldTip.x, 0);
-  overlay.addColorStop(0, 'rgba(0,0,0,0.35)');
-  overlay.addColorStop(1, 'rgba(0,0,0,0)');
+  overlay.addColorStop(0, 'rgba(0,0,0,0.4)');
+  overlay.addColorStop(0.55, 'rgba(255,255,255,0.08)');
+  overlay.addColorStop(1, 'rgba(0,0,0,0.15)');
   ctx.fillStyle = overlay;
-  ctx.fillRect(0, 0, W, H);
+  ctx.fill();
+
+  ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
   ctx.restore();
 
   // Crease stroke
@@ -269,18 +272,10 @@ function drawCurl2d(
   ctx.beginPath();
   ctx.moveTo(topFold.x, topFold.y);
   ctx.lineTo(bottomFold.x, bottomFold.y);
-  ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+  ctx.strokeStyle = 'rgba(0,0,0,0.45)';
   ctx.lineWidth = 2;
   ctx.stroke();
-  ctx.shadowColor = 'rgba(0,0,0,0.45)';
-  ctx.shadowBlur = 10;
-  ctx.stroke();
   ctx.restore();
-  void surfaceColor;
-}
-
-function xMid(a: number, b: number): number {
-  return (a + b) / 2;
 }
 
 function drawCurl3d(
