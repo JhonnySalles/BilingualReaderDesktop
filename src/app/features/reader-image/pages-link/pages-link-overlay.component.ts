@@ -35,50 +35,69 @@ import { SettingsService } from '../../../core/services/settings.service';
       class="absolute inset-0 z-[70] flex flex-col bg-slate-950/95 backdrop-blur-md"
       (click)="$event.stopPropagation()">
       <!-- Header -->
-      <div class="flex flex-col gap-2 px-3 py-2.5 border-b border-slate-800 shrink-0">
-        <div class="flex items-center gap-2">
+      <div class="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-slate-800 shrink-0 bg-slate-950/80">
+        <!-- Left: Back & Manga Info -->
+        <div class="flex items-center gap-3 min-w-0">
           <button type="button" (click)="onClose()"
-            class="p-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 cursor-pointer" title="Fechar">
+            class="p-2 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 cursor-pointer transition-colors" title="Fechar">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
             </svg>
           </button>
-          <div class="min-w-0 flex-1">
-            <p class="text-[10px] font-bold uppercase tracking-wider text-indigo-300">Vincular páginas</p>
-            <h2 class="text-sm font-bold text-slate-100 truncate">{{ mangaTitle }}</h2>
+          <div class="min-w-0">
+            <div class="flex items-center gap-2">
+              <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-400">Vincular páginas</span>
+              <span class="text-slate-600 text-xs">•</span>
+              <select
+                class="bg-slate-900 border border-slate-700 rounded-md px-1.5 py-0.5 text-[10px] font-medium text-slate-200 cursor-pointer focus:outline-none focus:border-indigo-500"
+                [ngModel]="language()"
+                (ngModelChange)="onLanguage($event)"
+                title="Idioma do arquivo vinculado">
+                <option [ngValue]="Languages.PORTUGUESE">PT</option>
+                <option [ngValue]="Languages.ENGLISH">EN</option>
+                <option [ngValue]="Languages.JAPANESE">JA</option>
+              </select>
+            </div>
+            <h2 class="text-xs font-bold text-slate-100 truncate max-w-[180px] sm:max-w-xs md:max-w-sm" [title]="mangaTitle">
+              {{ mangaTitle }}
+            </h2>
           </div>
-          <select
-            class="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-[11px] text-slate-200 cursor-pointer"
-            [ngModel]="language()"
-            (ngModelChange)="onLanguage($event)"
-            title="Idioma do arquivo vinculado">
-            <option [ngValue]="Languages.PORTUGUESE">PT</option>
-            <option [ngValue]="Languages.ENGLISH">EN</option>
-            <option [ngValue]="Languages.JAPANESE">JA</option>
-          </select>
         </div>
 
-        <div class="flex flex-wrap items-center gap-2">
-          <div class="flex-1 min-w-[12rem] px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-slate-300 truncate">
+        <!-- Center: Linked File Info -->
+        <div class="flex items-center gap-2 min-w-0 max-w-md px-3 py-1.5 rounded-xl bg-slate-900/90 border border-slate-700/80 text-xs text-slate-300 shadow-inner">
+          <svg class="w-4 h-4 text-indigo-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+          </svg>
+          <span class="truncate font-medium flex-1" [title]="linkedFileName() || 'Nenhum arquivo vinculado'">
             {{ linkedFileName() || 'Nenhum arquivo vinculado' }}
-          </div>
+          </span>
+          @if (engine.linkedFile.pages) {
+            <span class="shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+              {{ engine.linkedFile.pages }} pág.
+            </span>
+          }
+        </div>
+
+        <!-- Right: Action Buttons -->
+        <div class="flex items-center gap-1.5 shrink-0">
           <button type="button" (click)="openLibraryPicker()"
-            class="px-3 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 cursor-pointer"
+            class="px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 cursor-pointer transition-colors"
             [disabled]="busy()">
             Biblioteca
           </button>
           <button type="button" (click)="pickNewFile()"
-            class="px-3 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 cursor-pointer"
+            class="px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 cursor-pointer transition-colors"
             [disabled]="busy()">
             Novo arquivo
           </button>
           <button type="button" (click)="save()"
-            class="px-3 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer disabled:opacity-40"
+            class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer disabled:opacity-40 shadow-sm transition-colors"
             [disabled]="busy() || !engine.hasLinkedFile">
             Salvar
           </button>
           <button type="button" (click)="reload()"
-            class="p-2 rounded-xl text-slate-300 hover:bg-slate-800 cursor-pointer disabled:opacity-40"
+            class="p-1.5 rounded-xl text-slate-300 hover:bg-slate-800 cursor-pointer disabled:opacity-40 transition-colors"
             title="Recarregar" [disabled]="busy()">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -86,7 +105,7 @@ import { SettingsService } from '../../../core/services/settings.service';
             </svg>
           </button>
           <button type="button" (click)="deleteLink()"
-            class="p-2 rounded-xl text-rose-300 hover:bg-rose-500/10 cursor-pointer disabled:opacity-40"
+            class="p-1.5 rounded-xl text-rose-300 hover:bg-rose-500/10 cursor-pointer disabled:opacity-40 transition-colors"
             title="Excluir vínculo" [disabled]="busy() || !engine.hasLinkedFile">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -94,74 +113,92 @@ import { SettingsService } from '../../../core/services/settings.service';
             </svg>
           </button>
         </div>
-
-        @if (status()) {
-          <p class="text-[11px]" [class.text-rose-300]="statusError()" [class.text-slate-400]="!statusError()">
-            {{ status() }}
-          </p>
-        }
       </div>
 
-      <!-- Unlinked strip -->
-      <div
-        class="shrink-0 border-b border-slate-800 px-3 py-2"
-        [class.ring-2]="notLinkedDropActive()"
-        [class.ring-inset]="notLinkedDropActive()"
-        [class.ring-indigo-500]="notLinkedDropActive()"
-        (dragover)="onNotLinkedDragOver($event)"
-        (dragleave)="notLinkedDropActive.set(false)"
-        (drop)="onDropToNotLinked($event)">
-        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">
-          Sem vínculo ({{ pagesNotLink().length }})
-        </p>
-        <div class="flex gap-2 overflow-x-auto pb-1 min-h-[5.5rem] items-stretch">
-          @if (pagesNotLink().length === 0) {
-            <p class="text-[11px] text-slate-500 self-center px-2">
-              Arraste páginas extras para cá
-            </p>
-          } @else {
-            @for (p of pagesNotLink(); track trackNotLinked(p, $index); let i = $index) {
-              <div
-                class="relative w-14 shrink-0 rounded-lg overflow-hidden border border-slate-700 bg-slate-950 cursor-grab active:cursor-grabbing"
-                draggable="true"
-                (dragstart)="onNotLinkedDragStart($event, i, p)">
-                @if (p.imageLeftFileLinkPage) {
-                  <img [src]="p.imageLeftFileLinkPage" class="w-full h-20 object-cover pointer-events-none" draggable="false" />
-                } @else {
-                  <div class="h-20 flex items-center justify-center text-[10px] text-slate-600">?</div>
+      @if (status()) {
+        <div class="px-4 py-1 text-center text-[11px] bg-slate-900/50 border-b border-slate-800"
+          [class.text-rose-400]="statusError()" [class.text-slate-400]="!statusError()">
+          {{ status() }}
+        </div>
+      }
+
+      <!-- Main Workspace: Central List & Right Panel for Unlinked Pages -->
+      <div class="flex-1 flex flex-row min-h-0 overflow-hidden">
+        
+        <!-- Central Linked list -->
+        <div
+          #listEl
+          class="flex-1 overflow-y-auto px-4 py-4"
+          (dragover)="onListDragOver($event)">
+          <div class="max-w-4xl xl:max-w-5xl mx-auto w-full space-y-3">
+            @if (busy() && pagesLink().length === 0) {
+              <p class="text-xs text-slate-400 py-10 text-center">Preparando páginas…</p>
+            } @else {
+              @for (page of pagesLink(); track trackLinked(page, $index); let i = $index) {
+                <app-pages-link-row
+                  [page]="page"
+                  [index]="i"
+                  (dragPayload)="onRowDragStart($event)"
+                  (dropPayload)="onRowDrop($event)"
+                  (menuAction)="onMenuAction($event)"
+                  (preview)="openPreview($event)"
+                  (imageMeasured)="onImageMeasured($event)" />
+              }
+            }
+          </div>
+        </div>
+
+        <!-- Right Side Panel: Unlinked strip / pages -->
+        <div
+          class="w-72 lg:w-80 shrink-0 border-l border-slate-800 bg-slate-950/60 flex flex-col transition-all duration-200"
+          [class.ring-2]="notLinkedDropActive()"
+          [class.ring-inset]="notLinkedDropActive()"
+          [class.ring-indigo-500]="notLinkedDropActive()"
+          [class.bg-slate-900]="notLinkedDropActive()"
+          (dragover)="onNotLinkedDragOver($event)"
+          (dragleave)="notLinkedDropActive.set(false)"
+          (drop)="onDropToNotLinked($event)">
+          <div class="p-3 border-b border-slate-800 flex items-center justify-between">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-300">
+              Sem vínculo ({{ pagesNotLink().length }})
+            </span>
+          </div>
+          <div class="flex-1 overflow-y-auto p-3">
+            @if (pagesNotLink().length === 0) {
+              <div class="h-full min-h-[120px] flex flex-col items-center justify-center text-center p-4 border border-dashed border-slate-800 rounded-xl">
+                <svg class="w-8 h-8 text-slate-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <p class="text-xs text-slate-500">
+                  Arraste páginas extras para cá
+                </p>
+              </div>
+            } @else {
+              <div class="flex flex-wrap gap-2.5">
+                @for (p of pagesNotLink(); track trackNotLinked(p, $index); let i = $index) {
+                  <div
+                    class="relative w-20 shrink-0 rounded-lg overflow-hidden border border-slate-700 hover:border-indigo-400/80 bg-slate-950 cursor-grab active:cursor-grabbing transition-all hover:scale-105 shadow-md group"
+                    draggable="true"
+                    (dragstart)="onNotLinkedDragStart($event, i, p)">
+                    @if (p.imageLeftFileLinkPage) {
+                      <img [src]="p.imageLeftFileLinkPage" class="w-full h-28 object-contain bg-black/40 pointer-events-none" draggable="false" />
+                    } @else {
+                      <div class="h-28 flex items-center justify-center text-[10px] text-slate-600">?</div>
+                    }
+                    <span class="absolute bottom-1 left-1 px-1 rounded text-[9px] font-bold bg-black/75 text-slate-200">
+                      {{ p.fileLinkLeftPage + 1 }}
+                    </span>
+                  </div>
                 }
-                <span class="absolute bottom-0.5 left-0.5 px-1 rounded text-[8px] bg-black/60 text-slate-200">
-                  {{ p.fileLinkLeftPage + 1 }}
-                </span>
               </div>
             }
-          }
+          </div>
         </div>
-      </div>
 
-      <!-- Linked list -->
-      <div
-        #listEl
-        class="flex-1 overflow-y-auto px-3 py-3 space-y-2"
-        (dragover)="onListDragOver($event)">
-        @if (busy() && pagesLink().length === 0) {
-          <p class="text-xs text-slate-400 py-10 text-center">Preparando páginas…</p>
-        } @else {
-          @for (page of pagesLink(); track trackLinked(page, $index); let i = $index) {
-            <app-pages-link-row
-              [page]="page"
-              [index]="i"
-              (dragPayload)="onRowDragStart($event)"
-              (dropPayload)="onRowDrop($event)"
-              (menuAction)="onMenuAction($event)"
-              (preview)="openPreview($event)"
-              (imageMeasured)="onImageMeasured($event)" />
-          }
-        }
       </div>
 
       <!-- Footer actions -->
-      <div class="shrink-0 border-t border-slate-800 px-3 py-2 flex flex-wrap items-center justify-center gap-2 bg-slate-950/80">
+      <div class="shrink-0 border-t border-slate-800 px-4 py-2.5 flex items-center justify-start gap-2 bg-slate-950/90">
         <button type="button" class="action-btn" (click)="applyEnginePrefs(); engine.autoReorderDoublePages(true); refresh()"
           [disabled]="!engine.hasLinkedFile">Auto</button>
         <button type="button" class="action-btn" (click)="engine.reorderBySortPages(); refresh()"

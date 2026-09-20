@@ -18,46 +18,52 @@ export type PageSlotMenuAction =
   imports: [CommonModule],
   template: `
     <div
-      class="flex items-stretch gap-2 p-2 rounded-xl bg-slate-900/70 border border-slate-800/50"
+      class="flex items-stretch gap-3 p-3 rounded-2xl bg-slate-900/80 border border-slate-800/80 shadow-lg transition-all"
       [class.ring-2]="dropHighlight"
       [class.ring-indigo-500]="dropHighlight">
+      
+      <!-- Page Index -->
       <div class="flex flex-col items-center justify-center w-8 shrink-0">
-        <span class="text-[10px] font-bold tabular-nums text-slate-400">{{ page.mangaPage + 1 }}</span>
+        <span class="text-xs font-bold tabular-nums text-slate-400">{{ page.mangaPage + 1 }}</span>
       </div>
 
       <!-- Manga (anchor) -->
-      <div class="relative w-16 sm:w-20 shrink-0 rounded-lg overflow-hidden bg-slate-950 border border-slate-700/60">
+      <div class="relative flex-1 min-w-0 rounded-xl overflow-hidden bg-slate-950 border border-slate-700/80 flex items-center justify-center group shadow-inner">
         @if (page.imageMangaPage) {
           <img
             [src]="page.imageMangaPage"
             alt="Manga"
-            class="w-full h-24 sm:h-28 object-cover"
+            class="w-full h-56 sm:h-72 object-contain bg-black/30 pointer-events-auto"
             draggable="false"
             (load)="onImgLoad($event, 'manga')"
             (dblclick)="preview.emit({ url: page.imageMangaPage!, label: 'Mangá p.' + (page.mangaPage + 1) })" />
         } @else {
-          <div class="h-24 sm:h-28 flex items-center justify-center text-[10px] text-slate-600">—</div>
+          <div class="h-56 sm:h-72 flex items-center justify-center text-xs text-slate-600">—</div>
         }
         @if (page.isMangaDualPage) {
-          <span class="absolute top-1 left-1 px-1 rounded text-[8px] font-bold bg-amber-500/80 text-slate-950">DUP</span>
+          <span class="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-amber-500 text-slate-950 shadow">DUP</span>
         }
       </div>
 
+      <!-- Arrow Indicator -->
       <div class="flex items-center text-slate-600 shrink-0">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
         </svg>
       </div>
 
       <!-- Left linked slot -->
       <div
-        class="relative flex-1 min-w-0 rounded-lg overflow-hidden border transition-colors cursor-grab"
-        [ngClass]="hasLeft
-          ? 'border-slate-700 bg-slate-950'
-          : 'border-dashed border-slate-600 bg-slate-900/40'"
+        class="relative flex-1 min-w-0 rounded-xl overflow-hidden border-2 transition-all duration-200 cursor-grab flex items-center justify-center group"
+        [ngClass]="[
+          dragOverLeft ? 'border-indigo-400 bg-indigo-950/40 ring-2 ring-indigo-400/50 scale-[1.01]' : '',
+          !dragOverLeft && hasLeft ? 'border-slate-700/80 bg-slate-950' : '',
+          !dragOverLeft && !hasLeft ? 'border-dashed border-slate-700 bg-slate-900/40 hover:border-slate-500' : ''
+        ]"
         [attr.data-slot]="'LINKED'"
-        (dragover)="onDragOver($event)"
-        (drop)="onDrop($event, slotLinked)"
+        (dragover)="onDragOverLeft($event)"
+        (dragleave)="dragOverLeft = false"
+        (drop)="onDropLeft($event)"
         draggable="true"
         (dragstart)="onDragStart($event, slotLinked)"
         (contextmenu)="openMenu($event, 'left')">
@@ -65,24 +71,30 @@ export type PageSlotMenuAction =
           <img
             [src]="page.imageLeftFileLinkPage || ''"
             alt="Vinculada"
-            class="w-full h-24 sm:h-28 object-cover pointer-events-none"
+            class="w-full h-56 sm:h-72 object-contain bg-black/30 pointer-events-none"
             draggable="false"
-            (load)="onImgLoad($event, 'left')" />
-          <span class="absolute bottom-1 left-1 px-1 rounded text-[8px] font-semibold bg-black/60 text-slate-200">
+            (load)="onImgLoad($event, 'left')"
+            (dblclick)="preview.emit({ url: page.imageLeftFileLinkPage!, label: 'Vinculada p.' + (page.fileLinkLeftPage + 1) })" />
+          <span class="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-black/75 text-slate-200 shadow">
             {{ page.fileLinkLeftPage + 1 }}
           </span>
           @if (page.isFileLeftDualPage) {
-            <span class="absolute top-1 left-1 px-1 rounded text-[8px] font-bold bg-indigo-500/80 text-white">DUP</span>
+            <span class="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-indigo-500 text-white shadow">DUP</span>
           }
         } @else {
-          <div class="h-24 sm:h-28 flex items-center justify-center text-[10px] text-slate-500">Soltar</div>
+          <div class="h-56 sm:h-72 flex flex-col items-center justify-center gap-1 text-xs text-slate-500">
+            <svg class="w-6 h-6 text-slate-600 mb-1 group-hover:text-slate-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4v16m8-8H4" />
+            </svg>
+            <span>Soltar página aqui</span>
+          </div>
         }
         <button
           type="button"
-          class="absolute top-1 right-1 p-1 rounded-md bg-black/50 text-slate-300 hover:text-white cursor-pointer opacity-80 hover:opacity-100"
+          class="absolute top-1.5 right-1.5 p-1.5 rounded-lg bg-black/60 text-slate-300 hover:text-white hover:bg-black/80 cursor-pointer opacity-75 hover:opacity-100 transition-opacity"
           title="Menu"
           (click)="openMenu($event, 'left')">
-          <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
             <circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/>
           </svg>
         </button>
@@ -90,13 +102,16 @@ export type PageSlotMenuAction =
 
       <!-- Right / dual slot -->
       <div
-        class="relative w-16 sm:w-20 shrink-0 rounded-lg overflow-hidden border transition-colors"
-        [ngClass]="hasRight
-          ? 'border-slate-700 bg-slate-950 cursor-grab'
-          : 'border-dashed border-slate-600 bg-slate-900/40'"
+        class="relative flex-1 min-w-0 rounded-xl overflow-hidden border-2 transition-all duration-200 flex items-center justify-center group"
+        [ngClass]="[
+          dragOverRight ? 'border-indigo-400 bg-indigo-950/40 ring-2 ring-indigo-400/50 scale-[1.01]' : '',
+          !dragOverRight && hasRight ? 'border-slate-700/80 bg-slate-950 cursor-grab' : '',
+          !dragOverRight && !hasRight ? 'border-dashed border-slate-700 bg-slate-900/40 hover:border-slate-500' : ''
+        ]"
         [attr.data-slot]="'DUAL_PAGE'"
-        (dragover)="onDragOver($event)"
-        (drop)="onDrop($event, slotDual)"
+        (dragover)="onDragOverRight($event)"
+        (dragleave)="dragOverRight = false"
+        (drop)="onDropRight($event)"
         [attr.draggable]="hasRight ? 'true' : 'false'"
         (dragstart)="onDualDragStart($event)"
         (contextmenu)="onDualContextMenu($event)">
@@ -104,16 +119,17 @@ export type PageSlotMenuAction =
           <img
             [src]="page.imageRightFileLinkPage"
             alt="Dual"
-            class="w-full h-24 sm:h-28 object-cover pointer-events-none"
+            class="w-full h-56 sm:h-72 object-contain bg-black/30 pointer-events-none"
             draggable="false"
-            (load)="onImgLoad($event, 'right')" />
-          <span class="absolute bottom-1 left-1 px-1 rounded text-[8px] font-semibold bg-black/60 text-slate-200">
+            (load)="onImgLoad($event, 'right')"
+            (dblclick)="preview.emit({ url: page.imageRightFileLinkPage!, label: 'Dual p.' + (page.fileLinkRightPage + 1) })" />
+          <span class="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-black/75 text-slate-200 shadow">
             {{ page.fileLinkRightPage + 1 }}
           </span>
         } @else {
-          <div class="h-24 sm:h-28 flex flex-col items-center justify-center gap-0.5 text-[10px] text-slate-500">
-            <span class="text-lg leading-none text-slate-600">+</span>
-            <span>Dual</span>
+          <div class="h-56 sm:h-72 flex flex-col items-center justify-center gap-1 text-xs text-slate-500">
+            <span class="text-2xl leading-none text-slate-600 font-light group-hover:text-slate-400 transition-colors">+</span>
+            <span class="text-[11px] font-medium">Dual</span>
           </div>
         }
       </div>
@@ -187,6 +203,9 @@ export class PagesLinkRowComponent {
   menuY = 0;
   menuSide: 'left' | 'right' = 'left';
 
+  dragOverLeft = false;
+  dragOverRight = false;
+
   get hasLeft(): boolean {
     return this.page.fileLinkLeftPage !== PAGE_EMPTY;
   }
@@ -213,6 +232,28 @@ export class PagesLinkRowComponent {
   onDragOver(ev: DragEvent): void {
     ev.preventDefault();
     if (ev.dataTransfer) ev.dataTransfer.dropEffect = 'move';
+  }
+
+  onDragOverLeft(ev: DragEvent): void {
+    ev.preventDefault();
+    this.dragOverLeft = true;
+    if (ev.dataTransfer) ev.dataTransfer.dropEffect = 'move';
+  }
+
+  onDropLeft(ev: DragEvent): void {
+    this.dragOverLeft = false;
+    this.onDrop(ev, this.slotLinked);
+  }
+
+  onDragOverRight(ev: DragEvent): void {
+    ev.preventDefault();
+    this.dragOverRight = true;
+    if (ev.dataTransfer) ev.dataTransfer.dropEffect = 'move';
+  }
+
+  onDropRight(ev: DragEvent): void {
+    this.dragOverRight = false;
+    this.onDrop(ev, this.slotDual);
   }
 
   onDrop(ev: DragEvent, type: PageLinkSlot): void {
@@ -275,3 +316,4 @@ export class PagesLinkRowComponent {
     });
   }
 }
+
