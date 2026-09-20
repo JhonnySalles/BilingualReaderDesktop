@@ -221,6 +221,7 @@ export class MangaDualSpreadViewportComponent implements OnChanges {
   private moved = false;
   private pagerDrag = false;
   private curlDragging = false;
+  private lastDragPointerY?: number;
 
   /** Exposed so the shell can resolve click/zoom geometry without #viewport. */
   get viewportEl(): HTMLElement | null {
@@ -347,6 +348,7 @@ export class MangaDualSpreadViewportComponent implements OnChanges {
       this.curlDragging = true;
       const vRect = el.getBoundingClientRect();
       const pointerY = ev.clientY - vRect.top;
+      this.lastDragPointerY = pointerY;
       this.turnDrag.emit({ progress, goingNext, commit: null, pointerY });
     }
   }
@@ -377,7 +379,7 @@ export class MangaDualSpreadViewportComponent implements OnChanges {
       const progress = Math.min(1, Math.abs(dx) / Math.max(w * 0.45, 1));
       // Spread change is applied by parent onTurnFinished after curl completes.
       const vRect = el?.getBoundingClientRect();
-      const pointerY = vRect ? ev.clientY - vRect.top : undefined;
+      const pointerY = vRect && ev.clientY > 0 ? ev.clientY - vRect.top : this.lastDragPointerY;
       this.turnDrag.emit({ progress, goingNext, commit, pointerY });
       return;
     }

@@ -5746,6 +5746,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       el.style.transformOrigin = '';
       el.style.willChange = '';
       el.style.clipPath = '';
+      el.style.visibility = '';
     }
   }
 
@@ -5768,12 +5769,18 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private teardownBookCurlCanvas(): void {
     if (this.bookCurlCanvas) {
-      try {
-        this.bookCurlCanvas.remove();
-      } catch {
-        /* ignore */
-      }
+      const canvas = this.bookCurlCanvas;
       this.bookCurlCanvas = null;
+      // Delay removal by two animation frames to allow Chromium to composite the EPUB iframe behind it
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          try {
+            canvas.remove();
+          } catch {
+            /* ignore */
+          }
+        });
+      });
     }
   }
 
@@ -5820,7 +5827,6 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
         const canvas = this.ensureBookCurlCanvas();
         if (!canvas) return;
         paintBookCurlFreeze(canvas, front, w, h, PAGE_BG);
-        // Cover host while under capture briefly shows peek
         viewer.style.visibility = 'hidden';
       }
     });

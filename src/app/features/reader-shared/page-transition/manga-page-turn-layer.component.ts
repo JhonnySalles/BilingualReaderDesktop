@@ -25,9 +25,11 @@ import {
   progressToTurnPosition
 } from './page-curl.canvas';
 import {
+  pageFitRect,
   pageImageClasses,
   pageWrapperClasses,
-  pageWrapperStyle
+  pageWrapperStyle,
+  synthesizeLandView
 } from '../../reader-image/manga-page-geometry';
 
 export interface TurnLayerPage {
@@ -47,6 +49,7 @@ export interface TurnSlotView {
    */
   offsetX: number | null;
   offsetY: number | null;
+  land?: 'start' | 'end';
 }
 
 const EMPTY_VIEW: TurnSlotView = {
@@ -55,6 +58,49 @@ const EMPTY_VIEW: TurnSlotView = {
   offsetX: null,
   offsetY: null
 };
+
+const MANGA_BITMAP_CACHE = new Map<string, ImageBitmap>();
+const MAX_CACHED_BITMAPS = 16;
+
+export async function preloadMangaBitmap(url: string): Promise<ImageBitmap | null> {
+  if (!url) return null;
+  const cached = MANGA_BITMAP_CACHE.get(url);
+  if (cached) return cached;
+  try {
+    const img = new Image();
+    img.decoding = 'async';
+    img.src = url;
+    await img.decode();
+    const bmp = await createImageBitmap(img);
+    if (MANGA_BITMAP_CACHE.size >= MAX_CACHED_BITMAPS) {
+      const firstKey = MANGA_BITMAP_CACHE.keys().next().value;
+      if (firstKey) {
+        try {
+          MANGA_BITMAP_CACHE.get(firstKey)?.close();
+        } catch {
+          /* ignore */
+        }
+        MANGA_BITMAP_CACHE.delete(firstKey);
+      }
+    }
+    MANGA_BITMAP_CACHE.set(url, bmp);
+    return bmp;
+  } catch (e) {
+    console.warn('[page-turn] preloadMangaBitmap failed', url, e);
+    return null;
+  }
+}
+
+export function clearMangaBitmapCache(): void {
+  for (const bmp of MANGA_BITMAP_CACHE.values()) {
+    try {
+      bmp.close();
+    } catch {
+      /* ignore */
+    }
+  }
+  MANGA_BITMAP_CACHE.clear();
+}
 
 @Component({
   selector: 'app-manga-page-turn-layer',
@@ -65,7 +111,7 @@ const EMPTY_VIEW: TurnSlotView = {
   },
   styles: [`
     :host.turn-layer-host {
-      background: var(--reader-surface, #0f172a);
+      background: transparent;
     }
     .turn-underlay {
       position: absolute;
@@ -206,7 +252,6 @@ export class MangaPageTurnLayerComponent implements AfterViewInit, OnChanges, On
   @Output() finished = new EventEmitter<void>();
 
   private abort?: AbortController;
-  private bitmaps = new Map<string, ImageBitmap>();
   private started = false;
   private finishing = false;
   private emitted = false;
@@ -285,14 +330,6 @@ export class MangaPageTurnLayerComponent implements AfterViewInit, OnChanges, On
     if (this.rafId) cancelAnimationFrame(this.rafId);
     this.driver?.release();
     this.driver = null;
-    for (const bmp of this.bitmaps.values()) {
-      try {
-        bmp.close();
-      } catch {
-        /* ignore */
-      }
-    }
-    this.bitmaps.clear();
     this.emitFinished();
   }
 
@@ -452,8 +489,25 @@ export class MangaPageTurnLayerComponent implements AfterViewInit, OnChanges, On
     const curlPos = progressToCurlPosition(progress, this.dir);
     const visualDir = this.visualDir();
 
-    const foldView = leaf === 'outgoing' ? this.outgoingView : this.incomingView;
-    const underView = leaf === 'outgoing' ? this.incomingView : this.outgoingView;
+    let inView = this.incomingView;
+    if (this.incomingView.land && inBmp) {
+      const rect = pageFitRect(inBmp.width, inBmp.height, w, h, this.fitMode, this.zoom);
+      inView = {
+        ...synthesizeLandView(rect.w, rect.h, w, h, this.incomingView.land, this.mirror),
+        land: this.incomingView.land
+      };
+    }
+    let outView = this.outgoingView;
+    if (this.outgoingView.land && outBmp) {
+      const rect = pageFitRect(outBmp.width, outBmp.height, w, h, this.fitMode, this.zoom);
+      outView = {
+        ...synthesizeLandView(rect.w, rect.h, w, h, this.outgoingView.land, this.mirror),
+        land: this.outgoingView.land
+      };
+    }
+
+    const foldView = leaf === 'outgoing' ? outView : inView;
+    const underView = leaf === 'outgoing' ? inView : outView;
 
     const foldScrollLeft =
       foldView.offsetX == null ? foldView.scrollLeft : 0;
@@ -471,6 +525,7 @@ export class MangaPageTurnLayerComponent implements AfterViewInit, OnChanges, On
       pointerY: this.pointerY,
       surfaceColor: '#0f172a',
       mirror: this.mirror,
+      isRightEdge: this.mirror ? this.dir < 0 : this.dir > 0,
       fitMode: this.fitMode,
       zoom: this.zoom,
       scrollLeft: useFoldAbs ? undefined : foldScrollLeft,
@@ -489,19 +544,6 @@ export class MangaPageTurnLayerComponent implements AfterViewInit, OnChanges, On
   }
 
   private async getBitmap(url: string): Promise<ImageBitmap | null> {
-    const cached = this.bitmaps.get(url);
-    if (cached) return cached;
-    try {
-      const img = new Image();
-      img.decoding = 'async';
-      img.src = url;
-      await img.decode();
-      const bmp = await createImageBitmap(img);
-      this.bitmaps.set(url, bmp);
-      return bmp;
-    } catch (e) {
-      console.warn('[page-turn] createImageBitmap failed', url, e);
-      return null;
-    }
+    return preloadMangaBitmap(url);
   }
 }

@@ -299,6 +299,7 @@ export class MangaSpreadViewportComponent implements OnChanges {
   private gestureModePending = false;
   private curlDragging = false;
   private turnDragging = false;
+  private lastDragPointerY?: number;
   private scrollSyncLock = false;
   private scrollLockTimer: ReturnType<typeof setTimeout> | null = null;
   private scrollEndHandler: (() => void) | null = null;
@@ -596,6 +597,7 @@ export class MangaSpreadViewportComponent implements OnChanges {
       viewport.scrollTop = this.panStartScrollTop;
       const vRect = viewport.getBoundingClientRect();
       const pointerY = ev.clientY - vRect.top;
+      this.lastDragPointerY = pointerY;
       this.turnDrag.emit({ progress, goingNext, commit: null, pointerY });
       return;
     }
@@ -650,7 +652,7 @@ export class MangaSpreadViewportComponent implements OnChanges {
         : delta < 0;
       const progress = Math.min(1, Math.abs(delta) / Math.max(size * 0.45, 1));
       const vRect = el?.getBoundingClientRect();
-      const pointerY = vRect ? ev.clientY - vRect.top : undefined;
+      const pointerY = vRect && ev.clientY > 0 ? ev.clientY - vRect.top : this.lastDragPointerY;
       this.turnDrag.emit({ progress, goingNext, commit, pointerY });
       if (!commit && el) {
         el.scrollLeft = startLeft;

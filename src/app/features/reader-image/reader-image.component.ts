@@ -27,6 +27,7 @@ import { ReaderTouchConfigComponent } from '../reader-shared/reader-touch-config
 import { handleReaderTouchTap, TouchActionHandlers } from '../reader-shared/touch-action.util';
 import {
   MangaPageTurnLayerComponent,
+  preloadMangaBitmap,
   type TurnLayerPage,
   type TurnSlotView
 } from '../reader-shared/page-transition/manga-page-turn-layer.component';
@@ -2338,6 +2339,8 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
       this.scheduleProgressUpdate();
     }
 
+    this.preloadAdjacentBitmaps(target ?? this.currentPage());
+
     const resolve = this.turnResolve;
     this.turnResolve = null;
     requestAnimationFrame(() => {
@@ -2347,6 +2350,21 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
         resolve?.();
       });
     });
+  }
+
+  private preloadAdjacentBitmaps(page: number): void {
+    if (this.isLongStrip()) return;
+    const pages = this.pages();
+    if (!pages || !pages.length) return;
+    const targets = [page - 1, page + 1, page - 2, page + 2];
+    for (const idx of targets) {
+      if (idx >= 0 && idx < pages.length) {
+        const item = pages[idx];
+        if (item) {
+          void preloadMangaBitmap(item);
+        }
+      }
+    }
   }
 
   /** Force-finish any in-flight turn so a new one can start cleanly. */
@@ -2483,7 +2501,11 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
       : null;
     const contentW = content?.offsetWidth || rect.w;
     const contentH = content?.offsetHeight || rect.h;
-    return synthesizeLandView(contentW, contentH, W, H, land, this.isRtl());
+    const resolvedLand: 'start' | 'end' = land ?? 'start';
+    return {
+      ...synthesizeLandView(contentW, contentH, W, H, resolvedLand, this.isRtl()),
+      land: resolvedLand
+    };
   }
 
   private turnMirror(): boolean {

@@ -413,6 +413,30 @@ app.on('ready', () => {
           const width = Math.max(1, Math.floor(rect?.width ?? 0));
           const height = Math.max(1, Math.floor(rect?.height ?? 0));
           if (width < 2 || height < 2) return null;
+
+          if (!sender.debugger.isAttached()) {
+            try {
+              sender.debugger.attach('1.3');
+            } catch {
+              /* ignore */
+            }
+          }
+
+          if (sender.debugger.isAttached()) {
+            try {
+              const res = await sender.debugger.sendCommand('Page.captureScreenshot', {
+                format: 'png',
+                clip: { x, y, width, height, scale: 1 },
+                captureBeyondViewport: true
+              });
+              if (res?.data) {
+                return `data:image/png;base64,${res.data}`;
+              }
+            } catch (cdpErr) {
+              console.warn('[window:capture-rect] cdp screenshot failed, falling back', cdpErr);
+            }
+          }
+
           const image = await sender.capturePage({ x, y, width, height });
           if (image.isEmpty()) return null;
           return image.toDataURL();

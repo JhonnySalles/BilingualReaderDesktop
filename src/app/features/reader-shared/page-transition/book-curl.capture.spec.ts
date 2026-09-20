@@ -53,7 +53,8 @@ describe('captureBookPageBitmaps', () => {
           expect(peek.style.visibility).toBe('hidden');
         } else {
           order.push('capture-under');
-          expect(viewer.style.visibility).toBe('hidden');
+          // viewerShell is intentionally NOT hidden to prevent flashing/blinking
+          expect(viewer.style.visibility).not.toBe('hidden');
         }
         return tinyPngDataUrl();
       },

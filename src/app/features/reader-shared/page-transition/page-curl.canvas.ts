@@ -28,6 +28,8 @@ export interface DrawCurlOptions {
   surfaceColor?: string;
   /** Horizontal layout mirroring (e.g. Manga RTL mode). When true, mirrors canvas horizontally. */
   mirror?: boolean;
+  /** Whether the fold originates from the right edge (default true for standard LTR forward turns). */
+  isRightEdge?: boolean;
   /** Image fit mode or helper string */
   fitMode?: MangaFitMode | 'contain' | 'fill';
   /** Current viewport zoom factor */
@@ -192,7 +194,8 @@ export function drawCurl(ctx: CanvasRenderingContext2D, opts: DrawCurlOptions): 
       backRect,
       opts.pointerY,
       surfaceColor,
-      isExplicitBack
+      isExplicitBack,
+      opts.isRightEdge !== false
     );
   } else {
     drawCurl2d(ctx, front, factor, foldingPage, W, H, rect, surfaceColor);
@@ -280,13 +283,15 @@ function drawCurl3d(
   backRect: { x: number; y: number; w: number; h: number },
   pointerY: number | undefined,
   surfaceColor: string,
-  isExplicitBack = false
+  isExplicitBack = false,
+  isRightEdge = true
 ): void {
   const touchY =
     pointerY != null && pointerY >= 0 ? clamp(pointerY, 0, H) : H * 0.75;
   const maxAngle = (28 * Math.PI) / 180;
-  const angleTaper = Math.sin(factor * Math.PI);
-  const alpha = (touchY / H - 0.5) * 2 * maxAngle * angleTaper;
+  const progress = 1 - factor;
+  const angleTaper = Math.sin(clamp(progress / 0.25, 0, 1) * (Math.PI / 2));
+  const alpha = -(touchY / H - 0.5) * 2 * maxAngle * angleTaper;
 
   const x0 = W * factor;
   const xTop = x0 + Math.tan(alpha) * touchY;

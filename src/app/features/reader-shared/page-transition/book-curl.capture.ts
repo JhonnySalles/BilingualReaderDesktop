@@ -35,6 +35,10 @@ export interface CaptureBookPageBitmapsOptions {
     width: number,
     height: number
   ) => void | Promise<void>;
+  /** Called before capturing the under page (use to hide freeze canvas). */
+  onBeforeUnderCapture?: () => void | Promise<void>;
+  /** Called after capturing the under page (use to restore freeze canvas). */
+  onAfterUnderCapture?: () => void | Promise<void>;
   /** Hide chrome overlays during capture; return a restore function. */
   hideChrome?: () => () => void;
 }
@@ -90,7 +94,16 @@ function elementDipRect(el: HTMLElement): { x: number; y: number; width: number;
 export async function captureBookPageBitmaps(
   opts: CaptureBookPageBitmapsOptions
 ): Promise<BookCurlBitmaps | null> {
-  const { viewerShell, peekShell, captureRect, surfaceColor, onFrontReady, hideChrome } = opts;
+  const {
+    viewerShell,
+    peekShell,
+    captureRect,
+    surfaceColor,
+    onFrontReady,
+    onBeforeUnderCapture,
+    onAfterUnderCapture,
+    hideChrome
+  } = opts;
   const hostRect = elementDipRect(viewerShell);
   const cssW = Math.round(hostRect.width);
   const cssH = Math.round(hostRect.height);
@@ -134,23 +147,64 @@ export async function captureBookPageBitmaps(
       await onFrontReady(front, bitmapW, bitmapH);
     }
 
-    // Under = peek only (freeze canvas covers the host)
-    viewerShell.style.visibility = 'hidden';
-    viewerShell.style.opacity = '0';
+    // Under = peek captured in offscreen slot (x = 10000) via CDP captureBeyondViewport
+    const peekOriginalCss = {
+      position: peekShell.style.position,
+      left: peekShell.style.left,
+      top: peekShell.style.top,
+      width: peekShell.style.width,
+      height: peekShell.style.height,
+      visibility: peekShell.style.visibility,
+      opacity: peekShell.style.opacity,
+      zIndex: peekShell.style.zIndex
+    };
+
+    const OFFSCREEN_X = 10000;
+    peekShell.style.position = 'fixed';
+    peekShell.style.left = `${OFFSCREEN_X}px`;
+    peekShell.style.top = '0px';
+    peekShell.style.width = `${cssW}px`;
+    peekShell.style.height = `${cssH}px`;
     peekShell.style.visibility = 'visible';
     peekShell.style.opacity = '1';
+    peekShell.style.zIndex = '-1';
     peekShell.style.background = surfaceColor;
+
     const hiddenChildren = Array.from(
       peekShell.querySelectorAll<HTMLElement>('[style*="visibility: hidden"], [style*="visibility:hidden"]')
     );
     for (const el of hiddenChildren) {
       el.style.visibility = 'visible';
     }
+
     await doubleRaf();
-    const underUrl = await captureRect(elementDipRect(peekShell));
+
+    if (onBeforeUnderCapture) {
+      await onBeforeUnderCapture();
+      await doubleRaf();
+    }
+    const underUrl = await captureRect({
+      x: OFFSCREEN_X,
+      y: 0,
+      width: cssW,
+      height: cssH
+    });
+    if (onAfterUnderCapture) {
+      await onAfterUnderCapture();
+    }
+
     for (const el of hiddenChildren) {
       el.style.visibility = 'hidden';
     }
+
+    peekShell.style.position = peekOriginalCss.position;
+    peekShell.style.left = peekOriginalCss.left;
+    peekShell.style.top = peekOriginalCss.top;
+    peekShell.style.width = peekOriginalCss.width;
+    peekShell.style.height = peekOriginalCss.height;
+    peekShell.style.visibility = peekOriginalCss.visibility;
+    peekShell.style.opacity = peekOriginalCss.opacity;
+    peekShell.style.zIndex = peekOriginalCss.zIndex;
     if (!underUrl) {
       front.close();
       return null;

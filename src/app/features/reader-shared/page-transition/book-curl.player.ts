@@ -113,6 +113,7 @@ export function paintCanvasAtProgress(
     pointerY,
     surfaceColor: bitmaps.surfaceColor,
     mirror,
+    isRightEdge: mirror ? logicalDir < 0 : logicalDir > 0,
     fitMode: 'fill' as MangaFitMode | 'fill',
     zoom: 1
   });
