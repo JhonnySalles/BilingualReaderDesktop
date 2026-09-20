@@ -17,10 +17,13 @@
     "generate:icons": "powershell -ExecutionPolicy Bypass -File ./scripts/generate-icons.ps1",
     "copy:jp-assets": "powershell -ExecutionPolicy Bypass -File ./scripts/copy-japanese-assets.ps1",
     "electron:dev": "concurrently \"ng serve\" \"tsc -p tsconfig.electron.json --watch\" \"wait-on http://localhost:4200 && electron .\"",
-    "build:electron": "yarn compile:electron && yarn build:native && yarn build && electron-builder",
-    "build:electron:light": "yarn compile:electron && yarn build:native && yarn build && electron-builder",
-    "build:electron:full": "yarn compile:electron && yarn build:native && yarn build && electron-builder --config electron-builder-full.json",
-    "build:electron:release": "yarn compile:electron && yarn build:native && yarn build && electron-builder && electron-builder --config electron-builder-full.json",
+    "compile:all": "yarn compile:electron && yarn build:native && yarn build",
+    "pack:light": "electron-builder --publish never",
+    "pack:full": "electron-builder --config electron-builder-full.json --publish never",
+    "build:electron": "yarn compile:all && yarn pack:light",
+    "build:electron:light": "yarn compile:all && yarn pack:light",
+    "build:electron:full": "yarn compile:all && yarn pack:full",
+    "build:electron:release": "yarn compile:all && yarn pack:light && yarn pack:full",
     "release:win": "scripts\\build-release.bat"
   },
   "build": {
