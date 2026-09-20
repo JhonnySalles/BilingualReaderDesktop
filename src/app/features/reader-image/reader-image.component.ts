@@ -6,6 +6,8 @@ import {
   inject,
   signal,
   computed,
+  effect,
+  untracked,
   ViewChild,
   HostListener
 } from '@angular/core';
@@ -206,6 +208,96 @@ const MAGNIFIER_SQUARE_PX = 250;
     }
     .reader-magnifier.is-square {
       border-radius: 0.5rem;
+    }
+
+    @keyframes thumb-pop {
+      0% { transform: scale(0.92); filter: brightness(1.3); }
+      50% { transform: scale(1.08); filter: brightness(1.15); }
+      100% { transform: scale(1); filter: brightness(1); }
+    }
+    .animate-thumb-pop {
+      animation: thumb-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+
+    @keyframes card-enter-left {
+      0% {
+        transform: translate3d(-140%, 0, 0) scale(0.82);
+        opacity: 0;
+      }
+      70% {
+        transform: translate3d(6%, 0, 0) scale(1.03);
+        opacity: 1;
+      }
+      100% {
+        transform: translate3d(0, 0, 0) scale(1);
+        opacity: 1;
+      }
+    }
+
+    @keyframes card-enter-right {
+      0% {
+        transform: translate3d(140%, 0, 0) scale(0.82);
+        opacity: 0;
+      }
+      70% {
+        transform: translate3d(-6%, 0, 0) scale(1.03);
+        opacity: 1;
+      }
+      100% {
+        transform: translate3d(0, 0, 0) scale(1);
+        opacity: 1;
+      }
+    }
+
+    @keyframes card-exit-left {
+      0% {
+        transform: translate3d(0, 0, 0) scale(1);
+        opacity: 1;
+      }
+      100% {
+        transform: translate3d(-140%, 0, 0) scale(0.85);
+        opacity: 0;
+      }
+    }
+
+    @keyframes card-exit-right {
+      0% {
+        transform: translate3d(0, 0, 0) scale(1);
+        opacity: 1;
+      }
+      100% {
+        transform: translate3d(140%, 0, 0) scale(0.85);
+        opacity: 0;
+      }
+    }
+
+    .last-page-card {
+      will-change: transform, opacity;
+    }
+    .last-page-card.is-hidden {
+      display: none;
+    }
+    .last-page-card.is-left.is-entering {
+      animation: card-enter-left 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+    .last-page-card.is-left.is-visible {
+      transform: translate3d(0, 0, 0) scale(1);
+      opacity: 1;
+    }
+    .last-page-card.is-left.is-exiting {
+      animation: card-exit-left 0.32s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+      pointer-events: none;
+    }
+    .last-page-card.is-right.is-entering {
+      animation: card-enter-right 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+    .last-page-card.is-right.is-visible {
+      transform: translate3d(0, 0, 0) scale(1);
+      opacity: 1;
+    }
+    .last-page-card.is-right.is-exiting {
+      animation: card-exit-right 0.32s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+      pointer-events: none;
     }
   `],
   template: `
@@ -634,6 +726,12 @@ const MAGNIFIER_SQUARE_PX = 250;
                   class="reader-seek-dot absolute top-1/2 -translate-x-1/2 -translate-y-1/2"
                   [style.left.%]="chapterDotPercent(ch)"></span>
               }
+              @for (lp of lastPageDots(); track lp.page) {
+                <span
+                  class="reader-seek-dot !bg-sky-400 !w-2 !h-2 border border-slate-900 shadow-sm absolute top-1/2 -translate-x-1/2 -translate-y-1/2 z-10"
+                  [style.left.%]="lp.percent"
+                  [title]="'Página ' + (lp.page + 1)"></span>
+              }
             </div>
             <input
               type="range"
@@ -806,7 +904,7 @@ const MAGNIFIER_SQUARE_PX = 250;
             <div class="grid grid-cols-4 gap-2">
               @for (ch of chapters(); track ch; let i = $index) {
                 <button type="button"
-                  (click)="seekTo(ch); showChapters.set(false)"
+                  (click)="seekTo(ch, 'start', true); showChapters.set(false)"
                   class="px-2 py-2 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-indigo-600 text-slate-200 cursor-pointer">
                   {{ chapterLabel(ch, i) }}
                 </button>
@@ -829,7 +927,7 @@ const MAGNIFIER_SQUARE_PX = 250;
               @for (ann of pageMarkAnnotations(); track ann.id ?? ann.page) {
                 <div class="relative group rounded-lg overflow-hidden bg-slate-800 border border-slate-700">
                   <button type="button"
-                    (click)="seekTo(ann.page); showAnnotations.set(false)"
+                    (click)="seekTo(ann.page, 'start', true); showAnnotations.set(false)"
                     class="block w-full cursor-pointer text-left">
                     <img
                       [src]="pages()[ann.page] || ''"
@@ -1205,6 +1303,53 @@ const MAGNIFIER_SQUARE_PX = 250;
         (saved)="showTrackerConfig.set(false); showTrackerSimple.set(true)"
         (deleted)="showTrackerConfig.set(false)"
         (cancel)="showTrackerConfig.set(false)" />
+
+      <!-- Last Page Thumbnail (Floating Return History) -->
+      @if (displayedLastPage(); as lastPage) {
+        <div
+          class="absolute bottom-20 sm:bottom-24 z-40 last-page-card"
+          [class.left-6]="renderedLastPageIsLeft()"
+          [class.right-6]="!renderedLastPageIsLeft()"
+          [class.is-left]="renderedLastPageIsLeft()"
+          [class.is-right]="!renderedLastPageIsLeft()"
+          [class.is-hidden]="lastPageAnimState() === 'hidden'"
+          [class.is-entering]="lastPageAnimState() === 'entering'"
+          [class.is-visible]="lastPageAnimState() === 'visible'"
+          [class.is-exiting]="lastPageAnimState() === 'exiting'">
+          <div
+            (click)="onLastPageClick()"
+            class="relative group flex flex-col items-center p-2 rounded-2xl bg-slate-900/95 backdrop-blur-md border border-slate-700/80 shadow-[0_12px_36px_rgba(15,23,42,0.8),0_0_20px_rgba(99,102,241,0.15)] hover:border-indigo-500/90 hover:shadow-[0_16px_40px_rgba(99,102,241,0.3)] hover:scale-105 transition-all duration-300 cursor-pointer max-w-[7.5rem] sm:max-w-[8.5rem]"
+            [title]="'Retornar para a página ' + (lastPage.page + 1)">
+            
+            <button
+              type="button"
+              (click)="dismissLastPage($event)"
+              class="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-slate-800 border border-slate-600 text-slate-300 hover:text-white hover:bg-rose-600 hover:border-rose-500 flex items-center justify-center text-xs shadow-md transition-all z-10 cursor-pointer"
+              title="Fechar">
+              ✕
+            </button>
+
+            @if (lastPage.url) {
+              <div
+                class="w-20 sm:w-24 aspect-[3/4] rounded-xl overflow-hidden bg-slate-950 border border-slate-800 shadow-inner relative"
+                [class.animate-thumb-pop]="thumbUpdated()">
+                <img
+                  [src]="lastPage.url"
+                  [alt]="'Página ' + (lastPage.page + 1)"
+                  class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                <div class="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent"></div>
+              </div>
+            }
+
+            <div class="mt-1.5 flex items-center gap-1 text-indigo-300 group-hover:text-indigo-200">
+              <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+              </svg>
+              <span class="text-[11px] font-bold tabular-nums">Pág. {{ lastPage.page + 1 }}</span>
+            </div>
+          </div>
+        </div>
+      }
     </div>
   `
 })
@@ -1233,6 +1378,26 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
   seekBarPage = signal(0);
   chapters = signal<number[]>([]);
   chaptersPages = signal<Record<number, string>>({});
+  lastPages = signal<{ page: number; url: string }[]>([]);
+  displayedLastPage = signal<{ page: number; url: string } | null>(null);
+  lastPageAnimState = signal<'hidden' | 'entering' | 'visible' | 'exiting'>('hidden');
+  renderedLastPageIsLeft = signal<boolean>(true);
+  thumbUpdated = signal<boolean>(false);
+  private lastPageTransitionTimer: ReturnType<typeof setTimeout> | null = null;
+  private thumbUpdateTimer: ReturnType<typeof setTimeout> | null = null;
+  readonly lastPageDots = computed(() => {
+    const max = Math.max(1, this.pageCount() - 1);
+    return this.lastPages().map(lp => ({
+      page: lp.page,
+      percent: Math.min(100, Math.max(0, (lp.page / max) * 100))
+    }));
+  });
+  readonly lastPageItem = computed(() => this.lastPages()[0] ?? null);
+  readonly lastPageIsLeft = computed(() => {
+    const first = this.lastPageItem();
+    if (!first) return true;
+    return first.page < this.currentPage();
+  });
   favorite = signal(false);
   annotations = signal<MangaAnnotation[]>([]);
   readonly marked = computed(() =>
@@ -1481,6 +1646,23 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
 
   readonly isVerticalMode = computed(() => isMangaVerticalMode(this.scrollingMode()));
 
+  constructor() {
+    effect(() => {
+      const visible = this.chromeVisible();
+      untracked(() => {
+        if (!visible) {
+          this.updateLastPageUi(null, this.renderedLastPageIsLeft());
+        } else {
+          const item = this.lastPages()[0] ?? null;
+          if (item) {
+            const isLeft = item.page < this.currentPage();
+            this.updateLastPageUi(item, isLeft);
+          }
+        }
+      });
+    });
+  }
+
   ngOnInit(): void {
     this.unsubProgress = this.electron.onExtractProgress(p => {
       this.extractCurrent.set(p.current);
@@ -1505,6 +1687,8 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
     this.stopMagnifier();
     if (this.clickTimer) clearTimeout(this.clickTimer);
     if (this.stubToastTimer) clearTimeout(this.stubToastTimer);
+    if (this.lastPageTransitionTimer) clearTimeout(this.lastPageTransitionTimer);
+    if (this.thumbUpdateTimer) clearTimeout(this.thumbUpdateTimer);
     this.clearTurnWatchdog();
     this.unsubProgress?.();
     void this.cleanup();
@@ -1978,13 +2162,129 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
   onSeekCommit(ev: Event): void {
     const input = ev.target as HTMLInputElement;
     const target = Number(input.value);
+    const from = this.currentPage();
+    if (target !== from) {
+      this.recordLastPage(from, target);
+    }
     // Keep thumb on the selected page; currentPage still updates when smooth scroll ends.
     this.seekTo(target, target >= this.currentPage() ? 'start' : 'end');
   }
 
-  seekTo(page: number, land: PageLand = 'start'): void {
+  private updateLastPageUi(newItem: { page: number; url: string } | null, targetIsLeft: boolean): void {
+    if (this.lastPageTransitionTimer) {
+      clearTimeout(this.lastPageTransitionTimer);
+      this.lastPageTransitionTimer = null;
+    }
+
+    if (!newItem || !this.chromeVisible() || this.isFullscreen()) {
+      if (this.lastPageAnimState() === 'visible' || this.lastPageAnimState() === 'entering') {
+        this.lastPageAnimState.set('exiting');
+        this.lastPageTransitionTimer = setTimeout(() => {
+          this.lastPageAnimState.set('hidden');
+          this.displayedLastPage.set(null);
+        }, 320);
+      } else if (this.lastPageAnimState() !== 'exiting') {
+        this.lastPageAnimState.set('hidden');
+        this.displayedLastPage.set(null);
+      }
+      return;
+    }
+
+    const currentSide = this.renderedLastPageIsLeft();
+    const isCurrentlyActive = this.lastPageAnimState() === 'visible' || this.lastPageAnimState() === 'entering';
+
+    if (!isCurrentlyActive) {
+      this.displayedLastPage.set(newItem);
+      this.renderedLastPageIsLeft.set(targetIsLeft);
+      this.lastPageAnimState.set('entering');
+      this.lastPageTransitionTimer = setTimeout(() => {
+        if (this.lastPageAnimState() === 'entering') {
+          this.lastPageAnimState.set('visible');
+        }
+      }, 450);
+      return;
+    }
+
+    if (currentSide !== targetIsLeft) {
+      this.lastPageAnimState.set('exiting');
+      this.lastPageTransitionTimer = setTimeout(() => {
+        this.displayedLastPage.set(null);
+        this.lastPageAnimState.set('hidden');
+        requestAnimationFrame(() => {
+          this.displayedLastPage.set(newItem);
+          this.renderedLastPageIsLeft.set(targetIsLeft);
+          this.lastPageAnimState.set('entering');
+          this.lastPageTransitionTimer = setTimeout(() => {
+            if (this.lastPageAnimState() === 'entering') {
+              this.lastPageAnimState.set('visible');
+            }
+          }, 450);
+        });
+      }, 320);
+    } else {
+      this.displayedLastPage.set(newItem);
+      this.triggerThumbUpdate();
+    }
+  }
+
+  private triggerThumbUpdate(): void {
+    if (this.thumbUpdateTimer) clearTimeout(this.thumbUpdateTimer);
+    this.thumbUpdated.set(false);
+    requestAnimationFrame(() => {
+      this.thumbUpdated.set(true);
+      this.thumbUpdateTimer = setTimeout(() => {
+        this.thumbUpdated.set(false);
+      }, 450);
+    });
+  }
+
+  recordLastPage(page: number, targetPage?: number): void {
+    if (page < 0 || page >= this.pageCount()) return;
+    const list = [...this.lastPages()];
+    if (list.some(p => p.page === page)) return;
+    if (list.length >= 3) {
+      list.pop();
+    }
+    const url = this.pages()[page] || '';
+    const newItem = { page, url };
+    list.unshift(newItem);
+    this.lastPages.set(list);
+
+    const dest = targetPage !== undefined ? targetPage : this.currentPage();
+    const targetIsLeft = page < dest;
+    this.updateLastPageUi(newItem, targetIsLeft);
+  }
+
+  onLastPageClick(): void {
+    const pages = [...this.lastPages()];
+    if (pages.length === 0) return;
+    const old = pages.shift()!;
+    this.lastPages.set(pages);
+
+    const nextItem = pages[0] ?? null;
+    const targetIsLeft = nextItem ? nextItem.page < old.page : this.renderedLastPageIsLeft();
+    this.updateLastPageUi(nextItem, targetIsLeft);
+
+    this.seekTo(old.page, 'start');
+  }
+
+  dismissLastPage(ev: Event): void {
+    ev.stopPropagation();
+    const pages = [...this.lastPages()];
+    pages.shift();
+    this.lastPages.set(pages);
+
+    const nextItem = pages[0] ?? null;
+    const targetIsLeft = nextItem ? nextItem.page < this.currentPage() : this.renderedLastPageIsLeft();
+    this.updateLastPageUi(nextItem, targetIsLeft);
+  }
+
+  seekTo(page: number, land: PageLand = 'start', recordHistory = false): void {
     const max = Math.max(0, this.pageCount() - 1);
     const next = Math.min(Math.max(0, Number(page) || 0), max);
+    if (recordHistory && next !== this.currentPage()) {
+      this.recordLastPage(this.currentPage(), next);
+    }
     this.seekBarPage.set(next);
     if (this.useDualSpread()) {
       this.syncSpreadFromPage(next);
@@ -2963,6 +3263,10 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
     if (!document.fullscreenElement) {
       void document.documentElement.requestFullscreen();
       this.chromeVisible.set(false);
+      this.showChapters.set(false);
+      this.showAnnotations.set(false);
+      this.showColorFilters.set(false);
+      this.updateLastPageUi(null, this.renderedLastPageIsLeft());
     } else {
       void document.exitFullscreen();
     }
@@ -2993,7 +3297,17 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
   }
 
   private onFsChange = (): void => {
-    this.isFullscreen.set(!!document.fullscreenElement);
+    const fs = !!document.fullscreenElement;
+    this.isFullscreen.set(fs);
+    if (fs) {
+      this.updateLastPageUi(null, this.renderedLastPageIsLeft());
+    } else {
+      const item = this.lastPages()[0] ?? null;
+      if (item) {
+        const isLeft = item.page < this.currentPage();
+        this.updateLastPageUi(item, isLeft);
+      }
+    }
   };
 
   private async loadReaderDisplayPrefs(): Promise<void> {
@@ -3195,6 +3509,8 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
       this.pendingJump = startIndex;
       this.brokenPages.set(0);
       this.zoom.set(1);
+      this.lastPages.set([]);
+      this.updateLastPageUi(null, true);
       await this.loadReaderDisplayPrefs();
       this.linkedVisiblePages.set({});
       this.wideFlags.set(new Array(opened.pageCount).fill(false));

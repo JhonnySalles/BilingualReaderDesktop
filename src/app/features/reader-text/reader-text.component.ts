@@ -6,6 +6,8 @@ import {
   inject,
   signal,
   computed,
+  effect,
+  untracked,
   ElementRef,
   ViewChild,
   HostListener,
@@ -243,6 +245,96 @@ const TAP_DEDUPE_MS = 350;
       background: #6366f1;
       cursor: pointer;
       border: none;
+    }
+
+    @keyframes thumb-pop {
+      0% { transform: scale(0.92); filter: brightness(1.3); }
+      50% { transform: scale(1.08); filter: brightness(1.15); }
+      100% { transform: scale(1); filter: brightness(1); }
+    }
+    .animate-thumb-pop {
+      animation: thumb-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+
+    @keyframes card-enter-left {
+      0% {
+        transform: translate3d(-140%, 0, 0) scale(0.82);
+        opacity: 0;
+      }
+      70% {
+        transform: translate3d(6%, 0, 0) scale(1.03);
+        opacity: 1;
+      }
+      100% {
+        transform: translate3d(0, 0, 0) scale(1);
+        opacity: 1;
+      }
+    }
+
+    @keyframes card-enter-right {
+      0% {
+        transform: translate3d(140%, 0, 0) scale(0.82);
+        opacity: 0;
+      }
+      70% {
+        transform: translate3d(-6%, 0, 0) scale(1.03);
+        opacity: 1;
+      }
+      100% {
+        transform: translate3d(0, 0, 0) scale(1);
+        opacity: 1;
+      }
+    }
+
+    @keyframes card-exit-left {
+      0% {
+        transform: translate3d(0, 0, 0) scale(1);
+        opacity: 1;
+      }
+      100% {
+        transform: translate3d(-140%, 0, 0) scale(0.85);
+        opacity: 0;
+      }
+    }
+
+    @keyframes card-exit-right {
+      0% {
+        transform: translate3d(0, 0, 0) scale(1);
+        opacity: 1;
+      }
+      100% {
+        transform: translate3d(140%, 0, 0) scale(0.85);
+        opacity: 0;
+      }
+    }
+
+    .last-page-card {
+      will-change: transform, opacity;
+    }
+    .last-page-card.is-hidden {
+      display: none;
+    }
+    .last-page-card.is-left.is-entering {
+      animation: card-enter-left 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+    .last-page-card.is-left.is-visible {
+      transform: translate3d(0, 0, 0) scale(1);
+      opacity: 1;
+    }
+    .last-page-card.is-left.is-exiting {
+      animation: card-exit-left 0.32s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+      pointer-events: none;
+    }
+    .last-page-card.is-right.is-entering {
+      animation: card-enter-right 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+    .last-page-card.is-right.is-visible {
+      transform: translate3d(0, 0, 0) scale(1);
+      opacity: 1;
+    }
+    .last-page-card.is-right.is-exiting {
+      animation: card-exit-right 0.32s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+      pointer-events: none;
     }
   `],
   template: `
@@ -611,6 +703,12 @@ const TAP_DEDUPE_MS = 350;
                     class="reader-seek-dot absolute top-1/2 -translate-x-1/2 -translate-y-1/2"
                     [style.left.%]="chapterDotPercent(ch.location)"></span>
                 }
+              }
+              @for (lp of lastPageDots(); track lp.page) {
+                <span
+                  class="reader-seek-dot !bg-sky-400 !w-2 !h-2 border border-slate-900 shadow-sm absolute top-1/2 -translate-x-1/2 -translate-y-1/2 z-10"
+                  [style.left.%]="lp.percent"
+                  [title]="'Página ' + (lp.page + 1)"></span>
               }
             </div>
             <input
@@ -1209,6 +1307,52 @@ const TAP_DEDUPE_MS = 350;
         (saved)="showTrackerConfig.set(false); showTrackerSimple.set(true)"
         (deleted)="showTrackerConfig.set(false)"
         (cancel)="showTrackerConfig.set(false)" />
+
+      <!-- Last Page Thumbnail (Floating Return History) -->
+      @if (displayedLastPage(); as lastPage) {
+        <div
+          class="absolute bottom-24 sm:bottom-28 z-40 last-page-card"
+          [class.left-6]="renderedLastPageIsLeft()"
+          [class.right-6]="!renderedLastPageIsLeft()"
+          [class.is-left]="renderedLastPageIsLeft()"
+          [class.is-right]="!renderedLastPageIsLeft()"
+          [class.is-hidden]="lastPageAnimState() === 'hidden'"
+          [class.is-entering]="lastPageAnimState() === 'entering'"
+          [class.is-visible]="lastPageAnimState() === 'visible'"
+          [class.is-exiting]="lastPageAnimState() === 'exiting'">
+          <div
+            (click)="onLastPageClick()"
+            class="relative group flex flex-col items-center p-2 rounded-2xl bg-slate-900/95 backdrop-blur-md border border-slate-700/80 shadow-[0_12px_36px_rgba(15,23,42,0.8),0_0_20px_rgba(99,102,241,0.15)] hover:border-indigo-500/90 hover:shadow-[0_16px_40px_rgba(99,102,241,0.3)] hover:scale-105 transition-all duration-300 cursor-pointer max-w-[7.5rem] sm:max-w-[8.5rem]"
+            [title]="'Retornar para a página ' + (lastPage.page + 1)">
+            
+            <button
+              type="button"
+              (click)="dismissLastPage($event)"
+              class="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-slate-800 border border-slate-600 text-slate-300 hover:text-white hover:bg-rose-600 hover:border-rose-500 flex items-center justify-center text-xs shadow-md transition-all z-10 cursor-pointer"
+              title="Fechar">
+              ✕
+            </button>
+
+            <div
+              class="w-20 sm:w-24 aspect-[3/4] rounded-xl flex flex-col items-center justify-center bg-slate-950 border border-slate-800 text-slate-400 p-2 text-center shadow-inner group-hover:border-indigo-500/40 transition-colors"
+              [class.animate-thumb-pop]="thumbUpdated()">
+              <svg class="w-6 h-6 mb-1 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              </svg>
+              <span class="text-[9px] line-clamp-2 text-slate-300 font-medium leading-tight">
+                {{ lastPage.chapter || 'Página' }}
+              </span>
+            </div>
+
+            <div class="mt-1.5 flex items-center gap-1 text-indigo-300 group-hover:text-indigo-200">
+              <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+              </svg>
+              <span class="text-[11px] font-bold tabular-nums">Pág. {{ lastPage.page + 1 }}</span>
+            </div>
+          </div>
+        </div>
+      }
     </div>
   `
 })
@@ -1241,6 +1385,26 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
   pageCount = signal(0);
   currentPage = signal(0);
   currentCfi = signal('');
+  lastPages = signal<{ page: number; chapter?: string }[]>([]);
+  displayedLastPage = signal<{ page: number; chapter?: string } | null>(null);
+  lastPageAnimState = signal<'hidden' | 'entering' | 'visible' | 'exiting'>('hidden');
+  renderedLastPageIsLeft = signal<boolean>(true);
+  thumbUpdated = signal<boolean>(false);
+  private lastPageTransitionTimer: ReturnType<typeof setTimeout> | null = null;
+  private thumbUpdateTimer: ReturnType<typeof setTimeout> | null = null;
+  readonly lastPageDots = computed(() => {
+    const max = Math.max(1, this.pageCount() - 1);
+    return this.lastPages().map(lp => ({
+      page: lp.page,
+      percent: Math.min(100, Math.max(0, (lp.page / max) * 100))
+    }));
+  });
+  readonly lastPageItem = computed(() => this.lastPages()[0] ?? null);
+  readonly lastPageIsLeft = computed(() => {
+    const first = this.lastPageItem();
+    if (!first) return true;
+    return first.page < this.currentPage();
+  });
   favorite = signal(false);
   loading = signal(true);
   loadingMessage = signal('Abrindo arquivo…');
@@ -1502,6 +1666,23 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     return this.overscrollAnimatingSignal() ? 'transform 180ms ease-out' : 'none';
   });
 
+  constructor() {
+    effect(() => {
+      const visible = this.chromeVisible();
+      untracked(() => {
+        if (!visible) {
+          this.updateLastPageUi(null, this.renderedLastPageIsLeft());
+        } else {
+          const item = this.lastPages()[0] ?? null;
+          if (item) {
+            const isLeft = item.page < this.currentPage();
+            this.updateLastPageUi(item, isLeft);
+          }
+        }
+      });
+    });
+  }
+
   ngOnInit(): void {
     document.addEventListener('fullscreenchange', this.onFsChange);
     window.addEventListener('wheel', this.onWindowWheel, { passive: false });
@@ -1526,6 +1707,8 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.typographyTimer) clearTimeout(this.typographyTimer);
     if (this.clickTimer) clearTimeout(this.clickTimer);
     if (this.stubToastTimer) clearTimeout(this.stubToastTimer);
+    if (this.lastPageTransitionTimer) clearTimeout(this.lastPageTransitionTimer);
+    if (this.thumbUpdateTimer) clearTimeout(this.thumbUpdateTimer);
     this.cancelAdjacentPeekPreload();
     void this.cleanup();
   }
@@ -2231,10 +2414,122 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     this.setZoom(this.zoom() - ZOOM_STEP_BUTTON);
   }
 
+  private updateLastPageUi(newItem: { page: number; chapter?: string } | null, targetIsLeft: boolean): void {
+    if (this.lastPageTransitionTimer) {
+      clearTimeout(this.lastPageTransitionTimer);
+      this.lastPageTransitionTimer = null;
+    }
+
+    if (!newItem || !this.chromeVisible() || this.isFullscreen()) {
+      if (this.lastPageAnimState() === 'visible' || this.lastPageAnimState() === 'entering') {
+        this.lastPageAnimState.set('exiting');
+        this.lastPageTransitionTimer = setTimeout(() => {
+          this.lastPageAnimState.set('hidden');
+          this.displayedLastPage.set(null);
+        }, 320);
+      } else if (this.lastPageAnimState() !== 'exiting') {
+        this.lastPageAnimState.set('hidden');
+        this.displayedLastPage.set(null);
+      }
+      return;
+    }
+
+    const currentSide = this.renderedLastPageIsLeft();
+    const isCurrentlyActive = this.lastPageAnimState() === 'visible' || this.lastPageAnimState() === 'entering';
+
+    if (!isCurrentlyActive) {
+      this.displayedLastPage.set(newItem);
+      this.renderedLastPageIsLeft.set(targetIsLeft);
+      this.lastPageAnimState.set('entering');
+      this.lastPageTransitionTimer = setTimeout(() => {
+        if (this.lastPageAnimState() === 'entering') {
+          this.lastPageAnimState.set('visible');
+        }
+      }, 450);
+      return;
+    }
+
+    if (currentSide !== targetIsLeft) {
+      this.lastPageAnimState.set('exiting');
+      this.lastPageTransitionTimer = setTimeout(() => {
+        this.displayedLastPage.set(null);
+        this.lastPageAnimState.set('hidden');
+        requestAnimationFrame(() => {
+          this.displayedLastPage.set(newItem);
+          this.renderedLastPageIsLeft.set(targetIsLeft);
+          this.lastPageAnimState.set('entering');
+          this.lastPageTransitionTimer = setTimeout(() => {
+            if (this.lastPageAnimState() === 'entering') {
+              this.lastPageAnimState.set('visible');
+            }
+          }, 450);
+        });
+      }, 320);
+    } else {
+      this.displayedLastPage.set(newItem);
+      this.triggerThumbUpdate();
+    }
+  }
+
+  private triggerThumbUpdate(): void {
+    if (this.thumbUpdateTimer) clearTimeout(this.thumbUpdateTimer);
+    this.thumbUpdated.set(false);
+    requestAnimationFrame(() => {
+      this.thumbUpdated.set(true);
+      this.thumbUpdateTimer = setTimeout(() => {
+        this.thumbUpdated.set(false);
+      }, 450);
+    });
+  }
+
+  recordLastPage(page: number, targetPage?: number): void {
+    if (page < 0 || (this.pageCount() > 0 && page >= this.pageCount())) return;
+    const list = [...this.lastPages()];
+    if (list.some(p => p.page === page)) return;
+    if (list.length >= 3) {
+      list.pop();
+    }
+    const newItem = { page, chapter: this.chapterTitle() || undefined };
+    list.unshift(newItem);
+    this.lastPages.set(list);
+
+    const dest = targetPage !== undefined ? targetPage : this.currentPage();
+    const targetIsLeft = page < dest;
+    this.updateLastPageUi(newItem, targetIsLeft);
+  }
+
+  onLastPageClick(): void {
+    const pages = [...this.lastPages()];
+    if (pages.length === 0) return;
+    const old = pages.shift()!;
+    this.lastPages.set(pages);
+
+    const nextItem = pages[0] ?? null;
+    const targetIsLeft = nextItem ? nextItem.page < old.page : this.renderedLastPageIsLeft();
+    this.updateLastPageUi(nextItem, targetIsLeft);
+
+    this.seekTo(old.page);
+  }
+
+  dismissLastPage(ev: Event): void {
+    ev.stopPropagation();
+    const pages = [...this.lastPages()];
+    pages.shift();
+    this.lastPages.set(pages);
+
+    const nextItem = pages[0] ?? null;
+    const targetIsLeft = nextItem ? nextItem.page < this.currentPage() : this.renderedLastPageIsLeft();
+    this.updateLastPageUi(nextItem, targetIsLeft);
+  }
+
   seekTo(page: number): void {
     if (!this.epubBook) return;
     const max = Math.max(0, this.pageCount() - 1);
     const next = Math.min(Math.max(0, Number(page) || 0), max);
+    const from = this.currentPage();
+    if (next !== from) {
+      this.recordLastPage(from, next);
+    }
     if (next === 0) {
       void this.goToFirstPage();
       return;
@@ -2321,6 +2616,10 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
   goToToc(entry: TocEntry): void {
     this.showToc.set(false);
     if (!this.rendition) return;
+    const dest = entry.location >= 0 ? entry.location : this.currentPage();
+    if (dest !== this.currentPage()) {
+      this.recordLastPage(this.currentPage(), dest);
+    }
     void this.rendition.display(entry.href);
   }
 
@@ -2377,6 +2676,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       this.chromeVisible.set(false);
       this.showToc.set(false);
       this.showTypography.set(false);
+      this.updateLastPageUi(null, this.renderedLastPageIsLeft());
     } else {
       void document.exitFullscreen();
     }
@@ -2462,7 +2762,17 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private onFsChange = (): void => {
-    this.isFullscreen.set(!!document.fullscreenElement);
+    const fs = !!document.fullscreenElement;
+    this.isFullscreen.set(fs);
+    if (fs) {
+      this.updateLastPageUi(null, this.renderedLastPageIsLeft());
+    } else {
+      const item = this.lastPages()[0] ?? null;
+      if (item) {
+        const isLeft = item.page < this.currentPage();
+        this.updateLastPageUi(item, isLeft);
+      }
+    }
     this.scheduleRenditionResize();
   };
 
@@ -2781,6 +3091,8 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     this.destroyEpub();
     el.innerHTML = '';
     this.zoom.set(1);
+    this.lastPages.set([]);
+    this.updateLastPageUi(null, true);
 
     const book = ePub(epubUrl);
     this.epubBook = book;
