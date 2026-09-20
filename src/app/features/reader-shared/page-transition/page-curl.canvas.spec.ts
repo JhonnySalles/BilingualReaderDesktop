@@ -1,4 +1,4 @@
-import { drawCurl } from './page-curl.canvas';
+import { curl2dFoldGeometry, drawCurl } from './page-curl.canvas';
 
 function makeSource(w: number, h: number, fill: string): HTMLCanvasElement {
   const c = document.createElement('canvas');
@@ -9,6 +9,24 @@ function makeSource(w: number, h: number, fill: string): HTMLCanvasElement {
   ctx.fillRect(0, 0, w, h);
   return c;
 }
+
+describe('curl2dFoldGeometry', () => {
+  it('returns clip-path polygons and fold tips for mid curl', () => {
+    const geo = curl2dFoldGeometry(0.4, 200, 300);
+    expect(geo.factor).toBe(0.4);
+    expect(geo.bottomFold.x).toBeCloseTo(80, 5);
+    expect(geo.bottomFold.y).toBe(300);
+    expect(geo.frontClipPolygon.startsWith('polygon(')).toBeTrue();
+    expect(geo.flapClipPolygon.startsWith('polygon(')).toBeTrue();
+    expect(geo.frontClipPolygon).toContain('0px 0px');
+    expect(geo.flapClipPolygon.split(',').length).toBe(4);
+  });
+
+  it('clamps factor to [0,1]', () => {
+    expect(curl2dFoldGeometry(-1, 100, 100).factor).toBe(0);
+    expect(curl2dFoldGeometry(2, 100, 100).factor).toBe(1);
+  });
+});
 
 describe('drawCurl', () => {
   it('2d mode never drawImage()s the back bitmap on the flap', () => {

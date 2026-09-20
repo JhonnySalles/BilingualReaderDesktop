@@ -15,12 +15,18 @@ export interface PlayPageTurnOptions {
   incoming: HTMLElement;
   effect: PageTransitionType;
   axis: TurnAxis;
+  /** Logical turn direction: +1 = next page, -1 = previous. */
   dir: TurnDir;
   size: number;
   durationMs?: number;
   signal?: AbortSignal;
   /** book | manga — selects Stack / Depth port variant. */
   variant?: TransitionVariant;
+  /**
+   * When true (RTL horizontal), flip CSS slide edge without changing
+   * which element is outgoing vs incoming.
+   */
+  mirror?: boolean;
   /**
    * Called after the last frame is held and before styles are cleared —
    * swap the real page underneath here.
@@ -32,6 +38,7 @@ export interface PlayPageTurnOptions {
 
 export interface PlayFoldTurnOptions {
   el: HTMLElement;
+  /** Logical turn direction (next/prev). */
   dir: TurnDir;
   size: number;
   mode?: '2d' | '3d';
@@ -41,6 +48,8 @@ export interface PlayFoldTurnOptions {
   owner?: PageTurnOwner;
   /** Element shown underneath the fold (incoming page). */
   underneath?: HTMLElement | null;
+  /** When true (RTL), flip fold origin / angle. */
+  mirror?: boolean;
 }
 
 interface ActiveTurn {
@@ -130,6 +139,7 @@ export async function playPageTurn(opts: PlayPageTurnOptions): Promise<void> {
     durationMs = PAGE_TURN_DURATION_MS,
     signal,
     variant = 'manga',
+    mirror = false,
     commit,
     owner = 'default'
   } = opts;
@@ -139,18 +149,36 @@ export async function playPageTurn(opts: PlayPageTurnOptions): Promise<void> {
     return;
   }
 
+  // Force incoming visible before first paint (Angular bindings alone can lag).
+  const inPrev = {
+    visibility: incoming.style.visibility,
+    zIndex: incoming.style.zIndex,
+    opacity: incoming.style.opacity,
+    transform: incoming.style.transform
+  };
+  incoming.style.visibility = 'visible';
+  incoming.style.opacity = '1';
+  incoming.style.transform = 'none';
+  incoming.style.zIndex = '1';
+  outgoing.style.zIndex = '2';
+
+  const visualDir = (mirror ? -dir : dir) as TurnDir;
   const driver = new PageTurnDriver({
     outgoing,
     incoming,
     effect,
     axis,
-    dir,
+    dir: visualDir,
     size,
     variant
   });
 
   const cleanup = () => {
     driver.release();
+    incoming.style.visibility = inPrev.visibility;
+    incoming.style.zIndex = inPrev.zIndex;
+    incoming.style.opacity = inPrev.opacity;
+    incoming.style.transform = inPrev.transform;
   };
 
   const turn: ActiveTurn = { animations: [], driver, owner, cleanup };
@@ -162,8 +190,8 @@ export async function playPageTurn(opts: PlayPageTurnOptions): Promise<void> {
   signal?.addEventListener('abort', abort, { once: true });
 
   try {
-    // Target outgoing end position: next → -1, prev → +1
-    await driver.animateTo(-dir, durationMs, commit);
+    // Target outgoing end position: next → -1, prev → +1 (visual)
+    await driver.animateTo(-visualDir, durationMs, commit);
   } catch {
     /* cancelled */
   } finally {
@@ -189,7 +217,8 @@ export async function playFoldTurn(opts: PlayFoldTurnOptions): Promise<void> {
     signal,
     commit,
     owner = 'default',
-    underneath
+    underneath,
+    mirror = false
   } = opts;
 
   if (prefersReducedMotion() || durationMs <= 0) {
@@ -204,6 +233,8 @@ export async function playFoldTurn(opts: PlayFoldTurnOptions): Promise<void> {
     if (commit) await commit();
     return;
   }
+
+  const visualDir = (mirror ? -dir : dir) as TurnDir;
 
   // Snapshot underneath styles so we can restore them exactly
   const underPrev = underneath
@@ -222,9 +253,9 @@ export async function playFoldTurn(opts: PlayFoldTurnOptions): Promise<void> {
     underneath.style.transform = 'none';
   }
 
-  // Next folds around the left (spine) edge; previous around the right.
-  const origin = dir > 0 ? 'left center' : 'right center';
-  const endAngle = dir > 0 ? -95 : 95;
+  // Next folds around the left (spine) edge; previous around the right (visual).
+  const origin = visualDir > 0 ? 'left center' : 'right center';
+  const endAngle = visualDir > 0 ? -95 : 95;
   const tilt = mode === '3d' ? 6 : 0;
 
   el.style.zIndex = '2';
@@ -240,12 +271,12 @@ export async function playFoldTurn(opts: PlayFoldTurnOptions): Promise<void> {
     'position:absolute',
     'top:0',
     'bottom:0',
-    dir > 0 ? 'left:0' : 'right:0',
+    visualDir > 0 ? 'left:0' : 'right:0',
     'width:18%',
     'max-width:96px',
     'pointer-events:none',
     'z-index:4',
-    dir > 0
+    visualDir > 0
       ? 'background:linear-gradient(to right, rgba(0,0,0,0.5), transparent)'
       : 'background:linear-gradient(to left, rgba(0,0,0,0.5), transparent)',
     'opacity:0'

@@ -202,30 +202,8 @@ function drawCurl2d(
   rect: { x: number; y: number; w: number; h: number },
   surfaceColor: string
 ): void {
-  const bottomFold = { x: W * factor, y: H };
-  let topFold: { x: number; y: number };
-  if (bottomFold.x > W / 2) {
-    topFold = { x: W, y: H - ((W - bottomFold.x) * H) / Math.max(1, bottomFold.x) };
-  } else {
-    topFold = { x: 2 * bottomFold.x, y: 0 };
-  }
-
-  const angle = Math.atan((H - topFold.y) / Math.max(1e-6, topFold.x - bottomFold.x));
-  const cos2 = Math.cos(2 * angle);
-  const sin2 = Math.sin(2 * angle);
-  const foldWidth = W - bottomFold.x;
-
-  const bottomFoldTip = {
-    x: bottomFold.x + foldWidth * cos2,
-    y: H - foldWidth * sin2
-  };
-  const topFoldTip =
-    bottomFold.x > W / 2
-      ? { ...topFold }
-      : {
-          x: topFold.x + (W - topFold.x) * cos2,
-          y: -(sin2 * (W - topFold.x))
-        };
+  const geo = curl2dFoldGeometry(factor, W, H);
+  const { bottomFold, topFold, bottomFoldTip, topFoldTip } = geo;
 
   // Visible (uncurled) region of the folding page
   ctx.save();
@@ -390,6 +368,74 @@ function hexToRgb(hex: string): [number, number, number] {
 export function positionToCurl(position: number): number {
   if (position >= 0) return 0;
   return Math.max(-1, Math.min(0, position));
+}
+
+/** Fold polygon geometry shared by canvas CurlPage and CSS book fallback. */
+export interface Curl2dFoldGeometry {
+  factor: number;
+  bottomFold: { x: number; y: number };
+  topFold: { x: number; y: number };
+  bottomFoldTip: { x: number; y: number };
+  topFoldTip: { x: number; y: number };
+  /** clip-path polygon for the still-visible front region (uncurled). */
+  frontClipPolygon: string;
+  /** clip-path polygon for the curled flap. */
+  flapClipPolygon: string;
+}
+
+/**
+ * Compute CurlPage (2D) fold geometry for a given curl factor in [0,1)
+ * (0 = flat / fully visible, 1 = fully curled away).
+ */
+export function curl2dFoldGeometry(factor: number, W: number, H: number): Curl2dFoldGeometry {
+  const f = clamp(factor, 0, 1);
+  const bottomFold = { x: W * f, y: H };
+  let topFold: { x: number; y: number };
+  if (bottomFold.x > W / 2) {
+    topFold = { x: W, y: H - ((W - bottomFold.x) * H) / Math.max(1, bottomFold.x) };
+  } else {
+    topFold = { x: 2 * bottomFold.x, y: 0 };
+  }
+
+  const angle = Math.atan((H - topFold.y) / Math.max(1e-6, topFold.x - bottomFold.x));
+  const cos2 = Math.cos(2 * angle);
+  const sin2 = Math.sin(2 * angle);
+  const foldWidth = W - bottomFold.x;
+
+  const bottomFoldTip = {
+    x: bottomFold.x + foldWidth * cos2,
+    y: H - foldWidth * sin2
+  };
+  const topFoldTip =
+    bottomFold.x > W / 2
+      ? { ...topFold }
+      : {
+          x: topFold.x + (W - topFold.x) * cos2,
+          y: -(sin2 * (W - topFold.x))
+        };
+
+  const frontPts: string[] = ['0px 0px'];
+  if (topFold.y !== 0) frontPts.push(`${W}px 0px`);
+  frontPts.push(`${topFold.x}px ${topFold.y}px`);
+  frontPts.push(`${bottomFold.x}px ${bottomFold.y}px`);
+  frontPts.push(`0px ${H}px`);
+
+  const flapPts = [
+    `${bottomFold.x}px ${bottomFold.y}px`,
+    `${bottomFoldTip.x}px ${bottomFoldTip.y}px`,
+    `${topFoldTip.x}px ${topFoldTip.y}px`,
+    `${topFold.x}px ${topFold.y}px`
+  ];
+
+  return {
+    factor: f,
+    bottomFold,
+    topFold,
+    bottomFoldTip,
+    topFoldTip,
+    frontClipPolygon: `polygon(${frontPts.join(', ')})`,
+    flapClipPolygon: `polygon(${flapPts.join(', ')})`
+  };
 }
 
 // Re-export for callers that still import pageFitRect via this module path

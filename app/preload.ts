@@ -2,6 +2,8 @@ import { contextBridge, ipcRenderer } from 'electron';
 
 contextBridge.exposeInMainWorld('electronAPI', {
   ping: () => ipcRenderer.invoke('app:ping'),
+  captureRect: (rect: { x: number; y: number; width: number; height: number }) =>
+    ipcRenderer.invoke('window:capture-rect', rect),
   selectDirectory: () => ipcRenderer.invoke('dialog:openDirectory'),
   checkPathOnline: (path: string) => ipcRenderer.invoke('fs:check-path-online', path),
   openMangaFile: () => ipcRenderer.invoke('dialog:openMangaFile'),

@@ -385,6 +385,38 @@ electron_1.app.on('ready', () => {
         electron_1.ipcMain.handle('app:ping', async () => {
             return 'Pong de Electron Node.js!';
         });
+        /**
+         * Capture a DIP-space rectangle of the requesting webContents as a PNG data URL.
+         * Rect is relative to the webContents viewport (getBoundingClientRect coords).
+         * Uses event.sender so DevTools focus does not break capture.
+         */
+        try {
+            electron_1.ipcMain.removeHandler('window:capture-rect');
+        }
+        catch {
+            /* ignore — first registration */
+        }
+        electron_1.ipcMain.handle('window:capture-rect', async (event, rect) => {
+            try {
+                const sender = event.sender;
+                if (!sender || sender.isDestroyed())
+                    return null;
+                const x = Math.max(0, Math.floor(rect?.x ?? 0));
+                const y = Math.max(0, Math.floor(rect?.y ?? 0));
+                const width = Math.max(1, Math.floor(rect?.width ?? 0));
+                const height = Math.max(1, Math.floor(rect?.height ?? 0));
+                if (width < 2 || height < 2)
+                    return null;
+                const image = await sender.capturePage({ x, y, width, height });
+                if (image.isEmpty())
+                    return null;
+                return image.toDataURL();
+            }
+            catch (e) {
+                console.warn('[window:capture-rect] failed', e);
+                return null;
+            }
+        });
         electron_1.ipcMain.handle('fs:check-path-online', async (_event, folderPath) => {
             try {
                 if (!folderPath)

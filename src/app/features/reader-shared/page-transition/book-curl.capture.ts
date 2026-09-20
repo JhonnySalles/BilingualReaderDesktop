@@ -1,0 +1,161 @@
+/**
+ * Capture opaque front/under bitmaps of the book viewer shells for canvas curl.
+ *
+ * Order matters for visuals:
+ * 1. Hide chrome (no CSS transition) so menus are not in the PNG.
+ * 2. Capture front (viewer visible, peek hidden).
+ * 3. Optional onFrontReady — caller paints a freeze canvas before under capture.
+ * 4. Capture under (viewer hidden, peek visible) while freeze covers the host.
+ */
+export interface CaptureRectFn {
+  (rect: { x: number; y: number; width: number; height: number }): Promise<string | null>;
+}
+
+export interface BookCurlBitmaps {
+  front: ImageBitmap;
+  under: ImageBitmap;
+  width: number;
+  height: number;
+  surfaceColor: string;
+}
+
+export interface CaptureBookPageBitmapsOptions {
+  viewerShell: HTMLElement;
+  peekShell: HTMLElement;
+  captureRect: CaptureRectFn;
+  surfaceColor: string;
+  /**
+   * Called after the front bitmap is ready and before under capture.
+   * Viewer is still visible; peek is hidden. Use to paint a freeze overlay.
+   */
+  onFrontReady?: (
+    front: ImageBitmap,
+    width: number,
+    height: number
+  ) => void | Promise<void>;
+  /** Hide chrome overlays during capture; return a restore function. */
+  hideChrome?: () => () => void;
+}
+
+function nextFrame(): Promise<void> {
+  return new Promise(resolve => requestAnimationFrame(() => resolve()));
+}
+
+async function doubleRaf(): Promise<void> {
+  await nextFrame();
+  await nextFrame();
+}
+
+async function dataUrlToOpaqueBitmap(
+  dataUrl: string,
+  width: number,
+  height: number,
+  surfaceColor: string
+): Promise<ImageBitmap | null> {
+  try {
+    const img = new Image();
+    img.decoding = 'async';
+    img.src = dataUrl;
+    await img.decode();
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, width);
+    canvas.height = Math.max(1, height);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    ctx.fillStyle = surfaceColor;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    return await createImageBitmap(canvas);
+  } catch (e) {
+    console.warn('[book-curl] bitmap decode failed', e);
+    return null;
+  }
+}
+
+function elementDipRect(el: HTMLElement): { x: number; y: number; width: number; height: number } {
+  const r = el.getBoundingClientRect();
+  return {
+    x: r.left,
+    y: r.top,
+    width: Math.max(1, r.width),
+    height: Math.max(1, r.height)
+  };
+}
+
+/**
+ * Snapshot viewer (front) and peek (under) shells as opaque ImageBitmaps.
+ */
+export async function captureBookPageBitmaps(
+  opts: CaptureBookPageBitmapsOptions
+): Promise<BookCurlBitmaps | null> {
+  const { viewerShell, peekShell, captureRect, surfaceColor, onFrontReady, hideChrome } = opts;
+  const hostRect = elementDipRect(viewerShell);
+  const w = Math.round(hostRect.width);
+  const h = Math.round(hostRect.height);
+  if (w < 8 || h < 8) return null;
+
+  const peekPrev = {
+    visibility: peekShell.style.visibility,
+    opacity: peekShell.style.opacity
+  };
+  const viewerPrev = {
+    visibility: viewerShell.style.visibility,
+    opacity: viewerShell.style.opacity
+  };
+
+  let restoreChrome: (() => void) | null = null;
+  try {
+    if (hideChrome) {
+      restoreChrome = hideChrome();
+    }
+
+    // Front = viewer only (page stays on screen)
+    peekShell.style.visibility = 'hidden';
+    peekShell.style.opacity = '0';
+    viewerShell.style.visibility = 'visible';
+    viewerShell.style.opacity = '1';
+    viewerShell.style.background = surfaceColor;
+    await doubleRaf();
+    const frontUrl = await captureRect(elementDipRect(viewerShell));
+    if (!frontUrl) return null;
+
+    const front = await dataUrlToOpaqueBitmap(frontUrl, w, h, surfaceColor);
+    if (!front) return null;
+
+    // Freeze overlay before we hide the viewer for under capture
+    if (onFrontReady) {
+      await onFrontReady(front, w, h);
+    }
+
+    // Under = peek only (freeze canvas covers the host)
+    viewerShell.style.visibility = 'hidden';
+    viewerShell.style.opacity = '0';
+    peekShell.style.visibility = 'visible';
+    peekShell.style.opacity = '1';
+    peekShell.style.background = surfaceColor;
+    await doubleRaf();
+    const underUrl = await captureRect(elementDipRect(peekShell));
+    if (!underUrl) {
+      front.close();
+      return null;
+    }
+
+    const under = await dataUrlToOpaqueBitmap(underUrl, w, h, surfaceColor);
+    if (!under) {
+      front.close();
+      return null;
+    }
+
+    return { front, under, width: w, height: h, surfaceColor };
+  } finally {
+    peekShell.style.visibility = peekPrev.visibility;
+    peekShell.style.opacity = peekPrev.opacity;
+    viewerShell.style.visibility = viewerPrev.visibility;
+    viewerShell.style.opacity = viewerPrev.opacity;
+    try {
+      restoreChrome?.();
+    } catch {
+      /* ignore */
+    }
+  }
+}

@@ -82,6 +82,12 @@ declare global {
   interface Window {
     electronAPI?: {
       ping: () => Promise<string>;
+      captureRect: (rect: {
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+      }) => Promise<string | null>;
       selectDirectory: () => Promise<string | null>;
       checkPathOnline: (path: string) => Promise<boolean>;
       openMangaFile: () => Promise<string | null>;
@@ -624,6 +630,27 @@ export class ElectronService {
       return await window.electronAPI.ping();
     }
     return 'Electron IPC não está ativo no navegador!';
+  }
+
+  /**
+   * Capture a viewport rectangle as a PNG data URL (Electron only).
+   * Coordinates match Element.getBoundingClientRect() (DIP).
+   */
+  async captureRect(rect: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }): Promise<string | null> {
+    if (this.isElectron && window.electronAPI?.captureRect) {
+      try {
+        return await window.electronAPI.captureRect(rect);
+      } catch (e) {
+        console.warn('[electron] captureRect failed', e);
+        return null;
+      }
+    }
+    return null;
   }
 
   async getSetting(key: string, defaultValue?: any): Promise<any> {

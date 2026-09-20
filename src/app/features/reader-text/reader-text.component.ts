@@ -8,7 +8,8 @@ import {
   computed,
   ElementRef,
   ViewChild,
-  HostListener
+  HostListener,
+  NgZone
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -56,9 +57,19 @@ import { ReaderTouchConfigComponent } from '../reader-shared/reader-touch-config
 import { handleReaderTouchTap, TouchActionHandlers } from '../reader-shared/touch-action.util';
 import {
   cancelActivePageTurns,
-  playFoldTurn,
   playPageTurn
 } from '../reader-shared/page-transition/page-transition.player';
+import {
+  cancelBookCurlTurns,
+  paintBookCurlFreeze,
+  paintBookCurlProgress,
+  playBookCurlTurn
+} from '../reader-shared/page-transition/book-curl.player';
+import {
+  captureBookPageBitmaps,
+  type BookCurlBitmaps
+} from '../reader-shared/page-transition/book-curl.capture';
+import { isBookNavLocked } from './book-turn-lock.util';
 import { PageTurnDriver } from '../reader-shared/page-transition/page-transition.driver';
 import { PAGE_TURN_DURATION_MS } from '../../core/models/enums/page-transition.enums';
 import { AnnotationPopupComponent } from '../annotations/components/annotation-popup.component';
@@ -288,26 +299,41 @@ const TAP_DEDUPE_MS = 350;
         [style.background]="pageBg"
         [class.cursor-grab]="!panning()"
         [class.cursor-grabbing]="panning()">
+        <!-- Opaque surface mask during turns (Depth/Zoom/Fade holes) — no destination bitmap. -->
         <div
-          #viewerPeek
-          class="absolute inset-0 origin-top pointer-events-none will-change-transform"
+          class="absolute inset-0 pointer-events-none"
           [style.background]="pageBg"
-          [style.zoom]="zoom()"
-          [style.transform]="peekTransform()"
-          [style.transition]="viewerTransition()"
-          [style.visibility]="peekLayerActive() ? 'visible' : 'hidden'"></div>
-        <div
-          #viewer
-          class="absolute inset-0 origin-top will-change-transform"
-          [style.background]="pageBg"
-          [style.zoom]="zoom()"
-          [style.transform]="viewerTransform()"
-          [style.transition]="viewerTransition()"></div>
+          [style.visibility]="turningSignal() || driverActive() ? 'visible' : 'hidden'"
+          aria-hidden="true"></div>
+        <!--
+          Turn shells receive PageTurnDriver transforms.
+          Inner nodes keep Angular overscroll bindings — returning null from those
+          bindings must NOT clear the driver's transform (Zone CD vs rAF fight).
+        -->
+        <div #peekShell class="absolute inset-0 origin-top pointer-events-none will-change-transform">
+          <div
+            #viewerPeek
+            class="absolute inset-0 origin-top pointer-events-none"
+            [style.background]="pageBg"
+            [style.zoom]="zoom()"
+            [style.transform]="peekTransform()"
+            [style.transition]="viewerTransition()"
+            [style.visibility]="peekLayerActive() ? 'visible' : 'hidden'"></div>
+        </div>
+        <div #viewerShell class="absolute inset-0 origin-top will-change-transform">
+          <div
+            #viewer
+            class="absolute inset-0 origin-top"
+            [style.background]="pageBg"
+            [style.zoom]="zoom()"
+            [style.transform]="viewerTransform()"
+            [style.transition]="viewerTransition()"></div>
+        </div>
       </div>
 
       <!-- Always-visible progress track + marker (full book width) -->
       @if (!loading() && !error()) {
-        <div class="absolute bottom-0 inset-x-0 z-20 pointer-events-none">
+        <div data-br-chrome="progress" class="absolute bottom-0 inset-x-0 z-20 pointer-events-none">
           <div class="relative h-0.5 bg-slate-800">
             <div
               class="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-indigo-400 shadow-sm transition-[left] duration-200"
@@ -322,6 +348,7 @@ const TAP_DEDUPE_MS = 350;
 
       <!-- Chrome: top -->
       <header
+        data-br-chrome="header"
         class="absolute top-0 inset-x-0 z-40 transition-all duration-300"
         [class.opacity-0]="!chromeVisible()"
         [class.-translate-y-full]="!chromeVisible()"
@@ -558,6 +585,7 @@ const TAP_DEDUPE_MS = 350;
 
       <!-- Seek (chrome) -->
       <div
+        data-br-chrome="seek"
         class="absolute inset-x-0 bottom-[5.5rem] z-40 px-10 sm:px-20 transition-all duration-300"
         [class.opacity-0]="!chromeVisible()"
         [class.translate-y-4]="!chromeVisible()"
@@ -599,6 +627,7 @@ const TAP_DEDUPE_MS = 350;
 
       <!-- Bottom toolbar -->
       <footer
+        data-br-chrome="footer"
         class="absolute bottom-6 inset-x-0 z-40 transition-all duration-300"
         [class.opacity-0]="!chromeVisible()"
         [class.translate-y-full]="!chromeVisible()"
@@ -1187,6 +1216,8 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('viewer') viewerRef?: ElementRef<HTMLElement>;
   @ViewChild('viewerHost') viewerHostRef?: ElementRef<HTMLElement>;
   @ViewChild('viewerPeek') viewerPeekRef?: ElementRef<HTMLElement>;
+  @ViewChild('viewerShell') viewerShellRef?: ElementRef<HTMLElement>;
+  @ViewChild('peekShell') peekShellRef?: ElementRef<HTMLElement>;
 
   private route = inject(ActivatedRoute);
   private router = inject(Router);
@@ -1196,6 +1227,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
   private touchZones = inject(TouchZoneService);
   private sanitizer = inject(DomSanitizer);
   private bookUnlock = inject(BookUnlockService);
+  private ngZone = inject(NgZone);
 
   BookScrollingMode = BookScrollingMode;
   Math = Math;
@@ -1313,6 +1345,15 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
   private peekDirection: 1 | -1 | 0 = 0;
   private peekStale = true;
   private peekLoadToken = 0;
+  private peekPreloadTimer: ReturnType<typeof setTimeout> | number | null = null;
+  /** Serialize interactive drag driver setup (avoid peekLoadToken thrash on every move). */
+  private dragDriverPromise: Promise<boolean> | null = null;
+  private dragDriverPendingDir: 1 | -1 | 0 = 0;
+  /** Captured front/under bitmaps for manga-style book curl. */
+  private bookCurlBitmaps: BookCurlBitmaps | null = null;
+  private bookCurlCanvas: HTMLCanvasElement | null = null;
+  /** True while drag is scrubbing manga-style canvas curl. */
+  private bookCurlDragActive = false;
   private viewReady = false;
   private pendingOpen: { epubUrl: string; bookMark: number; bookMarkCfi: string } | null = null;
   private relocating = false;
@@ -1403,6 +1444,8 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
 
   readonly viewerTransform = computed(() => {
     if (this.turningSignal() || this.driverActive()) return null;
+    // Curl: overscroll is progress only — never translate the live iframe
+    if (this.isCurlOverscrollMode()) return 'none';
     const x = this.overscrollXSignal();
     const y = this.overscrollYSignal();
     if (x === 0 && y === 0) return 'none';
@@ -1412,6 +1455,16 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
   /** Adjacent page offset (ViewPager): enters from the edge, slides with current. */
   readonly peekTransform = computed(() => {
     if (this.turningSignal() || this.driverActive()) return null;
+    // Curl: keep peek parked off-screen; canvas owns the wave
+    if (this.isCurlOverscrollMode()) {
+      const w = this.peekViewportW() || window.innerWidth;
+      if (this.peekLayerActive()) {
+        const parkedDir = this.peekDirection || 1;
+        const side = this.usesRtlPageKeys() ? -parkedDir : parkedDir;
+        return `translate(${side * w}px, 0)`;
+      }
+      return 'none';
+    }
     const x = this.overscrollXSignal();
     const y = this.overscrollYSignal();
 
@@ -1473,6 +1526,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.typographyTimer) clearTimeout(this.typographyTimer);
     if (this.clickTimer) clearTimeout(this.clickTimer);
     if (this.stubToastTimer) clearTimeout(this.stubToastTimer);
+    this.cancelAdjacentPeekPreload();
     void this.cleanup();
   }
 
@@ -1505,6 +1559,20 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     const key = ev.key;
     const paginated = this.isPaginatedMode();
     const continuous = this.isContinuousScrollMode();
+    const isPageNavKey =
+      key === 'ArrowLeft' ||
+      key === 'ArrowRight' ||
+      key === 'ArrowUp' ||
+      key === 'ArrowDown' ||
+      key === 'PageUp' ||
+      key === 'PageDown' ||
+      key === ' ';
+
+    // Drop page-nav while a turn animation owns the viewport (avoids skip of 5–7 pages).
+    if (isPageNavKey && this.isBookTurnBusy()) {
+      ev.preventDefault();
+      return;
+    }
 
     if (key === 'ArrowLeft') {
       if (!paginated) return;
@@ -1560,7 +1628,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       } else if (this.showTypography() || this.showToc()) {
         this.showTypography.set(false);
         this.showToc.set(false);
-      } else {
+      } else if (!this.isBookTurnBusy()) {
         this.chromeVisible.update(v => !v);
       }
     } else if (key === 'f' || key === 'F') {
@@ -1586,6 +1654,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
    */
   handleReaderTap(clientX: number, clientY?: number, alreadyHostLocal = false): void {
     if (this.loading() || this.error()) return;
+    if (this.isBookTurnBusy()) return;
     if (this.editingAnnotation()) return;
     if (this.textSelectVisible()) {
       this.dismissTextSelect();
@@ -2068,8 +2137,14 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     this.searchHighlightCfi = null;
   }
 
+  /** True while a page-turn animation or interactive driver owns the viewport. */
+  private isBookTurnBusy(): boolean {
+    return isBookNavLocked(this.turningPage, this.driverActive());
+  }
+
   /** Navigate previous with continuous scroll or internal page scroll first. */
   goPrev(): void {
+    if (this.isBookTurnBusy()) return;
     if (this.isContinuousScrollMode()) {
       this.scrollContinuousBy(-1);
       return;
@@ -2080,6 +2155,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /** Navigate next with continuous scroll or internal page scroll first. */
   goNext(): void {
+    if (this.isBookTurnBusy()) return;
     if (this.isContinuousScrollMode()) {
       if (!this.scrollContinuousBy(1) && this.isAtBookEnd()) {
         this.requestAdjacentFile('next');
@@ -2415,6 +2491,11 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
 
     ev.preventDefault();
 
+    if (this.isBookTurnBusy()) {
+      this.wheelAccum = 0;
+      return;
+    }
+
     if (this.canScrollContents(ev.deltaY)) {
       this.scrollContentsBy(ev.deltaY);
       this.wheelAccum = 0;
@@ -2495,7 +2576,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.hasActiveTextSelection()) return;
     const mapped = this.iframeEventToHostLocal(event);
     if (!mapped) {
-      this.chromeVisible.update(v => !v);
+      if (!this.isBookTurnBusy()) this.chromeVisible.update(v => !v);
       return;
     }
     this.ingestMappedTap('click', mapped);
@@ -2800,10 +2881,16 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     rendition.on('selected', this.onRenditionSelected);
     rendition.on('touchend', this.onRenditionTouchEnd);
 
-    // Pan + wheel/keydown inside iframe documents
+    // Pan + wheel/keydown inside iframe documents (main viewer only — not peek).
     rendition.hooks.content.register((contents: any) => {
+      if (this.isPeekContents(contents)) {
+        this.sizeContentImages(contents);
+        void this.enhanceJapaneseContents(contents);
+        return;
+      }
       this.bindContentsInput(contents);
       this.attachContentPan(contents);
+      this.sizeContentImages(contents);
       void this.enhanceJapaneseContents(contents);
     });
 
@@ -2811,6 +2898,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       if (this.relocating) return;
       if (!this.turningPage) {
         this.invalidatePeek();
+        this.scheduleAdjacentPeekPreload();
       }
       const cfi = location?.start?.cfi || '';
       this.currentCfi.set(cfi);
@@ -2839,6 +2927,24 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
 
     // Match column math to zoomed CSS box
     queueMicrotask(() => this.scheduleRenditionResize());
+  }
+
+  /** Size iframe images to reduce LayoutImageUnsized. */
+  private sizeContentImages(contents: any): void {
+    const doc: Document | undefined = contents?.document;
+    if (!doc) return;
+    const imgs = Array.from(doc.querySelectorAll('img')) as HTMLImageElement[];
+    for (const img of imgs) {
+      const apply = () => {
+        if (img.naturalWidth > 1 && img.naturalHeight > 1) {
+          if (!img.getAttribute('width')) img.setAttribute('width', String(img.naturalWidth));
+          if (!img.getAttribute('height')) img.setAttribute('height', String(img.naturalHeight));
+          img.style.aspectRatio = `${img.naturalWidth} / ${img.naturalHeight}`;
+        }
+      };
+      if (img.complete) apply();
+      else img.addEventListener('load', apply, { once: true });
+    }
   }
 
   private buildRenditionOptions(): Record<string, unknown> {
@@ -3839,8 +3945,119 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     this.deactivatePeekLayer();
   }
 
+  private activatePeekLayer(): void {
+    this.peekLayerActive.set(true);
+    const peek = this.viewerPeekRef?.nativeElement;
+    if (peek) peek.style.visibility = 'visible';
+    const shell = this.peekShellRef?.nativeElement;
+    if (shell) {
+      shell.style.visibility = 'visible';
+      shell.style.opacity = '1';
+    }
+  }
+
   private deactivatePeekLayer(): void {
     this.peekLayerActive.set(false);
+    const peek = this.viewerPeekRef?.nativeElement;
+    if (peek) peek.style.visibility = '';
+    const shell = this.peekShellRef?.nativeElement;
+    if (shell) {
+      shell.style.visibility = '';
+      shell.style.opacity = '';
+    }
+  }
+
+  /** RTL horizontal: mirror slide/fold edge without swapping logical next/prev. */
+  private turnMirror(): boolean {
+    return this.isRtl() && this.isHorizontalMode();
+  }
+
+  private visualTurnDir(logical: 1 | -1): TurnDir {
+    return (this.turnMirror() ? -logical : logical) as TurnDir;
+  }
+
+  private markBookTurn(
+    phase: 'start' | 'paint' | 'commit' | 'end' | 'peek-miss'
+  ): void {
+    try {
+      performance.mark(`book-turn:${phase}`);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  private async doubleRaf(): Promise<void> {
+    await new Promise<void>(r => requestAnimationFrame(() => r()));
+    await new Promise<void>(r => requestAnimationFrame(() => r()));
+  }
+
+  /** True when epub.js contents belong to the peek iframe (shared spine hooks). */
+  private isPeekContents(contents: any): boolean {
+    try {
+      const peekEl = this.viewerPeekRef?.nativeElement;
+      if (!peekEl) return false;
+      const iframe = contents?.document?.defaultView?.frameElement as HTMLElement | null;
+      return !!iframe && peekEl.contains(iframe);
+    } catch {
+      return false;
+    }
+  }
+
+  /** Wait until peek host/iframe has non-zero layout before peek.next/prev. */
+  private async waitForPeekLayout(peekEl: HTMLElement): Promise<void> {
+    for (let i = 0; i < 12; i++) {
+      const iframe = peekEl.querySelector('iframe') as HTMLIFrameElement | null;
+      if (
+        peekEl.clientWidth > 0 &&
+        peekEl.clientHeight > 0 &&
+        (!iframe || iframe.clientWidth > 0)
+      ) {
+        await this.doubleRaf();
+        return;
+      }
+      await this.doubleRaf();
+    }
+  }
+
+  /** Warm peek rendition after navigation so the next turn is less likely to miss. */
+  private scheduleAdjacentPeekPreload(): void {
+    if (!this.isPaginatedMode() || prefersReducedMotion() || this.isContinuousScrollMode()) {
+      return;
+    }
+    this.cancelAdjacentPeekPreload();
+    const run = () => {
+      this.peekPreloadTimer = null;
+      if (this.turningPage || this.driverActive() || !this.rendition || this.ended) return;
+      void (async () => {
+        try {
+          await this.loadPeek(1);
+          if (this.turningPage || this.driverActive()) return;
+          await this.loadPeek(-1);
+        } finally {
+          // Never hide an in-flight interactive turn's peek.
+          if (!this.turningPage && !this.driverActive()) {
+            this.peekStale = true;
+            this.peekDirection = 0;
+            this.deactivatePeekLayer();
+          }
+        }
+      })();
+    };
+    const ric = (window as Window & {
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+    }).requestIdleCallback;
+    if (typeof ric === 'function') {
+      this.peekPreloadTimer = ric(() => run(), { timeout: 1200 });
+    } else {
+      this.peekPreloadTimer = setTimeout(run, 500);
+    }
+  }
+
+  private cancelAdjacentPeekPreload(): void {
+    if (this.peekPreloadTimer != null) {
+      clearTimeout(this.peekPreloadTimer as number);
+      this.peekPreloadTimer = null;
+    }
   }
 
   private attachContentPan(contents: any): void {
@@ -3969,15 +4186,22 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
             this.peekViewportH.set(host?.clientHeight || window.innerHeight);
             this.overscrollX = Math.max(-maxX, Math.min(maxX, this.overscrollX + dx));
             this.overscrollY = 0;
-            this.syncOverscrollSignals(false);
+            // Curl: do not slide the live iframe — progress drives the canvas only
+            if (this.isCurlOverscrollMode()) {
+              this.overscrollXSignal.set(0);
+              this.overscrollYSignal.set(0);
+              this.overscrollAnimatingSignal.set(false);
+            } else {
+              this.syncOverscrollSignals(false);
+            }
             if (this.overscrollX !== 0) {
-              this.peekLayerActive.set(true);
+              if (!this.isCurlOverscrollMode()) {
+                this.activatePeekLayer();
+              }
               this.ensurePeekForOverscroll();
               const dir = this.overscrollPageDirection();
               if (dir && !prefersReducedMotion()) {
-                void this.ensureDragDriver(dir, maxX).then(ok => {
-                  if (ok) this.scrubDriverFromOverscroll(maxX);
-                });
+                this.queueDragDriverScrub(dir, maxX);
               }
             }
             return;
@@ -3998,13 +4222,11 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
           this.overscrollX = 0;
           this.syncOverscrollSignals(false);
           if (this.overscrollY !== 0) {
-            this.peekLayerActive.set(true);
+            this.activatePeekLayer();
             this.ensurePeekForOverscroll();
             const dir = this.overscrollPageDirection();
             if (dir && !prefersReducedMotion()) {
-              void this.ensureDragDriver(dir, maxY).then(ok => {
-                if (ok) this.scrubDriverFromOverscroll(maxY);
-              });
+              this.queueDragDriverScrub(dir, maxY);
             }
           }
           return;
@@ -4156,19 +4378,21 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       await peek.display(cfi);
       if (token !== this.peekLoadToken) return false;
 
+      // Paginated epub.js needs a non-zero iframe before next/prev or it can
+      // jump multiple columns / an entire chapter.
+      await this.waitForPeekLayout(peekEl);
+      if (token !== this.peekLoadToken) return false;
+
+      // Paginated epub.js often keeps the same start.cfi across column pages and
+      // does not change iframe scrollX/Y — do not require CFI/scroll deltas.
       if (dir > 0) await peek.next();
       else await peek.prev();
       if (token !== this.peekLoadToken) return false;
 
-      const afterCfi = peek.location?.start?.cfi;
-      if (!afterCfi || afterCfi === cfi) {
-        this.peekStale = true;
-        this.peekDirection = 0;
-        return false;
-      }
       return true;
     } catch (e) {
       console.warn('[reader-text] peek load failed', e);
+      this.markBookTurn('peek-miss');
       this.peekStale = true;
       this.peekDirection = 0;
       return false;
@@ -4236,57 +4460,158 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     void this.cancelDriverTurn();
   }
 
+  /**
+   * Scrub the page-turn driver from the current overscroll.
+   * Serializes ensureDragDriver so every pointermove does not cancel peek loads.
+   */
+  private queueDragDriverScrub(dir: 1 | -1, viewportSize: number): void {
+    if (
+      (this.turnDriver || this.bookCurlDragActive) &&
+      this.turnDriverDir === dir
+    ) {
+      this.scrubDriverFromOverscroll(viewportSize);
+      return;
+    }
+    void this.ensureDragDriver(dir, viewportSize).then(ok => {
+      if (!ok) return;
+      // Pointer may have been released while peek was loading.
+      if (this.panPointerId == null && !this.turningPage) return;
+      this.scrubDriverFromOverscroll(viewportSize);
+    });
+  }
+
   private async ensureDragDriver(dir: 1 | -1, viewportSize: number): Promise<boolean> {
-    const viewer = this.viewerRef?.nativeElement;
-    const peek = this.viewerPeekRef?.nativeElement;
+    if (
+      (this.turnDriver || this.bookCurlDragActive) &&
+      this.turnDriverDir === dir
+    ) {
+      return true;
+    }
+    if (this.dragDriverPromise && this.dragDriverPendingDir === dir) {
+      return this.dragDriverPromise;
+    }
+
+    this.dragDriverPendingDir = dir;
+    this.dragDriverPromise = this.createDragDriver(dir, viewportSize).finally(() => {
+      if (this.dragDriverPendingDir === dir) {
+        this.dragDriverPromise = null;
+        this.dragDriverPendingDir = 0;
+      }
+    });
+    return this.dragDriverPromise;
+  }
+
+  private async createDragDriver(dir: 1 | -1, viewportSize: number): Promise<boolean> {
+    const viewer = this.viewerShellRef?.nativeElement || this.viewerRef?.nativeElement;
+    const peek = this.peekShellRef?.nativeElement || this.viewerPeekRef?.nativeElement;
     if (!viewer || !peek) return false;
 
-    if (this.turnDriver && this.turnDriverDir === dir) {
+    if (
+      (this.turnDriver || this.bookCurlDragActive) &&
+      this.turnDriverDir === dir
+    ) {
       return true;
     }
 
     this.turnDriver?.release();
     this.turnDriver = null;
+    this.bookCurlDragActive = false;
+    this.driverActive.set(false);
 
-    const peekOk = await this.loadPeek(dir);
-    if (!peekOk) return false;
+    this.cancelAdjacentPeekPreload();
+    // Reuse peek already loaded for this direction during the gesture.
+    if (!(this.peekDirection === dir && !this.peekStale && this.peekRendition)) {
+      const peekOk = await this.loadPeek(dir);
+      if (!peekOk) return false;
+    }
+    // Aborted or direction flipped while awaiting peek.
+    if (this.dragDriverPendingDir !== dir) return false;
+    if (this.panPointerId != null && this.overscrollPageDirection() !== dir) {
+      return false;
+    }
 
-    this.peekLayerActive.set(true);
     const effect = this.effectiveBookTransition();
     const axis: TurnAxis = this.isHorizontalMode() ? 'x' : 'y';
     const isCurl =
-      effect === PageTransitionType.CurlPage || effect === PageTransitionType.Curl3DPage;
-    const playEffect =
-      isCurl && !this.isHorizontalMode()
-        ? PageTransitionType.Fade
-        : isCurl
-          ? PageTransitionType.Fade // drag uses CSS path; curl fold is commit-only
-          : effect;
+      (effect === PageTransitionType.CurlPage ||
+        effect === PageTransitionType.Curl3DPage) &&
+      this.isHorizontalMode();
 
+    if (isCurl) {
+      // Capture with freeze overlay — do not flash peek before canvas covers
+      this.turnDriverDir = dir;
+      const bitmaps = await this.ensureBookCurlBitmaps(dir as TurnDir);
+      if (this.dragDriverPendingDir !== dir) return false;
+      if (bitmaps) {
+        this.bookCurlDragActive = true;
+        this.turnDriverDir = dir;
+        const canvas = this.ensureBookCurlCanvas();
+        if (canvas) {
+          viewer.style.visibility = 'hidden';
+          peek.style.visibility = 'hidden';
+          this.scrubDriverFromOverscroll(viewportSize);
+          this.driverActive.set(true);
+          this.overscrollXSignal.set(0);
+          this.overscrollYSignal.set(0);
+          this.markBookTurn('paint');
+          return true;
+        }
+      }
+      // Capture unavailable — Fade stand-in
+      this.activatePeekLayer();
+      await this.doubleRaf();
+    } else {
+      this.activatePeekLayer();
+      await this.doubleRaf();
+    }
+
+    const playEffect = isCurl ? PageTransitionType.Fade : effect;
+    const visualDir = this.visualTurnDir(dir);
     this.turnDriver = new PageTurnDriver({
       outgoing: viewer,
       incoming: peek,
       effect: playEffect,
       axis,
-      dir: dir as TurnDir,
+      dir: visualDir,
       size: viewportSize,
       variant: 'book'
     });
     this.turnDriverDir = dir;
+    this.scrubDriverFromOverscroll(viewportSize);
     this.driverActive.set(true);
     this.overscrollXSignal.set(0);
     this.overscrollYSignal.set(0);
+    this.markBookTurn('paint');
     return true;
   }
 
   private scrubDriverFromOverscroll(viewportSize: number): void {
-    if (!this.turnDriver) return;
     const amount = this.isHorizontalMode() ? this.overscrollX : this.overscrollY;
-    // Convert pixel overscroll to ViewPager position: next (amount<0 LTR) → negative
-    const dir = this.turnDriverDir;
     const progress = Math.min(1, Math.abs(amount) / Math.max(viewportSize, 1));
-    const position = -dir * progress;
-    this.turnDriver.setPosition(position);
+
+    if (this.bookCurlDragActive && this.bookCurlBitmaps && this.bookCurlCanvas) {
+      const effect = this.effectiveBookTransition();
+      const mode = effect === PageTransitionType.Curl3DPage ? '3d' : '2d';
+      const logicalDir = this.turnDriverDir as TurnDir;
+      this.ngZone.runOutsideAngular(() => {
+        paintBookCurlProgress(
+          this.bookCurlCanvas!,
+          this.bookCurlBitmaps!,
+          progress,
+          logicalDir,
+          this.turnMirror(),
+          mode
+        );
+      });
+      return;
+    }
+
+    if (!this.turnDriver) return;
+    const visualDir = this.visualTurnDir(this.turnDriverDir);
+    const position = -visualDir * progress;
+    this.ngZone.runOutsideAngular(() => {
+      this.turnDriver?.setPosition(position);
+    });
   }
 
   private async commitDriverTurn(dir: 1 | -1, viewportSize: number): Promise<void> {
@@ -4295,12 +4620,19 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       (effect === PageTransitionType.CurlPage || effect === PageTransitionType.Curl3DPage) &&
       this.isHorizontalMode();
 
-    // Ensure peek + driver exist
-    if (!this.turnDriver || this.turnDriverDir !== dir) {
+    const amount = this.isHorizontalMode() ? this.overscrollX : this.overscrollY;
+    const fromProgress = Math.min(1, Math.abs(amount) / Math.max(viewportSize, 1));
+
+    // Ensure peek + driver / curl bitmaps exist
+    if (
+      (!this.turnDriver && !this.bookCurlDragActive) ||
+      this.turnDriverDir !== dir
+    ) {
       const ok = await this.ensureDragDriver(dir, viewportSize);
       if (!ok) {
         this.resetOverscroll(false);
         this.deactivatePeekLayer();
+        this.markBookTurn('peek-miss');
         await this.turnPageAndSettle(dir);
         return;
       }
@@ -4308,41 +4640,171 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.turningPage = true;
     this.turningSignal.set(true);
+    this.markBookTurn('start');
+    this.cancelAdjacentPeekPreload();
     this.resetOverscroll(false);
 
     try {
       if (isCurl) {
-        // Fold animation from current state
         this.turnDriver?.release();
         this.turnDriver = null;
         this.driverActive.set(false);
-        this.peekLayerActive.set(true);
-        await this.animateViewerTurn(dir, effect, () => this.turnPageAndSettle(dir));
+        const host = this.viewerHostRef?.nativeElement;
+        const viewer =
+          this.viewerShellRef?.nativeElement || this.viewerRef?.nativeElement;
+        const peek =
+          this.peekShellRef?.nativeElement || this.viewerPeekRef?.nativeElement;
+        if (host && viewer && peek) {
+          const bitmaps =
+            this.bookCurlBitmaps || (await this.ensureBookCurlBitmaps(dir as TurnDir));
+          // Reuse drag canvas — do NOT teardown before play (avoids blank+chrome frame)
+          const reuseCanvas = this.bookCurlCanvas;
+          if (bitmaps) {
+            await this.ngZone.runOutsideAngular(() =>
+              playBookCurlTurn({
+                host,
+                viewerShell: viewer,
+                peekShell: peek,
+                bitmaps,
+                dir: dir as TurnDir,
+                mirror: this.turnMirror(),
+                mode: effect === PageTransitionType.Curl3DPage ? '3d' : '2d',
+                fromProgress,
+                surfaceColor: PAGE_BG,
+                canvas: reuseCanvas,
+                commit: () =>
+                  this.ngZone.run(async () => {
+                    this.markBookTurn('commit');
+                    await this.turnPageAndSettle(dir);
+                  }),
+                owner: 'book-reader'
+              })
+            );
+          } else {
+            this.activatePeekLayer();
+            // Capture miss — finish with Fade (same effect as drag stand-in).
+            const axis: TurnAxis = this.isHorizontalMode() ? 'x' : 'y';
+            await this.ngZone.runOutsideAngular(() =>
+              playPageTurn({
+                outgoing: viewer,
+                incoming: peek,
+                effect: PageTransitionType.Fade,
+                axis,
+                dir: dir as TurnDir,
+                mirror: this.turnMirror(),
+                size: viewportSize,
+                variant: 'book',
+                commit: () =>
+                  this.ngZone.run(async () => {
+                    this.markBookTurn('commit');
+                    await this.turnPageAndSettle(dir);
+                  }),
+                owner: 'book-reader'
+              })
+            );
+          }
+        } else {
+          this.markBookTurn('commit');
+          await this.turnPageAndSettle(dir);
+        }
       } else {
-        await this.turnDriver!.animateTo(-dir, PAGE_TURN_DURATION_MS, () =>
-          this.turnPageAndSettle(dir)
+        const visualDir = this.visualTurnDir(dir);
+        const driver = this.turnDriver!;
+        await this.ngZone.runOutsideAngular(() =>
+          driver.animateTo(-visualDir, PAGE_TURN_DURATION_MS, () =>
+            this.ngZone.run(async () => {
+              this.markBookTurn('commit');
+              await this.turnPageAndSettle(dir);
+            })
+          )
         );
       }
     } finally {
       this.turnDriver = null;
+      this.dragDriverPromise = null;
+      this.dragDriverPendingDir = 0;
+      this.bookCurlDragActive = false;
+      this.releaseBookCurlBitmaps();
+      this.teardownBookCurlCanvas();
       this.driverActive.set(false);
+      this.turningPage = false;
+      this.turningSignal.set(false);
       this.deactivatePeekLayer();
       this.peekStale = true;
       this.peekDirection = 0;
-      this.turningPage = false;
-      this.turningSignal.set(false);
       this.clearViewerAnimStyles();
+      this.markBookTurn('end');
+      this.scheduleAdjacentPeekPreload();
     }
   }
 
   private async cancelDriverTurn(): Promise<void> {
+    if (this.bookCurlDragActive && this.bookCurlBitmaps && this.bookCurlCanvas) {
+      this.turningSignal.set(true);
+      this.driverActive.set(true);
+      try {
+        await this.ngZone.runOutsideAngular(
+          () =>
+            new Promise<void>(resolve => {
+              const start = performance.now();
+              const from = (() => {
+                const host = this.viewerHostRef?.nativeElement;
+                const size = this.isHorizontalMode()
+                  ? host?.clientWidth || window.innerWidth
+                  : host?.clientHeight || window.innerHeight;
+                const amount = this.isHorizontalMode()
+                  ? this.overscrollX
+                  : this.overscrollY;
+                return Math.min(1, Math.abs(amount) / Math.max(size, 1));
+              })();
+              const mode =
+                this.effectiveBookTransition() === PageTransitionType.Curl3DPage
+                  ? '3d'
+                  : '2d';
+              const tick = (now: number) => {
+                const t = Math.min(1, (now - start) / 180);
+                const p = from * (1 - t);
+                paintBookCurlProgress(
+                  this.bookCurlCanvas!,
+                  this.bookCurlBitmaps!,
+                  p,
+                  this.turnDriverDir as TurnDir,
+                  this.turnMirror(),
+                  mode
+                );
+                if (t >= 1) {
+                  resolve();
+                  return;
+                }
+                requestAnimationFrame(tick);
+              };
+              requestAnimationFrame(tick);
+            })
+        );
+      } finally {
+        this.bookCurlDragActive = false;
+        this.releaseBookCurlBitmaps();
+        this.teardownBookCurlCanvas();
+        this.driverActive.set(false);
+        this.turningSignal.set(false);
+      }
+      this.resetOverscroll(false);
+      this.deactivatePeekLayer();
+      this.clearViewerAnimStyles();
+      return;
+    }
+
     if (this.turnDriver) {
       this.turningSignal.set(true);
       this.driverActive.set(true);
       try {
-        await this.turnDriver.animateTo(0, Math.min(180, PAGE_TURN_DURATION_MS));
+        await this.ngZone.runOutsideAngular(() =>
+          this.turnDriver!.animateTo(0, Math.min(180, PAGE_TURN_DURATION_MS))
+        );
       } finally {
         this.turnDriver = null;
+        this.dragDriverPromise = null;
+        this.dragDriverPendingDir = 0;
         this.driverActive.set(false);
         this.turningSignal.set(false);
       }
@@ -4745,9 +5207,41 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     return t;
   }
 
+  /** Curl/Curl3D horizontal — overscroll drives canvas, not iframe translate. */
+  private isCurlOverscrollMode(): boolean {
+    if (!this.isHorizontalMode()) return false;
+    const t = this.effectiveBookTransition();
+    return t === PageTransitionType.CurlPage || t === PageTransitionType.Curl3DPage;
+  }
+
+  /** Hide header/footer/seek/progress without CSS transition (capture snapshots). */
+  private hideChromeForCapture(): () => void {
+    const host = this.viewerHostRef?.nativeElement;
+    const root = host?.parentElement;
+    if (!root) return () => undefined;
+    const els = Array.from(
+      root.querySelectorAll<HTMLElement>('[data-br-chrome]')
+    );
+    const prev = els.map(el => ({
+      el,
+      visibility: el.style.visibility,
+      transition: el.style.transition
+    }));
+    for (const el of els) {
+      el.style.transition = 'none';
+      el.style.visibility = 'hidden';
+    }
+    return () => {
+      for (const p of prev) {
+        p.el.style.visibility = p.visibility;
+        p.el.style.transition = p.transition;
+      }
+    };
+  }
+
   private async turnWithEffect(dir: 1 | -1): Promise<void> {
-    if (!this.rendition || this.turningPage) {
-      await this.turnPageAndSettle(dir);
+    // Never extra-advance while a turn is in flight (was skipping 5–7 pages).
+    if (!this.rendition || this.turningPage || this.driverActive()) {
       return;
     }
     if (prefersReducedMotion() || this.isContinuousScrollMode()) {
@@ -4756,23 +5250,42 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     }
     const effect = this.effectiveBookTransition();
 
+    this.cancelAdjacentPeekPreload();
     this.turningPage = true;
     this.turningSignal.set(true);
+    this.markBookTurn('start');
     try {
       const peekOk = await this.loadPeek(dir);
       if (!peekOk) {
+        this.markBookTurn('peek-miss');
         await this.turnPageAndSettle(dir);
         return;
       }
-      this.peekLayerActive.set(true);
-      await this.animateViewerTurn(dir, effect, () => this.turnPageAndSettle(dir));
+      const isCurl =
+        (effect === PageTransitionType.CurlPage ||
+          effect === PageTransitionType.Curl3DPage) &&
+        this.isHorizontalMode();
+      // Curl: do not flash peek before freeze canvas — animateViewerTurn captures first
+      if (!isCurl) {
+        this.activatePeekLayer();
+      }
+      await this.animateViewerTurn(dir, effect, async () => {
+        this.markBookTurn('commit');
+        await this.turnPageAndSettle(dir);
+      });
     } finally {
+      // Hide peek only after player released the last frame.
+      this.turningPage = false;
+      this.turningSignal.set(false);
+      this.bookCurlDragActive = false;
+      this.releaseBookCurlBitmaps();
+      this.teardownBookCurlCanvas();
       this.deactivatePeekLayer();
       this.peekStale = true;
       this.peekDirection = 0;
-      this.turningPage = false;
-      this.turningSignal.set(false);
       this.clearViewerAnimStyles();
+      this.markBookTurn('end');
+      this.scheduleAdjacentPeekPreload();
     }
   }
 
@@ -4781,15 +5294,17 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     effect: PageTransitionType,
     commit?: () => void | Promise<void>
   ): Promise<void> {
-    const viewer = this.viewerRef?.nativeElement;
-    const peek = this.viewerPeekRef?.nativeElement;
+    const viewer =
+      this.viewerShellRef?.nativeElement || this.viewerRef?.nativeElement;
+    const peek =
+      this.peekShellRef?.nativeElement || this.viewerPeekRef?.nativeElement;
     if (!viewer || !peek) {
       if (commit) await commit();
       return;
     }
 
     this.overscrollAnimatingSignal.set(false);
-    // Clear overscroll translates so WAAPI owns the transform
+    // Clear overscroll translates so the driver owns the transform on the shells
     this.overscrollXSignal.set(0);
     this.overscrollYSignal.set(0);
 
@@ -4799,44 +5314,83 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       axis === 'x'
         ? host?.clientWidth || window.innerWidth
         : host?.clientHeight || window.innerHeight;
-    const turnDir = dir as TurnDir;
+    const logicalDir = dir as TurnDir;
+    const mirror = this.turnMirror();
 
     const isCurl =
       effect === PageTransitionType.CurlPage || effect === PageTransitionType.Curl3DPage;
 
-    if (isCurl && this.isHorizontalMode()) {
-      await playFoldTurn({
-        el: viewer,
-        dir: turnDir,
+    // Non-curl: show peek under the outgoing page. Curl waits for freeze canvas.
+    if (!(isCurl && this.isHorizontalMode())) {
+      this.activatePeekLayer();
+      await this.doubleRaf();
+    }
+    this.markBookTurn('paint');
+
+    // Zone.js patches rAF — run the turn outside Angular so CD cannot clear
+    // driver transforms mid-animation (even on shell, keep CD noise low).
+    const run = async () => {
+      if (isCurl && this.isHorizontalMode()) {
+        const bitmaps = await this.ensureBookCurlBitmaps(logicalDir);
+        if (bitmaps) {
+          const mode = effect === PageTransitionType.Curl3DPage ? '3d' : '2d';
+          const reuseCanvas = this.bookCurlCanvas;
+          await playBookCurlTurn({
+            host: host!,
+            viewerShell: viewer,
+            peekShell: peek,
+            bitmaps,
+            dir: logicalDir,
+            mirror,
+            mode,
+            surfaceColor: PAGE_BG,
+            canvas: reuseCanvas,
+            commit: commit
+              ? () => this.ngZone.run(() => Promise.resolve(commit()))
+              : undefined,
+            owner: 'book-reader'
+          });
+          this.releaseBookCurlBitmaps();
+          this.teardownBookCurlCanvas();
+          return;
+        }
+        // Capture unavailable — Fade only (never CSS clip-path on the live iframe).
+        this.activatePeekLayer();
+        await this.doubleRaf();
+      }
+
+      const playEffect = isCurl ? PageTransitionType.Fade : effect;
+      await playPageTurn({
+        outgoing: viewer,
+        incoming: peek,
+        effect: playEffect,
+        axis,
+        dir: logicalDir,
+        mirror,
         size,
-        mode: effect === PageTransitionType.Curl3DPage ? '3d' : '2d',
-        underneath: peek,
-        commit,
+        variant: 'book',
+        commit: commit
+          ? () => this.ngZone.run(() => Promise.resolve(commit()))
+          : undefined,
         owner: 'book-reader'
       });
-      return;
-    }
+    };
 
-    const playEffect = isCurl ? PageTransitionType.Fade : effect;
-    await playPageTurn({
-      outgoing: viewer,
-      incoming: peek,
-      effect: playEffect,
-      axis,
-      dir: turnDir,
-      size,
-      variant: 'book',
-      commit,
-      owner: 'book-reader'
-    });
+    await this.ngZone.runOutsideAngular(() => run());
   }
 
   private clearViewerAnimStyles(): void {
     cancelActivePageTurns('book-reader');
+    cancelBookCurlTurns('book-reader');
+    this.teardownBookCurlCanvas();
     if (this.turningSignal()) return;
-    const viewer = this.viewerRef?.nativeElement;
-    const peek = this.viewerPeekRef?.nativeElement;
-    for (const el of [viewer, peek]) {
+    const els = [
+      this.viewerShellRef?.nativeElement,
+      this.peekShellRef?.nativeElement,
+      this.viewerRef?.nativeElement,
+      this.viewerPeekRef?.nativeElement
+    ];
+    for (const el of els) {
       if (!el) continue;
       el.style.transform = '';
       el.style.opacity = '';
@@ -4844,7 +5398,91 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       el.style.zIndex = '';
       el.style.transformOrigin = '';
       el.style.willChange = '';
+      el.style.clipPath = '';
     }
+  }
+
+  private releaseBookCurlBitmaps(): void {
+    if (this.bookCurlBitmaps) {
+      try {
+        this.bookCurlBitmaps.front.close();
+      } catch {
+        /* ignore */
+      }
+      try {
+        this.bookCurlBitmaps.under.close();
+      } catch {
+        /* ignore */
+      }
+      this.bookCurlBitmaps = null;
+    }
+  }
+
+  private teardownBookCurlCanvas(): void {
+    if (this.bookCurlCanvas) {
+      try {
+        this.bookCurlCanvas.remove();
+      } catch {
+        /* ignore */
+      }
+      this.bookCurlCanvas = null;
+    }
+  }
+
+  private async ensureBookCurlBitmaps(
+    logicalDir: TurnDir = 1
+  ): Promise<BookCurlBitmaps | null> {
+    if (this.bookCurlBitmaps) return this.bookCurlBitmaps;
+    const viewer = this.viewerShellRef?.nativeElement;
+    const peek = this.peekShellRef?.nativeElement;
+    if (!viewer || !peek) return null;
+
+    // Peek content must be loaded, but keep it visually hidden until freeze covers host.
+    const captured = await captureBookPageBitmaps({
+      viewerShell: viewer,
+      peekShell: peek,
+      captureRect: r => this.electron.captureRect(r),
+      surfaceColor: PAGE_BG,
+      hideChrome: () => this.hideChromeForCapture(),
+      onFrontReady: async (front, w, h) => {
+        const canvas = this.ensureBookCurlCanvas();
+        if (!canvas) return;
+        paintBookCurlFreeze(canvas, front, w, h, PAGE_BG);
+        // Cover host while under capture briefly shows peek
+        viewer.style.visibility = 'hidden';
+      }
+    });
+    this.bookCurlBitmaps = captured;
+    if (captured) {
+      const canvas = this.ensureBookCurlCanvas();
+      if (canvas) {
+        paintBookCurlProgress(
+          canvas,
+          captured,
+          0,
+          logicalDir,
+          this.turnMirror(),
+          this.effectiveBookTransition() === PageTransitionType.Curl3DPage ? '3d' : '2d'
+        );
+        viewer.style.visibility = 'hidden';
+        peek.style.visibility = 'hidden';
+      }
+    }
+    return captured;
+  }
+
+  private ensureBookCurlCanvas(): HTMLCanvasElement | null {
+    const host = this.viewerHostRef?.nativeElement;
+    if (!host) return null;
+    if (this.bookCurlCanvas && this.bookCurlCanvas.isConnected) {
+      return this.bookCurlCanvas;
+    }
+    const canvas = document.createElement('canvas');
+    canvas.style.cssText =
+      'position:absolute;inset:0;width:100%;height:100%;z-index:5;pointer-events:none;';
+    host.appendChild(canvas);
+    this.bookCurlCanvas = canvas;
+    return canvas;
   }
 
   /** Inject BabelStone @font-face + optional furigana/vocab ruby rewrite. */

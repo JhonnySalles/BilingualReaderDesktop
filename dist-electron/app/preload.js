@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const electron_1 = require("electron");
 electron_1.contextBridge.exposeInMainWorld('electronAPI', {
     ping: () => electron_1.ipcRenderer.invoke('app:ping'),
+    captureRect: (rect) => electron_1.ipcRenderer.invoke('window:capture-rect', rect),
     selectDirectory: () => electron_1.ipcRenderer.invoke('dialog:openDirectory'),
     checkPathOnline: (path) => electron_1.ipcRenderer.invoke('fs:check-path-online', path),
     openMangaFile: () => electron_1.ipcRenderer.invoke('dialog:openMangaFile'),

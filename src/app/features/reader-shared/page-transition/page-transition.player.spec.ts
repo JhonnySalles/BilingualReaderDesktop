@@ -87,6 +87,50 @@ describe('page-transition.player', () => {
     expect(bOut.style.opacity).toBe('');
   });
 
+  it('playPageTurn forces incoming visibility before animating', async () => {
+    const outgoing = makeTestEl();
+    const incoming = makeTestEl();
+    incoming.style.visibility = 'hidden';
+
+    await playPageTurn({
+      outgoing,
+      incoming,
+      effect: PageTransitionType.Fade,
+      axis: 'x',
+      dir: 1,
+      size: 200,
+      durationMs: 40,
+      owner: 'test-peek-visible',
+      commit: () => {
+        expect(incoming.style.visibility).toBe('visible');
+      }
+    });
+  });
+
+  it('playPageTurn mirror flips visual slide without swapping layers', async () => {
+    const outgoing = makeTestEl();
+    const incoming = makeTestEl();
+    let endTransform = '';
+
+    await playPageTurn({
+      outgoing,
+      incoming,
+      effect: PageTransitionType.Default,
+      axis: 'x',
+      dir: 1,
+      mirror: true,
+      size: 200,
+      durationMs: 40,
+      owner: 'test-mirror',
+      commit: () => {
+        endTransform = outgoing.style.transform || '';
+      }
+    });
+
+    // Logical next + mirror → visual prev: outgoing ends at +size
+    expect(endTransform).toContain('200');
+  });
+
   it('playFoldTurn restores underneath visibility/transform', async () => {
     const host = makeTestEl();
     host.style.position = 'relative';
