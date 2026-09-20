@@ -345,7 +345,9 @@ export class MangaDualSpreadViewportComponent implements OnChanges {
       const goingNext = this.rtl ? dx > 0 : dx < 0;
       const progress = Math.min(1, Math.abs(dx) / Math.max(w * 0.45, 1));
       this.curlDragging = true;
-      this.turnDrag.emit({ progress, goingNext, commit: null });
+      const vRect = el.getBoundingClientRect();
+      const pointerY = ev.clientY - vRect.top;
+      this.turnDrag.emit({ progress, goingNext, commit: null, pointerY });
     }
   }
 
@@ -374,7 +376,9 @@ export class MangaDualSpreadViewportComponent implements OnChanges {
       const w = el?.clientWidth || 1;
       const progress = Math.min(1, Math.abs(dx) / Math.max(w * 0.45, 1));
       // Spread change is applied by parent onTurnFinished after curl completes.
-      this.turnDrag.emit({ progress, goingNext, commit });
+      const vRect = el?.getBoundingClientRect();
+      const pointerY = vRect ? ev.clientY - vRect.top : undefined;
+      this.turnDrag.emit({ progress, goingNext, commit, pointerY });
       return;
     }
 

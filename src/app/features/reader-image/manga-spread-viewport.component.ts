@@ -41,6 +41,7 @@ export interface TurnDragEvent {
   progress: number;
   goingNext: boolean;
   commit: boolean | null;
+  pointerY?: number;
 }
 
 const WHEEL_PAGE_THRESHOLD = 200;
@@ -593,7 +594,9 @@ export class MangaSpreadViewportComponent implements OnChanges {
       // Hold carousel on the start page while overlay paints over it.
       viewport.scrollLeft = this.panStartScrollLeft;
       viewport.scrollTop = this.panStartScrollTop;
-      this.turnDrag.emit({ progress, goingNext, commit: null });
+      const vRect = viewport.getBoundingClientRect();
+      const pointerY = ev.clientY - vRect.top;
+      this.turnDrag.emit({ progress, goingNext, commit: null, pointerY });
       return;
     }
 
@@ -646,7 +649,9 @@ export class MangaSpreadViewportComponent implements OnChanges {
           : delta < 0
         : delta < 0;
       const progress = Math.min(1, Math.abs(delta) / Math.max(size * 0.45, 1));
-      this.turnDrag.emit({ progress, goingNext, commit });
+      const vRect = el?.getBoundingClientRect();
+      const pointerY = vRect ? ev.clientY - vRect.top : undefined;
+      this.turnDrag.emit({ progress, goingNext, commit, pointerY });
       if (!commit && el) {
         el.scrollLeft = startLeft;
         el.scrollTop = startTop;

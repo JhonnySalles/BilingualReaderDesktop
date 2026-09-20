@@ -200,6 +200,8 @@ export class MangaPageTurnLayerComponent implements AfterViewInit, OnChanges, On
   @Input() progress: number | null = null;
   /** When non-null, animate remaining progress then emit finished. */
   @Input() progressCommit: boolean | null = null;
+  /** Pointer Y (relative to layer viewport) for dynamic 3D curl angle. */
+  @Input() pointerY?: number;
 
   @Output() finished = new EventEmitter<void>();
 
@@ -446,8 +448,7 @@ export class MangaPageTurnLayerComponent implements AfterViewInit, OnChanges, On
     const foldBmp = leaf === 'outgoing' ? outBmp : inBmp ?? outBmp;
     const underBmp = leaf === 'outgoing' ? inBmp ?? outBmp : outBmp;
     const is3d = this.effect === PageTransitionType.Curl3DPage;
-    // 3D verso = opposite page; 2D flap is surface only (no next-page paint).
-    const backBmp = is3d ? underBmp : null;
+    const backBmp = null;
     const curlPos = progressToCurlPosition(progress, this.dir);
     const visualDir = this.visualDir();
 
@@ -467,8 +468,9 @@ export class MangaPageTurnLayerComponent implements AfterViewInit, OnChanges, On
       under: underBmp,
       curl: positionToCurl(curlPos),
       mode: is3d ? '3d' : '2d',
+      pointerY: this.pointerY,
       surfaceColor: '#0f172a',
-      dir: visualDir,
+      mirror: this.mirror,
       fitMode: this.fitMode,
       zoom: this.zoom,
       scrollLeft: useFoldAbs ? undefined : foldScrollLeft,

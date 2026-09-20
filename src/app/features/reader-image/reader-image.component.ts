@@ -423,6 +423,7 @@ const MAGNIFIER_SQUARE_PX = 250;
           [incomingView]="turn.incomingView"
           [progress]="turn.progress"
           [progressCommit]="turn.progressCommit"
+          [pointerY]="turn.pointerY"
           (finished)="onTurnFinished()" />
       }
 
@@ -1562,6 +1563,7 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
     progressCommit: boolean | null;
     outgoingView: TurnSlotView;
     incomingView: TurnSlotView;
+    pointerY?: number;
   } | null>(null);
   /** True while a page-turn FX (incl. interactive curl) is in progress. Bound to single viewport. */
   turning = false;
@@ -2597,12 +2599,19 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
         progress: ev.progress,
         progressCommit: ev.commit,
         outgoingView: this.emptySlotView(),
-        incomingView: this.emptySlotView()
+        incomingView: this.emptySlotView(),
+        pointerY: ev.pointerY
       });
     } else {
       this.turnLayer.update(t =>
         t
-          ? { ...t, progress: ev.progress, progressCommit: ev.commit, dir: logicalDir }
+          ? {
+              ...t,
+              progress: ev.progress,
+              progressCommit: ev.commit,
+              dir: logicalDir,
+              pointerY: ev.pointerY ?? t.pointerY
+            }
           : t
       );
     }
@@ -2638,12 +2647,19 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
         progress: ev.progress,
         progressCommit: ev.commit,
         outgoingView: this.captureOutgoingView(from),
-        incomingView: this.buildIncomingView(to, land)
+        incomingView: this.buildIncomingView(to, land),
+        pointerY: ev.pointerY
       });
     } else {
       this.turnLayer.update(t =>
         t
-          ? { ...t, progress: ev.progress, progressCommit: ev.commit, dir: logicalDir }
+          ? {
+              ...t,
+              progress: ev.progress,
+              progressCommit: ev.commit,
+              dir: logicalDir,
+              pointerY: ev.pointerY ?? t.pointerY
+            }
           : t
       );
     }

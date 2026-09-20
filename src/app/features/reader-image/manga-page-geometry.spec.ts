@@ -80,13 +80,13 @@ describe('manga-page-geometry', () => {
       const v = synthesizeLandView(1000, 2000, 800, 600, 'start', false);
       expect(v.scrollLeft).toBe(0);
       expect(v.scrollTop).toBe(0);
-      expect(v.offsetY).toBe((600 - 2000) / 2 - 0);
+      expect(v.offsetY).toBe(0);
     });
 
     it('end lands at max scroll (bottom)', () => {
       const v = synthesizeLandView(1000, 2000, 800, 600, 'end', false);
       expect(v.scrollTop).toBe(2000 - 600);
-      expect(v.offsetY).toBe((600 - 2000) / 2 - (2000 - 600));
+      expect(v.offsetY).toBe(-(2000 - 600));
       expect(v.scrollLeft).toBe(1000 - 800);
     });
 

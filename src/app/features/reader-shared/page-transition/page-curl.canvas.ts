@@ -26,8 +26,8 @@ export interface DrawCurlOptions {
   pointerY?: number;
   /** Surface / page background fill when no back bitmap. */
   surfaceColor?: string;
-  /** Turn direction: 1 = next (curls from right), -1 = prev/RTL (curls from left). */
-  dir?: TurnDir;
+  /** Horizontal layout mirroring (e.g. Manga RTL mode). When true, mirrors canvas horizontally. */
+  mirror?: boolean;
   /** Image fit mode or helper string */
   fitMode?: MangaFitMode | 'contain' | 'fill';
   /** Current viewport zoom factor */
@@ -58,16 +58,17 @@ function getFitRect(
 ): { x: number; y: number; w: number; h: number } {
   if (mode === 'fill') {
     return {
-      x: -scrollLeft,
-      y: -scrollTop,
-      w: W * (zoom || 1),
-      h: H * (zoom || 1)
+      x: 0,
+      y: 0,
+      w: W,
+      h: H
     };
   }
-  const iw = (img as any).width || (img as any).naturalWidth || (img as any).videoWidth || W;
-  const ih = (img as any).height || (img as any).naturalHeight || (img as any).videoHeight || H;
-  const fitMode = mode === 'contain' ? MangaFitMode.FitHeight : (mode as MangaFitMode);
-  return pageFitRectScrolled(iw, ih, W, H, fitMode, zoom, scrollLeft, scrollTop);
+  const bmW = (img as ImageBitmap).width ?? (img as HTMLCanvasElement).width ?? W;
+  const bmH = (img as ImageBitmap).height ?? (img as HTMLCanvasElement).height ?? H;
+  const isContain = mode === 'contain';
+  const mangaMode = isContain ? MangaFitMode.FitHeight : (mode as MangaFitMode);
+  return pageFitRectScrolled(bmW, bmH, W, H, mangaMode, zoom, scrollLeft, scrollTop);
 }
 
 /**
@@ -106,7 +107,7 @@ export function drawCurl(ctx: CanvasRenderingContext2D, opts: DrawCurlOptions): 
     front,
     mode,
     surfaceColor = '#0f172a',
-    dir = 1,
+    mirror = false,
     fitMode = MangaFitMode.FitHeight,
     zoom = 1,
     under,
@@ -139,8 +140,8 @@ export function drawCurl(ctx: CanvasRenderingContext2D, opts: DrawCurlOptions): 
 
   ctx.save();
 
-  // If turning backward (or RTL next), mirror across W so curl comes from the left edge
-  if (dir === -1) {
+  // If RTL layout is active, mirror across W so curl comes from the left edge
+  if (mirror) {
     ctx.translate(W, 0);
     ctx.scale(-1, 1);
   }
@@ -148,6 +149,8 @@ export function drawCurl(ctx: CanvasRenderingContext2D, opts: DrawCurlOptions): 
   let curl = opts.curl;
   if (curl >= 0) {
     // Flat — draw the front page over under
+    ctx.fillStyle = surfaceColor;
+    ctx.fillRect(0, 0, W, H);
     ctx.drawImage(front, rect.x, rect.y, rect.w, rect.h);
     ctx.restore();
     return;
@@ -158,18 +161,24 @@ export function drawCurl(ctx: CanvasRenderingContext2D, opts: DrawCurlOptions): 
   factor = clamp(factor, 0, 1);
 
   if (mode === '3d') {
-    const back = opts.back ?? under ?? front;
+    const isExplicitBack = opts.back != null;
+    const back = opts.back ?? front;
     const backBase = getFitRect(
       back,
       W,
       H,
       fitMode,
       zoom,
-      underScrollLeft,
-      underScrollTop
+      isExplicitBack ? underScrollLeft : scrollLeft,
+      isExplicitBack ? underScrollTop : scrollTop
     );
-    const backRect = opts.underOffset
-      ? { x: opts.underOffset.x, y: opts.underOffset.y, w: backBase.w, h: backBase.h }
+    const backRect = (isExplicitBack ? opts.underOffset : opts.frontOffset)
+      ? {
+          x: (isExplicitBack ? opts.underOffset! : opts.frontOffset!).x,
+          y: (isExplicitBack ? opts.underOffset! : opts.frontOffset!).y,
+          w: backBase.w,
+          h: backBase.h
+        }
       : backBase;
     drawCurl3d(
       ctx,
@@ -182,7 +191,8 @@ export function drawCurl(ctx: CanvasRenderingContext2D, opts: DrawCurlOptions): 
       rect,
       backRect,
       opts.pointerY,
-      surfaceColor
+      surfaceColor,
+      isExplicitBack
     );
   } else {
     drawCurl2d(ctx, front, factor, foldingPage, W, H, rect, surfaceColor);
@@ -215,6 +225,8 @@ function drawCurl2d(
   ctx.lineTo(0, H);
   ctx.closePath();
   ctx.clip();
+  ctx.fillStyle = surfaceColor;
+  ctx.fill();
   ctx.drawImage(front, rect.x, rect.y, rect.w, rect.h);
   ctx.restore();
 
@@ -267,19 +279,20 @@ function drawCurl3d(
   rect: { x: number; y: number; w: number; h: number },
   backRect: { x: number; y: number; w: number; h: number },
   pointerY: number | undefined,
-  surfaceColor: string
+  surfaceColor: string,
+  isExplicitBack = false
 ): void {
   const touchY =
-    pointerY != null && pointerY >= 0 ? clamp(pointerY, 0, H) : H;
-  const maxAngle = (25 * Math.PI) / 180;
+    pointerY != null && pointerY >= 0 ? clamp(pointerY, 0, H) : H * 0.75;
+  const maxAngle = (28 * Math.PI) / 180;
   const angleTaper = Math.sin(factor * Math.PI);
-  const alpha = (touchY / H - 0.5) * maxAngle * angleTaper;
+  const alpha = (touchY / H - 0.5) * 2 * maxAngle * angleTaper;
 
   const x0 = W * factor;
   const xTop = x0 + Math.tan(alpha) * touchY;
   const xBot = x0 - Math.tan(alpha) * (H - touchY);
 
-  // Left of crease — front page
+  // Left of crease — visible uncurled region of the front page
   ctx.save();
   ctx.beginPath();
   ctx.moveTo(0, 0);
@@ -288,52 +301,53 @@ function drawCurl3d(
   ctx.lineTo(0, H);
   ctx.closePath();
   ctx.clip();
+  ctx.fillStyle = surfaceColor;
+  ctx.fill();
   ctx.drawImage(front, rect.x, rect.y, rect.w, rect.h);
   ctx.restore();
 
   const angleRad = Math.atan2(H, xBot - xTop);
+  // Normal pointing rightwards into the revealed under page
+  const nx = Math.sin(angleRad);
+  const ny = -Math.cos(angleRad);
+  const shadowSpread = clamp(W * 0.12, 30, 160) * Math.sin(factor * Math.PI);
 
-  // Flap (right of crease) — opposite page as verso
+  // Crease drop shadow cast to the right onto the revealed under page
+  if (shadowSpread > 1) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(xTop, 0);
+    ctx.lineTo(W, 0);
+    ctx.lineTo(W, H);
+    ctx.lineTo(xBot, H);
+    ctx.closePath();
+    ctx.clip();
+
+    const cx = (xTop + xBot) / 2;
+    const cy = H / 2;
+    const shadowGrad = ctx.createLinearGradient(
+      cx,
+      cy,
+      cx + nx * shadowSpread,
+      cy + ny * shadowSpread
+    );
+    shadowGrad.addColorStop(0, 'rgba(0, 0, 0, 0.45)');
+    shadowGrad.addColorStop(0.3, 'rgba(0, 0, 0, 0.2)');
+    shadowGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = shadowGrad;
+    ctx.fillRect(0, 0, W, H);
+    ctx.restore();
+  }
+
+  // Curled flap (reflected across crease line, landing on the left of the crease)
   ctx.save();
-  ctx.beginPath();
-  ctx.moveTo(xTop, 0);
-  ctx.lineTo(2 * W, 0);
-  ctx.lineTo(2 * W, H);
-  ctx.lineTo(xBot, H);
-  ctx.closePath();
-
   ctx.translate(xTop, 0);
   ctx.rotate(angleRad);
   ctx.scale(1, -1);
   ctx.rotate(-angleRad);
   ctx.translate(-xTop, 0);
 
-  ctx.clip();
-  ctx.drawImage(back, backRect.x, backRect.y, backRect.w, backRect.h);
-
-  const [r, g, b] = hexToRgb(surfaceColor);
-  const overlay = ctx.createLinearGradient(xTop, 0, xBot, H);
-  overlay.addColorStop(0, `rgba(${r},${g},${b},0.55)`);
-  overlay.addColorStop(1, `rgba(${r},${g},${b},0)`);
-  ctx.fillStyle = overlay;
-  ctx.fillRect(0, 0, W, H);
-  ctx.restore();
-
-  // Crease shadow — clip ONLY front + flap
-  const angleNormal = angleRad - Math.PI / 2;
-  const nx = Math.cos(angleNormal);
-  const ny = Math.sin(angleNormal);
-  const shadowWidth = clamp(W * 0.15, 50, 250);
-  const cx = (xTop + xBot) / 2;
-  const cy = H / 2;
-
-  ctx.save();
   ctx.beginPath();
-  ctx.moveTo(0, 0);
-  ctx.lineTo(xTop, 0);
-  ctx.lineTo(xBot, H);
-  ctx.lineTo(0, H);
-  ctx.closePath();
   ctx.moveTo(xTop, 0);
   ctx.lineTo(W, 0);
   ctx.lineTo(W, H);
@@ -341,20 +355,67 @@ function drawCurl3d(
   ctx.closePath();
   ctx.clip();
 
-  const grad = ctx.createLinearGradient(
-    cx - nx * shadowWidth,
-    cy - ny * shadowWidth,
-    cx + nx * shadowWidth,
-    cy + ny * shadowWidth
-  );
-  grad.addColorStop(0, 'rgba(0,0,0,0)');
-  grad.addColorStop(0.48, 'rgba(0,0,0,0.35)');
-  grad.addColorStop(0.5, 'rgba(0,0,0,0.55)');
-  grad.addColorStop(0.54, 'rgba(255,255,255,0.12)');
-  grad.addColorStop(0.65, 'rgba(0,0,0,0.12)');
-  grad.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = grad;
+  // Flap paper base
+  ctx.fillStyle = surfaceColor;
   ctx.fillRect(0, 0, W, H);
+
+  // Paint flap verso image
+  if (isExplicitBack) {
+    ctx.drawImage(back, backRect.x, backRect.y, backRect.w, backRect.h);
+  } else {
+    // Front page seen from back (subtle translucent show-through)
+    ctx.globalAlpha = 0.22;
+    ctx.drawImage(back, backRect.x, backRect.y, backRect.w, backRect.h);
+    ctx.globalAlpha = 1.0;
+  }
+
+  // Cylindrical lighting across the flap
+  const flapGrad = ctx.createLinearGradient(x0, 0, W, 0);
+  flapGrad.addColorStop(0, 'rgba(0, 0, 0, 0.45)');
+  flapGrad.addColorStop(0.12, 'rgba(255, 255, 255, 0.14)');
+  flapGrad.addColorStop(0.35, 'rgba(0, 0, 0, 0.08)');
+  flapGrad.addColorStop(0.85, 'rgba(0, 0, 0, 0.22)');
+  flapGrad.addColorStop(1, 'rgba(0, 0, 0, 0.4)');
+  ctx.fillStyle = flapGrad;
+  ctx.fillRect(0, 0, W, H);
+  ctx.restore();
+
+  // Drop shadow cast by the flap onto the uncurled front page (left of crease)
+  const flapShadowWidth = clamp(W * 0.1, 20, 120) * Math.sin(factor * Math.PI);
+  if (flapShadowWidth > 1) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(xTop, 0);
+    ctx.lineTo(xBot, H);
+    ctx.lineTo(0, H);
+    ctx.closePath();
+    ctx.clip();
+
+    const cx = (xTop + xBot) / 2;
+    const cy = H / 2;
+    const leftShadowGrad = ctx.createLinearGradient(
+      cx,
+      cy,
+      cx - nx * flapShadowWidth,
+      cy - ny * flapShadowWidth
+    );
+    leftShadowGrad.addColorStop(0, 'rgba(0, 0, 0, 0.4)');
+    leftShadowGrad.addColorStop(0.5, 'rgba(0, 0, 0, 0.15)');
+    leftShadowGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = leftShadowGrad;
+    ctx.fillRect(0, 0, W, H);
+    ctx.restore();
+  }
+
+  // Crease stroke
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(xTop, 0);
+  ctx.lineTo(xBot, H);
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
   ctx.restore();
 }
 

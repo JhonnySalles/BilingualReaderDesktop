@@ -127,7 +127,7 @@ describe('playBookCurlTurn', () => {
     bitmaps.under.close();
   });
 
-  it('3d next drawImage()s under as verso (base + back)', async () => {
+  it('3d next renders under only as base and front on flap', async () => {
     const { host, viewer, peek } = hostTrio();
     const bitmaps = await fakeBitmaps();
     const sources: unknown[] = [];
@@ -152,9 +152,11 @@ describe('playBookCurlTurn', () => {
     });
 
     expect(sources.some(s => s === bitmaps.front)).toBeTrue();
+    expect(sources.some(s => s === bitmaps.under)).toBeTrue();
     const frontN = sources.filter(s => s === bitmaps.front).length;
     const underN = sources.filter(s => s === bitmaps.under).length;
-    expect(underN / Math.max(1, frontN)).toBeGreaterThan(1.4);
+    // Flap uses front (or surface) as verso, so under is never drawn on the flap
+    expect(frontN).toBeGreaterThanOrEqual(underN);
     bitmaps.front.close();
     bitmaps.under.close();
   });

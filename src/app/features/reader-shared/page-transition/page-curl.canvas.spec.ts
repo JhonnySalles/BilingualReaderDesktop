@@ -45,7 +45,7 @@ describe('drawCurl', () => {
       under,
       curl: -0.45,
       mode: '2d',
-      dir: 1,
+      mirror: false,
       surfaceColor: '#111'
     });
 
@@ -71,11 +71,37 @@ describe('drawCurl', () => {
       under,
       curl: -0.45,
       mode: '3d',
-      dir: 1,
+      mirror: false,
       surfaceColor: '#111'
     });
 
     const sources = spy.calls.allArgs().map(args => args[0]);
     expect(sources.some(s => s === back)).toBeTrue();
+  });
+
+  it('3d mode falls back to front (never under) when back is null', () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 200;
+    canvas.height = 300;
+    const ctx = canvas.getContext('2d')!;
+    const front = makeSource(100, 150, '#f00');
+    const under = makeSource(100, 150, '#00f');
+
+    const spy = spyOn(ctx, 'drawImage').and.callThrough();
+    drawCurl(ctx, {
+      front,
+      back: null,
+      under,
+      curl: -0.45,
+      mode: '3d',
+      mirror: false,
+      surfaceColor: '#111'
+    });
+
+    const sources = spy.calls.allArgs().map(args => args[0]);
+    // 'under' must only be drawn once as background, never on the flap
+    expect(sources.filter(s => s === under).length).toBe(1);
+    // 'front' drawn on the uncurled side and on the flap
+    expect(sources.filter(s => s === front).length).toBeGreaterThanOrEqual(2);
   });
 });

@@ -39,6 +39,8 @@ export interface PlayBookCurlTurnOptions {
    * When set, cleanup does not remove the canvas (caller owns teardown).
    */
   canvas?: HTMLCanvasElement | null;
+  /** Pointer Y for dynamic 3D curl angle. */
+  pointerY?: number;
 }
 
 function nextFrame(): Promise<void> {
@@ -93,24 +95,24 @@ export function paintCanvasAtProgress(
   progress: number,
   logicalDir: TurnDir,
   mirror: boolean,
-  mode: '2d' | '3d'
+  mode: '2d' | '3d',
+  pointerY?: number
 ): void {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
-  const visualDir = (mirror ? -logicalDir : logicalDir) as TurnDir;
   const leaf = curlFoldingLeaf(logicalDir);
   const fold = leaf === 'outgoing' ? bitmaps.front : bitmaps.under;
   const under = leaf === 'outgoing' ? bitmaps.under : bitmaps.front;
   const curlPos = progressToCurlPosition(progress, logicalDir);
-  const is3d = mode === '3d';
   drawCurl(ctx, {
     front: fold,
-    back: is3d ? under : null,
+    back: null,
     under,
     curl: positionToCurl(curlPos),
     mode,
+    pointerY,
     surfaceColor: bitmaps.surfaceColor,
-    dir: visualDir,
+    mirror,
     fitMode: 'fill' as MangaFitMode | 'fill',
     zoom: 1
   });
@@ -135,7 +137,7 @@ export function paintBookCurlFreeze(
     curl: 0,
     mode: '2d',
     surfaceColor,
-    dir: 1,
+    mirror: false,
     fitMode: 'fill' as MangaFitMode | 'fill',
     zoom: 1
   });
@@ -159,7 +161,8 @@ export async function playBookCurlTurn(opts: PlayBookCurlTurnOptions): Promise<v
     commit,
     owner = 'book-reader',
     fromProgress = 0,
-    canvas: reuseCanvas
+    canvas: reuseCanvas,
+    pointerY
   } = opts;
 
   if (prefersReducedMotion() || durationMs <= 0) {
@@ -198,7 +201,8 @@ export async function playBookCurlTurn(opts: PlayBookCurlTurnOptions): Promise<v
     commit,
     owner,
     fromProgress,
-    reuseCanvas: willReuse ? reuseCanvas! : null
+    reuseCanvas: willReuse ? reuseCanvas! : null,
+    pointerY
   });
 }
 
@@ -216,6 +220,7 @@ async function playCanvasCurl(opts: {
   owner: BookCurlOwner;
   fromProgress: number;
   reuseCanvas: HTMLCanvasElement | null;
+  pointerY?: number;
 }): Promise<void> {
   const {
     host,
@@ -230,7 +235,8 @@ async function playCanvasCurl(opts: {
     commit,
     owner,
     fromProgress,
-    reuseCanvas
+    reuseCanvas,
+    pointerY
   } = opts;
 
   const ownsCanvas = !reuseCanvas;
@@ -249,7 +255,7 @@ async function playCanvasCurl(opts: {
   canvas.height = bitmaps.height;
 
   // Paint first frame BEFORE hiding shells (covers peek flash).
-  paintCanvasAtProgress(canvas, bitmaps, fromProgress, dir, mirror, mode);
+  paintCanvasAtProgress(canvas, bitmaps, fromProgress, dir, mirror, mode, pointerY);
 
   const viewerPrev = viewerShell.style.visibility;
   const peekPrev = peekShell.style.visibility;
@@ -295,7 +301,7 @@ async function playCanvasCurl(opts: {
         const t = Math.min(1, (now - start) / Math.max(1, durationMs));
         const eased = accelerateDecelerate(t);
         const progress = from + (1 - from) * eased;
-        paintCanvasAtProgress(canvas, bitmaps, progress, dir, mirror, mode);
+        paintCanvasAtProgress(canvas, bitmaps, progress, dir, mirror, mode, pointerY);
         if (t >= 1) {
           resolve();
           return;
@@ -325,11 +331,12 @@ export function paintBookCurlProgress(
   progress: number,
   logicalDir: TurnDir,
   mirror: boolean,
-  mode: '2d' | '3d'
+  mode: '2d' | '3d',
+  pointerY?: number
 ): void {
   if (canvas.width !== bitmaps.width || canvas.height !== bitmaps.height) {
     canvas.width = bitmaps.width;
     canvas.height = bitmaps.height;
   }
-  paintCanvasAtProgress(canvas, bitmaps, progress, logicalDir, mirror, mode);
+  paintCanvasAtProgress(canvas, bitmaps, progress, logicalDir, mirror, mode, pointerY);
 }

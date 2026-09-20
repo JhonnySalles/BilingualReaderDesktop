@@ -24,6 +24,8 @@ export interface CaptureBookPageBitmapsOptions {
   peekShell: HTMLElement;
   captureRect: CaptureRectFn;
   surfaceColor: string;
+  /** Scale factor to multiply CSS dimensions (e.g. devicePixelRatio * 0.85). Defaults to Math.max(1, (window.devicePixelRatio || 1) * 0.85). */
+  scale?: number;
   /**
    * Called after the front bitmap is ready and before under capture.
    * Viewer is still visible; peek is hidden. Use to paint a freeze overlay.
@@ -90,9 +92,14 @@ export async function captureBookPageBitmaps(
 ): Promise<BookCurlBitmaps | null> {
   const { viewerShell, peekShell, captureRect, surfaceColor, onFrontReady, hideChrome } = opts;
   const hostRect = elementDipRect(viewerShell);
-  const w = Math.round(hostRect.width);
-  const h = Math.round(hostRect.height);
-  if (w < 8 || h < 8) return null;
+  const cssW = Math.round(hostRect.width);
+  const cssH = Math.round(hostRect.height);
+  if (cssW < 8 || cssH < 8) return null;
+
+  const dpr = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1;
+  const scale = opts.scale ?? Math.max(1, Math.round(dpr * 0.85 * 100) / 100);
+  const bitmapW = Math.max(1, Math.round(cssW * scale));
+  const bitmapH = Math.max(1, Math.round(cssH * scale));
 
   const peekPrev = {
     visibility: peekShell.style.visibility,
@@ -119,12 +126,12 @@ export async function captureBookPageBitmaps(
     const frontUrl = await captureRect(elementDipRect(viewerShell));
     if (!frontUrl) return null;
 
-    const front = await dataUrlToOpaqueBitmap(frontUrl, w, h, surfaceColor);
+    const front = await dataUrlToOpaqueBitmap(frontUrl, bitmapW, bitmapH, surfaceColor);
     if (!front) return null;
 
     // Freeze overlay before we hide the viewer for under capture
     if (onFrontReady) {
-      await onFrontReady(front, w, h);
+      await onFrontReady(front, bitmapW, bitmapH);
     }
 
     // Under = peek only (freeze canvas covers the host)
@@ -133,20 +140,29 @@ export async function captureBookPageBitmaps(
     peekShell.style.visibility = 'visible';
     peekShell.style.opacity = '1';
     peekShell.style.background = surfaceColor;
+    const hiddenChildren = Array.from(
+      peekShell.querySelectorAll<HTMLElement>('[style*="visibility: hidden"], [style*="visibility:hidden"]')
+    );
+    for (const el of hiddenChildren) {
+      el.style.visibility = 'visible';
+    }
     await doubleRaf();
     const underUrl = await captureRect(elementDipRect(peekShell));
+    for (const el of hiddenChildren) {
+      el.style.visibility = 'hidden';
+    }
     if (!underUrl) {
       front.close();
       return null;
     }
 
-    const under = await dataUrlToOpaqueBitmap(underUrl, w, h, surfaceColor);
+    const under = await dataUrlToOpaqueBitmap(underUrl, bitmapW, bitmapH, surfaceColor);
     if (!under) {
       front.close();
       return null;
     }
 
-    return { front, under, width: w, height: h, surfaceColor };
+    return { front, under, width: bitmapW, height: bitmapH, surfaceColor };
   } finally {
     peekShell.style.visibility = peekPrev.visibility;
     peekShell.style.opacity = peekPrev.opacity;

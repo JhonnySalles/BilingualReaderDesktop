@@ -1375,6 +1375,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
   private sanitizer = inject(DomSanitizer);
   private bookUnlock = inject(BookUnlockService);
   private ngZone = inject(NgZone);
+  private elementRef = inject(ElementRef);
 
   BookScrollingMode = BookScrollingMode;
   Math = Math;
@@ -1521,6 +1522,11 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
   private bookCurlCanvas: HTMLCanvasElement | null = null;
   /** True while drag is scrubbing manga-style canvas curl. */
   private bookCurlDragActive = false;
+  /** True while curl animation / drag is active to prevent reflow, resize and repaint jitter. */
+  private curlAnimating = false;
+  /** Background cache of pre-rendered page bitmaps (CFI or page -> ImageBitmap). */
+  private pageBitmapCache = new Map<string, { bitmap: ImageBitmap; width: number; height: number; timestamp: number }>();
+  private backgroundPreloadBusy = false;
   private viewReady = false;
   private pendingOpen: { epubUrl: string; bookMark: number; bookMarkCfi: string } | null = null;
   private relocating = false;
@@ -1529,6 +1535,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
   private panPointerId: number | null = null;
   private panLastX = 0;
   private panLastY = 0;
+  private panLastClientY = 0;
   private panLastMoveAt = 0;
   private panVelocityX = 0;
   private panVelocityY = 0;
@@ -4436,6 +4443,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       // screenX/Y = 1:1 with physical drag (iframe zoom does not shrink accum)
       this.panLastX = ev.screenX;
       this.panLastY = ev.screenY;
+      this.panLastClientY = ev.clientY;
       try {
         doc.body.style.cursor = 'grabbing';
       } catch { /* ignore */ }
@@ -4450,6 +4458,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       const dy = ev.screenY - this.panLastY;
       this.panLastX = ev.screenX;
       this.panLastY = ev.screenY;
+      this.panLastClientY = ev.clientY;
       const now = performance.now();
       const dt = Math.max(1, now - this.panLastMoveAt) / 1000;
       this.panVelocityX = dx / dt;
@@ -4704,6 +4713,11 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       else await peek.prev();
       if (token !== this.peekLoadToken) return false;
 
+      // Ensure the iframe has rendered the new page before resolving
+      await this.waitForPeekLayout(peekEl);
+      await this.doubleRaf();
+      if (token !== this.peekLoadToken) return false;
+
       return true;
     } catch (e) {
       console.warn('[reader-text] peek load failed', e);
@@ -4908,6 +4922,9 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       const effect = this.effectiveBookTransition();
       const mode = effect === PageTransitionType.Curl3DPage ? '3d' : '2d';
       const logicalDir = this.turnDriverDir as TurnDir;
+      const host = this.viewerHostRef?.nativeElement;
+      const hostRect = host?.getBoundingClientRect();
+      const pointerY = hostRect ? this.panLastClientY - hostRect.top : undefined;
       this.ngZone.runOutsideAngular(() => {
         paintBookCurlProgress(
           this.bookCurlCanvas!,
@@ -4915,7 +4932,8 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
           progress,
           logicalDir,
           this.turnMirror(),
-          mode
+          mode,
+          pointerY
         );
       });
       return;
@@ -5039,6 +5057,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       this.dragDriverPromise = null;
       this.dragDriverPendingDir = 0;
       this.bookCurlDragActive = false;
+      this.curlAnimating = false;
       this.releaseBookCurlBitmaps();
       this.teardownBookCurlCanvas();
       this.driverActive.set(false);
@@ -5098,6 +5117,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
         );
       } finally {
         this.bookCurlDragActive = false;
+        this.curlAnimating = false;
         this.releaseBookCurlBitmaps();
         this.teardownBookCurlCanvas();
         this.driverActive.set(false);
@@ -5459,6 +5479,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private scheduleRenditionResize(): void {
+    if (this.curlAnimating || this.turningPage || this.driverActive()) return;
     if (this.resizeTimer) clearTimeout(this.resizeTimer);
     this.resizeTimer = setTimeout(() => {
       void this.reflowAtCfi();
@@ -5466,6 +5487,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private scheduleTypographyReflow(): void {
+    if (this.curlAnimating || this.turningPage || this.driverActive()) return;
     this.applyTypography();
     if (this.typographyTimer) clearTimeout(this.typographyTimer);
     this.typographyTimer = setTimeout(() => {
@@ -5474,7 +5496,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private async reflowAtCfi(): Promise<void> {
-    if (!this.rendition || this.relocating) return;
+    if (!this.rendition || this.relocating || this.curlAnimating || this.turningPage || this.driverActive()) return;
     const cfi = this.currentCfi();
     const host = this.viewerHostRef?.nativeElement;
     const z = this.zoom() || 1;
@@ -5531,12 +5553,18 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /** Hide header/footer/seek/progress without CSS transition (capture snapshots). */
   private hideChromeForCapture(): () => void {
+    const componentRoot = this.elementRef.nativeElement as HTMLElement | undefined;
     const host = this.viewerHostRef?.nativeElement;
-    const root = host?.parentElement;
+    const root = host?.parentElement || componentRoot;
     if (!root) return () => undefined;
-    const els = Array.from(
-      root.querySelectorAll<HTMLElement>('[data-br-chrome]')
-    );
+    const rootEls = componentRoot
+      ? Array.from(componentRoot.querySelectorAll<HTMLElement>('[data-br-chrome]'))
+      : [];
+    const parentEls = root
+      ? Array.from(root.querySelectorAll<HTMLElement>('[data-br-chrome]'))
+      : [];
+    const set = new Set<HTMLElement>([...rootEls, ...parentEls]);
+    const els = Array.from(set);
     const prev = els.map(el => ({
       el,
       visibility: el.style.visibility,
@@ -5593,6 +5621,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       this.turningPage = false;
       this.turningSignal.set(false);
       this.bookCurlDragActive = false;
+      this.curlAnimating = false;
       this.releaseBookCurlBitmaps();
       this.teardownBookCurlCanvas();
       this.deactivatePeekLayer();
@@ -5650,6 +5679,8 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
         if (bitmaps) {
           const mode = effect === PageTransitionType.Curl3DPage ? '3d' : '2d';
           const reuseCanvas = this.bookCurlCanvas;
+          const hostRect = host?.getBoundingClientRect();
+          const pointerY = hostRect && this.panLastClientY > 0 ? this.panLastClientY - hostRect.top : undefined;
           await playBookCurlTurn({
             host: host!,
             viewerShell: viewer,
@@ -5660,6 +5691,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
             mode,
             surfaceColor: PAGE_BG,
             canvas: reuseCanvas,
+            pointerY,
             commit: commit
               ? () => this.ngZone.run(() => Promise.resolve(commit()))
               : undefined,
@@ -5731,6 +5763,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       }
       this.bookCurlBitmaps = null;
     }
+    this.peekStale = true;
   }
 
   private teardownBookCurlCanvas(): void {
@@ -5744,6 +5777,17 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  private clearPageBitmapCache(): void {
+    for (const entry of this.pageBitmapCache.values()) {
+      try {
+        entry.bitmap.close();
+      } catch {
+        /* ignore */
+      }
+    }
+    this.pageBitmapCache.clear();
+  }
+
   private async ensureBookCurlBitmaps(
     logicalDir: TurnDir = 1
   ): Promise<BookCurlBitmaps | null> {
@@ -5751,6 +5795,19 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     const viewer = this.viewerShellRef?.nativeElement;
     const peek = this.peekShellRef?.nativeElement;
     if (!viewer || !peek) return null;
+
+    this.curlAnimating = true;
+
+    // Ensure peek has the target page loaded for this turn direction
+    if (this.peekDirection !== logicalDir || this.peekStale) {
+      const ok = await this.loadPeek(logicalDir);
+      if (!ok) return null;
+    }
+
+    const peekEl = this.viewerPeekRef?.nativeElement;
+    if (peekEl) {
+      peekEl.style.visibility = 'visible';
+    }
 
     // Peek content must be loaded, but keep it visually hidden until freeze covers host.
     const captured = await captureBookPageBitmaps({
@@ -5794,7 +5851,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     }
     const canvas = document.createElement('canvas');
     canvas.style.cssText =
-      'position:absolute;inset:0;width:100%;height:100%;z-index:5;pointer-events:none;';
+      'position:absolute;inset:0;width:100%;height:100%;z-index:50;pointer-events:none;';
     host.appendChild(canvas);
     this.bookCurlCanvas = canvas;
     return canvas;
@@ -6143,6 +6200,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     this.turnDriver = null;
     this.driverActive.set(false);
     this.destroyPeekRendition(true, true);
+    this.clearPageBitmapCache();
     try {
       this.rendition?.destroy();
     } catch {}

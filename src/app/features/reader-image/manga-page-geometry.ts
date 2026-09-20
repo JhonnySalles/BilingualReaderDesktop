@@ -94,8 +94,8 @@ export function pageFitRect(
   }
 
   return {
-    x: (W - w) / 2,
-    y: (H - h) / 2,
+    x: Math.max(0, W - w) / 2,
+    y: Math.max(0, H - h) / 2,
     w,
     h
   };
@@ -158,8 +158,8 @@ export function synthesizeLandView(
   const maxY = Math.max(0, contentH - viewportH);
   const scrollLeft = land === 'start' ? (rtl ? maxX : 0) : rtl ? 0 : maxX;
   const scrollTop = land === 'start' ? 0 : maxY;
-  const baseX = (viewportW - contentW) / 2;
-  const baseY = (viewportH - contentH) / 2;
+  const baseX = Math.max(0, viewportW - contentW) / 2;
+  const baseY = Math.max(0, viewportH - contentH) / 2;
   return {
     scrollLeft,
     scrollTop,
