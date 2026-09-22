@@ -1,11 +1,12 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.TouchPosition = exports.TouchScreen = exports.ImageLoadType = exports.PaginationType = exports.ScrollingType = exports.LibraryBookType = exports.LibraryMangaType = exports.BookScrollingMode = exports.BookLayout = exports.MangaFitMode = exports.MangaScrollingMode = exports.ReaderMode = void 0;
+exports.TouchPosition = exports.TouchScreen = exports.ImageLoadType = exports.PaginationType = exports.ScrollingType = exports.LibraryBookType = exports.LibraryMangaType = exports.BookScrollingMode = exports.BookLayout = exports.BOOK_PAGE_SIZE_LABELS = exports.BookPageSize = exports.MangaFitMode = exports.MangaScrollingMode = exports.ReaderMode = void 0;
 exports.isMangaDualMode = isMangaDualMode;
 exports.isMangaHorizontalMode = isMangaHorizontalMode;
 exports.isMangaRtlMode = isMangaRtlMode;
 exports.isMangaVerticalMode = isMangaVerticalMode;
 exports.isMangaLongStripMode = isMangaLongStripMode;
+exports.getBookPageVirtualDimensions = getBookPageVirtualDimensions;
 var ReaderMode;
 (function (ReaderMode) {
     ReaderMode["DEFAULT"] = "DEFAULT";
@@ -52,6 +53,38 @@ function isMangaVerticalMode(m) {
 }
 function isMangaLongStripMode(m) {
     return m === MangaScrollingMode.LongStrip || m === MangaScrollingMode.LongStripGap;
+}
+var BookPageSize;
+(function (BookPageSize) {
+    BookPageSize["DYNAMIC"] = "DYNAMIC";
+    BookPageSize["HD_720"] = "HD_720";
+    BookPageSize["FHD_1080"] = "FHD_1080";
+})(BookPageSize || (exports.BookPageSize = BookPageSize = {}));
+exports.BOOK_PAGE_SIZE_LABELS = {
+    [BookPageSize.DYNAMIC]: 'Dinâmico (Tela / DPI Fixo)',
+    [BookPageSize.HD_720]: 'HD 720p (800 × 1200)',
+    [BookPageSize.FHD_1080]: 'Full HD 1080p (1080 × 1620)'
+};
+function getBookPageVirtualDimensions(size) {
+    switch (size) {
+        case BookPageSize.HD_720:
+            return { width: 800, height: 1200 };
+        case BookPageSize.FHD_1080:
+            return { width: 1080, height: 1620 };
+        case BookPageSize.DYNAMIC:
+        default: {
+            if (typeof window !== 'undefined' && window.screen) {
+                const dpr = window.devicePixelRatio || 1;
+                const sw = Math.round((window.screen.width || 1920) * dpr);
+                const sh = Math.round((window.screen.height || 1080) * dpr);
+                return {
+                    width: Math.max(600, Math.min(sw, 1920)),
+                    height: Math.max(800, Math.min(sh, 2880))
+                };
+            }
+            return { width: 1080, height: 1620 };
+        }
+    }
 }
 var BookLayout;
 (function (BookLayout) {

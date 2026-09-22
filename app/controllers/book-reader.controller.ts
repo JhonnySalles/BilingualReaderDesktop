@@ -5,6 +5,10 @@ import { BookAnnotation, BookConfiguration } from '../../src/app/core/models/ent
 import { EpubBookExtractor } from '../parser/book/epub-book-extractor';
 import { TrackerService } from '../services/tracker.service';
 import { BookImageCoverController } from './book-image-cover.controller';
+import {
+  BookPageBitmapCaptureService,
+  BookCaptureSpreadRequest
+} from '../services/book-page-bitmap-capture.service';
 
 
 export class BookReaderController {
@@ -39,6 +43,30 @@ export class BookReaderController {
 
     ipcMain.handle('book-reader:close', async (_event, sessionId: string) => {
       return this.sessionService.close(sessionId);
+    });
+
+    ipcMain.handle(
+      'book:capture-spread',
+      async (_event, req: BookCaptureSpreadRequest) => {
+        try {
+          if (!req?.bookUrl || !req?.pages?.length) return {};
+          return await BookPageBitmapCaptureService.instance.captureSpread(req);
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          const stack = e instanceof Error ? e.stack : undefined;
+          console.warn('[book:capture-spread] failed', msg, stack || '');
+          return {};
+        }
+      }
+    );
+
+    ipcMain.handle('book:capture-spread-dispose', async () => {
+      try {
+        BookPageBitmapCaptureService.instance.destroy();
+      } catch {
+        /* ignore */
+      }
+      return true;
     });
 
     ipcMain.handle(

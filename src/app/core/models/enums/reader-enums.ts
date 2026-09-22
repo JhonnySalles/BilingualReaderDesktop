@@ -56,6 +56,40 @@ export function isMangaLongStripMode(m: MangaScrollingMode): boolean {
   return m === MangaScrollingMode.LongStrip || m === MangaScrollingMode.LongStripGap;
 }
 
+export enum BookPageSize {
+  DYNAMIC = 'DYNAMIC',
+  HD_720 = 'HD_720',
+  FHD_1080 = 'FHD_1080'
+}
+
+export const BOOK_PAGE_SIZE_LABELS: Record<BookPageSize, string> = {
+  [BookPageSize.DYNAMIC]: 'Dinâmico (Tela / DPI Fixo)',
+  [BookPageSize.HD_720]: 'HD 720p (800 × 1200)',
+  [BookPageSize.FHD_1080]: 'Full HD 1080p (1080 × 1620)'
+};
+
+export function getBookPageVirtualDimensions(size: BookPageSize): { width: number; height: number } {
+  switch (size) {
+    case BookPageSize.HD_720:
+      return { width: 800, height: 1200 };
+    case BookPageSize.FHD_1080:
+      return { width: 1080, height: 1620 };
+    case BookPageSize.DYNAMIC:
+    default: {
+      if (typeof window !== 'undefined' && window.screen) {
+        const dpr = window.devicePixelRatio || 1;
+        const sw = Math.round((window.screen.width || 1920) * dpr);
+        const sh = Math.round((window.screen.height || 1080) * dpr);
+        return {
+          width: Math.max(600, Math.min(sw, 1920)),
+          height: Math.max(800, Math.min(sh, 2880))
+        };
+      }
+      return { width: 1080, height: 1620 };
+    }
+  }
+}
+
 export enum BookLayout {
   SINGLE_PAGE = 'SINGLE_PAGE',
   DOUBLE_PAGE = 'DOUBLE_PAGE',

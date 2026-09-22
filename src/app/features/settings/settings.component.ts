@@ -6,7 +6,7 @@ import { ThemeService, ThemeMode, AccentColor } from '../../core/services/theme.
 import { SettingsService, CustomLibrary, LlmProviderSetting, LlmLocalKind, normalizeEbookConvertMode, EBOOK_CONVERT_MODE_KEY } from '../../core/services/settings.service';
 import { ShareMarkUiService } from '../../core/services/sharemark/share-mark-ui.service';
 import { ShareMarkCloud } from '../../core/models/enums/sharemark.enum';
-import { MangaFitMode, MangaScrollingMode, OrderType, ReaderTouchType, Languages, PAGE_TRANSITION_LABELS_PT, PAGE_TRANSITION_OPTIONS, PageTransitionType, LLM_MANGA_MODEL_OPTIONS } from '../../core/models';
+import { MangaFitMode, MangaScrollingMode, OrderType, ReaderTouchType, Languages, PAGE_TRANSITION_LABELS_PT, PAGE_TRANSITION_OPTIONS, PageTransitionType, LLM_MANGA_MODEL_OPTIONS, BookPageSize, BOOK_PAGE_SIZE_LABELS } from '../../core/models';
 import {
   TextSpeech,
   activeTextSpeechVoices,
@@ -547,6 +547,20 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
                       <option [ngValue]="opt">{{ pageTransitionLabels[opt] }}</option>
                     }
                   </select>
+                </div>
+                <div>
+                  <label class="block text-xs text-slate-300 mb-1 font-medium">Tamanho da Página Virtual (EPUB)</label>
+                  <select
+                    class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200 cursor-pointer"
+                    [ngModel]="settingsService.bookPageSize()"
+                    (ngModelChange)="settingsService.bookPageSize.set($event)">
+                    @for (opt of bookPageSizeOptions; track opt) {
+                      <option [ngValue]="opt">{{ bookPageSizeLabels[opt] }}</option>
+                    }
+                  </select>
+                  <p class="text-[11px] text-slate-500 mt-1">
+                    Fixa a resolução interna de renderização do EPUB (evita reflow e quebra de páginas nas animações).
+                  </p>
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                   <div>
@@ -1823,6 +1837,8 @@ export class SettingsComponent implements OnInit, OnDestroy {
   Math = Math;
   pageTransitionOptions = PAGE_TRANSITION_OPTIONS;
   pageTransitionLabels = PAGE_TRANSITION_LABELS_PT;
+  bookPageSizeOptions = Object.values(BookPageSize);
+  bookPageSizeLabels = BOOK_PAGE_SIZE_LABELS;
   llmMangaModels = [...LLM_MANGA_MODEL_OPTIONS];
   westernFonts = westernFontOptions();
   japaneseFonts = japaneseFontOptions();

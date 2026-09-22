@@ -2,8 +2,21 @@ import { contextBridge, ipcRenderer } from 'electron';
 
 contextBridge.exposeInMainWorld('electronAPI', {
   ping: () => ipcRenderer.invoke('app:ping'),
-  captureRect: (rect: { x: number; y: number; width: number; height: number }) =>
-    ipcRenderer.invoke('window:capture-rect', rect),
+  captureRect: (rect: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    beyondViewport?: boolean;
+  }) => ipcRenderer.invoke('window:capture-rect', rect),
+  captureBookSpread: (req: {
+    bookUrl: string;
+    width: number;
+    height: number;
+    theme: Record<string, unknown>;
+    pages: Array<{ index: number; cfi: string }>;
+  }) => ipcRenderer.invoke('book:capture-spread', req),
+  disposeBookCapture: () => ipcRenderer.invoke('book:capture-spread-dispose'),
   selectDirectory: () => ipcRenderer.invoke('dialog:openDirectory'),
   checkPathOnline: (path: string) => ipcRenderer.invoke('fs:check-path-online', path),
   openMangaFile: () => ipcRenderer.invoke('dialog:openMangaFile'),

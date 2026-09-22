@@ -2,6 +2,7 @@ import { Injectable, signal, effect } from '@angular/core';
 import {
   BookAlign,
   BookMarginSize,
+  BookPageSize,
   BookScrollingMode,
   BookSpacingSize,
   MangaFitMode,
@@ -91,6 +92,7 @@ interface SettingsData {
   mangaPageTransition?: PageTransitionType;
   bookScrollingMode?: BookScrollingMode;
   bookPageTransition?: PageTransitionType;
+  bookPageSize?: BookPageSize;
   bookFontSize?: number;
   bookFontFamily?: string;
   bookLineHeight?: number;
@@ -160,6 +162,7 @@ export class SettingsService {
 
   bookScrollingMode = signal<BookScrollingMode>(BookScrollingMode.Pagination);
   bookPageTransition = signal<PageTransitionType>(PageTransitionType.Default);
+  bookPageSize = signal<BookPageSize>(BookPageSize.DYNAMIC);
   bookFontSize = signal<number>(18);
   bookFontFamily = signal<string>('Georgia, serif');
   bookLineHeight = signal<number>(1.6);
@@ -244,6 +247,7 @@ export class SettingsService {
         mangaPageTransition: this.mangaPageTransition(),
         bookScrollingMode: this.bookScrollingMode(),
         bookPageTransition: this.bookPageTransition(),
+        bookPageSize: this.bookPageSize(),
         bookFontSize: this.bookFontSize(),
         bookFontFamily: this.bookFontFamily(),
         bookLineHeight: this.bookLineHeight(),
@@ -336,6 +340,7 @@ export class SettingsService {
         void window.electronAPI.setSetting('OCR_AUTO_INTERPRET', this.ocrAutoInterpret());
         void window.electronAPI.setSetting(MANGA_PAGE_PAGINATION_TYPE_KEY, this.mangaPageTransition());
         void window.electronAPI.setSetting(BOOK_PAGE_PAGINATION_TYPE_KEY, this.bookPageTransition());
+        void window.electronAPI.setSetting('BOOK_PAGE_SIZE', this.bookPageSize());
         void window.electronAPI.setSetting('THEME_GLASSMORPHISM', this.themeGlassmorphism());
         void window.electronAPI.setSetting('THEME_3D_COVER_IN_DETAIL', this.theme3DCovers());
         void window.electronAPI.setSetting('MANGA_LIBRARY_ORDER', this.mangaLibraryOrder());
@@ -371,6 +376,9 @@ export class SettingsService {
         }
         if (isPageTransitionType(data.bookPageTransition)) {
           this.bookPageTransition.set(data.bookPageTransition);
+        }
+        if (data.bookPageSize && Object.values(BookPageSize).includes(data.bookPageSize)) {
+          this.bookPageSize.set(data.bookPageSize);
         }
         if (typeof data.bookFontSize === 'number' && data.bookFontSize >= 10 && data.bookFontSize <= 40) {
           this.bookFontSize.set(data.bookFontSize);

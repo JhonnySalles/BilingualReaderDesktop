@@ -87,7 +87,16 @@ declare global {
         y: number;
         width: number;
         height: number;
+        beyondViewport?: boolean;
       }) => Promise<string | null>;
+      captureBookSpread: (req: {
+        bookUrl: string;
+        width: number;
+        height: number;
+        theme: Record<string, unknown>;
+        pages: Array<{ index: number; cfi: string }>;
+      }) => Promise<Record<string, string>>;
+      disposeBookCapture: () => Promise<boolean>;
       selectDirectory: () => Promise<string | null>;
       checkPathOnline: (path: string) => Promise<boolean>;
       openMangaFile: () => Promise<string | null>;
@@ -641,6 +650,7 @@ export class ElectronService {
     y: number;
     width: number;
     height: number;
+    beyondViewport?: boolean;
   }): Promise<string | null> {
     if (this.isElectron && window.electronAPI?.captureRect) {
       try {
@@ -651,6 +661,34 @@ export class ElectronService {
       }
     }
     return null;
+  }
+
+  async captureBookSpread(req: {
+    bookUrl: string;
+    width: number;
+    height: number;
+    theme: Record<string, unknown>;
+    pages: Array<{ index: number; cfi: string }>;
+  }): Promise<Record<string, string>> {
+    if (this.isElectron && window.electronAPI?.captureBookSpread) {
+      try {
+        return (await window.electronAPI.captureBookSpread(req)) || {};
+      } catch (e) {
+        console.warn('[electron] captureBookSpread failed', e);
+        return {};
+      }
+    }
+    return {};
+  }
+
+  async disposeBookCapture(): Promise<void> {
+    if (this.isElectron && window.electronAPI?.disposeBookCapture) {
+      try {
+        await window.electronAPI.disposeBookCapture();
+      } catch {
+        /* ignore */
+      }
+    }
   }
 
   async getSetting(key: string, defaultValue?: any): Promise<any> {

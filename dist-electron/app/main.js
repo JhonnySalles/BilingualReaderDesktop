@@ -63,6 +63,7 @@ const database_maintenance_controller_1 = require("./controllers/database-mainte
 const tracker_controller_1 = require("./controllers/tracker.controller");
 const book_image_cover_controller_1 = require("./controllers/book-image-cover.controller");
 const manga_image_cover_controller_1 = require("./controllers/manga-image-cover.controller");
+const book_page_bitmap_capture_service_1 = require("./services/book-page-bitmap-capture.service");
 const telemetry_1 = require("./utils/telemetry");
 const app_paths_1 = require("./utils/app-paths");
 // Ensure data/cache directory structures and migrate legacy files
@@ -405,6 +406,7 @@ electron_1.app.on('ready', () => {
                 const y = Math.max(0, Math.floor(rect?.y ?? 0));
                 const width = Math.max(1, Math.floor(rect?.width ?? 0));
                 const height = Math.max(1, Math.floor(rect?.height ?? 0));
+                const beyondViewport = !!rect?.beyondViewport;
                 if (width < 2 || height < 2)
                     return null;
                 if (!sender.debugger.isAttached()) {
@@ -417,18 +419,32 @@ electron_1.app.on('ready', () => {
                 }
                 if (sender.debugger.isAttached()) {
                     try {
+                        try {
+                            await sender.debugger.sendCommand('Page.enable');
+                        }
+                        catch {
+                            /* already enabled */
+                        }
                         const res = await sender.debugger.sendCommand('Page.captureScreenshot', {
                             format: 'png',
                             clip: { x, y, width, height, scale: 1 },
-                            captureBeyondViewport: true
+                            captureBeyondViewport: beyondViewport
                         });
                         if (res?.data) {
                             return `data:image/png;base64,${res.data}`;
                         }
                     }
                     catch (cdpErr) {
+                        if (beyondViewport) {
+                            // Outside the window: capturePage would throw UnknownVizError — do not fall back.
+                            console.warn('[window:capture-rect] cdp beyond-viewport failed', cdpErr);
+                            return null;
+                        }
                         console.warn('[window:capture-rect] cdp screenshot failed, falling back', cdpErr);
                     }
+                }
+                if (beyondViewport) {
+                    return null;
                 }
                 const image = await sender.capturePage({ x, y, width, height });
                 if (image.isEmpty())
@@ -583,6 +599,12 @@ electron_1.app.on('ready', () => {
     }
 });
 electron_1.app.on('before-quit', () => {
+    try {
+        book_page_bitmap_capture_service_1.BookPageBitmapCaptureService.instance.destroy();
+    }
+    catch {
+        /* ignore */
+    }
     llm_server_controller_1.LlmServerController.instance.stopServer();
     tray_service_1.TrayService.instance.destroy();
 });

@@ -41,6 +41,8 @@ export interface PlayBookCurlTurnOptions {
   canvas?: HTMLCanvasElement | null;
   /** Pointer Y for dynamic 3D curl angle. */
   pointerY?: number;
+  /** Leave this many CSS px clear at the bottom (progress strip). */
+  bottomInsetCss?: number;
 }
 
 function nextFrame(): Promise<void> {
@@ -163,7 +165,8 @@ export async function playBookCurlTurn(opts: PlayBookCurlTurnOptions): Promise<v
     owner = 'book-reader',
     fromProgress = 0,
     canvas: reuseCanvas,
-    pointerY
+    pointerY,
+    bottomInsetCss = 0
   } = opts;
 
   if (prefersReducedMotion() || durationMs <= 0) {
@@ -203,7 +206,8 @@ export async function playBookCurlTurn(opts: PlayBookCurlTurnOptions): Promise<v
     owner,
     fromProgress,
     reuseCanvas: willReuse ? reuseCanvas! : null,
-    pointerY
+    pointerY,
+    bottomInsetCss
   });
 }
 
@@ -222,6 +226,7 @@ async function playCanvasCurl(opts: {
   fromProgress: number;
   reuseCanvas: HTMLCanvasElement | null;
   pointerY?: number;
+  bottomInsetCss: number;
 }): Promise<void> {
   const {
     host,
@@ -237,17 +242,21 @@ async function playCanvasCurl(opts: {
     owner,
     fromProgress,
     reuseCanvas,
-    pointerY
+    pointerY,
+    bottomInsetCss
   } = opts;
 
   const ownsCanvas = !reuseCanvas;
   const canvas =
     reuseCanvas ||
     (() => {
+      const inset = Math.max(0, bottomInsetCss);
       const c = document.createElement('canvas');
       c.className = 'absolute inset-0 pointer-events-none';
       c.style.cssText =
-        'position:absolute;inset:0;width:100%;height:100%;z-index:5;pointer-events:none;';
+        `position:absolute;top:0;left:0;right:0;bottom:${inset}px;` +
+        `width:100%;height:${inset > 0 ? 'auto' : '100%'};` +
+        'z-index:5;pointer-events:none;';
       host.appendChild(c);
       return c;
     })();

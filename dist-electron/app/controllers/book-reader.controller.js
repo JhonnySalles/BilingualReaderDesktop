@@ -6,6 +6,7 @@ const book_reader_session_service_1 = require("../services/book-reader-session.s
 const epub_book_extractor_1 = require("../parser/book/epub-book-extractor");
 const tracker_service_1 = require("../services/tracker.service");
 const book_image_cover_controller_1 = require("./book-image-cover.controller");
+const book_page_bitmap_capture_service_1 = require("../services/book-page-bitmap-capture.service");
 class BookReaderController {
     storage;
     sessionService = new book_reader_session_service_1.BookReaderSessionService();
@@ -26,6 +27,28 @@ class BookReaderController {
         });
         electron_1.ipcMain.handle('book-reader:close', async (_event, sessionId) => {
             return this.sessionService.close(sessionId);
+        });
+        electron_1.ipcMain.handle('book:capture-spread', async (_event, req) => {
+            try {
+                if (!req?.bookUrl || !req?.pages?.length)
+                    return {};
+                return await book_page_bitmap_capture_service_1.BookPageBitmapCaptureService.instance.captureSpread(req);
+            }
+            catch (e) {
+                const msg = e instanceof Error ? e.message : String(e);
+                const stack = e instanceof Error ? e.stack : undefined;
+                console.warn('[book:capture-spread] failed', msg, stack || '');
+                return {};
+            }
+        });
+        electron_1.ipcMain.handle('book:capture-spread-dispose', async () => {
+            try {
+                book_page_bitmap_capture_service_1.BookPageBitmapCaptureService.instance.destroy();
+            }
+            catch {
+                /* ignore */
+            }
+            return true;
         });
         electron_1.ipcMain.handle('book:set-bookmark', async (_event, payload) => {
             const book = this.storage.findBookById(payload.id);
