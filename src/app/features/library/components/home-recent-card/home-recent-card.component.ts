@@ -15,8 +15,10 @@ import { progressPageLabel } from '../../../../core/utils/reading-progress.util'
       type="button"
       (click)="open.emit(item)"
       class="group relative w-full h-full min-h-24 text-left rounded-xl overflow-hidden border border-slate-700/50
-        bg-slate-800 hover:border-indigo-500/50 hover:shadow-lg hover:shadow-indigo-500/10
-        transition-all duration-300 cursor-pointer flex">
+        bg-slate-800 transition-all duration-300 cursor-pointer flex"
+      [ngClass]="item.type === 'MANGA'
+        ? 'hover:border-indigo-500/50 hover:shadow-lg hover:shadow-indigo-500/10'
+        : 'hover:border-amber-500/50 hover:shadow-lg hover:shadow-amber-500/10'">
 
       <!-- Cover (right half visible) -->
       <div class="absolute inset-0">
@@ -44,11 +46,12 @@ import { progressPageLabel } from '../../../../core/utils/reading-progress.util'
       <div
         class="relative z-10 w-1/2 flex flex-col justify-center gap-1.5 px-3 py-3
           bg-slate-800
-          after:content-[''] after:absolute after:inset-y-0 after:right-0 after:w-6
-          after:bg-gradient-to-r after:from-slate-800 after:to-transparent after:translate-x-full">
+          after:content-[''] after:absolute after:inset-y-0 after:left-[calc(100%-1px)] after:w-7
+          after:bg-gradient-to-r after:from-slate-800 after:to-transparent">
         <h4
           class="relative z-10 text-sm font-bold text-slate-100 leading-snug break-words
-            group-hover:text-indigo-300 transition-colors">
+            transition-colors"
+          [ngClass]="item.type === 'MANGA' ? 'group-hover:text-indigo-300' : 'group-hover:text-amber-300'">
           {{ item.title }}
         </h4>
 

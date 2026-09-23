@@ -91,13 +91,13 @@ export class MangaFilterModalComponent {
 
   viewOptions = [
     { label: 'Grid Grande', value: LibraryViewType.GRID_BIG },
-    { label: 'Grid Médio', value: LibraryViewType.GRID_MEDIUM },
-    { label: 'Grid Blur', value: LibraryViewType.GRID_OVERLAY },
     { label: 'Grande c/ Separador', value: LibraryViewType.SEPARATOR_BIG },
+    { label: 'Grid Médio', value: LibraryViewType.GRID_MEDIUM },
     { label: 'Médio c/ Separador', value: LibraryViewType.SEPARATOR_MEDIUM },
+    { label: 'Grid Blur', value: LibraryViewType.GRID_OVERLAY },
     { label: 'Grid Blur c/ Sep.', value: LibraryViewType.SEPARATOR_OVERLAY },
-    { label: 'Linha c/ Separador', value: LibraryViewType.SEPARATOR_LINE },
-    { label: 'Linha Detalhada', value: LibraryViewType.LINE }
+    { label: 'Linha Detalhada', value: LibraryViewType.LINE },
+    { label: 'Linha c/ Separador', value: LibraryViewType.SEPARATOR_LINE }
   ];
 
   OrderType = OrderType;

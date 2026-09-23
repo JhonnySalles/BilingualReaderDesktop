@@ -143,7 +143,7 @@ const MENU_WIDTH = 176; // w-44
           </div>
         </div>
 
-        <div class="relative z-10 p-3 bg-slate-950/70 backdrop-blur-md border-t border-slate-700/40">
+        <div class="relative z-10 p-3 bg-slate-950/70 backdrop-blur-md border-t border-slate-700/40 rounded-b-xl">
           <h3 class="text-sm font-semibold text-slate-100 line-clamp-2 sm:line-clamp-3 md:line-clamp-4 lg:line-clamp-5 group-hover:text-amber-400 transition-colors" [title]="book.title">
             {{ book.title }}
           </h3>

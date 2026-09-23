@@ -207,7 +207,7 @@ function getItemSeparatorTitle(item: Manga | Book, order: OrderType): string {
                         (openTags)="openTags.emit($event)">
                       </app-manga-list-item>
                     } @else {
-                      <div class="group bg-slate-800/40 backdrop-blur-md rounded-lg overflow-hidden border border-slate-700/40 hover:border-amber-500/40 hover:bg-slate-800/80 transition-all duration-200 cursor-pointer flex items-stretch justify-between gap-3 pr-3">
+                      <div class="group bg-slate-800/40 backdrop-blur-md rounded-lg overflow-hidden border border-slate-700/40 hover:border-amber-500/50 hover:bg-slate-800/80 hover:shadow-xl hover:shadow-amber-500/10 transition-all duration-200 cursor-pointer flex items-stretch justify-between gap-3 pr-3">
                         <div class="flex items-center gap-2.5 min-w-0 flex-1">
                           <div class="w-16 self-stretch min-h-[4.5rem] bg-slate-900 rounded-l-lg overflow-hidden shrink-0 relative border-r border-slate-700/50 flex items-center justify-center">
                             @if (item.coverPath) {

@@ -22,7 +22,7 @@ const MENU_WIDTH = 176; // w-44
   standalone: true,
   imports: [CommonModule],
   template: `
-    <div class="group relative bg-slate-800/40 backdrop-blur-md rounded-lg overflow-hidden border border-slate-700/40 hover:border-indigo-500/40 hover:bg-slate-800/80 transition-all duration-200 cursor-pointer flex items-stretch justify-between gap-3 pr-3">
+    <div class="group relative bg-slate-800/40 backdrop-blur-md rounded-lg overflow-hidden border border-slate-700/40 hover:border-indigo-500/50 hover:bg-slate-800/80 hover:shadow-xl hover:shadow-indigo-500/10 transition-all duration-200 cursor-pointer flex items-stretch justify-between gap-3 pr-3">
       
       <!-- Left: Cover (Flush left, scaled up) -->
       <div class="flex items-center gap-2.5 min-w-0 flex-1">

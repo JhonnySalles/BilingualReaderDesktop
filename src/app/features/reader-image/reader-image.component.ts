@@ -740,6 +740,8 @@ const MAGNIFIER_SQUARE_PX = 250;
               min="0"
               [max]="Math.max(0, pageCount() - 1)"
               [value]="seekBarPage()"
+              (pointerdown)="onSeekStart()"
+              (input)="onSeekInput($event)"
               (change)="onSeekCommit($event)"
               class="reader-seek-input relative z-10 w-full cursor-pointer" />
           </div>
@@ -1389,6 +1391,8 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
   currentPage = signal(0);
   /** Progress UI mark (thumb + seek counter); may lead currentPage during smooth scroll. */
   seekBarPage = signal(0);
+  private isScrubbingSeek = false;
+  private scrubOriginPage: number | null = null;
   chapters = signal<number[]>([]);
   chaptersPages = signal<Record<number, string>>({});
   lastPages = signal<{ page: number; url: string }[]>([]);
@@ -2126,9 +2130,18 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
   }
 
   onSinglePageSync(page: number): void {
-    this.seekBarPage.set(page);
+    if (!this.isScrubbingSeek) {
+      this.seekBarPage.set(page);
+    }
     if (page !== this.currentPage()) {
       this.currentPage.set(page);
+      const activeLast = this.displayedLastPage();
+      if (activeLast) {
+        const isLeft = activeLast.page < page;
+        if (isLeft !== this.renderedLastPageIsLeft()) {
+          this.updateLastPageUi(activeLast, isLeft);
+        }
+      }
       this.scheduleProgressUpdate();
     }
   }
@@ -2173,15 +2186,45 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
     this.seekTo(this.currentPage() + 1, 'start');
   }
 
+  onSeekStart(): void {
+    if (this.scrubOriginPage === null) {
+      this.scrubOriginPage = this.currentPage();
+    }
+    this.isScrubbingSeek = true;
+  }
+
+  onSeekInput(ev: Event): void {
+    const input = ev.target as HTMLInputElement;
+    const target = Number(input.value);
+    this.seekBarPage.set(target);
+    if (this.scrubOriginPage === null) {
+      this.scrubOriginPage = this.currentPage();
+    }
+    this.isScrubbingSeek = true;
+
+    // Atualiza lado do card em tempo real enquanto arrasta para frente e para trás
+    const active = this.displayedLastPage();
+    if (active) {
+      const isLeft = active.page < target;
+      if (isLeft !== this.renderedLastPageIsLeft()) {
+        this.updateLastPageUi(active, isLeft);
+      }
+    }
+  }
+
   onSeekCommit(ev: Event): void {
     const input = ev.target as HTMLInputElement;
     const target = Number(input.value);
-    const from = this.currentPage();
-    if (target !== from) {
-      this.recordLastPage(from, target);
+    const origin = this.scrubOriginPage !== null ? this.scrubOriginPage : this.currentPage();
+    this.scrubOriginPage = null;
+    this.isScrubbingSeek = false;
+    this.seekBarPage.set(target);
+
+    if (target !== origin) {
+      this.recordLastPage(origin, target);
     }
     // Keep thumb on the selected page; currentPage still updates when smooth scroll ends.
-    this.seekTo(target, target >= this.currentPage() ? 'start' : 'end');
+    this.seekTo(target, target >= origin ? 'start' : 'end');
   }
 
   private updateLastPageUi(newItem: { page: number; url: string } | null, targetIsLeft: boolean): void {
