@@ -29,32 +29,57 @@ export function pairBookCurlBitmaps(
 }
 
 /**
- * Decode a PNG/JPEG data URL into an opaque ImageBitmap with a solid surface fill.
+ * Decode a PNG buffer or data URL into an opaque ImageBitmap with a solid surface fill.
  */
-export async function dataUrlToOpaqueBitmap(
-  dataUrl: string,
+export async function bufferOrDataUrlToOpaqueBitmap(
+  data: Uint8Array | string,
   width: number,
   height: number,
   surfaceColor: string
 ): Promise<ImageBitmap | null> {
   try {
-    const img = new Image();
-    img.decoding = 'async';
-    img.src = dataUrl;
-    await img.decode();
+    let sourceBitmap: ImageBitmap | null = null;
+    if (typeof data !== 'string') {
+      const blob = new Blob([data], { type: 'image/png' });
+      sourceBitmap = await createImageBitmap(blob);
+    } else if (data.startsWith('data:')) {
+      const img = new Image();
+      img.decoding = 'async';
+      img.src = data;
+      await img.decode();
+      sourceBitmap = await createImageBitmap(img);
+    }
+    if (!sourceBitmap) return null;
+
     const canvas = document.createElement('canvas');
     canvas.width = Math.max(1, width);
     canvas.height = Math.max(1, height);
     const ctx = canvas.getContext('2d');
-    if (!ctx) return null;
+    if (!ctx) {
+      sourceBitmap.close();
+      return null;
+    }
     ctx.fillStyle = surfaceColor;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    ctx.drawImage(sourceBitmap, 0, 0, canvas.width, canvas.height);
+    sourceBitmap.close();
     return await createImageBitmap(canvas);
   } catch (e) {
     console.warn('[book-curl] bitmap decode failed', e);
     return null;
   }
+}
+
+/**
+ * Decode a PNG/JPEG data URL or buffer into an opaque ImageBitmap with a solid surface fill.
+ */
+export async function dataUrlToOpaqueBitmap(
+  dataUrl: Uint8Array | string,
+  width: number,
+  height: number,
+  surfaceColor: string
+): Promise<ImageBitmap | null> {
+  return bufferOrDataUrlToOpaqueBitmap(dataUrl, width, height, surfaceColor);
 }
 
 /** @deprecated Visible-DOM capture was removed; use pairBookCurlBitmaps + offscreen cache. */

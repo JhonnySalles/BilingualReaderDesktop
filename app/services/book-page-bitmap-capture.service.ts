@@ -34,7 +34,7 @@ export interface BookCaptureSpreadRequest {
 }
 
 export interface BookCaptureSpreadResult {
-  [index: string]: string; // data URL PNG keyed by location index
+  [index: string]: Buffer | string; // PNG Buffer (or data URL string) keyed by location index
 }
 
 function resolveEpubJsPath(): string {
@@ -136,22 +136,56 @@ const CAPTURE_BOOTSTRAP = `
         'line-height': (theme.lineHeight || 1.5) + ' !important'
       },
       a: { color: '#a5b4fc !important' },
+      ruby: {
+        'ruby-position': 'over',
+        'ruby-align': 'center'
+      },
+      rt: tate
+        ? {
+            'font-size': '0.6em',
+            'line-height': '1',
+            'text-orientation': 'upright',
+            '-webkit-text-orientation': 'upright',
+            color: '#cbd5e1'
+          }
+        : {
+            'font-size': '0.75em',
+            'line-height': '1.1',
+            color: '#cbd5e1'
+          },
       'img, svg, image, video': imgRules,
       figure: figureRules,
       'p img, div img, figure img': imgRules
     });
   }
 
+  function sizeContentImages(doc) {
+    if (!doc) return;
+    var imgs = Array.prototype.slice.call(doc.querySelectorAll('img'));
+    for (var i = 0; i < imgs.length; i++) {
+      var img = imgs[i];
+      if (img.naturalWidth > 1 && img.naturalHeight > 1) {
+        if (!img.getAttribute('width')) img.setAttribute('width', String(img.naturalWidth));
+        if (!img.getAttribute('height')) img.setAttribute('height', String(img.naturalHeight));
+        img.style.aspectRatio = img.naturalWidth + ' / ' + img.naturalHeight;
+      }
+    }
+  }
+
   async function waitForImages(timeoutMs) {
     var iframe = document.querySelector('#viewer iframe');
     var doc = iframe && iframe.contentDocument;
     if (!doc) return;
+    sizeContentImages(doc);
     var imgs = Array.prototype.slice.call(doc.querySelectorAll('img'));
     if (!imgs.length) return;
     var pending = imgs.map(function (img) {
       if (img.complete && img.naturalWidth > 0) return Promise.resolve();
       return new Promise(function (resolve) {
-        var done = function () { resolve(); };
+        var done = function () {
+          sizeContentImages(doc);
+          resolve();
+        };
         img.addEventListener('load', done, { once: true });
         img.addEventListener('error', done, { once: true });
         if (typeof img.decode === 'function') {
@@ -160,6 +194,7 @@ const CAPTURE_BOOTSTRAP = `
       });
     });
     await Promise.race([Promise.all(pending), sleep(timeoutMs)]);
+    sizeContentImages(doc);
   }
 
   window.__BR_CAPTURE = {
@@ -194,6 +229,11 @@ const CAPTURE_BOOTSTRAP = `
         spread: (opts && opts.spread) || 'none'
       };
       rendition = book.renderTo(el, flowOpts);
+      rendition.hooks.content.register(function (contents) {
+        if (contents && contents.document) {
+          sizeContentImages(contents.document);
+        }
+      });
       applyTheme(opts && opts.theme);
       await doubleRaf();
       return true;
@@ -207,7 +247,7 @@ const CAPTURE_BOOTSTRAP = `
         if (iframe && iframe.clientWidth > 0 && iframe.clientHeight > 0) break;
         await doubleRaf();
       }
-      await waitForImages(1500);
+      await waitForImages(2000);
       await doubleRaf();
       return true;
     },
@@ -385,7 +425,7 @@ export class BookPageBitmapCaptureService {
       }
     });
 
-    this.win.webContents.setFrameRate(30);
+    this.win.webContents.setFrameRate(60);
 
     let loadFailed: Error | null = null;
     this.win.webContents.once('did-fail-load', (_e, code, desc, url) => {
@@ -506,7 +546,7 @@ export class BookPageBitmapCaptureService {
         height
       });
       if (!image.isEmpty()) {
-        out[String(page.index)] = image.toDataURL();
+        out[String(page.index)] = image.toPNG();
       }
     }
     return out;

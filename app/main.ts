@@ -349,7 +349,7 @@ app.on('ready', () => {
       }
     });
 
-    protocol.handle('local-book', (request) => {
+    protocol.handle('local-book', async (request) => {
       try {
         const parsed = new URL(request.url);
         const fromQuery = parsed.searchParams.get('p');
@@ -368,7 +368,18 @@ app.on('ready', () => {
           console.error('[local-book] forbidden path', decodedPath || request.url);
           return new Response('Forbidden', { status: 403 });
         }
-        return net.fetch(pathToFileURL(decodedPath).href);
+        const fileUrl = pathToFileURL(decodedPath).href;
+        const res = await net.fetch(fileUrl);
+        if (decodedPath.toLowerCase().endsWith('.bmp') && res.headers.get('content-type') !== 'image/bmp') {
+          const headers = new Headers(res.headers);
+          headers.set('content-type', 'image/bmp');
+          return new Response(res.body, {
+            status: res.status,
+            statusText: res.statusText,
+            headers
+          });
+        }
+        return res;
       } catch (err) {
         Telemetry.recordException(err, `[local-book] failed to serve ${request.url}`);
         return new Response('Not Found', { status: 404 });

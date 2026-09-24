@@ -355,7 +355,7 @@ electron_1.app.on('ready', () => {
                 return new Response('Not Found', { status: 404 });
             }
         });
-        electron_1.protocol.handle('local-book', (request) => {
+        electron_1.protocol.handle('local-book', async (request) => {
             try {
                 const parsed = new URL(request.url);
                 const fromQuery = parsed.searchParams.get('p');
@@ -372,7 +372,18 @@ electron_1.app.on('ready', () => {
                     console.error('[local-book] forbidden path', decodedPath || request.url);
                     return new Response('Forbidden', { status: 403 });
                 }
-                return electron_1.net.fetch((0, url_1.pathToFileURL)(decodedPath).href);
+                const fileUrl = (0, url_1.pathToFileURL)(decodedPath).href;
+                const res = await electron_1.net.fetch(fileUrl);
+                if (decodedPath.toLowerCase().endsWith('.bmp') && res.headers.get('content-type') !== 'image/bmp') {
+                    const headers = new Headers(res.headers);
+                    headers.set('content-type', 'image/bmp');
+                    return new Response(res.body, {
+                        status: res.status,
+                        statusText: res.statusText,
+                        headers
+                    });
+                }
+                return res;
             }
             catch (err) {
                 telemetry_1.Telemetry.recordException(err, `[local-book] failed to serve ${request.url}`);
