@@ -2473,7 +2473,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     const currentHref = this.rendition?.location?.start?.href?.split('#')[0];
     if (
       (spineFirstHref && currentHref && (currentHref === spineFirstHref || currentHref.endsWith(spineFirstHref) || spineFirstHref.endsWith(currentHref))) ||
-      (currentHref && /cover\.x?html?$/i.test(currentHref))
+      (currentHref && /(cover|titlepage)\.x?html?$/i.test(currentHref))
     ) {
       return true;
     }
@@ -3247,6 +3247,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     await book.ready;
     this.loadingMessage.set('Gerando índice de progresso…');
     await book.locations.generate(1600);
+    this.augmentBookLocations(book);
     const locationCount = Math.max(1, book.locations.length());
     this.pageCount.set(locationCount);
 
@@ -3263,7 +3264,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
 
     // Page 1 (cover): always spine.first — ignore stale bookMarkCfi that may point at body.
     // Explicit query `cfi` still wins.
-    const openAtCover = startMark === 0 && !jumpCfi;
+    const openAtCover = (startMark <= 0 || (bookMark != null && bookMark <= 1)) && !jumpCfi;
 
     let resolvedCfi = openAtCover ? undefined : (jumpCfi || startCfi || undefined);
     if (!resolvedCfi && startMark > 0) {
@@ -3372,11 +3373,11 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       // Image-only covers sit before locations[0]; atStart means real page 1 (cover).
       const spineFirstHref = (this.epubBook as any)?.spine?.first?.()?.href?.split('#')[0];
       const currentHref = location?.start?.href?.split('#')[0];
-      const isFirstSpine = !!(
+      const isRealCover = !!(
         (spineFirstHref && currentHref && (currentHref === spineFirstHref || currentHref.endsWith(spineFirstHref) || spineFirstHref.endsWith(currentHref))) ||
-        (currentHref && /cover\.x?html?$/i.test(currentHref))
+        (currentHref && /(cover|titlepage)\.x?html?$/i.test(currentHref))
       );
-      let loc = (location?.atStart || isFirstSpine) ? 0 : this.locationFromCfiSafe(cfi, location);
+      let loc = (location?.atStart || isRealCover) ? 0 : this.locationFromCfiSafe(cfi, location);
       if (Date.now() < this.forceStartPageUntil && loc > 0) {
         // Keep page 0 until CFI after Home/open stabilizes
         loc = 0;
@@ -3413,7 +3414,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     queueMicrotask(() => this.scheduleRenditionResize());
   }
 
-  /** Size iframe images to reduce LayoutImageUnsized. */
+  /** Size iframe images to reduce LayoutImageUnsized and center image-only pages. */
   private sizeContentImages(contents: any): void {
     const doc: Document | undefined = contents?.document;
     if (!doc) return;
@@ -3428,6 +3429,41 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       };
       if (img.complete) apply();
       else img.addEventListener('load', apply, { once: true });
+    }
+
+    try {
+      const body = doc.body;
+      if (body) {
+        const textLen = (body.textContent || '').trim().length;
+        const totalImgs = imgs.length;
+        const hasImgOrSvg = totalImgs > 0 || !!doc.querySelector('svg, image');
+        if (hasImgOrSvg && textLen < 40) {
+          const maxPct = totalImgs > 1 ? Math.floor(96 / totalImgs) : 96;
+          body.style.display = 'flex';
+          body.style.flexDirection = 'column';
+          body.style.justifyContent = 'center';
+          body.style.alignItems = 'center';
+          body.style.minHeight = '100vh';
+          body.style.boxSizing = 'border-box';
+          for (const img of imgs) {
+            img.style.setProperty('max-height', `calc(${maxPct}vh - 12px)`, 'important');
+            img.style.setProperty('max-width', '100%', 'important');
+            img.style.setProperty('object-fit', 'contain', 'important');
+          }
+          for (const p of Array.from(body.querySelectorAll('p, div, figure'))) {
+            const el = p as HTMLElement;
+            if (el.querySelector('img, svg, image')) {
+              el.style.display = 'flex';
+              el.style.justifyContent = 'center';
+              el.style.alignItems = 'center';
+              el.style.width = '100%';
+              el.style.margin = '0 auto';
+            }
+          }
+        }
+      }
+    } catch {
+      /* ignore */
     }
   }
 
@@ -4866,6 +4902,14 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       await this.doubleRaf();
       if (token !== this.peekLoadToken) return false;
 
+      const peekCfi = (peek as any)?.location?.start?.cfi;
+      if (peekCfi) {
+        const targetPage = this.currentPage() + dir;
+        if (targetPage >= 0 && targetPage < this.pageCount()) {
+          this.adjacentScreenCfiMap.set(targetPage, peekCfi);
+        }
+      }
+
       return true;
     } catch (e) {
       console.warn('[reader-text] peek load failed', e);
@@ -5515,17 +5559,18 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
           'width': 'auto !important',
           'height': 'auto !important',
           'display': 'block !important',
-          'margin-left': imgMl,
-          'margin-right': imgMr,
+          'margin-left': 'auto !important',
+          'margin-right': 'auto !important',
           'object-fit': 'contain'
         }
       : {
           'max-width': '100% !important',
+          'max-height': '100% !important',
           'width': 'auto !important',
           'height': 'auto !important',
           'display': 'block !important',
-          'margin-left': imgMl,
-          'margin-right': imgMr,
+          'margin-left': 'auto !important',
+          'margin-right': 'auto !important',
           'object-fit': 'contain'
         };
 
@@ -6016,9 +6061,57 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       }
     }
     this.pageBitmapCache.clear();
+    this.adjacentScreenCfiMap.clear();
   }
 
   private pendingBitmapPreloadPage: number | null = null;
+  /** Exact CFIs captured from peek/live screens for accurate adjacent curl snapshots. */
+  private adjacentScreenCfiMap = new Map<number, string>();
+
+  /**
+   * Ensures every spine item in the EPUB (including image-only covers or illustrations with 0 text nodes)
+   * has at least one valid entry in book.locations._locations.
+   */
+  private augmentBookLocations(book: any): void {
+    if (!book?.locations || !book?.spine) return;
+    try {
+      const rawLocs: string[] = Array.isArray(book.locations._locations)
+        ? book.locations._locations.slice()
+        : [];
+      const spineItems: any[] = book.spine.spineItems || (Array.isArray(book.spine) ? book.spine : []);
+      if (!spineItems.length) return;
+
+      const augmented: string[] = [];
+      for (let i = 0; i < spineItems.length; i++) {
+        const section = spineItems[i];
+        const cfiBase = section.cfiBase;
+        const sectionLocs = cfiBase
+          ? rawLocs.filter(cfi => typeof cfi === 'string' && (cfi.includes(cfiBase + '!') || cfi.includes(cfiBase + '[')))
+          : [];
+        if (sectionLocs.length === 0) {
+          // Image-only section or section with no text nodes: create canonical base CFI
+          const baseCfi = cfiBase ? `epubcfi(${cfiBase}!/4/1:0)` : (section.href || '');
+          if (baseCfi) augmented.push(baseCfi);
+        } else {
+          // If first spine item (cover) has locations starting deeper in text, ensure cover page is at index 0
+          if (i === 0 && cfiBase) {
+            const coverBase = `epubcfi(${cfiBase}!/4/1:0)`;
+            if (!sectionLocs.includes(coverBase)) {
+              augmented.push(coverBase);
+            }
+          }
+          augmented.push(...sectionLocs);
+        }
+      }
+
+      if (augmented.length > 0) {
+        book.locations._locations = augmented;
+        book.locations.total = augmented.length - 1;
+      }
+    } catch (e) {
+      console.warn('[reader-text] augmentBookLocations failed', e);
+    }
+  }
 
   /**
    * Capture size must match live rendition.resize (virtual resolution),
@@ -6038,6 +6131,9 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       const live = this.currentCfi();
       if (live) return live;
     }
+    const cachedAdjacent = this.adjacentScreenCfiMap.get(index);
+    if (cachedAdjacent) return cachedAdjacent;
+
     if (index === 0) {
       const spineFirst = (this.epubBook as any).spine?.first?.();
       if (spineFirst?.href) return spineFirst.href as string;
@@ -6426,6 +6522,14 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
 
     let frontSrc = this.pageBitmapCache.get(String(current))?.bitmap ?? null;
     let underSrc = this.pageBitmapCache.get(String(underIndex))?.bitmap ?? null;
+
+    if (!underSrc && !this.adjacentScreenCfiMap.has(underIndex)) {
+      try {
+        await this.loadPeek(logicalDir);
+      } catch {
+        /* ignore */
+      }
+    }
 
     // Gesture: only wait for current ±1 (short timeout). Full ±2 stays in background.
     if (!frontSrc || !underSrc) {
