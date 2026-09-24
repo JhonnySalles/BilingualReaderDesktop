@@ -1568,6 +1568,8 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
   private bookCurlCanvas: HTMLCanvasElement | null = null;
   /** True while drag is scrubbing manga-style canvas curl. */
   private bookCurlDragActive = false;
+  /** Tracks sequential page navigation (+1 for next, -1 for prev) to guarantee continuity. */
+  private sequentialNavDirection: 1 | -1 | 0 = 0;
   /** True while curl animation / drag is active to prevent reflow, resize and repaint jitter. */
   private curlAnimating = false;
   /** Background cache of pre-rendered page bitmaps (location index -> ImageBitmap). */
@@ -1587,6 +1589,9 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
   private wheelAccum = 0;
   private didDrag = false;
   private panPointerId: number | null = null;
+  private panStartX = 0;
+  private panStartY = 0;
+  private panStartTime = 0;
   private panLastX = 0;
   private panLastY = 0;
   private panLastClientY = 0;
@@ -1598,6 +1603,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
   /** Accumulated overscroll while dragging past page edge (paginated), 1:1 with pointer. */
   private overscrollX = 0;
   private overscrollY = 0;
+  private panGlobalCleanup: (() => void) | null = null;
   private contentCleanups: Array<() => void> = [];
   private pendingSelectContents: any | null = null;
   private pendingSelectShow: PendingSelectShow | null = null;
@@ -1611,7 +1617,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
   private stubToastTimer: ReturnType<typeof setTimeout> | null = null;
   /** Last tap timestamp for click/touchend dedupe. */
   private lastTapAt = 0;
-  private lastTapSource: 'click' | 'touch' | null = null;
+  private lastTapSource: 'click' | 'touch' | 'pointer' | null = null;
   /** After Home/open to start, ignore relocated until CFI stabilizes. */
   private forceStartPageUntil = 0;
 
@@ -1957,12 +1963,11 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     }, TOUCH_DOUBLE_CLICK_MS);
   }
 
-  /** Ingest tap from click or touchend; ignore cross-type duplicates (Windows). */
-  private ingestMappedTap(source: 'click' | 'touch', mapped: { x: number; y: number }): void {
+  /** Ingest tap from click, touch, or pointer; ignore duplicates on the same gesture (Windows). */
+  private ingestMappedTap(source: 'click' | 'touch' | 'pointer', mapped: { x: number; y: number }): void {
     const now = Date.now();
     if (
-      this.lastTapSource &&
-      this.lastTapSource !== source &&
+      this.lastTapAt &&
       now - this.lastTapAt < TAP_DEDUPE_MS
     ) {
       return;
@@ -2417,6 +2422,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
   prevPage(): Promise<void> {
     if (!this.rendition) return Promise.resolve();
     if (this.isAtBookStart()) return Promise.resolve();
+    this.sequentialNavDirection = -1;
     return Promise.resolve(this.rendition.prev()).then(() => undefined);
   }
 
@@ -2426,6 +2432,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       this.requestAdjacentFile('next');
       return Promise.resolve();
     }
+    this.sequentialNavDirection = 1;
     return Promise.resolve(this.rendition.next()).then(() => undefined);
   }
 
@@ -2463,6 +2470,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
         // If next/prev resolved synchronously without relocated, still wait briefly
       });
     });
+    this.didDrag = false;
   }
 
   /** True when EPUB location reports start or current page is 0 (or at the first spine item). */
@@ -2849,6 +2857,8 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     this.bookPageSize.set(size);
     this.settings.bookPageSize.set(size);
     this.scheduleConfigSave();
+    this.clearPageBitmapCache();
+    void this.regenerateBookLocations();
     this.scheduleRenditionResize();
   }
 
@@ -3076,17 +3086,24 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!host || typeof event?.clientX !== 'number') return null;
     const hostRect = host.getBoundingClientRect();
 
-    let iframe: HTMLElement | null = null;
+    // Check if the event was already fired from the top window / host level
+    const eventView = (event as any).view as Window | undefined;
+    if (eventView === window) {
+      return {
+        x: event.clientX - hostRect.left,
+        y: event.clientY - hostRect.top
+      };
+    }
+
+    let iframe: HTMLIFrameElement | null = null;
     try {
-      const view = (event as any).view as Window | undefined;
-      iframe = (view?.frameElement as HTMLElement | null)
-        || ((event.target as Node | null)?.ownerDocument?.defaultView?.frameElement as HTMLElement | null)
-        || (this.activeContents()?.document?.defaultView?.frameElement as HTMLElement | null)
+      iframe = (eventView?.frameElement as HTMLIFrameElement | null)
+        || ((event.target as Node | null)?.ownerDocument?.defaultView?.frameElement as HTMLIFrameElement | null)
+        || (this.activeContents()?.document?.defaultView?.frameElement as HTMLIFrameElement | null)
         || null;
     } catch { /* ignore */ }
 
     if (!iframe) {
-      // Already viewport-relative (host-level event)
       return {
         x: event.clientX - hostRect.left,
         y: event.clientY - hostRect.top
@@ -3094,17 +3111,13 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     const iframeRect = iframe.getBoundingClientRect();
-    // If view is the top window, client coords are already viewport-relative
-    const isTopView = !!(event as any).view && (event as any).view === window;
-    if (isTopView) {
-      return {
-        x: event.clientX - hostRect.left,
-        y: event.clientY - hostRect.top
-      };
-    }
+    const docW = iframe.contentWindow?.innerWidth || iframe.clientWidth || iframeRect.width || 1;
+    const docH = iframe.contentWindow?.innerHeight || iframe.clientHeight || iframeRect.height || 1;
+    const scaleX = iframeRect.width / docW;
+    const scaleY = iframeRect.height / docH;
 
-    const screenX = iframeRect.left + event.clientX;
-    const screenY = iframeRect.top + event.clientY;
+    const screenX = iframeRect.left + (event.clientX * scaleX);
+    const screenY = iframeRect.top + (event.clientY * scaleY);
     return {
       x: screenX - hostRect.left,
       y: screenY - hostRect.top
@@ -3246,7 +3259,8 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
 
     await book.ready;
     this.loadingMessage.set('Gerando índice de progresso…');
-    await book.locations.generate(1600);
+    const charsPerPage = this.calculateCharsPerPage();
+    await book.locations.generate(charsPerPage);
     this.augmentBookLocations(book);
     const locationCount = Math.max(1, book.locations.length());
     this.pageCount.set(locationCount);
@@ -3377,7 +3391,18 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
         (spineFirstHref && currentHref && (currentHref === spineFirstHref || currentHref.endsWith(spineFirstHref) || spineFirstHref.endsWith(currentHref))) ||
         (currentHref && /(cover|titlepage)\.x?html?$/i.test(currentHref))
       );
-      let loc = (location?.atStart || isRealCover) ? 0 : this.locationFromCfiSafe(cfi, location);
+      let loc: number;
+      if (location?.atStart || isRealCover) {
+        loc = 0;
+        this.sequentialNavDirection = 0;
+      } else if (this.sequentialNavDirection !== 0) {
+        const expected = this.currentPage() + this.sequentialNavDirection;
+        this.sequentialNavDirection = 0;
+        const max = Math.max(0, this.pageCount() - 1);
+        loc = Math.min(Math.max(0, expected), max);
+      } else {
+        loc = this.locationFromCfiSafe(cfi, location);
+      }
       if (Date.now() < this.forceStartPageUntil && loc > 0) {
         // Keep page 0 until CFI after Home/open stabilizes
         loc = 0;
@@ -3386,6 +3411,9 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       }
       loc = Math.min(Math.max(0, loc), Math.max(0, this.pageCount() - 1));
       this.currentPage.set(loc);
+      if (cfi) {
+        this.adjacentScreenCfiMap.set(loc, cfi);
+      }
       if (!this.isScrubbingSeek) {
         this.displayedSeekPage.set(loc);
       }
@@ -4622,36 +4650,60 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       }
     };
 
+    const cleanupGlobalWindowListeners = () => {
+      if (this.panGlobalCleanup) {
+        try {
+          this.panGlobalCleanup();
+        } catch { /* ignore */ }
+        this.panGlobalCleanup = null;
+      }
+    };
+
     const onDown = (ev: PointerEvent) => {
       if (ev.button !== 0 || this.loading()) return;
+      cleanupGlobalWindowListeners();
       this.didDrag = false;
       this.panSelectMode = false;
       this.overscrollX = 0;
       this.overscrollY = 0;
       this.panVelocityX = 0;
       this.panVelocityY = 0;
-      this.panLastMoveAt = performance.now();
+      this.panStartTime = performance.now();
+      this.panLastMoveAt = this.panStartTime;
+      this.panPointerId = ev.pointerId;
+      this.panStartX = ev.screenX;
+      this.panStartY = ev.screenY;
+      this.panLastX = ev.screenX;
+      this.panLastY = ev.screenY;
+      this.panLastClientY = ev.clientY;
       this.syncOverscrollSignals(false);
 
       // Existing selection — let the user extend/clear it; do not start pan
       if (this.hasSelectionInWindow(win)) {
         this.panSelectMode = true;
         this.panning.set(false);
-        this.panPointerId = ev.pointerId;
-        this.panLastX = ev.screenX;
-        this.panLastY = ev.screenY;
         return;
       }
 
       this.panning.set(true);
-      this.panPointerId = ev.pointerId;
-      // screenX/Y = 1:1 with physical drag (iframe zoom does not shrink accum)
-      this.panLastX = ev.screenX;
-      this.panLastY = ev.screenY;
-      this.panLastClientY = ev.clientY;
       try {
         doc.body.style.cursor = 'grabbing';
       } catch { /* ignore */ }
+
+      // Listen on top window so drag scrubbing continues smoothly even when
+      // Curl hides the iframe (viewer.style.visibility = 'hidden') and presents canvas.
+      const onGlobalMove = (e: PointerEvent) => onMove(e);
+      const onGlobalUp = (e: PointerEvent) => onUp(e);
+
+      window.addEventListener('pointermove', onGlobalMove, { capture: true });
+      window.addEventListener('pointerup', onGlobalUp, { capture: true });
+      window.addEventListener('pointercancel', onGlobalUp, { capture: true });
+
+      this.panGlobalCleanup = () => {
+        window.removeEventListener('pointermove', onGlobalMove, { capture: true });
+        window.removeEventListener('pointerup', onGlobalUp, { capture: true });
+        window.removeEventListener('pointercancel', onGlobalUp, { capture: true });
+      };
     };
 
     const onMove = (ev: PointerEvent) => {
@@ -4675,7 +4727,8 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
           this.abortPanForSelect();
           return;
         }
-        if (Math.abs(dx) + Math.abs(dy) <= DRAG_THRESHOLD_PX) {
+        const totalDistance = Math.hypot(ev.screenX - this.panStartX, ev.screenY - this.panStartY);
+        if (totalDistance <= DRAG_THRESHOLD_PX) {
           return;
         }
         this.didDrag = true;
@@ -4764,6 +4817,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
 
     const onUp = (ev: PointerEvent) => {
       if (this.panPointerId !== ev.pointerId) return;
+      cleanupGlobalWindowListeners();
       const hadDrag = this.didDrag;
       const wasSelect = this.panSelectMode || (!hadDrag && this.hasSelectionInWindow(win));
       this.panPointerId = null;
@@ -4787,9 +4841,13 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
         } else {
           this.resetOverscroll(true);
           this.deactivatePeekLayer();
+          this.didDrag = false;
         }
         return;
       }
+
+      // Não arrastou: sempre garante flag de arraste zerada para cliques subsequentes
+      this.didDrag = false;
 
       if (wasSelect) {
         this.resetOverscroll(false);
@@ -4801,6 +4859,17 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
 
       this.resetOverscroll(true);
       this.deactivatePeekLayer();
+
+      // Clique simples e rápido (sem movimento significativo e sem seleção):
+      // Garante despacho confiável mesmo se o evento click do iframe atrasar ou sofrer jitter.
+      const elapsed = performance.now() - this.panStartTime;
+      const totalDist = Math.hypot(ev.screenX - this.panStartX, ev.screenY - this.panStartY);
+      if (elapsed <= 300 && totalDist <= DRAG_THRESHOLD_PX && !this.hasActiveTextSelection()) {
+        const mapped = this.iframeEventToHostLocal(ev);
+        if (mapped) {
+          this.ingestMappedTap('pointer', mapped);
+        }
+      }
     };
 
     doc.addEventListener('pointerdown', onDown);
@@ -4810,6 +4879,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     doc.addEventListener('selectionchange', onSelectionChange);
 
     this.contentCleanups.push(() => {
+      cleanupGlobalWindowListeners();
       setDocUserSelect(true);
       doc.removeEventListener('pointerdown', onDown);
       doc.removeEventListener('pointermove', onMove);
@@ -5267,6 +5337,8 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       this.peekStale = true;
       this.peekDirection = 0;
       this.clearViewerAnimStyles();
+      this.didDrag = false;
+      this.resetOverscroll(false);
       this.markBookTurn('end');
       this.scheduleAdjacentPeekPreload();
       this.scheduleAdjacentBookBitmaps();
@@ -5327,6 +5399,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       this.resetOverscroll(false);
       this.deactivatePeekLayer();
       this.clearViewerAnimStyles();
+      this.didDrag = false;
       return;
     }
 
@@ -5348,6 +5421,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     this.resetOverscroll(false);
     this.deactivatePeekLayer();
     this.clearViewerAnimStyles();
+    this.didDrag = false;
   }
 
   /** Active epub.js Contents for the visible view (if any). */
@@ -5471,6 +5545,12 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private clearContentPanListeners(): void {
+    if (this.panGlobalCleanup) {
+      try {
+        this.panGlobalCleanup();
+      } catch { /* ignore */ }
+      this.panGlobalCleanup = null;
+    }
     for (const cleanup of this.contentCleanups) {
       try {
         cleanup();
@@ -6114,6 +6194,56 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   /**
+   * Calculates estimated characters per page based on the fixed page dimensions
+   * and current typography settings, so that 1 synthetic location slice closely
+   * matches 1 visual screen column.
+   */
+  private calculateCharsPerPage(): number {
+    const dims = this.getEffectiveVirtualDimensions();
+    const pad = MARGIN_PX[this.margin()] ?? 32;
+    const fontSize = this.fontSize() || 18;
+    const tate = this.tateGakiEnabled();
+    const furigana = this.furiganaEnabled();
+    let lh = SPACING_LH[this.spacing()] ?? this.settings.bookLineHeight() ?? 1.6;
+    if (furigana) {
+      const bump = tate ? 1.45 : 1.25;
+      const cap = tate ? 2.8 : 2.4;
+      lh = Math.max(lh, Math.min(cap, lh * bump));
+    } else if (tate) {
+      lh = Math.max(lh, Math.min(2.2, lh * 1.1));
+    }
+
+    const contentWidth = Math.max(200, dims.width - 2 * pad);
+    const contentHeight = Math.max(200, dims.height - 2 * pad);
+
+    const lineBoxHeight = fontSize * lh;
+    const linesPerPage = Math.max(1, Math.floor(contentHeight / lineBoxHeight));
+
+    // Western proportional fonts average ~0.52 * fontSize width. CJK is full-width (~1.0).
+    const charWidthRatio = this.isJapaneseBook() ? 1.0 : 0.52;
+    const charsPerLine = Math.max(1, Math.floor(contentWidth / (fontSize * charWidthRatio)));
+
+    // Density factor (~88% of full text block) accounts for paragraph breaks and indentations.
+    const density = 0.88;
+    const estimated = Math.round(linesPerPage * charsPerLine * density);
+
+    return Math.max(1000, Math.min(estimated, 8000));
+  }
+
+  private async regenerateBookLocations(): Promise<void> {
+    if (!this.epubBook?.locations) return;
+    try {
+      const chars = this.calculateCharsPerPage();
+      await this.epubBook.locations.generate(chars);
+      this.augmentBookLocations(this.epubBook);
+      const locationCount = Math.max(1, this.epubBook.locations.length());
+      this.pageCount.set(locationCount);
+    } catch (e) {
+      console.warn('[reader-text] regenerateBookLocations failed', e);
+    }
+  }
+
+  /**
    * Capture size must match live rendition.resize (virtual resolution),
    * not the progress-cropped CSS height used only for canvas bottom inset.
    */
@@ -6325,7 +6455,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private async ingestCapturedBookBitmaps(
-    pages: Array<{ index: number; cfi: string }>,
+    pages: Array<{ index: number; cfi?: string }>,
     width: number,
     height: number,
     token: number
@@ -6372,12 +6502,12 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     const { width, height } = size;
 
     const max = Math.max(0, this.pageCount() - 1);
-    // Priority order: current ±1 first, then ±2 (gesture needs center pages ASAP).
-    const targets = [page, page + 1, page - 1, page + 2, page - 2].filter(
+    // Ascending order [page-2 .. page+2] for sequential backend rendition navigation
+    const targets = [page - 2, page - 1, page, page + 1, page + 2].filter(
       (i, n, arr) => i >= 0 && i <= max && arr.indexOf(i) === n
     );
 
-    const missing: Array<{ index: number; cfi: string }> = [];
+    const missing: Array<{ index: number; cfi?: string }> = [];
     for (const idx of targets) {
       const key = String(idx);
       const cached = this.pageBitmapCache.get(key);
@@ -6397,7 +6527,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
         this.pageBitmapCache.delete(key);
       }
       const cfi = this.cfiForLocation(idx);
-      if (cfi) missing.push({ index: idx, cfi });
+      missing.push({ index: idx, ...(cfi ? { cfi } : {}) });
     }
 
     // Evict far pages outside the window (LRU threshold > 5 distance)
@@ -6446,7 +6576,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!size) return;
     const { width, height } = size;
     const max = Math.max(0, this.pageCount() - 1);
-    const missing: Array<{ index: number; cfi: string }> = [];
+    const missing: Array<{ index: number; cfi?: string }> = [];
     for (const idx of indices) {
       if (idx < 0 || idx > max) continue;
       const key = String(idx);
@@ -6467,7 +6597,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
         this.pageBitmapCache.delete(key);
       }
       const cfi = this.cfiForLocation(idx);
-      if (cfi) missing.push({ index: idx, cfi });
+      missing.push({ index: idx, ...(cfi ? { cfi } : {}) });
     }
     if (!missing.length) return;
 

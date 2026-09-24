@@ -14,7 +14,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     width: number;
     height: number;
     theme: Record<string, unknown>;
-    pages: Array<{ index: number; cfi: string }>;
+    pages: Array<{ index: number; cfi?: string }>;
   }) => ipcRenderer.invoke('book:capture-spread', req),
   disposeBookCapture: () => ipcRenderer.invoke('book:capture-spread-dispose'),
   selectDirectory: () => ipcRenderer.invoke('dialog:openDirectory'),

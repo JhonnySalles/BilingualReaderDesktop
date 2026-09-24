@@ -94,7 +94,7 @@ declare global {
         width: number;
         height: number;
         theme: Record<string, unknown>;
-        pages: Array<{ index: number; cfi: string }>;
+        pages: Array<{ index: number; cfi?: string }>;
       }) => Promise<Record<string, Uint8Array | string>>;
       disposeBookCapture: () => Promise<boolean>;
       selectDirectory: () => Promise<string | null>;
@@ -668,7 +668,7 @@ export class ElectronService {
     width: number;
     height: number;
     theme: Record<string, unknown>;
-    pages: Array<{ index: number; cfi: string }>;
+    pages: Array<{ index: number; cfi?: string }>;
   }): Promise<Record<string, Uint8Array | string>> {
     if (this.isElectron && window.electronAPI?.captureBookSpread) {
       try {

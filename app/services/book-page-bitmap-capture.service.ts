@@ -9,7 +9,7 @@ import * as os from 'os';
 
 export interface BookCapturePageRequest {
   index: number;
-  cfi: string;
+  cfi?: string;
 }
 
 export interface BookCaptureTheme {
@@ -67,6 +67,7 @@ const CAPTURE_BOOTSTRAP = `
   var book = null;
   var rendition = null;
   var readyToken = 0;
+  var currentIndex = -1;
 
   function sleep(ms) {
     return new Promise(function (r) { setTimeout(r, ms); });
@@ -241,6 +242,7 @@ const CAPTURE_BOOTSTRAP = `
     open: async function (bookUrl, opts) {
       readyToken++;
       var token = readyToken;
+      currentIndex = -1;
       if (rendition) {
         try { rendition.destroy(); } catch (e) {}
         rendition = null;
@@ -254,12 +256,19 @@ const CAPTURE_BOOTSTRAP = `
       if (typeof ePub !== 'function') {
         throw new Error('ePub not loaded (typeof ePub=' + (typeof ePub) + ', JSZip=' + (typeof JSZip) + ')');
       }
+      if (opts && opts.width && opts.height) {
+        el.style.width = opts.width + 'px';
+        el.style.height = opts.height + 'px';
+      } else {
+        el.style.width = '100%';
+        el.style.height = '100%';
+      }
       book = ePub(bookUrl);
       await book.ready;
       if (token !== readyToken) return false;
       var flowOpts = {
-        width: '100%',
-        height: '100%',
+        width: (opts && opts.width) ? opts.width + 'px' : '100%',
+        height: (opts && opts.height) ? opts.height + 'px' : '100%',
         flow: 'paginated',
         allowScriptedContent: false,
         defaultDirection: (opts && opts.direction) || 'ltr',
@@ -275,8 +284,101 @@ const CAPTURE_BOOTSTRAP = `
       await doubleRaf();
       return true;
     },
+    goToStart: async function (theme) {
+      if (!rendition) throw new Error('rendition not ready');
+      applyTheme(theme);
+      var spineFirst = book.spine && book.spine.first && book.spine.first();
+      var target = spineFirst ? spineFirst.href : undefined;
+      if (target) {
+        await rendition.display(target);
+      } else {
+        await rendition.display();
+      }
+      for (var i = 0; i < 20; i++) {
+        var iframe = document.querySelector('#viewer iframe');
+        if (iframe && iframe.clientWidth > 0 && iframe.clientHeight > 0) break;
+        await doubleRaf();
+      }
+      await waitForImages(2000);
+      await doubleRaf();
+      currentIndex = 0;
+      return true;
+    },
+    navigateTo: async function (targetIndex, theme, hintCfi) {
+      if (!rendition) throw new Error('rendition not ready');
+      applyTheme(theme);
+
+      if (currentIndex < 0) {
+        if (targetIndex === 0 || !hintCfi) {
+          await this.goToStart(theme);
+        } else if (targetIndex > 5) {
+          await rendition.display(hintCfi);
+          for (var i = 0; i < 20; i++) {
+            var iframe = document.querySelector('#viewer iframe');
+            if (iframe && iframe.clientWidth > 0 && iframe.clientHeight > 0) break;
+            await doubleRaf();
+          }
+          await waitForImages(2000);
+          await doubleRaf();
+          currentIndex = targetIndex;
+          return true;
+        } else {
+          await this.goToStart(theme);
+        }
+      }
+
+      if (targetIndex === currentIndex) {
+        await doubleRaf();
+        return true;
+      }
+
+      if (targetIndex === 0) {
+        await this.goToStart(theme);
+        return true;
+      }
+
+      if (hintCfi && Math.abs(targetIndex - currentIndex) > 5) {
+        await rendition.display(hintCfi);
+        for (var j = 0; j < 20; j++) {
+          var iframeJump = document.querySelector('#viewer iframe');
+          if (iframeJump && iframeJump.clientWidth > 0 && iframeJump.clientHeight > 0) break;
+          await doubleRaf();
+        }
+        await waitForImages(2000);
+        await doubleRaf();
+        currentIndex = targetIndex;
+        return true;
+      }
+
+      var steps = targetIndex - currentIndex;
+      var fn = steps > 0 ? function () { return rendition.next(); }
+                         : function () { return rendition.prev(); };
+      var absSteps = Math.abs(steps);
+      for (var s = 0; s < absSteps; s++) {
+        try {
+          await fn();
+        } catch (e) {
+          /* ignore boundary error */
+        }
+        await doubleRaf();
+      }
+
+      for (var k = 0; k < 20; k++) {
+        var iframeSeq = document.querySelector('#viewer iframe');
+        if (iframeSeq && iframeSeq.clientWidth > 0 && iframeSeq.clientHeight > 0) break;
+        await doubleRaf();
+      }
+      await waitForImages(2000);
+      await doubleRaf();
+      currentIndex = targetIndex;
+      return true;
+    },
+    getIndex: function () {
+      return currentIndex;
+    },
     display: async function (cfi, theme) {
       if (!rendition) throw new Error('rendition not ready');
+      currentIndex = -1;
       applyTheme(theme);
       await rendition.display(cfi);
       for (var i = 0; i < 20; i++) {
@@ -290,6 +392,7 @@ const CAPTURE_BOOTSTRAP = `
     },
     destroy: function () {
       readyToken++;
+      currentIndex = -1;
       if (rendition) {
         try { rendition.destroy(); } catch (e) {}
         rendition = null;
@@ -354,6 +457,7 @@ export class BookPageBitmapCaptureService {
   private queue: Promise<unknown> = Promise.resolve();
   private loadedBookUrl: string | null = null;
   private loadedSize: { w: number; h: number } | null = null;
+  private loadedThemeKey: string | null = null;
 
   private enqueue<T>(fn: () => Promise<T>): Promise<T> {
     const run = this.queue.then(fn, fn);
@@ -371,6 +475,7 @@ export class BookPageBitmapCaptureService {
   destroy(): void {
     this.loadedBookUrl = null;
     this.loadedSize = null;
+    this.loadedThemeKey = null;
     this.destroyWindowOnly();
     if (this.htmlPath) {
       try {
@@ -525,14 +630,18 @@ export class BookPageBitmapCaptureService {
       }
     }
 
+    const themeKey = JSON.stringify(req.theme || {});
     const needOpen =
       this.loadedBookUrl !== req.bookUrl ||
       !this.loadedSize ||
       this.loadedSize.w !== width ||
-      this.loadedSize.h !== height;
+      this.loadedSize.h !== height ||
+      this.loadedThemeKey !== themeKey;
 
     if (needOpen) {
       const openArgs = {
+        width,
+        height,
         direction: req.theme?.direction || 'ltr',
         spread: req.theme?.spread || 'none',
         theme: req.theme
@@ -546,14 +655,16 @@ export class BookPageBitmapCaptureService {
       }
       this.loadedBookUrl = req.bookUrl;
       this.loadedSize = { w: width, h: height };
+      this.loadedThemeKey = themeKey;
     }
 
     const out: BookCaptureSpreadResult = {};
-    for (const page of req.pages) {
-      if (!page?.cfi) continue;
+    const sortedPages = [...req.pages].sort((a, b) => a.index - b.index);
+    for (const page of sortedPages) {
+      if (page == null || typeof page.index !== 'number') continue;
       await runInPage<boolean>(
         wc,
-        `window.__BR_CAPTURE.display(${JSON.stringify(page.cfi)}, ${JSON.stringify(req.theme)})`
+        `window.__BR_CAPTURE.navigateTo(${page.index}, ${JSON.stringify(req.theme)}, ${JSON.stringify(page.cfi || null)})`
       );
       // Images already waited in-page; keep a short paint settle for GPU flush.
       await new Promise<void>(resolve => {
