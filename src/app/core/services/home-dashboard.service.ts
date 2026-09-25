@@ -16,7 +16,7 @@ export class HomeDashboardService {
     this.loading.set(true);
     try {
       const [recent, heat] = await Promise.all([
-        this.electron.listRecentReads(3),
+        this.electron.listRecentReads(100),
         this.electron.getReadingActivityHeatmap()
       ]);
       this.recentReads.set(recent || []);

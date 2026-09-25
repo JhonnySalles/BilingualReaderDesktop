@@ -579,7 +579,7 @@ export class HistoryRepository extends BaseRepository<HistoryRow, number> {
    * Prefers entity last_access (bookmark / open) and merges History sessions.
    */
   public listRecent(limit = 3): HomeRecentItem[] {
-    const safeLimit = Math.max(1, Math.min(20, Math.floor(limit) || 3));
+    const safeLimit = Math.max(1, Math.min(200, Math.floor(limit) || 3));
     const sql = `
       SELECT
         type, fkReference, fkLibrary, title, coverPath, bookMark, pages, completed, fileType,

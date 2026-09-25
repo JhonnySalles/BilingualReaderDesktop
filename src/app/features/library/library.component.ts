@@ -99,24 +99,87 @@ import { ShareMarkType } from '../../core/models/enums/sharemark.enum';
             <div class="absolute -right-6 -bottom-6 w-48 h-48 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none"></div>
           </div>
 
+          <!-- Top 3 Últimos Arquivos Globais -->
           <div>
             <h3 class="text-sm font-bold uppercase tracking-wider text-slate-400 mb-4 flex items-center gap-2">
               <span class="w-2 h-2 rounded-full bg-indigo-500"></span>
               Últimos arquivos
             </h3>
 
-            @if (home.recentReads().length === 0) {
+            @if (topRecentReads().length === 0) {
               <div class="rounded-2xl border border-dashed border-slate-800 bg-slate-900/40 px-6 py-10 text-center">
                 <p class="text-sm text-slate-400">Comece a ler para ver seus últimos arquivos aqui.</p>
               </div>
             } @else {
               <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 max-w-5xl items-stretch">
-                @for (item of home.recentReads(); track item.type + '-' + item.fkReference) {
+                @for (item of topRecentReads(); track item.type + '-' + item.fkReference) {
                   <app-home-recent-card [item]="item" (open)="onOpenRecent($event)" />
                 }
               </div>
             }
           </div>
+
+          <!-- Seção de Mangás & Comics por Biblioteca -->
+          @if (mangaRecentByLibrary().length > 0) {
+            <div class="space-y-6 pt-2">
+              <div class="flex items-center gap-3">
+                <span class="w-2.5 h-2.5 rounded-full bg-indigo-500 shadow-sm shadow-indigo-500/50"></span>
+                <h3 class="text-sm font-bold uppercase tracking-wider text-indigo-400">
+                  Mangás &amp; Comics
+                </h3>
+                <div class="h-px bg-slate-800 flex-1"></div>
+              </div>
+
+              @for (group of mangaRecentByLibrary(); track group.libraryId) {
+                <div class="space-y-3">
+                  @if (!group.isDefault) {
+                    <div class="flex items-center gap-2.5 pt-2">
+                      <span class="text-sm">🎨</span>
+                      <span class="text-xs font-bold uppercase tracking-wider text-slate-300">{{ group.libraryName }}</span>
+                      <div class="h-px bg-slate-800/80 flex-1"></div>
+                    </div>
+                  }
+
+                  <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 max-w-5xl items-stretch">
+                    @for (item of group.items; track item.type + '-' + item.fkReference) {
+                      <app-home-recent-card [item]="item" (open)="onOpenRecent($event)" />
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          }
+
+          <!-- Seção de Livros & EPUBs por Biblioteca -->
+          @if (bookRecentByLibrary().length > 0) {
+            <div class="space-y-6 pt-2">
+              <div class="flex items-center gap-3">
+                <span class="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-sm shadow-amber-500/50"></span>
+                <h3 class="text-sm font-bold uppercase tracking-wider text-amber-400">
+                  Livros
+                </h3>
+                <div class="h-px bg-slate-800 flex-1"></div>
+              </div>
+
+              @for (group of bookRecentByLibrary(); track group.libraryId) {
+                <div class="space-y-3">
+                  @if (!group.isDefault) {
+                    <div class="flex items-center gap-2.5 pt-2">
+                      <span class="text-sm">📚</span>
+                      <span class="text-xs font-bold uppercase tracking-wider text-slate-300">{{ group.libraryName }}</span>
+                      <div class="h-px bg-slate-800/80 flex-1"></div>
+                    </div>
+                  }
+
+                  <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 max-w-5xl items-stretch">
+                    @for (item of group.items; track item.type + '-' + item.fkReference) {
+                      <app-home-recent-card [item]="item" (open)="onOpenRecent($event)" />
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          }
 
           <div class="mt-8">
             <app-home-reading-heatmap [days]="home.heatmap()" />
@@ -366,6 +429,172 @@ export class LibraryComponent implements OnInit {
     this.settingsService.libraries().filter(l => l.type === 'book')
   );
 
+  dbLibraries = signal<Array<{ id: number; title: string; type: 'MANGA' | 'BOOK'; path: string }>>([]);
+
+  private normalizePath(p?: string): string {
+    return (p || '').replace(/\\/g, '/').toLowerCase().replace(/\/+$/, '');
+  }
+
+  topRecentReads = computed(() => {
+    return this.home.recentReads().slice(0, 3);
+  });
+
+  mangaRecentByLibrary = computed(() => {
+    const all = this.home.recentReads().filter(item => item.type === 'MANGA');
+    const customLibs = this.mangaCustomLibraries();
+    const dbLibs = this.dbLibraries().filter(l => l.type === 'MANGA');
+    const defaultMangaPath = this.normalizePath(this.settingsService.mangaBasePath());
+
+    // Mapear cada customLib para seus possíveis IDs no banco SQLite (via path ou id numérico)
+    const customLibIdsMap = new Map<string, Set<number>>();
+    for (const lib of customLibs) {
+      const idSet = new Set<number>();
+      const numericId = Number(lib.id);
+      if (!isNaN(numericId) && numericId > 0) {
+        idSet.add(numericId);
+      }
+      const normLibPath = this.normalizePath(lib.path);
+      for (const dbLib of dbLibs) {
+        if (this.normalizePath(dbLib.path) === normLibPath) {
+          idSet.add(dbLib.id);
+        }
+      }
+      customLibIdsMap.set(lib.id, idSet);
+    }
+
+    const allCustomDbIds = new Set<number>();
+    customLibIdsMap.forEach(set => set.forEach(id => allCustomDbIds.add(id)));
+
+    // IDs do SQLite que correspondem à biblioteca padrão de mangás
+    const defaultDbIds = new Set<number>([0]);
+    for (const dbLib of dbLibs) {
+      if (this.normalizePath(dbLib.path) === defaultMangaPath) {
+        defaultDbIds.add(dbLib.id);
+      }
+    }
+
+    const groups: Array<{
+      libraryId: string;
+      libraryName: string;
+      isDefault: boolean;
+      items: HomeRecentItem[];
+    }> = [];
+
+    // 1. Padrão
+    const defaultItems = all.filter(item => {
+      const fk = Number(item.fkLibrary) || 0;
+      if (defaultDbIds.has(fk)) return true;
+      return !allCustomDbIds.has(fk);
+    }).slice(0, 3);
+
+    if (defaultItems.length > 0) {
+      groups.push({
+        libraryId: 'manga-default',
+        libraryName: 'Biblioteca de Mangás (Padrão)',
+        isDefault: true,
+        items: defaultItems
+      });
+    }
+
+    // 2. Custom Libraries
+    for (const lib of customLibs) {
+      const validIds = customLibIdsMap.get(lib.id) || new Set<number>();
+      const items = all.filter(item => {
+        const fk = Number(item.fkLibrary) || 0;
+        return validIds.has(fk);
+      }).slice(0, 3);
+
+      if (items.length > 0) {
+        groups.push({
+          libraryId: lib.id,
+          libraryName: lib.title,
+          isDefault: false,
+          items
+        });
+      }
+    }
+
+    return groups;
+  });
+
+  bookRecentByLibrary = computed(() => {
+    const all = this.home.recentReads().filter(item => item.type === 'BOOK');
+    const customLibs = this.bookCustomLibraries();
+    const dbLibs = this.dbLibraries().filter(l => l.type === 'BOOK');
+    const defaultBookPath = this.normalizePath(this.settingsService.bookBasePath());
+
+    // Mapear cada customLib para seus possíveis IDs no banco SQLite (via path ou id numérico)
+    const customLibIdsMap = new Map<string, Set<number>>();
+    for (const lib of customLibs) {
+      const idSet = new Set<number>();
+      const numericId = Number(lib.id);
+      if (!isNaN(numericId) && numericId > 0) {
+        idSet.add(numericId);
+      }
+      const normLibPath = this.normalizePath(lib.path);
+      for (const dbLib of dbLibs) {
+        if (this.normalizePath(dbLib.path) === normLibPath) {
+          idSet.add(dbLib.id);
+        }
+      }
+      customLibIdsMap.set(lib.id, idSet);
+    }
+
+    const allCustomDbIds = new Set<number>();
+    customLibIdsMap.forEach(set => set.forEach(id => allCustomDbIds.add(id)));
+
+    // IDs do SQLite que correspondem à biblioteca padrão de livros
+    const defaultDbIds = new Set<number>([0]);
+    for (const dbLib of dbLibs) {
+      if (this.normalizePath(dbLib.path) === defaultBookPath) {
+        defaultDbIds.add(dbLib.id);
+      }
+    }
+
+    const groups: Array<{
+      libraryId: string;
+      libraryName: string;
+      isDefault: boolean;
+      items: HomeRecentItem[];
+    }> = [];
+
+    // 1. Padrão
+    const defaultItems = all.filter(item => {
+      const fk = Number(item.fkLibrary) || 0;
+      if (defaultDbIds.has(fk)) return true;
+      return !allCustomDbIds.has(fk);
+    }).slice(0, 3);
+
+    if (defaultItems.length > 0) {
+      groups.push({
+        libraryId: 'book-default',
+        libraryName: 'Biblioteca de Livros (Padrão)',
+        isDefault: true,
+        items: defaultItems
+      });
+    }
+
+    // 2. Custom Libraries
+    for (const lib of customLibs) {
+      const validIds = customLibIdsMap.get(lib.id) || new Set<number>();
+      const items = all.filter(item => {
+        const fk = Number(item.fkLibrary) || 0;
+        return validIds.has(fk);
+      }).slice(0, 3);
+
+      if (items.length > 0) {
+        groups.push({
+          libraryId: lib.id,
+          libraryName: lib.title,
+          isDefault: false,
+          items
+        });
+      }
+    }
+
+    return groups;
+  });
+
   private resetScrollToTop(): void {
     requestAnimationFrame(() => {
       if (this.elRef?.nativeElement) {
@@ -388,6 +617,22 @@ export class LibraryComponent implements OnInit {
     } else {
       this.isPathOnline.set(true);
       this.onScanClick();
+    }
+  }
+
+  private async loadDbLibraries(): Promise<void> {
+    try {
+      const [mangaLibs, bookLibs] = await Promise.all([
+        this.electronService.listLibrariesByType('MANGA'),
+        this.electronService.listLibrariesByType('BOOK')
+      ]);
+      const combined = [
+        ...(mangaLibs || []).map(l => ({ id: l.id, title: l.title, type: 'MANGA' as const, path: l.path || '' })),
+        ...(bookLibs || []).map(l => ({ id: l.id, title: l.title, type: 'BOOK' as const, path: l.path || '' }))
+      ];
+      this.dbLibraries.set(combined);
+    } catch (e) {
+      console.error('Failed to load db libraries', e);
     }
   }
 
@@ -419,6 +664,7 @@ export class LibraryComponent implements OnInit {
         });
         this.mangaLibraryService.loadMangas();
         this.bookLibraryService.loadBooks();
+        void this.loadDbLibraries();
         void this.home.refresh();
       } else if (libId === 'manga-default') {
         this.activeLibType.set('manga');

@@ -335,7 +335,7 @@ class HistoryRepository extends base_repository_1.BaseRepository {
      * Prefers entity last_access (bookmark / open) and merges History sessions.
      */
     listRecent(limit = 3) {
-        const safeLimit = Math.max(1, Math.min(20, Math.floor(limit) || 3));
+        const safeLimit = Math.max(1, Math.min(200, Math.floor(limit) || 3));
         const sql = `
       SELECT
         type, fkReference, fkLibrary, title, coverPath, bookMark, pages, completed, fileType,

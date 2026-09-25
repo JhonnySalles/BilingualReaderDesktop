@@ -183,7 +183,7 @@ const MAGNIFIER_SQUARE_PX = 250;
       height: 1rem;
       margin-top: -0.3125rem;
       border-radius: 9999px;
-      background: #6366f1;
+      background: rgb(var(--accent-500));
       cursor: pointer;
       border: none;
     }
@@ -191,7 +191,7 @@ const MAGNIFIER_SQUARE_PX = 250;
       width: 1rem;
       height: 1rem;
       border-radius: 9999px;
-      background: #6366f1;
+      background: rgb(var(--accent-500));
       cursor: pointer;
       border: none;
     }

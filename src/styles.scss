@@ -21,12 +21,13 @@
   --slate-900: 15 23 42;
   --slate-950: 2 6 23;
 
-  /* Default Accent Palette (Indigo) */
-  --accent-400: 129 140 248;
-  --accent-500: 99 102 241;
-  --accent-600: 79 70 229;
-  --accent-700: 67 56 202;
-  --accent-950: 30 27 75;
+  /* Default Accent Palette (Green #79f300) */
+  --accent-400: 163 247 70;
+  --accent-500: 121 243 0;
+  --accent-600: 98 197 0;
+  --accent-700: 76 153 0;
+  --accent-900: 38 85 0;
+  --accent-950: 18 43 0;
 }
 
 /* Explicit Dark Theme */
@@ -44,11 +45,12 @@
   --slate-900: 15 23 42;
   --slate-950: 2 6 23;
 
-  --accent-400: 129 140 248;
-  --accent-500: 99 102 241;
-  --accent-600: 79 70 229;
-  --accent-700: 67 56 202;
-  --accent-950: 30 27 75;
+  --accent-400: 163 247 70;
+  --accent-500: 121 243 0;
+  --accent-600: 98 197 0;
+  --accent-700: 76 153 0;
+  --accent-900: 38 85 0;
+  --accent-950: 18 43 0;
 }
 
 /* Light Theme (Clean Inversion) */
@@ -65,6 +67,13 @@
   --slate-800: 235 240 245;
   --slate-900: 245 247 250;
   --slate-950: 255 255 255;
+
+  --accent-400: 163 247 70;
+  --accent-500: 121 243 0;
+  --accent-600: 98 197 0;
+  --accent-700: 76 153 0;
+  --accent-900: 38 85 0;
+  --accent-950: 18 43 0;
 }
 
 /* Windows 11 Mica Dark Theme */
@@ -86,6 +95,7 @@
   --accent-500: 14 165 233;
   --accent-600: 2 132 199;
   --accent-700: 3 105 161;
+  --accent-900: 14 116 144;
   --accent-950: 12 74 110;
 }
 
@@ -108,15 +118,35 @@
   --accent-500: 14 165 233;
   --accent-600: 2 132 199;
   --accent-700: 3 105 161;
+  --accent-900: 14 116 144;
   --accent-950: 12 74 110;
 }
 
 /* Accent Color Palettes */
+[data-accent="default"] {
+  --accent-400: 163 247 70;
+  --accent-500: 121 243 0;
+  --accent-600: 98 197 0;
+  --accent-700: 76 153 0;
+  --accent-900: 38 85 0;
+  --accent-950: 18 43 0;
+}
+
+[data-accent="indigo"] {
+  --accent-400: 129 140 248;
+  --accent-500: 99 102 241;
+  --accent-600: 79 70 229;
+  --accent-700: 67 56 202;
+  --accent-900: 49 46 129;
+  --accent-950: 30 27 75;
+}
+
 [data-accent="emerald"] {
   --accent-400: 52 211 153;
   --accent-500: 16 185 129;
   --accent-600: 5 150 105;
   --accent-700: 4 120 87;
+  --accent-900: 6 78 59;
   --accent-950: 2 44 34;
 }
 
@@ -125,6 +155,7 @@
   --accent-500: 168 85 247;
   --accent-600: 147 51 234;
   --accent-700: 126 34 206;
+  --accent-900: 88 28 135;
   --accent-950: 59 7 100;
 }
 
@@ -138,7 +169,53 @@
   --accent-500: 113 113 122;
   --accent-600: 82 82 91;
   --accent-700: 63 63 70;
+  --accent-900: 39 39 42;
   --accent-950: 24 24 27;
+}
+
+[data-accent="blue"] {
+  --accent-400: 56 94 220;
+  --accent-500: 0 27 126;
+  --accent-600: 0 22 105;
+  --accent-700: 0 17 84;
+  --accent-900: 0 12 60;
+  --accent-950: 0 7 38;
+}
+
+[data-accent="forest_green"] {
+  --accent-400: 46 194 46;
+  --accent-500: 0 153 0;
+  --accent-600: 0 128 0;
+  --accent-700: 0 102 0;
+  --accent-900: 0 70 0;
+  --accent-950: 0 41 0;
+}
+
+[data-accent="ocean_blue"] {
+  --accent-400: 77 77 255;
+  --accent-500: 0 0 255;
+  --accent-600: 0 0 214;
+  --accent-700: 0 0 173;
+  --accent-900: 0 0 120;
+  --accent-950: 0 0 70;
+}
+
+[data-accent="pink"] {
+  --accent-400: 156 126 123;
+  --accent-500: 115 88 85;
+  --accent-600: 97 73 70;
+  --accent-700: 79 58 56;
+  --accent-900: 55 38 37;
+  --accent-950: 36 24 23;
+}
+
+[data-accent="red"] {
+  --accent-400: 224 45 45;
+  --accent-500: 161 0 0;
+  --accent-600: 138 0 0;
+  --accent-700: 112 0 0;
+  --accent-900: 78 0 0;
+  --accent-950: 46 0 0;
 }
 
 /* Native Input Picker Indicators (Date, Time, etc.) */

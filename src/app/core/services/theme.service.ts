@@ -1,14 +1,24 @@
 import { Injectable, signal } from '@angular/core';
 
 export type ThemeMode = 'dark' | 'light' | 'win-mica-dark' | 'win-mica-light' | 'system';
-export type AccentColor = 'indigo' | 'emerald' | 'purple' | 'oled';
+export type AccentColor =
+  | 'default'
+  | 'indigo'
+  | 'emerald'
+  | 'purple'
+  | 'oled'
+  | 'blue'
+  | 'forest_green'
+  | 'ocean_blue'
+  | 'pink'
+  | 'red';
 
 @Injectable({
   providedIn: 'root'
 })
 export class ThemeService {
   themeMode = signal<ThemeMode>('dark');
-  accentColor = signal<AccentColor>('indigo');
+  accentColor = signal<AccentColor>('default');
   lastReadCoverUrl = signal<string | null>(null);
 
   constructor() {
@@ -17,7 +27,7 @@ export class ThemeService {
 
   initTheme(): void {
     const savedTheme = (localStorage.getItem('br_theme_mode') as ThemeMode) || 'dark';
-    const savedAccent = (localStorage.getItem('br_accent_color') as AccentColor) || 'indigo';
+    const savedAccent = (localStorage.getItem('br_accent_color') as AccentColor) || 'default';
 
     this.setTheme(savedTheme);
     this.setAccent(savedAccent);

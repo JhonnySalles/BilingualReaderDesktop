@@ -28,6 +28,7 @@ module.exports = {
           500: 'rgb(var(--accent-500) / <alpha-value>)',
           600: 'rgb(var(--accent-600) / <alpha-value>)',
           700: 'rgb(var(--accent-700) / <alpha-value>)',
+          900: 'rgb(var(--accent-900) / <alpha-value>)',
           950: 'rgb(var(--accent-950) / <alpha-value>)',
         }
       }

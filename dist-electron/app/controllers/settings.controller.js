@@ -39,6 +39,7 @@ const settings_service_1 = require("../services/settings.service");
 const secrets_1 = require("../utils/secrets");
 const telemetry_1 = require("../utils/telemetry");
 const menu_controller_1 = require("./menu.controller");
+const main_1 = require("../main");
 class SettingsController {
     static _instance;
     static get instance() {
@@ -55,6 +56,7 @@ class SettingsController {
             settings_service_1.SettingsService.instance.set(key, value);
             if (key === 'libraries' || key === 'mangaBasePath' || key === 'bookBasePath') {
                 menu_controller_1.MenuController.instance.buildMenu();
+                (0, main_1.updateJumpListTasks)();
             }
             return true;
         });

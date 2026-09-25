@@ -750,37 +750,88 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
 
                 <div>
                   <label class="block text-xs text-slate-300 mb-2 font-medium">Paleta & Cor de Destaque</label>
-                  <div class="flex gap-3">
+                  <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+                    <!-- Padrão (Verde #79f300) -->
+                    <button 
+                      (click)="selectAccent('default')" 
+                      [class.ring-2]="accentColor() === 'default'"
+                      class="p-2.5 bg-slate-950 rounded-xl border border-slate-800 text-center ring-[#79f300] transition-all cursor-pointer hover:border-slate-700">
+                      <div class="w-6 h-6 rounded-full mx-auto mb-1.5 shadow-sm" style="background-color: #79f300;"></div>
+                      <span class="text-[10px] font-semibold text-slate-300 block truncate">Padrão</span>
+                    </button>
+
+                    <!-- Paletas Originais -->
                     <button 
                       (click)="selectAccent('indigo')" 
                       [class.ring-2]="accentColor() === 'indigo'"
-                      class="flex-1 p-2.5 bg-slate-950 rounded-xl border border-slate-800 text-center ring-indigo-500 transition-all cursor-pointer">
-                      <div class="w-6 h-6 rounded-full bg-indigo-600 mx-auto mb-1"></div>
-                      <span class="text-[10px] font-semibold text-slate-300">Indigo Classic</span>
-                    </button>
-
-                    <button 
-                      (click)="selectAccent('oled')" 
-                      [class.ring-2]="accentColor() === 'oled'"
-                      class="flex-1 p-2.5 bg-black rounded-xl border border-slate-800 text-center ring-slate-400 transition-all cursor-pointer">
-                      <div class="w-6 h-6 rounded-full bg-slate-950 border border-slate-700 mx-auto mb-1"></div>
-                      <span class="text-[10px] font-semibold text-slate-300">OLED Pitch Black</span>
+                      class="p-2.5 bg-slate-950 rounded-xl border border-slate-800 text-center ring-[#6366f1] transition-all cursor-pointer hover:border-slate-700">
+                      <div class="w-6 h-6 rounded-full mx-auto mb-1.5 shadow-sm" style="background-color: #6366f1;"></div>
+                      <span class="text-[10px] font-semibold text-slate-300 block truncate">Indigo Classic</span>
                     </button>
 
                     <button 
                       (click)="selectAccent('emerald')" 
                       [class.ring-2]="accentColor() === 'emerald'"
-                      class="flex-1 p-2.5 bg-slate-950 rounded-xl border border-slate-800 text-center ring-emerald-500 transition-all cursor-pointer">
-                      <div class="w-6 h-6 rounded-full bg-emerald-600 mx-auto mb-1"></div>
-                      <span class="text-[10px] font-semibold text-slate-300">Emerald Forest</span>
+                      class="p-2.5 bg-slate-950 rounded-xl border border-slate-800 text-center ring-[#10b981] transition-all cursor-pointer hover:border-slate-700">
+                      <div class="w-6 h-6 rounded-full mx-auto mb-1.5 shadow-sm" style="background-color: #10b981;"></div>
+                      <span class="text-[10px] font-semibold text-slate-300 block truncate">Emerald</span>
                     </button>
 
                     <button 
                       (click)="selectAccent('purple')" 
                       [class.ring-2]="accentColor() === 'purple'"
-                      class="flex-1 p-2.5 bg-slate-950 rounded-xl border border-slate-800 text-center ring-purple-500 transition-all cursor-pointer">
-                      <div class="w-6 h-6 rounded-full bg-purple-600 mx-auto mb-1"></div>
-                      <span class="text-[10px] font-semibold text-slate-300">Deep Purple</span>
+                      class="p-2.5 bg-slate-950 rounded-xl border border-slate-800 text-center ring-[#a855f7] transition-all cursor-pointer hover:border-slate-700">
+                      <div class="w-6 h-6 rounded-full mx-auto mb-1.5 shadow-sm" style="background-color: #a855f7;"></div>
+                      <span class="text-[10px] font-semibold text-slate-300 block truncate">Deep Purple</span>
+                    </button>
+
+                    <button 
+                      (click)="selectAccent('oled')" 
+                      [class.ring-2]="accentColor() === 'oled'"
+                      class="p-2.5 bg-black rounded-xl border border-slate-800 text-center ring-slate-400 transition-all cursor-pointer hover:border-slate-700">
+                      <div class="w-6 h-6 rounded-full mx-auto mb-1.5 border border-slate-700" style="background-color: #09090b;"></div>
+                      <span class="text-[10px] font-semibold text-slate-300 block truncate">OLED Pitch Black</span>
+                    </button>
+
+                    <!-- Novas Paletas Baseadas no App Android -->
+                    <button 
+                      (click)="selectAccent('blue')" 
+                      [class.ring-2]="accentColor() === 'blue'"
+                      class="p-2.5 bg-slate-950 rounded-xl border border-slate-800 text-center ring-[#001B7E] transition-all cursor-pointer hover:border-slate-700">
+                      <div class="w-6 h-6 rounded-full mx-auto mb-1.5 shadow-sm" style="background-color: #001B7E;"></div>
+                      <span class="text-[10px] font-semibold text-slate-300 block truncate">Royal Blue</span>
+                    </button>
+
+                    <button 
+                      (click)="selectAccent('forest_green')" 
+                      [class.ring-2]="accentColor() === 'forest_green'"
+                      class="p-2.5 bg-slate-950 rounded-xl border border-slate-800 text-center ring-[#009900] transition-all cursor-pointer hover:border-slate-700">
+                      <div class="w-6 h-6 rounded-full mx-auto mb-1.5 shadow-sm" style="background-color: #009900;"></div>
+                      <span class="text-[10px] font-semibold text-slate-300 block truncate">Forest Green</span>
+                    </button>
+
+                    <button 
+                      (click)="selectAccent('ocean_blue')" 
+                      [class.ring-2]="accentColor() === 'ocean_blue'"
+                      class="p-2.5 bg-slate-950 rounded-xl border border-slate-800 text-center ring-[#0000ff] transition-all cursor-pointer hover:border-slate-700">
+                      <div class="w-6 h-6 rounded-full mx-auto mb-1.5 shadow-sm" style="background-color: #0000ff;"></div>
+                      <span class="text-[10px] font-semibold text-slate-300 block truncate">Ocean Blue</span>
+                    </button>
+
+                    <button 
+                      (click)="selectAccent('pink')" 
+                      [class.ring-2]="accentColor() === 'pink'"
+                      class="p-2.5 bg-slate-950 rounded-xl border border-slate-800 text-center ring-[#735855] transition-all cursor-pointer hover:border-slate-700">
+                      <div class="w-6 h-6 rounded-full mx-auto mb-1.5 shadow-sm" style="background-color: #735855;"></div>
+                      <span class="text-[10px] font-semibold text-slate-300 block truncate">Rose Earth</span>
+                    </button>
+
+                    <button 
+                      (click)="selectAccent('red')" 
+                      [class.ring-2]="accentColor() === 'red'"
+                      class="p-2.5 bg-slate-950 rounded-xl border border-slate-800 text-center ring-[#A10000] transition-all cursor-pointer hover:border-slate-700">
+                      <div class="w-6 h-6 rounded-full mx-auto mb-1.5 shadow-sm" style="background-color: #A10000;"></div>
+                      <span class="text-[10px] font-semibold text-slate-300 block truncate">Classic Red</span>
                     </button>
                   </div>
                 </div>

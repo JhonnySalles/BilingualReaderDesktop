@@ -68,6 +68,10 @@ const telemetry_1 = require("./utils/telemetry");
 const app_paths_1 = require("./utils/app-paths");
 // Ensure data/cache directory structures and migrate legacy files
 (0, app_paths_1.ensureAppDirs)();
+// Explicit AppUserModelID for Windows Taskbar grouping & Jump Lists
+if (process.platform === 'win32') {
+    electron_1.app.setAppUserModelId('com.bilingualreader.desktop');
+}
 // Redirect userData path to data/userData inside executable folder or process.cwd()
 if (electron_1.app) {
     electron_1.app.setPath('userData', path.join((0, app_paths_1.getAppDataDir)(), 'userData'));
@@ -146,62 +150,89 @@ function updateJumpListTasks() {
         const iconPath = fs.existsSync(rawIconPath) && rawIconPath.endsWith('.ico')
             ? rawIconPath
             : process.execPath;
-        const tasks = [
-            {
-                program: process.execPath,
-                arguments: '--open-library=manga-default',
-                iconPath: iconPath,
-                iconIndex: 0,
-                title: 'Biblioteca de Mangás',
-                description: 'Abrir a Biblioteca de Mangás Padrão'
-            },
-            {
-                program: process.execPath,
-                arguments: '--open-library=book-default',
-                iconPath: iconPath,
-                iconIndex: 0,
-                title: 'Biblioteca de Livros',
-                description: 'Abrir a Biblioteca de Livros Padrão'
-            }
-        ];
-        try {
-            const allLibs = storageService.listAllLibraries();
-            for (const lib of allLibs) {
-                tasks.push({
-                    program: process.execPath,
-                    arguments: `--open-library=${lib.id}`,
-                    iconPath: iconPath,
-                    iconIndex: 0,
-                    title: lib.title,
-                    description: `Biblioteca: ${lib.title} (${lib.type === 'MANGA' ? 'Mangá' : 'Livro'})`
-                });
-            }
-        }
-        catch (libErr) {
-            console.warn('[main] Failed to list custom libraries for jump list', libErr);
-        }
+        // 1. Itens da categoria "Arquivos Recentes"
+        const recentItems = [];
         try {
             const recentReads = storageService.listRecentReads(3);
             for (const item of recentReads) {
                 const isManga = item.type === 'MANGA';
+                const iconPrefix = isManga ? '🎨' : '📚';
                 const arg = isManga ? `--open-manga=${item.fkReference}` : `--open-book=${item.fkReference}`;
-                tasks.push({
+                recentItems.push({
+                    type: 'task',
                     program: process.execPath,
-                    arguments: arg,
+                    args: arg,
                     iconPath: iconPath,
                     iconIndex: 0,
-                    title: item.title,
-                    description: `Continuar ${isManga ? 'Mangá' : 'Livro'}`
+                    title: `${iconPrefix} ${item.title}`,
+                    description: `Continuar leitura · ${isManga ? 'Mangá/Comic' : 'Livro'}`
                 });
             }
         }
         catch (recentErr) {
             console.warn('[main] Failed to list recent reads for jump list', recentErr);
         }
-        electron_1.app.setUserTasks(tasks);
+        // 2. Itens da categoria "Bibliotecas"
+        const libraryItems = [
+            {
+                type: 'task',
+                program: process.execPath,
+                args: '--open-library=manga-default',
+                iconPath: iconPath,
+                iconIndex: 0,
+                title: '🎨 Biblioteca de Mangás (Padrão)',
+                description: 'Abrir a Biblioteca de Mangás Padrão'
+            },
+            {
+                type: 'task',
+                program: process.execPath,
+                args: '--open-library=book-default',
+                iconPath: iconPath,
+                iconIndex: 0,
+                title: '📚 Biblioteca de Livros (Padrão)',
+                description: 'Abrir a Biblioteca de Livros Padrão'
+            }
+        ];
+        try {
+            const customLibraries = settings_service_1.SettingsService.instance.get('libraries', []);
+            if (customLibraries && customLibraries.length > 0) {
+                for (const lib of customLibraries) {
+                    const icon = lib.type === 'manga' ? '🎨' : '📚';
+                    libraryItems.push({
+                        type: 'task',
+                        program: process.execPath,
+                        args: `--open-library=${lib.id}`,
+                        iconPath: iconPath,
+                        iconIndex: 0,
+                        title: `${icon} ${lib.title}`,
+                        description: `Biblioteca: ${lib.title} (${lib.type === 'manga' ? 'Mangá' : 'Livro'})`
+                    });
+                }
+            }
+        }
+        catch (libErr) {
+            console.warn('[main] Failed to list custom libraries for jump list', libErr);
+        }
+        const categories = [];
+        if (recentItems.length > 0) {
+            categories.push({
+                type: 'custom',
+                name: 'Arquivos Recentes',
+                items: recentItems
+            });
+        }
+        if (libraryItems.length > 0) {
+            categories.push({
+                type: 'custom',
+                name: 'Bibliotecas',
+                items: libraryItems
+            });
+        }
+        const jumpResult = electron_1.app.setJumpList(categories);
+        console.log(`[main] Jump list categories updated (${jumpResult}).`);
     }
     catch (err) {
-        console.warn('[main] Failed to update user tasks (jump list)', err);
+        console.warn('[main] Failed to update jump list categories', err);
     }
 }
 if (!gotTheLock) {
