@@ -69,3 +69,16 @@
     FindClose $0
 !macroend
 
+!macro customInstall
+  DetailPrint "Verificando atalho na Area de Trabalho..."
+  ${ifNot} ${FileExists} "$DESKTOP\${SHORTCUT_NAME}.lnk"
+    DetailPrint "Criando atalho na Area de Trabalho: $DESKTOP\${SHORTCUT_NAME}.lnk"
+    CreateShortCut "$DESKTOP\${SHORTCUT_NAME}.lnk" "$appExe" "" "$appExe" 0 "" "" "${APP_DESCRIPTION}"
+    ClearErrors
+    WinShell::SetLnkAUMI "$DESKTOP\${SHORTCUT_NAME}.lnk" "${APP_ID}"
+    System::Call 'Shell32::SHChangeNotify(i 0x8000000, i 0, i 0, i 0)'
+  ${else}
+    DetailPrint "Atalho na Area de Trabalho ja existe. Preservando posicao atual."
+  ${endIf}
+!macroend
+

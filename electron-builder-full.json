@@ -24,7 +24,7 @@
   "nsis": {
     "oneClick": false,
     "allowToChangeInstallationDirectory": true,
-    "createDesktopShortcut": true,
+    "createDesktopShortcut": false,
     "createStartMenuShortcut": true,
     "shortcutName": "Bilingual Reader",
     "artifactName": "BilingualReader-Setup-AI-${version}.${ext}",
