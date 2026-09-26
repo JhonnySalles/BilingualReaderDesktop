@@ -38,192 +38,193 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
       <aside
         [class.w-64]="isExpanded()"
         [class.w-16]="!isExpanded()"
-        class="h-full shrink-0 bg-slate-900/90 backdrop-blur border-r border-slate-800 flex flex-col justify-between transition-all duration-300 z-30 select-none">
+        class="h-full shrink-0 bg-slate-900/90 backdrop-blur border-r border-slate-800 flex flex-col transition-all duration-300 z-30 select-none">
 
-        <div class="flex flex-col">
-          <div class="h-16 px-4 flex items-center justify-between border-b border-slate-800">
-            <div class="flex items-center gap-3 overflow-hidden">
-              <div class="w-9 h-9 min-w-[2.25rem] rounded-xl bg-indigo-600 flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-indigo-600/30">
-                B
-              </div>
-              @if (isExpanded()) {
-                <div class="truncate">
-                  <h1 class="text-sm font-bold tracking-wide leading-none text-slate-100">Bilingual Reader</h1>
-                  <span class="text-[10px] text-indigo-400 font-semibold tracking-wider uppercase">Desktop v{{ appVersion() }}</span>
-                </div>
-              }
+        <!-- Top Header (Fixed) -->
+        <div class="h-16 px-4 flex items-center justify-between border-b border-slate-800 shrink-0">
+          <div class="flex items-center gap-3 overflow-hidden">
+            <div class="w-9 h-9 min-w-[2.25rem] rounded-xl bg-indigo-600 flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-indigo-600/30">
+              B
             </div>
-
-            <button
-              (click)="isExpanded.set(!isExpanded())"
-              class="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors cursor-pointer"
-              title="Expandir / Recolher Menu">
-              <svg class="w-5 h-5 transition-transform duration-300" [class.rotate-180]="!isExpanded()" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-              </svg>
-            </button>
-          </div>
-
-          <nav class="p-2 space-y-1">
-            <a
-              routerLink="/"
-              [queryParams]="{ lib: 'home' }"
-              [ngClass]="isHomeActive() ? 'bg-indigo-600/15 text-indigo-400 font-semibold border-r-2 border-indigo-500' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'"
-              class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs transition-all cursor-pointer">
-              <svg class="w-5 h-5 min-w-[1.25rem]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-              </svg>
-              @if (isExpanded()) { <span>Início</span> }
-            </a>
-
-            <div class="my-2 border-t border-slate-800"></div>
             @if (isExpanded()) {
-              <div class="px-3 pt-1 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 flex items-center justify-between">
-                <span>Mangás & Comics</span>
+              <div class="truncate">
+                <h1 class="text-sm font-bold tracking-wide leading-none text-slate-100">Bilingual Reader</h1>
+                <span class="text-[10px] text-indigo-400 font-semibold tracking-wider uppercase">Desktop v{{ appVersion() }}</span>
               </div>
             }
+          </div>
 
+          <button
+            (click)="isExpanded.set(!isExpanded())"
+            class="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors cursor-pointer"
+            title="Expandir / Recolher Menu">
+            <svg class="w-5 h-5 transition-transform duration-300" [class.rotate-180]="!isExpanded()" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Middle Navigation (Scrollable on demand) -->
+        <nav class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-2 space-y-1 custom-sidebar-scroll">
+          <a
+            routerLink="/"
+            [queryParams]="{ lib: 'home' }"
+            [ngClass]="isHomeActive() ? 'bg-indigo-600/15 text-indigo-400 font-semibold border-r-2 border-indigo-500' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'"
+            class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs transition-all cursor-pointer">
+            <svg class="w-5 h-5 min-w-[1.25rem]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+            </svg>
+            @if (isExpanded()) { <span>Início</span> }
+          </a>
+
+          <div class="my-2 border-t border-slate-800"></div>
+          @if (isExpanded()) {
+            <div class="px-3 pt-1 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 flex items-center justify-between">
+              <span>Mangás & Comics</span>
+            </div>
+          }
+
+          <button
+            (click)="selectLibrary(defaultMangaLibrary())"
+            [ngClass]="getNavMangaButtonClass(defaultMangaLibrary().id)"
+            class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-all cursor-pointer">
+            <div class="flex items-center gap-3 overflow-hidden">
+              <span class="text-base min-w-[1.25rem] text-center">🎨</span>
+              @if (isExpanded()) { <span class="truncate font-medium">{{ defaultMangaLibrary().name }}</span> }
+            </div>
+            @if (isExpanded()) {
+              <span
+                class="text-[10px] px-1.5 py-0.5 rounded transition-colors"
+                [ngClass]="getNavMangaBadgeClass(defaultMangaLibrary().id)">
+                {{ defaultMangaLibrary().count }}
+              </span>
+            }
+          </button>
+
+          @for (lib of customMangaLibraries(); track lib.id) {
             <button
-              (click)="selectLibrary(defaultMangaLibrary())"
-              [ngClass]="getNavMangaButtonClass(defaultMangaLibrary().id)"
+              (click)="selectLibrary(lib)"
+              [ngClass]="getNavMangaButtonClass(lib.id)"
               class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-all cursor-pointer">
               <div class="flex items-center gap-3 overflow-hidden">
                 <span class="text-base min-w-[1.25rem] text-center">🎨</span>
-                @if (isExpanded()) { <span class="truncate font-medium">{{ defaultMangaLibrary().name }}</span> }
+                @if (isExpanded()) { <span class="truncate">{{ lib.name }}</span> }
               </div>
               @if (isExpanded()) {
                 <span
                   class="text-[10px] px-1.5 py-0.5 rounded transition-colors"
-                  [ngClass]="getNavMangaBadgeClass(defaultMangaLibrary().id)">
-                  {{ defaultMangaLibrary().count }}
+                  [ngClass]="getNavMangaBadgeClass(lib.id)">
+                  {{ lib.count }}
                 </span>
               }
             </button>
+          }
 
-            @for (lib of customMangaLibraries(); track lib.id) {
-              <button
-                (click)="selectLibrary(lib)"
-                [ngClass]="getNavMangaButtonClass(lib.id)"
-                class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-all cursor-pointer">
-                <div class="flex items-center gap-3 overflow-hidden">
-                  <span class="text-base min-w-[1.25rem] text-center">🎨</span>
-                  @if (isExpanded()) { <span class="truncate">{{ lib.name }}</span> }
-                </div>
-                @if (isExpanded()) {
-                  <span
-                    class="text-[10px] px-1.5 py-0.5 rounded transition-colors"
-                    [ngClass]="getNavMangaBadgeClass(lib.id)">
-                    {{ lib.count }}
-                  </span>
-                }
-              </button>
-            }
+          <div class="my-2 border-t border-slate-800"></div>
+          @if (isExpanded()) {
+            <div class="px-3 pt-1 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 flex items-center justify-between">
+              <span>Livros & EPUBs</span>
+            </div>
+          }
 
-            <div class="my-2 border-t border-slate-800"></div>
+          <button
+            (click)="selectLibrary(defaultBookLibrary())"
+            [ngClass]="getNavBookButtonClass(defaultBookLibrary().id)"
+            class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-all cursor-pointer">
+            <div class="flex items-center gap-3 overflow-hidden">
+              <span class="text-base min-w-[1.25rem] text-center">📚</span>
+              @if (isExpanded()) { <span class="truncate font-medium">{{ defaultBookLibrary().name }}</span> }
+            </div>
             @if (isExpanded()) {
-              <div class="px-3 pt-1 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 flex items-center justify-between">
-                <span>Livros & EPUBs</span>
-              </div>
+              <span
+                class="text-[10px] px-1.5 py-0.5 rounded transition-colors"
+                [ngClass]="getNavBookBadgeClass(defaultBookLibrary().id)">
+                {{ defaultBookLibrary().count }}
+              </span>
             }
+          </button>
 
+          @for (lib of customBookLibraries(); track lib.id) {
             <button
-              (click)="selectLibrary(defaultBookLibrary())"
-              [ngClass]="getNavBookButtonClass(defaultBookLibrary().id)"
+              (click)="selectLibrary(lib)"
+              [ngClass]="getNavBookButtonClass(lib.id)"
               class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-all cursor-pointer">
               <div class="flex items-center gap-3 overflow-hidden">
                 <span class="text-base min-w-[1.25rem] text-center">📚</span>
-                @if (isExpanded()) { <span class="truncate font-medium">{{ defaultBookLibrary().name }}</span> }
+                @if (isExpanded()) { <span class="truncate">{{ lib.name }}</span> }
               </div>
               @if (isExpanded()) {
                 <span
                   class="text-[10px] px-1.5 py-0.5 rounded transition-colors"
-                  [ngClass]="getNavBookBadgeClass(defaultBookLibrary().id)">
-                  {{ defaultBookLibrary().count }}
+                  [ngClass]="getNavBookBadgeClass(lib.id)">
+                  {{ lib.count }}
                 </span>
               }
             </button>
+          }
 
-            @for (lib of customBookLibraries(); track lib.id) {
-              <button
-                (click)="selectLibrary(lib)"
-                [ngClass]="getNavBookButtonClass(lib.id)"
-                class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-all cursor-pointer">
-                <div class="flex items-center gap-3 overflow-hidden">
-                  <span class="text-base min-w-[1.25rem] text-center">📚</span>
-                  @if (isExpanded()) { <span class="truncate">{{ lib.name }}</span> }
-                </div>
-                @if (isExpanded()) {
-                  <span
-                    class="text-[10px] px-1.5 py-0.5 rounded transition-colors"
-                    [ngClass]="getNavBookBadgeClass(lib.id)">
-                    {{ lib.count }}
-                  </span>
-                }
-              </button>
-            }
+          <div class="my-2 border-t border-slate-800"></div>
+          @if (isExpanded()) {
+            <div class="px-3 pt-1 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+              <span>Menu do Leitor</span>
+            </div>
+          }
 
-            <div class="my-2 border-t border-slate-800"></div>
-            @if (isExpanded()) {
-              <div class="px-3 pt-1 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                <span>Menu do Leitor</span>
-              </div>
-            }
+          <a
+            routerLink="/history"
+            routerLinkActive="bg-indigo-600/15 text-indigo-400 font-semibold border-r-2 border-indigo-500"
+            class="flex items-center gap-3 px-3 py-2 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer">
+            <svg class="w-5 h-5 min-w-[1.25rem]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            @if (isExpanded()) { <span>Histórico de Leitura</span> }
+          </a>
 
-            <a
-              routerLink="/history"
-              routerLinkActive="bg-indigo-600/15 text-indigo-400 font-semibold border-r-2 border-indigo-500"
-              class="flex items-center gap-3 px-3 py-2 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer">
-              <svg class="w-5 h-5 min-w-[1.25rem]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              @if (isExpanded()) { <span>Histórico de Leitura</span> }
-            </a>
+          <a
+            routerLink="/annotations"
+            routerLinkActive="bg-indigo-600/15 text-indigo-400 font-semibold border-r-2 border-indigo-500"
+            class="flex items-center gap-3 px-3 py-2 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer">
+            <svg class="w-5 h-5 min-w-[1.25rem]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M7 8h10M7 12h6m-6 8l-4-4V6a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H7z" />
+            </svg>
+            @if (isExpanded()) { <span>Anotações</span> }
+          </a>
 
-            <a
-              routerLink="/annotations"
-              routerLinkActive="bg-indigo-600/15 text-indigo-400 font-semibold border-r-2 border-indigo-500"
-              class="flex items-center gap-3 px-3 py-2 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer">
-              <svg class="w-5 h-5 min-w-[1.25rem]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M7 8h10M7 12h6m-6 8l-4-4V6a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H7z" />
-              </svg>
-              @if (isExpanded()) { <span>Anotações</span> }
-            </a>
+          <a
+            routerLink="/vocabulary"
+            routerLinkActive="bg-indigo-600/15 text-indigo-400 font-semibold border-r-2 border-indigo-500"
+            class="flex items-center gap-3 px-3 py-2 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer">
+            <svg class="w-5 h-5 min-w-[1.25rem]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+            </svg>
+            @if (isExpanded()) { <span>Vocabulário</span> }
+          </a>
 
-            <a
-              routerLink="/vocabulary"
-              routerLinkActive="bg-indigo-600/15 text-indigo-400 font-semibold border-r-2 border-indigo-500"
-              class="flex items-center gap-3 px-3 py-2 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer">
-              <svg class="w-5 h-5 min-w-[1.25rem]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-              </svg>
-              @if (isExpanded()) { <span>Vocabulário</span> }
-            </a>
+          <a
+            routerLink="/trackers"
+            routerLinkActive="bg-indigo-600/15 text-indigo-400 font-semibold border-r-2 border-indigo-500"
+            class="flex items-center gap-3 px-3 py-2 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer">
+            <svg class="w-5 h-5 min-w-[1.25rem]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            @if (isExpanded()) { <span>Rastreadores (Trackers)</span> }
+          </a>
 
-            <a
-              routerLink="/trackers"
-              routerLinkActive="bg-indigo-600/15 text-indigo-400 font-semibold border-r-2 border-indigo-500"
-              class="flex items-center gap-3 px-3 py-2 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer">
-              <svg class="w-5 h-5 min-w-[1.25rem]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-              @if (isExpanded()) { <span>Rastreadores (Trackers)</span> }
-            </a>
+          <a
+            routerLink="/statistics"
+            routerLinkActive="bg-indigo-600/15 text-indigo-400 font-semibold border-r-2 border-indigo-500"
+            [routerLinkActiveOptions]="{ exact: false }"
+            class="flex items-center gap-3 px-3 py-2 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer">
+            <svg class="w-5 h-5 min-w-[1.25rem]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+            @if (isExpanded()) { <span>Estatísticas de Uso</span> }
+          </a>
+        </nav>
 
-            <a
-              routerLink="/statistics"
-              routerLinkActive="bg-indigo-600/15 text-indigo-400 font-semibold border-r-2 border-indigo-500"
-              [routerLinkActiveOptions]="{ exact: false }"
-              class="flex items-center gap-3 px-3 py-2 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer">
-              <svg class="w-5 h-5 min-w-[1.25rem]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-              </svg>
-              @if (isExpanded()) { <span>Estatísticas de Uso</span> }
-            </a>
-          </nav>
-        </div>
-
-        <div class="p-2 border-t border-slate-800 space-y-1">
+        <!-- Bottom Footer (Fixed) -->
+        <div class="shrink-0 p-2 border-t border-slate-800 space-y-1">
           <a
             routerLink="/help"
             routerLinkActive="bg-indigo-600/15 text-indigo-400 font-semibold border-r-2 border-indigo-500"

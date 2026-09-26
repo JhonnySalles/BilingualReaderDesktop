@@ -298,6 +298,25 @@ html[data-theme="win-mica-light"] .bg-slate-950 {
   background: rgb(var(--slate-700));
 }
 
+/* Sidebar Specific Scrollbar (matches global scrollbar colors with sleek width) */
+.custom-sidebar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--slate-800)) rgb(var(--slate-900));
+}
+.custom-sidebar-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+.custom-sidebar-scroll::-webkit-scrollbar-track {
+  background: rgb(var(--slate-900));
+}
+.custom-sidebar-scroll::-webkit-scrollbar-thumb {
+  background: rgb(var(--slate-800));
+  border-radius: 4px;
+}
+.custom-sidebar-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgb(var(--slate-700));
+}
+
 /* Animations */
 @keyframes indeterminate {
   0% { left: -35%; width: 35%; }
