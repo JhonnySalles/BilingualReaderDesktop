@@ -12,7 +12,7 @@ import { progressPercent as calcProgressPercent } from '../../../core/utils/read
     <div
       (click)="open.emit(item)"
       class="group bg-slate-800/40 backdrop-blur-md rounded-lg p-2.5 border border-slate-700/40 hover:bg-slate-800/80 transition-all duration-200 cursor-pointer flex items-center justify-between gap-4"
-      [ngClass]="item.type === 'MANGA' ? 'hover:border-indigo-500/40' : 'hover:border-amber-500/40'">
+      [ngClass]="item.type === 'MANGA' ? 'manga-card-hover' : 'hover:border-amber-500/40'">
 
       <!-- Thumbnail & Info -->
       <div class="flex items-center gap-3 min-w-0 flex-1">
@@ -32,7 +32,7 @@ import { progressPercent as calcProgressPercent } from '../../../core/utils/read
           <div class="flex items-center gap-2">
             <h4
               class="text-sm font-medium text-slate-200 truncate transition-colors"
-              [ngClass]="item.type === 'MANGA' ? 'group-hover:text-indigo-400' : 'group-hover:text-amber-400'"
+              [ngClass]="item.type === 'MANGA' ? 'manga-title-hover' : 'group-hover:text-amber-400'"
               [title]="item.title">
               {{ item.title }}
             </h4>
@@ -43,8 +43,8 @@ import { progressPercent as calcProgressPercent } from '../../../core/utils/read
 
           <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400 mt-1">
             <span
-              class="px-1.5 py-0.5 rounded bg-slate-900/80 font-mono text-[10px] border border-slate-700/60 uppercase"
-              [ngClass]="item.type === 'MANGA' ? 'text-indigo-300' : 'text-amber-300'">
+              class="px-1.5 py-0.5 rounded bg-slate-900/80 font-mono text-[10px] border uppercase"
+              [ngClass]="item.type === 'MANGA' ? 'manga-badge' : 'text-amber-300 border-slate-700/60'">
               {{ item.type === 'MANGA' ? 'Manga' : 'Livro' }}
             </span>
 
@@ -87,8 +87,8 @@ import { progressPercent as calcProgressPercent } from '../../../core/utils/read
           </div>
           <div class="w-full h-1.5 bg-slate-700/60 rounded-full overflow-hidden">
             <div
-              class="h-full rounded-full transition-all duration-300 bg-gradient-to-r"
-              [ngClass]="item.type === 'MANGA' ? 'from-indigo-500 to-purple-500' : 'from-amber-500 to-orange-500'"
+              class="h-full rounded-full transition-all duration-300"
+              [ngClass]="item.type === 'MANGA' ? 'manga-progress-bar' : 'bg-gradient-to-r from-amber-500 to-orange-500'"
               [style.width.%]="progressPercent()"></div>
           </div>
         </div>

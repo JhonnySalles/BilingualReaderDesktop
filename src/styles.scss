@@ -368,3 +368,84 @@ html[data-covers-3d='1'] .cover-3d-host:hover .cover-3d-face {
   transform: rotateY(0deg) rotateX(0deg) scale(1.1);
 }
 
+/* ==========================================================================
+   FIXED MEDIA PALETTES (Manga: True Indigo / Books: Amber-Orange)
+   Never overridden by theme accents
+   ========================================================================== */
+.manga-card-hover {
+  &:hover {
+    border-color: rgba(99, 102, 241, 0.5) !important;
+    box-shadow: 0 20px 25px -5px rgba(99, 102, 241, 0.1), 0 8px 10px -6px rgba(99, 102, 241, 0.1) !important;
+  }
+}
+
+.manga-badge {
+  color: #a5b4fc !important; /* true indigo-300 */
+  border-color: rgba(99, 102, 241, 0.3) !important;
+}
+
+.manga-title-hover {
+  transition: color 0.2s ease;
+}
+.group:hover .manga-title-hover {
+  color: #818cf8 !important; /* true indigo-400 */
+}
+
+.manga-progress-bar {
+  background: linear-gradient(to right, #6366f1, #818cf8) !important; /* true indigo-500 to indigo-400 */
+}
+
+.manga-nav-active {
+  background-color: rgba(99, 102, 241, 0.15) !important;
+  color: #818cf8 !important;
+  font-weight: 600 !important;
+  border-right: 2px solid #6366f1 !important;
+}
+
+.manga-nav-badge-active {
+  background-color: rgba(99, 102, 241, 0.3) !important;
+  color: #a5b4fc !important;
+}
+
+.manga-pill-active {
+  background-color: #6366f1 !important;
+  color: #ffffff !important;
+}
+
+.manga-btn-badge {
+  background-color: rgba(99, 102, 241, 0.15) !important;
+  color: #a5b4fc !important;
+  border-color: rgba(99, 102, 241, 0.35) !important;
+  &:hover {
+    background-color: rgba(99, 102, 241, 0.25) !important;
+    color: #ffffff !important;
+  }
+}
+
+.manga-stats-border {
+  border-color: #6366f1 !important;
+}
+
+.manga-stats-title {
+  color: #a5b4fc !important;
+}
+
+.manga-stats-cta {
+  background-color: #6366f1 !important;
+  color: #ffffff !important;
+  &:hover {
+    background-color: #4f46e5 !important;
+  }
+}
+
+.manga-kpi-hover {
+  &:hover {
+    border-color: #818cf8 !important;
+  }
+}
+
+.manga-kpi-value {
+  color: #a5b4fc !important;
+}
+
+

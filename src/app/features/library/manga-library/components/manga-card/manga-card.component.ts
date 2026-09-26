@@ -26,7 +26,7 @@ const MENU_WIDTH = 176; // w-44
   template: `
     <!-- STANDARD CARD STYLE -->
     @if (cardStyle === 'STANDARD') {
-      <div class="group relative bg-slate-800/60 backdrop-blur-md rounded-xl overflow-hidden border border-slate-700/50 hover:border-indigo-500/50 transition-all duration-300 hover:shadow-xl hover:shadow-indigo-500/10 hover:-translate-y-1 cursor-pointer flex flex-col h-full">
+      <div class="group relative bg-slate-800/60 backdrop-blur-md rounded-xl overflow-hidden border border-slate-700/50 manga-card-hover transition-all duration-300 hover:-translate-y-1 cursor-pointer flex flex-col h-full">
         <div class="relative aspect-[2/3] w-full overflow-hidden bg-slate-900 cover-3d-host">
           @if (manga.coverPath) {
             <img [src]="'local-cover:///' + manga.coverPath" [alt]="manga.title" class="cover-3d-face w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
@@ -40,7 +40,7 @@ const MENU_WIDTH = 176; // w-44
           }
 
           <div class="absolute top-2 left-2 right-2 flex justify-between items-center z-10 pointer-events-auto">
-            <span class="px-2 py-0.5 text-[10px] font-bold rounded-md bg-slate-950/80 backdrop-blur-md text-indigo-300 border border-indigo-500/30 uppercase tracking-wider shadow">
+            <span class="px-2 py-0.5 text-[10px] font-bold rounded-md bg-slate-950/80 backdrop-blur-md manga-badge border uppercase tracking-wider shadow">
               {{ manga.fileType }}
             </span>
 
@@ -76,7 +76,7 @@ const MENU_WIDTH = 176; // w-44
 
         <div class="p-3 flex flex-col flex-1 justify-between">
           <div>
-            <h3 class="text-sm font-semibold text-slate-100 line-clamp-2 sm:line-clamp-3 md:line-clamp-4 lg:line-clamp-5 group-hover:text-indigo-400 transition-colors" [title]="manga.title">
+            <h3 class="text-sm font-semibold text-slate-100 line-clamp-2 sm:line-clamp-3 md:line-clamp-4 lg:line-clamp-5 manga-title-hover" [title]="manga.title">
               {{ manga.title }}
             </h3>
             <p class="text-xs text-slate-400 line-clamp-1 mt-0.5">
@@ -90,7 +90,7 @@ const MENU_WIDTH = 176; // w-44
               <span>{{ getProgressPercentage() }}%</span>
             </div>
             <div class="w-full h-1 bg-slate-700/60 rounded-full overflow-hidden">
-              <div class="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-300" [style.width.%]="getProgressPercentage()"></div>
+              <div class="h-full manga-progress-bar rounded-full transition-all duration-300" [style.width.%]="getProgressPercentage()"></div>
             </div>
           </div>
         </div>
@@ -99,7 +99,7 @@ const MENU_WIDTH = 176; // w-44
 
     <!-- OVERLAY CARD STYLE -->
     @if (cardStyle === 'OVERLAY') {
-      <div class="group relative aspect-[2/3] w-full rounded-xl overflow-hidden border border-slate-700/50 hover:border-indigo-500/50 transition-all duration-300 hover:shadow-xl hover:shadow-indigo-500/10 hover:-translate-y-1 cursor-pointer flex flex-col justify-between bg-slate-900">
+      <div class="group relative aspect-[2/3] w-full rounded-xl overflow-hidden border border-slate-700/50 manga-card-hover transition-all duration-300 hover:-translate-y-1 cursor-pointer flex flex-col justify-between bg-slate-900">
         @if (manga.coverPath) {
           <img [src]="'local-cover:///' + manga.coverPath" [alt]="manga.title" class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
         } @else {
@@ -114,7 +114,7 @@ const MENU_WIDTH = 176; // w-44
         <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent opacity-80 group-hover:opacity-90 transition-opacity"></div>
 
         <div class="relative z-10 p-2.5 flex justify-between items-center pointer-events-auto">
-          <span class="px-2 py-0.5 text-[10px] font-bold rounded-md bg-slate-950/80 backdrop-blur-md text-indigo-300 border border-indigo-500/30 uppercase tracking-wider shadow">
+          <span class="px-2 py-0.5 text-[10px] font-bold rounded-md bg-slate-950/80 backdrop-blur-md manga-badge border uppercase tracking-wider shadow">
             {{ manga.fileType }}
           </span>
 
@@ -142,7 +142,7 @@ const MENU_WIDTH = 176; // w-44
         </div>
 
         <div class="relative z-10 p-3 bg-slate-950/70 backdrop-blur-md border-t border-slate-700/40 rounded-b-xl">
-          <h3 class="text-sm font-semibold text-slate-100 line-clamp-2 sm:line-clamp-3 md:line-clamp-4 lg:line-clamp-5 group-hover:text-indigo-400 transition-colors" [title]="manga.title">
+          <h3 class="text-sm font-semibold text-slate-100 line-clamp-2 sm:line-clamp-3 md:line-clamp-4 lg:line-clamp-5 manga-title-hover" [title]="manga.title">
             {{ manga.title }}
           </h3>
           <p class="text-xs text-slate-300 line-clamp-1 mt-0.5 opacity-80">
@@ -155,7 +155,7 @@ const MENU_WIDTH = 176; // w-44
               <span>{{ getProgressPercentage() }}%</span>
             </div>
             <div class="w-full h-1 bg-slate-800/80 rounded-full overflow-hidden">
-              <div class="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-300" [style.width.%]="getProgressPercentage()"></div>
+              <div class="h-full manga-progress-bar rounded-full transition-all duration-300" [style.width.%]="getProgressPercentage()"></div>
             </div>
           </div>
         </div>

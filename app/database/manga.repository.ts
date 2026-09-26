@@ -126,6 +126,20 @@ export class MangaRepository extends BaseRepository<Manga, number> {
     return row ? this.mapRowToManga(row) : undefined;
   }
 
+  public getByCoverPath(coverPath: string): Manga | undefined {
+    if (!coverPath) return undefined;
+    const normalized = path.normalize(coverPath);
+    const forwardSlash = normalized.replace(/\\/g, '/');
+    const backSlash = normalized.replace(/\//g, '\\');
+    const baseName = path.basename(normalized, path.extname(normalized)).replace(/_(front|back|full)$/, '');
+
+    const stmt = this.db.prepare(
+      `SELECT * FROM Manga WHERE cover_path = ? OR cover_path = ? OR cover_path = ? OR LOWER(cover_path) = LOWER(?) OR cover_path LIKE ? LIMIT 1`
+    );
+    const row = stmt.get(coverPath, forwardSlash, backSlash, normalized, `%${baseName}%`);
+    return row ? this.mapRowToManga(row) : undefined;
+  }
+
   public listByFolder(folder: string): Manga[] {
     const stmt = this.db.prepare(
       `SELECT * FROM Manga WHERE excluded = 0 AND folder = ? ORDER BY path COLLATE NOCASE, name COLLATE NOCASE`

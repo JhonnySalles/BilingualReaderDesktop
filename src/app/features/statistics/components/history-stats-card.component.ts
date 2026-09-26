@@ -179,22 +179,22 @@ export class HistoryStatsCardComponent {
 
   get cardHoverClass(): string {
     return this.item.type === 'MANGA'
-      ? 'hover:border-indigo-500/50 hover:shadow-indigo-500/10'
+      ? 'manga-card-hover'
       : 'hover:border-amber-500/50 hover:shadow-amber-500/10';
   }
 
   get badgeClass(): string {
     return this.item.type === 'MANGA'
-      ? 'text-indigo-300 border-indigo-500/30'
+      ? 'manga-badge'
       : 'text-amber-300 border-amber-500/30';
   }
 
   get titleHoverClass(): string {
-    return this.item.type === 'MANGA' ? 'group-hover:text-indigo-400' : 'group-hover:text-amber-400';
+    return this.item.type === 'MANGA' ? 'manga-title-hover' : 'group-hover:text-amber-400';
   }
 
   get barClass(): string {
-    return this.item.type === 'MANGA' ? 'from-indigo-500 to-purple-500' : 'from-amber-500 to-orange-500';
+    return this.item.type === 'MANGA' ? 'manga-progress-bar' : 'bg-gradient-to-r from-amber-500 to-orange-500';
   }
 
   progressPercent(): number {

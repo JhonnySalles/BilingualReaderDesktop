@@ -82,7 +82,7 @@ import { Vocabulary, VocabularyBook, VocabularyManga } from '../../../core/model
         @if (showGlobalActions) {
           <div class="flex flex-wrap gap-1.5 pt-0.5" (click)="$event.stopPropagation()">
             <button type="button" (click)="filterManga.emit(item)"
-              class="px-2 py-1 rounded-lg text-[10px] font-semibold bg-indigo-950/60 text-indigo-300 border border-indigo-800/50 hover:bg-indigo-900/60 cursor-pointer">
+              class="px-2 py-1 rounded-lg text-[10px] font-semibold manga-btn-badge border transition-colors cursor-pointer">
               Mangás
             </button>
             <button type="button" (click)="filterBook.emit(item)"

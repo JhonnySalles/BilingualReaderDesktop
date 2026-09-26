@@ -69,7 +69,7 @@ const PAGE_SIZE = 40;
           <div class="max-w-3xl mx-auto mb-4 flex flex-wrap items-center gap-2">
             <span class="px-2.5 py-1 rounded-lg text-[11px] font-semibold border"
               [ngClass]="ui.mangaId() != null
-                ? 'bg-indigo-950/50 border-indigo-700/50 text-indigo-200'
+                ? 'manga-btn-badge'
                 : 'bg-amber-950/40 border-amber-700/40 text-amber-200'">
               {{ ui.scopeTitle() || (ui.mangaId() != null ? 'Mangá' : 'Livro') }}
             </span>

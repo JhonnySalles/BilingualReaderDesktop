@@ -31,12 +31,12 @@ export class StatisticsKpiCardComponent {
   get hostClass(): Record<string, boolean> {
     return {
       'hover:-translate-y-0.5': this.clickable,
-      'hover:border-indigo-400': this.clickable && this.accent === 'indigo',
+      'manga-kpi-hover': this.clickable && this.accent === 'indigo',
       'hover:border-amber-400': this.clickable && this.accent === 'amber'
     };
   }
 
   get valueClass(): string {
-    return this.accent === 'indigo' ? 'text-indigo-300' : 'text-amber-300';
+    return this.accent === 'indigo' ? 'manga-kpi-value' : 'text-amber-300';
   }
 }

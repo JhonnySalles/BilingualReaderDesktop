@@ -22,7 +22,7 @@ const MENU_WIDTH = 176; // w-44
   standalone: true,
   imports: [CommonModule],
   template: `
-    <div class="group relative bg-slate-800/40 backdrop-blur-md rounded-lg overflow-hidden border border-slate-700/40 hover:border-indigo-500/50 hover:bg-slate-800/80 hover:shadow-xl hover:shadow-indigo-500/10 transition-all duration-200 cursor-pointer flex items-stretch justify-between gap-3 pr-3">
+    <div class="group relative bg-slate-800/40 backdrop-blur-md rounded-lg overflow-hidden border border-slate-700/40 manga-card-hover hover:bg-slate-800/80 transition-all duration-200 cursor-pointer flex items-stretch justify-between gap-3 pr-3">
       
       <!-- Left: Cover (Flush left, scaled up) -->
       <div class="flex items-center gap-2.5 min-w-0 flex-1">
@@ -59,11 +59,11 @@ const MENU_WIDTH = 176; // w-44
 
         <!-- Metadata -->
         <div class="min-w-0 flex-1 py-2">
-          <h4 class="text-sm font-medium text-slate-200 truncate group-hover:text-indigo-400 transition-colors" [title]="manga.title">
+          <h4 class="text-sm font-medium text-slate-200 truncate manga-title-hover" [title]="manga.title">
             {{ manga.title }}
           </h4>
           <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400 mt-1">
-            <span class="px-1.5 py-0.5 rounded bg-slate-900/80 text-indigo-300 font-mono text-[10px] border border-slate-700/60 uppercase">
+            <span class="px-1.5 py-0.5 rounded bg-slate-900/80 manga-badge font-mono text-[10px] border uppercase">
               {{ manga.fileType }}
             </span>
             @if (manga.series) {
@@ -93,7 +93,7 @@ const MENU_WIDTH = 176; // w-44
             <span>{{ getProgressPercentage() }}%</span>
           </div>
           <div class="w-full h-1.5 bg-slate-700/60 rounded-full overflow-hidden">
-            <div class="h-full bg-indigo-500 rounded-full" [style.width.%]="getProgressPercentage()"></div>
+            <div class="h-full manga-progress-bar rounded-full" [style.width.%]="getProgressPercentage()"></div>
           </div>
         </div>
 

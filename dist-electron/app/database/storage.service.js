@@ -137,6 +137,9 @@ class StorageService {
     findMangaByPath(filePath) {
         return this.mangaRepository.getByPath(filePath);
     }
+    findMangaByCoverPath(coverPath) {
+        return this.mangaRepository.getByCoverPath(coverPath);
+    }
     saveManga(manga) {
         return this.mangaRepository.save(manga);
     }
@@ -173,6 +176,9 @@ class StorageService {
     }
     findBookByPath(filePath) {
         return this.bookRepository.getByPath(filePath);
+    }
+    findBookByCoverPath(coverPath) {
+        return this.bookRepository.getByCoverPath(coverPath);
     }
     saveBook(book) {
         return this.bookRepository.save(book);

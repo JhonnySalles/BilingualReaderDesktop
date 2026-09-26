@@ -440,8 +440,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
                   type="button"
                   (click)="historyUi.setType('MANGA')"
                   class="px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
-                  [class.bg-indigo-600]="historyUi.activeType() === 'MANGA'"
-                  [class.text-white]="historyUi.activeType() === 'MANGA'"
+                  [class.manga-pill-active]="historyUi.activeType() === 'MANGA'"
                   [class.text-slate-400]="historyUi.activeType() !== 'MANGA'">
                   Mangá
                 </button>
@@ -559,8 +558,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
                   type="button"
                   (click)="annotationsUi.setType('MANGA')"
                   class="px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
-                  [class.bg-indigo-600]="annotationsUi.type() === 'MANGA'"
-                  [class.text-white]="annotationsUi.type() === 'MANGA'"
+                  [class.manga-pill-active]="annotationsUi.type() === 'MANGA'"
                   [class.text-slate-400]="annotationsUi.type() !== 'MANGA'">
                   Mangás
                 </button>
@@ -684,13 +682,13 @@ export class MainLayoutComponent implements OnInit {
 
   getNavMangaButtonClass(libId: string): string {
     return this.isLibActive(libId)
-      ? 'bg-indigo-600/15 text-indigo-400 font-semibold border-r-2 border-indigo-500'
+      ? 'manga-nav-active'
       : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60';
   }
 
   getNavMangaBadgeClass(libId: string): string {
     return this.isLibActive(libId)
-      ? 'bg-indigo-600/30 text-indigo-300'
+      ? 'manga-nav-badge-active'
       : 'bg-slate-800 text-slate-400';
   }
 

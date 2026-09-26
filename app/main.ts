@@ -287,7 +287,7 @@ function createWindow(): void {
 app.on('ready', () => {
   try {
     // Keep the original cover handler — renderer uses local-cover:///{absoluteWindowsPath}
-    protocol.handle('local-cover', (request) => {
+    protocol.handle('local-cover', async (request) => {
       try {
         const rawPath = request.url.replace(/^local-cover:\/*/, '');
         let decodedPath = decodeURIComponent(rawPath.split('?')[0]);
@@ -295,6 +295,31 @@ app.on('ready', () => {
           decodedPath = decodedPath.slice(1);
         }
         decodedPath = path.normalize(decodedPath);
+
+        if (!fs.existsSync(decodedPath)) {
+          // Try on-demand regeneration if it belongs to manga or book cover cache
+          const normalizedLower = decodedPath.toLowerCase();
+          if (normalizedLower.includes('covers\\manga') || normalizedLower.includes('covers/manga') || normalizedLower.includes('covers\\book') || normalizedLower.includes('covers/book')) {
+            try {
+              if (storageService) {
+                // 1. Check if it's a Manga cover
+                const manga = storageService.findMangaByCoverPath(decodedPath);
+                if (manga) {
+                  await MangaImageCoverController.instance.getMangaCoverFile(manga);
+                } else {
+                  // 2. Check if it's a Book cover
+                  const book = storageService.findBookByCoverPath(decodedPath);
+                  if (book) {
+                    BookImageCoverController.instance.getBookCoverFile(book);
+                  }
+                }
+              }
+            } catch (reconErr) {
+              console.warn('[local-cover] On-demand cover regeneration failed for', decodedPath, reconErr);
+            }
+          }
+        }
+
         if (!fs.existsSync(decodedPath)) {
           return new Response('Not Found', { status: 404 });
         }

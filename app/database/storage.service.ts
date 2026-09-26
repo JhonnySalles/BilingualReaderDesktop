@@ -124,6 +124,10 @@ export class StorageService {
     return this.mangaRepository.getByPath(filePath);
   }
 
+  public findMangaByCoverPath(coverPath: string): Manga | undefined {
+    return this.mangaRepository.getByCoverPath(coverPath);
+  }
+
   public saveManga(manga: Partial<Manga>): number {
     return this.mangaRepository.save(manga);
   }
@@ -172,6 +176,10 @@ export class StorageService {
 
   public findBookByPath(filePath: string): Book | undefined {
     return this.bookRepository.getByPath(filePath);
+  }
+
+  public findBookByCoverPath(coverPath: string): Book | undefined {
+    return this.bookRepository.getByCoverPath(coverPath);
   }
 
   public saveBook(book: Partial<Book>): number {

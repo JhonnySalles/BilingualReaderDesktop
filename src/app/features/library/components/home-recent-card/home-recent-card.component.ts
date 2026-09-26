@@ -17,7 +17,7 @@ import { progressPageLabel } from '../../../../core/utils/reading-progress.util'
       class="group relative w-full h-full min-h-24 text-left rounded-xl overflow-hidden border border-slate-700/50
         bg-slate-800 transition-all duration-300 cursor-pointer flex"
       [ngClass]="item.type === 'MANGA'
-        ? 'hover:border-indigo-500/50 hover:shadow-lg hover:shadow-indigo-500/10'
+        ? 'manga-card-hover'
         : 'hover:border-amber-500/50 hover:shadow-lg hover:shadow-amber-500/10'">
 
       <!-- Cover (right half visible) -->
@@ -37,7 +37,7 @@ import { progressPageLabel } from '../../../../core/utils/reading-progress.util'
         class="absolute top-2 right-2 z-20 px-2 py-0.5 text-[10px] font-bold rounded-md bg-slate-950/80
           backdrop-blur-md border uppercase tracking-wider shadow pointer-events-none"
         [ngClass]="item.type === 'MANGA'
-          ? 'text-indigo-300 border-indigo-500/30'
+          ? 'manga-badge'
           : 'text-amber-300 border-amber-500/30'">
         {{ item.fileType }}
       </span>
@@ -51,7 +51,7 @@ import { progressPageLabel } from '../../../../core/utils/reading-progress.util'
         <h4
           class="relative z-10 text-sm font-bold text-slate-100 leading-snug break-words
             transition-colors"
-          [ngClass]="item.type === 'MANGA' ? 'group-hover:text-indigo-300' : 'group-hover:text-amber-300'">
+          [ngClass]="item.type === 'MANGA' ? 'manga-title-hover' : 'group-hover:text-amber-300'">
           {{ item.title }}
         </h4>
 

@@ -161,16 +161,16 @@ export class StatisticsSectorComponent implements OnChanges {
   }
 
   get panelBorderClass(): string {
-    return this.accent === 'indigo' ? 'border-indigo-500' : 'border-amber-500';
+    return this.accent === 'indigo' ? 'manga-stats-border' : 'border-amber-500';
   }
 
   get titleClass(): string {
-    return this.accent === 'indigo' ? 'text-indigo-300' : 'text-amber-300';
+    return this.accent === 'indigo' ? 'manga-stats-title' : 'text-amber-300';
   }
 
   get ctaClass(): string {
     return this.accent === 'indigo'
-      ? 'bg-indigo-600 hover:bg-indigo-500'
+      ? 'manga-stats-cta'
       : 'bg-amber-600 hover:bg-amber-500';
   }
 
