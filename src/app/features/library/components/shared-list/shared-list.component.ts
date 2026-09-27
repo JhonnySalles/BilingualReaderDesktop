@@ -19,6 +19,7 @@ import { MangaCardSkeletonComponent } from '../manga-card-skeleton/manga-card-sk
 import { MangaListSkeletonComponent } from '../manga-list-skeleton/manga-list-skeleton.component';
 import { LibraryStateService } from '../../../../core/services/library-state.service';
 import { BookLibraryService } from '../../../../core/services/book-library.service';
+import { SharedTransitionService } from '../../../../core/services/shared-transition.service';
 import { progressPercent } from '../../../../core/utils/reading-progress.util';
 
 export interface VirtualRow {
@@ -209,7 +210,7 @@ function getItemSeparatorTitle(item: Manga | Book, order: OrderType): string {
                     } @else {
                       <div class="group bg-slate-800/40 backdrop-blur-md rounded-lg overflow-hidden border border-slate-700/40 hover:border-amber-500/50 hover:bg-slate-800/80 hover:shadow-xl hover:shadow-amber-500/10 transition-all duration-200 cursor-pointer flex items-stretch justify-between gap-3 pr-3">
                         <div class="flex items-center gap-2.5 min-w-0 flex-1">
-                          <div class="w-16 self-stretch min-h-[4.5rem] bg-slate-900 rounded-l-lg overflow-hidden shrink-0 relative border-r border-slate-700/50 flex items-center justify-center">
+                          <div class="w-16 self-stretch min-h-[4.5rem] bg-slate-900 rounded-l-lg overflow-hidden shrink-0 relative border-r border-slate-700/50 flex items-center justify-center" [style.view-transition-name]="sharedTransition.getCoverName(item.id)">
                             @if (item.coverPath) {
                               <img [src]="'local-cover:///' + item.coverPath" [alt]="item.title" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                             } @else {
@@ -232,7 +233,7 @@ function getItemSeparatorTitle(item: Manga | Book, order: OrderType): string {
                           </div>
 
                           <div class="min-w-0 flex-1 py-2">
-                            <h4 class="text-sm font-medium text-slate-200 truncate group-hover:text-amber-400 transition-colors" [title]="item.title">
+                            <h4 class="text-sm font-medium text-slate-200 truncate group-hover:text-amber-400 transition-colors" [title]="item.title" [style.view-transition-name]="sharedTransition.getTitleName(item.id)">
                               {{ item.title }}
                             </h4>
                             <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400 mt-1">
@@ -264,7 +265,7 @@ function getItemSeparatorTitle(item: Manga | Book, order: OrderType): string {
                               <span>{{ item.bookMark || 0 }}/{{ item.pages || 0 }} págs</span>
                               <span>{{ getBookProgressPercentage(item) }}%</span>
                             </div>
-                            <div class="w-full h-1.5 bg-slate-700/60 rounded-full overflow-hidden">
+                            <div class="w-full h-1.5 bg-slate-700/60 rounded-full overflow-hidden" [style.view-transition-name]="sharedTransition.getProgressName(item.id)">
                               <div class="h-full bg-amber-500 rounded-full" [style.width.%]="getBookProgressPercentage(item)"></div>
                             </div>
                           </div>
@@ -329,6 +330,7 @@ export class SharedListComponent implements OnInit, OnDestroy {
   @Output() openTracker = new EventEmitter<Manga | Book>();
   @Output() openTags = new EventEmitter<Manga | Book>();
 
+  public sharedTransition = inject(SharedTransitionService);
   public libraryStateService = inject(LibraryStateService);
   private bookService = inject(BookLibraryService);
   private elRef = inject(ElementRef);

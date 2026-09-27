@@ -1,6 +1,7 @@
-import { Component, Input, Output, EventEmitter } from '@angular/core';
+import { Component, Input, Output, EventEmitter, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HistoryStatisticsItem } from '../../../core/models';
+import { SharedTransitionService } from '../../../core/services/shared-transition.service';
 import { formatShortDuration } from '../../../core/services/statistics.service';
 import { progressPercent as calcProgressPercent } from '../../../core/utils/reading-progress.util';
 
@@ -16,7 +17,7 @@ import { progressPercent as calcProgressPercent } from '../../../core/utils/read
 
       <!-- Thumbnail & Info -->
       <div class="flex items-center gap-3 min-w-0 flex-1">
-        <div class="w-10 h-14 bg-slate-900 rounded overflow-hidden flex-shrink-0 relative border border-slate-700/50 flex items-center justify-center">
+        <div class="w-10 h-14 bg-slate-900 rounded overflow-hidden flex-shrink-0 relative border border-slate-700/50 flex items-center justify-center" [style.view-transition-name]="sharedTransition.getCoverName(item.fkReference)">
           @if (item.coverPath) {
             <img [src]="'local-cover:///' + item.coverPath" [alt]="item.title" class="w-full h-full object-cover" />
           } @else {
@@ -33,7 +34,8 @@ import { progressPercent as calcProgressPercent } from '../../../core/utils/read
             <h4
               class="text-sm font-medium text-slate-200 truncate transition-colors"
               [ngClass]="item.type === 'MANGA' ? 'manga-title-hover' : 'group-hover:text-amber-400'"
-              [title]="item.title">
+              [title]="item.title"
+              [style.view-transition-name]="sharedTransition.getTitleName(item.fkReference)">
               {{ item.title }}
             </h4>
             @if (item.favorite) {
@@ -85,7 +87,7 @@ import { progressPercent as calcProgressPercent } from '../../../core/utils/read
             <span>{{ item.bookMark }}/{{ item.pages }} págs</span>
             <span>{{ progressPercent() }}%</span>
           </div>
-          <div class="w-full h-1.5 bg-slate-700/60 rounded-full overflow-hidden">
+          <div class="w-full h-1.5 bg-slate-700/60 rounded-full overflow-hidden" [style.view-transition-name]="sharedTransition.getProgressName(item.fkReference)">
             <div
               class="h-full rounded-full transition-all duration-300"
               [ngClass]="item.type === 'MANGA' ? 'manga-progress-bar' : 'bg-gradient-to-r from-amber-500 to-orange-500'"
@@ -104,6 +106,8 @@ import { progressPercent as calcProgressPercent } from '../../../core/utils/read
 export class HistoryStatsListItemComponent {
   @Input({ required: true }) item!: HistoryStatisticsItem;
   @Output() open = new EventEmitter<HistoryStatisticsItem>();
+
+  public sharedTransition = inject(SharedTransitionService);
 
   progressPercent(): number {
     return calcProgressPercent(this.item.bookMark || 0, this.item.pages || 0, this.item.completed);

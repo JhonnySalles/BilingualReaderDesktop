@@ -1,6 +1,7 @@
-import { Component, Input, Output, EventEmitter } from '@angular/core';
+import { Component, Input, Output, EventEmitter, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HomeRecentItem } from '../../../../core/models';
+import { SharedTransitionService } from '../../../../core/services/shared-transition.service';
 import { progressPageLabel } from '../../../../core/utils/reading-progress.util';
 
 @Component({
@@ -21,7 +22,7 @@ import { progressPageLabel } from '../../../../core/utils/reading-progress.util'
         : 'hover:border-amber-500/50 hover:shadow-lg hover:shadow-amber-500/10'">
 
       <!-- Cover (right half visible) -->
-      <div class="absolute inset-0">
+      <div class="absolute inset-0" [style.view-transition-name]="sharedTransition.getCoverName(item.fkReference)">
         @if (item.coverPath) {
           <img
             [src]="'local-cover:///' + item.coverPath"
@@ -35,7 +36,7 @@ import { progressPageLabel } from '../../../../core/utils/reading-progress.util'
       <!-- Extension tag on the right (over cover) -->
       <span
         class="absolute top-2 right-2 z-20 px-2 py-0.5 text-[10px] font-bold rounded-md bg-slate-950/80
-          backdrop-blur-md border uppercase tracking-wider shadow pointer-events-none"
+        backdrop-blur-md border uppercase tracking-wider shadow pointer-events-none"
         [ngClass]="item.type === 'MANGA'
           ? 'manga-badge'
           : 'text-amber-300 border-amber-500/30'">
@@ -51,7 +52,8 @@ import { progressPageLabel } from '../../../../core/utils/reading-progress.util'
         <h4
           class="relative z-10 text-sm font-bold text-slate-100 leading-snug break-words
             transition-colors"
-          [ngClass]="item.type === 'MANGA' ? 'manga-title-hover' : 'group-hover:text-amber-300'">
+          [ngClass]="item.type === 'MANGA' ? 'manga-title-hover' : 'group-hover:text-amber-300'"
+          [style.view-transition-name]="sharedTransition.getTitleName(item.fkReference)">
           {{ item.title }}
         </h4>
 
@@ -65,6 +67,8 @@ import { progressPageLabel } from '../../../../core/utils/reading-progress.util'
 export class HomeRecentCardComponent {
   @Input({ required: true }) item!: HomeRecentItem;
   @Output() open = new EventEmitter<HomeRecentItem>();
+
+  public sharedTransition = inject(SharedTransitionService);
 
   progressLabel(): string {
     return progressPageLabel(this.item.bookMark || 0, this.item.pages || 1, this.item.completed);

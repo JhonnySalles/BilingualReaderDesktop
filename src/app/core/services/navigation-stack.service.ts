@@ -1,10 +1,12 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, signal, inject } from '@angular/core';
 import { Router } from '@angular/router';
+import { SharedTransitionService } from './shared-transition.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class NavigationStackService {
+  private readonly sharedTransition = inject(SharedTransitionService);
   private readonly originLibraryId = signal('home');
   private readonly returnStack = signal<string[]>([]);
 
@@ -49,15 +51,18 @@ export class NavigationStackService {
 
   goToLibrary(router: Router): void {
     this.clearStack();
+    this.sharedTransition.clearActiveItem();
     void router.navigateByUrl(this.libraryUrl());
   }
 
   openDetail(router: Router, type: 'manga' | 'book', id: number | string): void {
+    this.sharedTransition.setActiveItem(type, id);
     this.pushReturnUrl(router.url);
     void router.navigate(['/detail', type, id]);
   }
 
   openReader(router: Router, kind: 'image' | 'text', id: number | string): void {
+    this.sharedTransition.setActiveItem(kind === 'image' ? 'manga' : 'book', id);
     this.pushReturnUrl(router.url);
     void router.navigate([kind === 'image' ? '/reader-image' : '/reader-text', id]);
   }

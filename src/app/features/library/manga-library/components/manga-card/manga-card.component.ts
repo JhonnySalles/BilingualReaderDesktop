@@ -13,6 +13,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { Manga } from '../../../../../core/models';
 import { MangaLibraryService } from '../../../../../core/services/manga-library.service';
+import { SharedTransitionService } from '../../../../../core/services/shared-transition.service';
 import { progressPercent } from '../../../../../core/utils/reading-progress.util';
 
 const MENU_WIDTH = 176; // w-44
@@ -27,7 +28,7 @@ const MENU_WIDTH = 176; // w-44
     <!-- STANDARD CARD STYLE -->
     @if (cardStyle === 'STANDARD') {
       <div class="group relative bg-slate-800/60 backdrop-blur-md rounded-xl overflow-hidden border border-slate-700/50 manga-card-hover transition-all duration-300 hover:-translate-y-1 cursor-pointer flex flex-col h-full">
-        <div class="relative aspect-[2/3] w-full overflow-hidden bg-slate-900 cover-3d-host">
+        <div class="relative aspect-[2/3] w-full overflow-hidden bg-slate-900 cover-3d-host" [style.view-transition-name]="sharedTransition.getCoverName(manga.id)">
           @if (manga.coverPath) {
             <img [src]="'local-cover:///' + manga.coverPath" [alt]="manga.title" class="cover-3d-face w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
           } @else {
@@ -76,7 +77,7 @@ const MENU_WIDTH = 176; // w-44
 
         <div class="p-3 flex flex-col flex-1 justify-between">
           <div>
-            <h3 class="text-sm font-semibold text-slate-100 line-clamp-2 sm:line-clamp-3 md:line-clamp-4 lg:line-clamp-5 manga-title-hover" [title]="manga.title">
+            <h3 class="text-sm font-semibold text-slate-100 line-clamp-2 sm:line-clamp-3 md:line-clamp-4 lg:line-clamp-5 manga-title-hover" [title]="manga.title" [style.view-transition-name]="sharedTransition.getTitleName(manga.id)">
               {{ manga.title }}
             </h3>
             <p class="text-xs text-slate-400 line-clamp-1 mt-0.5">
@@ -89,7 +90,7 @@ const MENU_WIDTH = 176; // w-44
               <span>Pág. {{ manga.bookMark }} / {{ manga.pages }}</span>
               <span>{{ getProgressPercentage() }}%</span>
             </div>
-            <div class="w-full h-1 bg-slate-700/60 rounded-full overflow-hidden">
+            <div class="w-full h-1 bg-slate-700/60 rounded-full overflow-hidden" [style.view-transition-name]="sharedTransition.getProgressName(manga.id)">
               <div class="h-full manga-progress-bar rounded-full transition-all duration-300" [style.width.%]="getProgressPercentage()"></div>
             </div>
           </div>
@@ -99,7 +100,7 @@ const MENU_WIDTH = 176; // w-44
 
     <!-- OVERLAY CARD STYLE -->
     @if (cardStyle === 'OVERLAY') {
-      <div class="group relative aspect-[2/3] w-full rounded-xl overflow-hidden border border-slate-700/50 manga-card-hover transition-all duration-300 hover:-translate-y-1 cursor-pointer flex flex-col justify-between bg-slate-900">
+      <div class="group relative aspect-[2/3] w-full rounded-xl overflow-hidden border border-slate-700/50 manga-card-hover transition-all duration-300 hover:-translate-y-1 cursor-pointer flex flex-col justify-between bg-slate-900" [style.view-transition-name]="sharedTransition.getCoverName(manga.id)">
         @if (manga.coverPath) {
           <img [src]="'local-cover:///' + manga.coverPath" [alt]="manga.title" class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
         } @else {
@@ -142,7 +143,7 @@ const MENU_WIDTH = 176; // w-44
         </div>
 
         <div class="relative z-10 p-3 bg-slate-950/70 backdrop-blur-md border-t border-slate-700/40 rounded-b-xl">
-          <h3 class="text-sm font-semibold text-slate-100 line-clamp-2 sm:line-clamp-3 md:line-clamp-4 lg:line-clamp-5 manga-title-hover" [title]="manga.title">
+          <h3 class="text-sm font-semibold text-slate-100 line-clamp-2 sm:line-clamp-3 md:line-clamp-4 lg:line-clamp-5 manga-title-hover" [title]="manga.title" [style.view-transition-name]="sharedTransition.getTitleName(manga.id)">
             {{ manga.title }}
           </h3>
           <p class="text-xs text-slate-300 line-clamp-1 mt-0.5 opacity-80">
@@ -154,7 +155,7 @@ const MENU_WIDTH = 176; // w-44
               <span>{{ manga.bookMark }}/{{ manga.pages }}p</span>
               <span>{{ getProgressPercentage() }}%</span>
             </div>
-            <div class="w-full h-1 bg-slate-800/80 rounded-full overflow-hidden">
+            <div class="w-full h-1 bg-slate-800/80 rounded-full overflow-hidden" [style.view-transition-name]="sharedTransition.getProgressName(manga.id)">
               <div class="h-full manga-progress-bar rounded-full transition-all duration-300" [style.width.%]="getProgressPercentage()"></div>
             </div>
           </div>
@@ -256,6 +257,7 @@ export class MangaCardComponent implements OnDestroy {
   @Output() openTracker = new EventEmitter<Manga>();
   @Output() openTags = new EventEmitter<Manga>();
 
+  public sharedTransition = inject(SharedTransitionService);
   private mangaService = inject(MangaLibraryService);
   private host = inject(ElementRef<HTMLElement>);
 

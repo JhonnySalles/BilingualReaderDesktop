@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { DetailService } from '../../core/services/detail.service';
 import { NavigationStackService } from '../../core/services/navigation-stack.service';
+import { SharedTransitionService } from '../../core/services/shared-transition.service';
 import { ElectronService } from '../../core/services/electron.service';
 import { BookUnlockService } from '../../core/services/book-unlock.service';
 import { Book, Track, ExternalTrackerMediaDetails, ExternalTrackerRelatedItem } from '../../core/models';
@@ -83,6 +84,7 @@ import { TagsDialogComponent } from '../../shared/tags-dialog/tags-dialog.compon
               <div class="w-40 shrink-0">
                 <div 
                   class="aspect-[2/3] rounded-xl overflow-hidden border border-slate-700 bg-slate-900 shadow-xl cover-3d-host relative group"
+                  [style.view-transition-name]="'cover-active'"
                   (click)="onCoverClick()"
                   (mousedown)="onCoverMouseDown($event)"
                   (mousemove)="onCoverMouseMove($event)"
@@ -117,7 +119,7 @@ import { TagsDialogComponent } from '../../shared/tags-dialog/tags-dialog.compon
 
               <div class="flex-1 min-w-0 space-y-3">
                 <div class="flex flex-wrap items-center gap-2">
-                  <h2 class="text-2xl font-extrabold text-white">{{ book()!.title }}</h2>
+                  <h2 class="text-2xl font-extrabold text-white" [style.view-transition-name]="'title-active'">{{ book()!.title }}</h2>
                   @if (book()!.excluded) {
                     <span class="px-2 py-0.5 text-[10px] font-bold rounded bg-rose-500 text-slate-950">Excluído</span>
                   }
@@ -131,7 +133,7 @@ import { TagsDialogComponent } from '../../shared/tags-dialog/tags-dialog.compon
                   <div class="flex justify-between text-[11px] text-slate-400">
                     <span>Pág. {{ book()!.bookMark }} / {{ book()!.pages }} ({{ progress() }}%)</span>
                   </div>
-                  <div class="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                  <div class="h-1.5 bg-slate-800 rounded-full overflow-hidden" [style.view-transition-name]="'progress-active'">
                     <div class="h-full bg-gradient-to-r from-amber-500 to-orange-500 rounded-full" [style.width.%]="progress()"></div>
                   </div>
                 </div>
@@ -381,6 +383,7 @@ export class BookDetailComponent implements OnInit {
   private router = inject(Router);
   private detail = inject(DetailService);
   private nav = inject(NavigationStackService);
+  private sharedTransition = inject(SharedTransitionService);
   private electron = inject(ElectronService);
   private bookUnlock = inject(BookUnlockService);
   private trackerService = inject(TrackerService);
@@ -456,6 +459,7 @@ export class BookDetailComponent implements OnInit {
       this.loading.set(false);
       return;
     }
+    this.sharedTransition.setActiveItem('book', id);
     try {
       const book = await this.detail.loadBook(id);
       this.book.set(book);

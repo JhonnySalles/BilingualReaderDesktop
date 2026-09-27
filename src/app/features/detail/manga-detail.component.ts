@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { DetailService } from '../../core/services/detail.service';
 import { NavigationStackService } from '../../core/services/navigation-stack.service';
+import { SharedTransitionService } from '../../core/services/shared-transition.service';
 import { ElectronService } from '../../core/services/electron.service';
 import { Manga, Track, ExternalTrackerMediaDetails, ExternalTrackerRelatedItem } from '../../core/models';
 import { DetailActionBarComponent } from './components/detail-action-bar.component';
@@ -80,6 +81,7 @@ import { CoverViewerDialogComponent } from '../../shared/cover-viewer-dialog/cov
               <div class="w-40 shrink-0">
                 <div 
                   class="aspect-[2/3] rounded-xl overflow-hidden border border-slate-700 bg-slate-900 shadow-xl cover-3d-host relative group"
+                  [style.view-transition-name]="'cover-active'"
                   (click)="onCoverClick()"
                   (mousedown)="onCoverMouseDown($event)"
                   (mousemove)="onCoverMouseMove($event)"
@@ -114,7 +116,7 @@ import { CoverViewerDialogComponent } from '../../shared/cover-viewer-dialog/cov
 
               <div class="flex-1 min-w-0 space-y-3">
                 <div class="flex flex-wrap items-center gap-2">
-                  <h2 class="text-2xl font-extrabold text-white">{{ manga()!.title }}</h2>
+                  <h2 class="text-2xl font-extrabold text-white" [style.view-transition-name]="'title-active'">{{ manga()!.title }}</h2>
                   @if (manga()!.excluded) {
                     <span class="px-2 py-0.5 text-[10px] font-bold rounded bg-rose-500 text-slate-950">Excluído</span>
                   }
@@ -129,8 +131,8 @@ import { CoverViewerDialogComponent } from '../../shared/cover-viewer-dialog/cov
                     <span>Pág. {{ manga()!.bookMark }} / {{ manga()!.pages }}</span>
                     <span>{{ progress() }}%</span>
                   </div>
-                  <div class="h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                    <div class="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full" [style.width.%]="progress()"></div>
+                  <div class="h-1.5 bg-slate-800 rounded-full overflow-hidden" [style.view-transition-name]="'progress-active'">
+                    <div class="h-full manga-progress-bar rounded-full transition-all duration-300" [style.width.%]="progress()"></div>
                   </div>
                 </div>
 
@@ -241,6 +243,7 @@ export class MangaDetailComponent implements OnInit {
   private router = inject(Router);
   private detail = inject(DetailService);
   private nav = inject(NavigationStackService);
+  private sharedTransition = inject(SharedTransitionService);
   private electron = inject(ElectronService);
   private trackerService = inject(TrackerService);
   private confirmDialog = inject(ConfirmDialogService);
@@ -321,6 +324,7 @@ export class MangaDetailComponent implements OnInit {
       this.loading.set(false);
       return;
     }
+    this.sharedTransition.setActiveItem('manga', id);
     try {
       const manga = await this.detail.loadManga(id);
       this.manga.set(manga);
