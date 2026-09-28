@@ -55,10 +55,10 @@ export class NavigationStackService {
     void router.navigateByUrl(this.libraryUrl());
   }
 
-  openDetail(router: Router, type: 'manga' | 'book', id: number | string): void {
+  openDetail(router: Router, type: 'manga' | 'book', id: number | string, initialData?: any): void {
     this.sharedTransition.setActiveItem(type, id);
     this.pushReturnUrl(router.url);
-    void router.navigate(['/detail', type, id]);
+    void router.navigate(['/detail', type, id], { state: { initialData } });
   }
 
   openReader(router: Router, kind: 'image' | 'text', id: number | string): void {

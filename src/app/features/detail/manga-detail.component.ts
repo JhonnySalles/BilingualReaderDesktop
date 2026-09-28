@@ -318,6 +318,33 @@ export class MangaDetailComponent implements OnInit {
     });
   });
 
+  constructor() {
+    const nav = this.router.getCurrentNavigation();
+    const stateData = nav?.extras.state?.['initialData'] || (typeof history !== 'undefined' ? history.state?.initialData : null);
+    if (stateData) {
+      const initialManga: Partial<Manga> = {
+        id: stateData.id ?? stateData.fkReference,
+        title: stateData.title,
+        coverPath: stateData.coverPath,
+        pages: stateData.pages || 1,
+        bookMark: stateData.bookMark || 0,
+        completed: stateData.completed,
+        favorite: stateData.favorite,
+        author: stateData.author,
+        series: stateData.series,
+        path: stateData.path,
+        fileType: stateData.fileType || stateData.type,
+        lastAccess: stateData.lastAccess,
+        fkLibrary: stateData.fkLibrary,
+        name: stateData.name || stateData.title,
+        ...stateData
+      };
+      this.manga.set(initialManga as Manga);
+      this.loading.set(false);
+      this.bookmarkPage.set(initialManga.bookMark ?? 0);
+    }
+  }
+
   async ngOnInit(): Promise<void> {
     const id = Number(this.route.snapshot.paramMap.get('id'));
     if (!id || Number.isNaN(id)) {
@@ -327,15 +354,17 @@ export class MangaDetailComponent implements OnInit {
     this.sharedTransition.setActiveItem('manga', id);
     try {
       const manga = await this.detail.loadManga(id);
-      this.manga.set(manga);
-      this.bookmarkPage.set(manga?.bookMark ?? 0);
+      if (manga) {
+        this.manga.set(manga);
+        this.bookmarkPage.set(manga.bookMark ?? 0);
 
-      if (manga?.id) {
-        await Promise.all([
-          this.loadBookmarks(manga.id),
-          this.loadWebTrackerDetails(manga),
-          this.loadCover3D(manga.id)
-        ]);
+        if (manga.id != null) {
+          await Promise.all([
+            this.loadBookmarks(manga.id),
+            this.loadWebTrackerDetails(manga),
+            this.loadCover3D(manga.id)
+          ]);
+        }
       }
     } finally {
       this.loading.set(false);

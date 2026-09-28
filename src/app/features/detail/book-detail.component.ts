@@ -453,6 +453,32 @@ export class BookDetailComponent implements OnInit {
     return fields;
   });
 
+  constructor() {
+    const nav = this.router.getCurrentNavigation();
+    const stateData = nav?.extras.state?.['initialData'] || (typeof history !== 'undefined' ? history.state?.initialData : null);
+    if (stateData) {
+      const initialBook: Partial<Book> = {
+        id: stateData.id ?? stateData.fkReference,
+        title: stateData.title,
+        coverPath: stateData.coverPath,
+        pages: stateData.pages || 1,
+        bookMark: stateData.bookMark || 0,
+        completed: stateData.completed,
+        favorite: stateData.favorite,
+        author: stateData.author,
+        path: stateData.path,
+        fileType: stateData.fileType || stateData.type,
+        lastAccess: stateData.lastAccess,
+        fkLibrary: stateData.fkLibrary,
+        name: stateData.name || stateData.title,
+        ...stateData
+      };
+      this.book.set(initialBook as Book);
+      this.loading.set(false);
+      this.bookmarkPage.set(initialBook.bookMark ?? 0);
+    }
+  }
+
   async ngOnInit(): Promise<void> {
     const id = Number(this.route.snapshot.paramMap.get('id'));
     if (!id || Number.isNaN(id)) {
@@ -462,15 +488,17 @@ export class BookDetailComponent implements OnInit {
     this.sharedTransition.setActiveItem('book', id);
     try {
       const book = await this.detail.loadBook(id);
-      this.book.set(book);
-      this.bookmarkPage.set(book?.bookMark ?? 0);
+      if (book) {
+        this.book.set(book);
+        this.bookmarkPage.set(book.bookMark ?? 0);
 
-      if (book?.id) {
-        await Promise.all([
-          this.loadBookmarks(book.id),
-          this.loadWebTrackerDetails(book),
-          this.loadCover3D(book.id)
-        ]);
+        if (book.id != null) {
+          await Promise.all([
+            this.loadBookmarks(book.id),
+            this.loadWebTrackerDetails(book),
+            this.loadCover3D(book.id)
+          ]);
+        }
       }
     } finally {
       this.loading.set(false);

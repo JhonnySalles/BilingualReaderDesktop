@@ -420,11 +420,8 @@ export class StatisticsHistoryComponent implements OnInit, OnDestroy {
   }
 
   openItem(item: HistoryStatisticsItem): void {
-    if (item.type === 'MANGA') {
-      this.nav.openReader(this.router, 'image', item.fkReference);
-    } else {
-      this.nav.openReader(this.router, 'text', item.fkReference);
-    }
+    const type = item.type === 'MANGA' ? 'manga' : 'book';
+    this.nav.openDetail(this.router, type, item.fkReference, item);
   }
 
   formatDateLabel(date: string): string {

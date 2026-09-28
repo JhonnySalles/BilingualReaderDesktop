@@ -901,9 +901,9 @@ export class LibraryComponent implements OnInit {
       }
     }
     if (this.activeLibType() === 'manga') {
-      this.nav.openDetail(this.router, 'manga', item.id);
+      this.nav.openDetail(this.router, 'manga', item.id, item);
     } else {
-      this.nav.openDetail(this.router, 'book', item.id);
+      this.nav.openDetail(this.router, 'book', item.id, item);
     }
   }
 
