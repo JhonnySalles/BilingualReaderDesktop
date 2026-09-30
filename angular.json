@@ -98,6 +98,10 @@
             ],
             "tsConfig": "tsconfig.spec.json",
             "inlineStyleLanguage": "scss",
+            "include": [
+              "src/**/*.spec.ts",
+              "test/front/**/*.spec.ts"
+            ],
             "assets": [
               {
                 "glob": "**/*",

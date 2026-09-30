@@ -8,10 +8,12 @@
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "types": ["node", "jest"]
   },
   "include": [
     "app/**/*",
+    "test/back/**/*",
     "src/app/core/models/**/*",
     "src/app/core/utils/share-mark-compare.ts",
     "src/app/core/utils/share-annotation-reconcile.ts"

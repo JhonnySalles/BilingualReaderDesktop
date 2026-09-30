@@ -1,5 +1,5 @@
-import { Util, FileUtil } from './helpers';
-import { FileType } from '../../src/app/core/models/enums/app-enums';
+import { Util, FileUtil } from '../../../app/utils/helpers';
+import { FileType } from '../../../src/app/core/models/enums/app-enums';
 
 describe('Helpers Util & FileUtil (Backend Electron)', () => {
   describe('Util', () => {

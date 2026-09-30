@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
-import { NavigationStackService } from './navigation-stack.service';
-import { SharedTransitionService } from './shared-transition.service';
+import { NavigationStackService } from '../../../../src/app/core/services/navigation-stack.service';
+import { SharedTransitionService } from '../../../../src/app/core/services/shared-transition.service';
 
 describe('NavigationStackService (Frontend Angular)', () => {
   let service: NavigationStackService;
