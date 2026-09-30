@@ -468,20 +468,38 @@ html[data-covers-3d='1'] .cover-3d-host:hover .cover-3d-face {
 }
 
 /* ==========================================================================
-   VIEW TRANSITIONS (Shared Element Transitions)
+   VIEW TRANSITIONS (Shared Element & Screen Transitions)
    ========================================================================== */
 
 ::view-transition-group(*) {
-  animation-duration: 0.38s;
-  animation-timing-function: cubic-bezier(0.2, 0, 0, 1);
+  animation-duration: 0.32s;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-::view-transition-old(root) {
-  animation: 0.18s ease-out both vt-fade-out;
-}
-
+/* Suppress full document root flashes so sidebar and header stay rock solid */
+::view-transition-old(root),
 ::view-transition-new(root) {
-  animation: 0.38s cubic-bezier(0.2, 0, 0, 1) both vt-fade-in;
+  animation: none;
+}
+
+/* Smooth Navigation & Screen Transitions for the router outlet area */
+::view-transition-old(main-content) {
+  animation: 0.16s ease-out both vt-fade-out;
+}
+
+::view-transition-new(main-content) {
+  animation: 0.32s cubic-bezier(0.16, 1, 0.3, 1) both vt-fade-in-content;
+}
+
+@keyframes vt-fade-in-content {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.995);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 @keyframes vt-fade-in {

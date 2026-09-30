@@ -304,18 +304,70 @@ const MAGNIFIER_SQUARE_PX = 250;
   template: `
     <div class="h-screen w-screen relative text-slate-100 overflow-hidden select-none"
       style="background: var(--reader-surface, #0f172a)">
-      <!-- Loading overlay -->
+      <!-- Cover Loading Overlay (Hero Animation + Glassmorphism + Fullscreen Cover Image) -->
       @if (loading()) {
-        <div class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-slate-950 gap-4">
-          <div class="w-12 h-12 border-2 border-indigo-500/30 border-t-indigo-400 rounded-full animate-spin"></div>
-          <p class="text-sm font-semibold text-slate-200">Preparando páginas…</p>
-          @if (extractTotal() > 0) {
-            <p class="text-xs text-slate-400 tabular-nums">{{ extractCurrent() }} / {{ extractTotal() }}</p>
-            <div class="w-64 h-1.5 bg-slate-800 rounded-full overflow-hidden">
-              <div class="h-full bg-indigo-500 transition-all duration-200"
-                [style.width.%]="extractPercent()"></div>
+        <div class="fixed inset-0 z-[100] flex flex-col items-center justify-between bg-slate-950 overflow-hidden transition-opacity duration-500 ease-out p-6 sm:p-8"
+             [class.opacity-0]="loadingFadeOut()"
+             [class.pointer-events-none]="loadingFadeOut()">
+          
+          <!-- Blurred dynamic background based on cover -->
+          @if (coverUrl()) {
+            <div class="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+              <img [src]="coverUrl()" alt="" class="w-full h-full object-cover opacity-20 blur-3xl scale-125 saturate-150" />
+              <div class="absolute inset-0 bg-gradient-to-b from-slate-950/40 via-slate-950/70 to-slate-950/90"></div>
             </div>
           }
+
+          <!-- Top Header info -->
+          <div class="relative z-10 w-full flex items-center justify-center pt-2">
+            <span class="px-3 py-1 text-[11px] font-semibold tracking-wider rounded-full bg-slate-900/60 backdrop-blur-md border border-slate-700/50 text-slate-300 shadow-md truncate max-w-sm">
+              {{ title() }}
+            </span>
+          </div>
+
+          <!-- Center Full-Screen Hero Cover Element (Full available size, fully visible) -->
+          <div class="relative z-10 flex-1 min-h-0 w-full flex items-center justify-center p-2 sm:p-4 my-auto animate-fade-in">
+            <div class="relative max-h-full max-w-full h-full flex items-center justify-center rounded-2xl overflow-hidden shadow-[0_25px_60px_rgba(0,0,0,0.85)] shadow-indigo-500/10 border border-white/10 bg-slate-900/80 backdrop-blur-sm"
+                 [style.view-transition-name]="'cover-active'">
+              @if (coverUrl()) {
+                <img [src]="coverUrl()" [alt]="title()" class="w-auto h-full max-h-[75vh] object-contain rounded-2xl" />
+              } @else {
+                <div class="w-64 h-96 flex flex-col items-center justify-center p-6 text-slate-500 bg-gradient-to-br from-slate-900 to-slate-800">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-16 h-16 mb-3 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                  </svg>
+                  <span class="text-sm font-medium opacity-75 uppercase tracking-wider">MANGÁ</span>
+                </div>
+              }
+            </div>
+          </div>
+
+          <!-- Bottom Floating Glassmorphism Progress Box -->
+          <div class="relative z-10 w-full max-w-md bg-slate-900/80 backdrop-blur-xl rounded-2xl border border-slate-700/70 p-3.5 sm:p-4 shadow-2xl flex flex-col gap-2.5 mb-2 animate-fade-in">
+            <div class="flex justify-between items-center text-xs font-semibold text-slate-300">
+              <span class="flex items-center gap-2 truncate">
+                <span class="w-2 h-2 rounded-full bg-indigo-500 animate-pulse shrink-0"></span>
+                <span class="text-slate-200 truncate">{{ loadingMessage() }}</span>
+              </span>
+              @if (extractTotal() > 0) {
+                <span class="text-indigo-400 tabular-nums font-mono shrink-0 ml-2">{{ extractPercent() }}%</span>
+              }
+            </div>
+            
+            <!-- Progress Bar -->
+            <div class="h-1.5 w-full bg-slate-800/80 rounded-full overflow-hidden p-0.5 border border-slate-700/30">
+              @if (extractTotal() > 0) {
+                <div class="h-full bg-gradient-to-r from-indigo-500 via-indigo-400 to-amber-400 rounded-full transition-all duration-300 ease-out shadow-[0_0_12px_rgba(99,102,241,0.6)]" 
+                     [style.width.%]="extractPercent()">
+                </div>
+              } @else {
+                <div class="h-full bg-gradient-to-r from-indigo-500 to-indigo-400 rounded-full animate-pulse w-full"></div>
+              }
+            </div>
+            @if (extractTotal() > 0) {
+              <p class="text-[10px] text-slate-400 text-center font-mono">{{ extractCurrent() }} / {{ extractTotal() }} páginas extraídas</p>
+            }
+          </div>
         </div>
       }
 
@@ -1423,6 +1475,10 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
     )
   );
   loading = signal(true);
+  loadingFadeOut = signal(false);
+  loadingMessage = signal('Preparando páginas…');
+  private loadingStartAt = 0;
+  private loadingFadeTimer: ReturnType<typeof setTimeout> | null = null;
   error = signal<string | null>(null);
   extractCurrent = signal(0);
   extractTotal = signal(0);
@@ -1707,6 +1763,7 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
     if (this.stubToastTimer) clearTimeout(this.stubToastTimer);
     if (this.lastPageTransitionTimer) clearTimeout(this.lastPageTransitionTimer);
     if (this.thumbUpdateTimer) clearTimeout(this.thumbUpdateTimer);
+    if (this.loadingFadeTimer) clearTimeout(this.loadingFadeTimer);
     this.clearTurnWatchdog();
     this.unsubProgress?.();
     void this.cleanup();
@@ -3552,8 +3609,26 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
     return null;
   }
 
+  private finishLoading(): void {
+    this.loadingMessage.set('Pronto!');
+    const MIN_DELAY_MS = 600;
+    const elapsed = Date.now() - (this.loadingStartAt || Date.now());
+    const remainingDelay = Math.max(0, MIN_DELAY_MS - elapsed);
+
+    setTimeout(() => {
+      this.loadingFadeOut.set(true);
+      this.loadingFadeTimer = setTimeout(() => {
+        this.loading.set(false);
+        this.loadingFadeOut.set(false);
+      }, 500);
+    }, remainingDelay);
+  }
+
   private async openReader(): Promise<void> {
+    this.loadingStartAt = Date.now();
+    this.loadingFadeOut.set(false);
     this.loading.set(true);
+    this.loadingMessage.set('Preparando páginas…');
     this.error.set(null);
     try {
       if (!this.mangaId || Number.isNaN(this.mangaId)) {
@@ -3630,10 +3705,10 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
       setTimeout(() => this.chromeVisible.set(false), 400);
       this.maybeShowFirstTouchDemo();
       void this.loadAdjacentMangas();
+      this.finishLoading();
     } catch (e: any) {
       console.error(e);
       this.error.set(e?.message || 'Erro ao abrir o mangá');
-    } finally {
       this.loading.set(false);
     }
   }

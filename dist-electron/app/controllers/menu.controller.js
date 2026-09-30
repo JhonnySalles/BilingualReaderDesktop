@@ -199,16 +199,16 @@ class MenuController {
                 click: () => this.navigate('/statistics')
             },
             {
+                label: 'Configurações',
+                click: () => this.navigate('/settings')
+            },
+            {
                 label: 'Ajuda',
                 click: () => this.navigate('/help')
             },
             {
                 label: 'Sobre',
                 click: () => this.navigate('/about')
-            },
-            {
-                label: 'Configurações',
-                click: () => this.navigate('/settings')
             },
             {
                 label: 'Exibir',
