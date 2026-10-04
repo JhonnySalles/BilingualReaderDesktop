@@ -15,9 +15,10 @@ interface OssCredit {
     <div class="h-full overflow-y-auto bg-slate-950 text-slate-100">
       <div class="max-w-2xl mx-auto px-6 pt-24 pb-12 space-y-8">
         <div class="flex items-start gap-5">
-          <div class="w-16 h-16 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center shrink-0">
-            <span class="text-2xl font-black text-indigo-300">BR</span>
-          </div>
+          <img
+            src="assets/icons/icon.png"
+            alt="Bilingual Reader"
+            class="w-16 h-16 rounded-2xl object-contain shrink-0 filter drop-shadow-[0_8px_16px_rgb(var(--accent-500)/0.35)]" />
           <div class="min-w-0">
             <h1 class="text-2xl font-bold text-slate-50 tracking-tight">{{ info().productName }}</h1>
             <p class="text-sm text-slate-400 mt-1">Versão {{ info().version }}</p>

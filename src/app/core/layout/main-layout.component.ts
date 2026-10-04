@@ -42,10 +42,11 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
 
         <!-- Top Header (Fixed) -->
         <div class="h-16 px-4 flex items-center justify-between border-b border-slate-800 shrink-0">
-          <div class="flex items-center gap-3 overflow-hidden">
-            <div class="w-9 h-9 min-w-[2.25rem] rounded-xl bg-indigo-600 flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-indigo-600/30">
-              B
-            </div>
+          <div class="flex items-center gap-3 min-w-0">
+            <img
+              src="assets/icons/icon.png"
+              alt="Bilingual Reader"
+              class="w-9 h-9 min-w-[2.25rem] rounded-xl object-contain shrink-0 filter drop-shadow-[0_4px_10px_rgb(var(--accent-500)/0.35)]" />
             @if (isExpanded()) {
               <div class="truncate">
                 <h1 class="text-sm font-bold tracking-wide leading-none text-slate-100">Bilingual Reader</h1>

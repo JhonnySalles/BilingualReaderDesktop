@@ -467,6 +467,15 @@ html[data-covers-3d='1'] .cover-3d-host:hover .cover-3d-face {
   color: #a5b4fc !important;
 }
 
+.manga-section-title {
+  color: #818cf8 !important; /* true indigo-400 */
+}
+
+.manga-section-dot {
+  background-color: #6366f1 !important; /* true indigo-500 */
+  box-shadow: 0 1px 2px 0 rgba(99, 102, 241, 0.5) !important;
+}
+
 /* ==========================================================================
    VIEW TRANSITIONS (Shared Element & Screen Transitions)
    ========================================================================== */

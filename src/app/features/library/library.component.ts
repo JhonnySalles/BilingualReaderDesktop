@@ -99,12 +99,20 @@ import { ShareMarkType } from '../../core/models/enums/sharemark.enum';
             <div class="absolute -right-6 -bottom-6 w-48 h-48 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none"></div>
           </div>
 
+          <!-- Quadro de Atividades de Leitura (Heatmap) -->
+          <div>
+            <app-home-reading-heatmap [days]="home.heatmap()" />
+          </div>
+
           <!-- Top 3 Últimos Arquivos Globais -->
           <div>
-            <h3 class="text-sm font-bold uppercase tracking-wider text-slate-400 mb-4 flex items-center gap-2">
-              <span class="w-2 h-2 rounded-full bg-indigo-500"></span>
-              Últimos arquivos
-            </h3>
+            <div class="flex items-center gap-3 mb-4">
+              <span class="w-2.5 h-2.5 rounded-full bg-indigo-500 shadow-sm shadow-indigo-500/50"></span>
+              <h3 class="text-sm font-bold uppercase tracking-wider text-indigo-400">
+                Últimos arquivos
+              </h3>
+              <div class="h-px bg-slate-800 flex-1"></div>
+            </div>
 
             @if (topRecentReads().length === 0) {
               <div class="rounded-2xl border border-dashed border-slate-800 bg-slate-900/40 px-6 py-10 text-center">
@@ -123,8 +131,8 @@ import { ShareMarkType } from '../../core/models/enums/sharemark.enum';
           @if (mangaRecentByLibrary().length > 0) {
             <div class="space-y-6 pt-2">
               <div class="flex items-center gap-3">
-                <span class="w-2.5 h-2.5 rounded-full bg-indigo-500 shadow-sm shadow-indigo-500/50"></span>
-                <h3 class="text-sm font-bold uppercase tracking-wider text-indigo-400">
+                <span class="w-2.5 h-2.5 rounded-full manga-section-dot"></span>
+                <h3 class="text-sm font-bold uppercase tracking-wider manga-section-title">
                   Mangás &amp; Comics
                 </h3>
                 <div class="h-px bg-slate-800 flex-1"></div>
@@ -181,10 +189,6 @@ import { ShareMarkType } from '../../core/models/enums/sharemark.enum';
             </div>
           }
 
-          <div class="mt-8">
-            <app-home-reading-heatmap [days]="home.heatmap()" />
-          </div>
-
           <div class="border-t border-slate-800 pt-8 space-y-6">
             <h3 class="text-sm font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
               <span class="w-2 h-2 rounded-full bg-indigo-500"></span>
@@ -192,7 +196,7 @@ import { ShareMarkType } from '../../core/models/enums/sharemark.enum';
             </h3>
 
             <div class="space-y-3">
-              <h4 class="text-xs font-semibold text-indigo-400/90 uppercase tracking-wider">Mangás &amp; Comics</h4>
+              <h4 class="text-xs font-semibold uppercase tracking-wider manga-section-title opacity-90">Mangás &amp; Comics</h4>
               <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <a [routerLink]="['/']" [queryParams]="{ lib: 'manga-default' }"
                   class="group p-5 rounded-2xl bg-slate-900/80 border border-slate-800 hover:border-indigo-500/50 hover:bg-slate-800/80 transition-all cursor-pointer flex items-center justify-between">
