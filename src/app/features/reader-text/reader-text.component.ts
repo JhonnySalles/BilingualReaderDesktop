@@ -3363,6 +3363,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     const book = ePub(epubUrl);
     this.epubBook = book;
     this.epubUrl = epubUrl;
+    book.spine.hooks.content.register(this.onSpineSectionContent);
 
     await book.ready;
     this.loadingProgress.set(65);
@@ -3553,6 +3554,39 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
 
     // Match column math to zoomed CSS box
     queueMicrotask(() => this.scheduleRenditionResize());
+  }
+
+  private readonly onSpineSectionContent = (doc: Document) => {
+    this.sanitizeSectionDocument(doc);
+  };
+
+  /**
+   * Sanitizes chapter XML documents by stripping <script> tags and inline script handlers
+   * to avoid sandboxed iframe execution warnings in about:srcdoc.
+   */
+  private sanitizeSectionDocument(doc: Document): void {
+    if (!doc) return;
+    try {
+      const scripts = doc.querySelectorAll?.('script');
+      if (scripts && scripts.length > 0) {
+        scripts.forEach(s => s.remove());
+      }
+      const allElements = doc.querySelectorAll?.('*');
+      if (allElements) {
+        allElements.forEach(el => {
+          const attrs = el.attributes;
+          if (!attrs) return;
+          for (let i = attrs.length - 1; i >= 0; i--) {
+            const attrName = attrs[i].name.toLowerCase();
+            if (attrName.startsWith('on')) {
+              el.removeAttribute(attrs[i].name);
+            }
+          }
+        });
+      }
+    } catch {
+      /* ignore DOM errors during XML parsing */
+    }
   }
 
   /** Size iframe images to reduce LayoutImageUnsized and center image-only pages. */

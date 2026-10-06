@@ -17,7 +17,7 @@ import { progressPercent as calcProgressPercent } from '../../../core/utils/read
 
       <!-- Thumbnail & Info -->
       <div class="flex items-center gap-3 min-w-0 flex-1">
-        <div class="w-10 h-14 bg-slate-900 rounded overflow-hidden flex-shrink-0 relative border border-slate-700/50 flex items-center justify-center" [style.view-transition-name]="sharedTransition.getCoverName(item.fkReference)">
+        <div class="w-10 h-14 bg-slate-900 rounded overflow-hidden flex-shrink-0 relative border border-slate-700/50 flex items-center justify-center" [style.view-transition-name]="sharedTransition.getCoverName(item.fkReference, item.type === 'MANGA' ? 'manga' : 'book', instanceId)">
           @if (item.coverPath) {
             <img [src]="'local-cover:///' + item.coverPath" [alt]="item.title" class="w-full h-full object-cover" />
           } @else {
@@ -35,7 +35,7 @@ import { progressPercent as calcProgressPercent } from '../../../core/utils/read
               class="text-sm font-medium text-slate-200 truncate transition-colors"
               [ngClass]="item.type === 'MANGA' ? 'manga-title-hover' : 'group-hover:text-amber-400'"
               [title]="item.title"
-              [style.view-transition-name]="sharedTransition.getTitleName(item.fkReference)">
+              [style.view-transition-name]="sharedTransition.getTitleName(item.fkReference, item.type === 'MANGA' ? 'manga' : 'book', instanceId)">
               {{ item.title }}
             </h4>
             @if (item.favorite) {
@@ -87,7 +87,7 @@ import { progressPercent as calcProgressPercent } from '../../../core/utils/read
             <span>{{ item.bookMark }}/{{ item.pages }} págs</span>
             <span>{{ progressPercent() }}%</span>
           </div>
-          <div class="w-full h-1.5 bg-slate-700/60 rounded-full overflow-hidden" [style.view-transition-name]="sharedTransition.getProgressName(item.fkReference)">
+          <div class="w-full h-1.5 bg-slate-700/60 rounded-full overflow-hidden" [style.view-transition-name]="sharedTransition.getProgressName(item.fkReference, item.type === 'MANGA' ? 'manga' : 'book', instanceId)">
             <div
               class="h-full rounded-full transition-all duration-300"
               [ngClass]="item.type === 'MANGA' ? 'manga-progress-bar' : 'bg-gradient-to-r from-amber-500 to-orange-500'"
@@ -105,6 +105,7 @@ import { progressPercent as calcProgressPercent } from '../../../core/utils/read
 })
 export class HistoryStatsListItemComponent {
   @Input({ required: true }) item!: HistoryStatisticsItem;
+  @Input() instanceId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2);
   @Output() open = new EventEmitter<HistoryStatisticsItem>();
 
   public sharedTransition = inject(SharedTransitionService);

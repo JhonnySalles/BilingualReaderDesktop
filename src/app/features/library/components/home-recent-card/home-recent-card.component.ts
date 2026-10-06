@@ -14,7 +14,7 @@ import { progressPageLabel } from '../../../../core/utils/reading-progress.util'
   template: `
     <button
       type="button"
-      (click)="open.emit(item)"
+      (click)="open.emit({ item, instanceId })"
       class="group relative w-full h-full min-h-24 text-left rounded-xl overflow-hidden border border-slate-700/50
         bg-slate-800 transition-all duration-300 cursor-pointer flex"
       [ngClass]="item.type === 'MANGA'
@@ -22,7 +22,7 @@ import { progressPageLabel } from '../../../../core/utils/reading-progress.util'
         : 'hover:border-amber-500/50 hover:shadow-lg hover:shadow-amber-500/10'">
 
       <!-- Cover (right half visible) -->
-      <div class="absolute inset-0" [style.view-transition-name]="sharedTransition.getCoverName(item.fkReference)">
+      <div class="absolute inset-0" [style.view-transition-name]="sharedTransition.getCoverName(item.fkReference, item.type === 'MANGA' ? 'manga' : 'book', instanceId)">
         @if (item.coverPath) {
           <img
             [src]="'local-cover:///' + item.coverPath"
@@ -53,7 +53,7 @@ import { progressPageLabel } from '../../../../core/utils/reading-progress.util'
           class="relative z-10 text-sm font-bold text-slate-100 leading-snug break-words
             transition-colors"
           [ngClass]="item.type === 'MANGA' ? 'manga-title-hover' : 'group-hover:text-amber-300'"
-          [style.view-transition-name]="sharedTransition.getTitleName(item.fkReference)">
+          [style.view-transition-name]="sharedTransition.getTitleName(item.fkReference, item.type === 'MANGA' ? 'manga' : 'book', instanceId)">
           {{ item.title }}
         </h4>
 
@@ -66,7 +66,8 @@ import { progressPageLabel } from '../../../../core/utils/reading-progress.util'
 })
 export class HomeRecentCardComponent {
   @Input({ required: true }) item!: HomeRecentItem;
-  @Output() open = new EventEmitter<HomeRecentItem>();
+  @Input() instanceId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2);
+  @Output() open = new EventEmitter<{ item: HomeRecentItem; instanceId: string } | HomeRecentItem>();
 
   public sharedTransition = inject(SharedTransitionService);
 

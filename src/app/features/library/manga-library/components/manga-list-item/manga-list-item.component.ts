@@ -27,7 +27,7 @@ const MENU_WIDTH = 176; // w-44
       
       <!-- Left: Cover (Flush left, scaled up) -->
       <div class="flex items-center gap-2.5 min-w-0 flex-1">
-        <div class="w-16 self-stretch min-h-[4.5rem] bg-slate-900 rounded-l-lg overflow-hidden shrink-0 relative border-r border-slate-700/50 flex items-center justify-center" [style.view-transition-name]="sharedTransition.getCoverName(manga.id)">
+        <div class="w-16 self-stretch min-h-[4.5rem] bg-slate-900 rounded-l-lg overflow-hidden shrink-0 relative border-r border-slate-700/50 flex items-center justify-center" [style.view-transition-name]="sharedTransition.getCoverName(manga.id, 'manga', instanceId)">
           @if (manga.coverPath) {
             <img [src]="'local-cover:///' + manga.coverPath" [alt]="manga.title" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
           } @else {
@@ -60,7 +60,7 @@ const MENU_WIDTH = 176; // w-44
 
         <!-- Metadata -->
         <div class="min-w-0 flex-1 py-2">
-          <h4 class="text-sm font-medium text-slate-200 truncate manga-title-hover" [title]="manga.title" [style.view-transition-name]="sharedTransition.getTitleName(manga.id)">
+          <h4 class="text-sm font-medium text-slate-200 truncate manga-title-hover" [title]="manga.title" [style.view-transition-name]="sharedTransition.getTitleName(manga.id, 'manga', instanceId)">
             {{ manga.title }}
           </h4>
           <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400 mt-1">
@@ -93,7 +93,7 @@ const MENU_WIDTH = 176; // w-44
             <span>{{ manga.bookMark }}/{{ manga.pages }} págs</span>
             <span>{{ getProgressPercentage() }}%</span>
           </div>
-          <div class="w-full h-1.5 bg-slate-700/60 rounded-full overflow-hidden" [style.view-transition-name]="sharedTransition.getProgressName(manga.id)">
+          <div class="w-full h-1.5 bg-slate-700/60 rounded-full overflow-hidden" [style.view-transition-name]="sharedTransition.getProgressName(manga.id, 'manga', instanceId)">
             <div class="h-full manga-progress-bar rounded-full" [style.width.%]="getProgressPercentage()"></div>
           </div>
         </div>
@@ -193,6 +193,7 @@ const MENU_WIDTH = 176; // w-44
 })
 export class MangaListItemComponent implements OnDestroy {
   @Input({ required: true }) manga!: Manga;
+  @Input() instanceId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2);
   @Output() setBookmark = new EventEmitter<Manga>();
   @Output() openTracker = new EventEmitter<Manga>();
   @Output() openTags = new EventEmitter<Manga>();

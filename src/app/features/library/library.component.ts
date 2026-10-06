@@ -121,7 +121,7 @@ import { ShareMarkType } from '../../core/models/enums/sharemark.enum';
             } @else {
               <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 max-w-5xl items-stretch">
                 @for (item of topRecentReads(); track item.type + '-' + item.fkReference) {
-                  <app-home-recent-card [item]="item" (open)="onOpenRecent($event)" />
+                  <app-home-recent-card [item]="item" [instanceId]="'home-top-' + item.type + '-' + item.fkReference" (open)="onOpenRecent($event)" />
                 }
               </div>
             }
@@ -150,7 +150,7 @@ import { ShareMarkType } from '../../core/models/enums/sharemark.enum';
 
                   <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 max-w-5xl items-stretch">
                     @for (item of group.items; track item.type + '-' + item.fkReference) {
-                      <app-home-recent-card [item]="item" (open)="onOpenRecent($event)" />
+                      <app-home-recent-card [item]="item" [instanceId]="'home-manga-lib-' + group.libraryId + '-' + item.fkReference" (open)="onOpenRecent($event)" />
                     }
                   </div>
                 </div>
@@ -181,7 +181,7 @@ import { ShareMarkType } from '../../core/models/enums/sharemark.enum';
 
                   <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 max-w-5xl items-stretch">
                     @for (item of group.items; track item.type + '-' + item.fkReference) {
-                      <app-home-recent-card [item]="item" (open)="onOpenRecent($event)" />
+                      <app-home-recent-card [item]="item" [instanceId]="'home-book-lib-' + group.libraryId + '-' + item.fkReference" (open)="onOpenRecent($event)" />
                     }
                   </div>
                 </div>
@@ -851,7 +851,9 @@ export class LibraryComponent implements OnInit {
     this.customOrderItems.set(newOrder);
   }
 
-  async onOpenRecent(item: HomeRecentItem): Promise<void> {
+  async onOpenRecent(event: { item: HomeRecentItem; instanceId?: string } | HomeRecentItem): Promise<void> {
+    const item = 'item' in event ? event.item : event;
+    const instanceId = 'instanceId' in event ? event.instanceId : undefined;
     if (!item.fkReference) return;
     if (item.type === 'MANGA') {
       const manga = this.mangaLibraryService.mangas().find(m => m.id === item.fkReference) || await this.electronService.getManga(item.fkReference);
@@ -875,7 +877,8 @@ export class LibraryComponent implements OnInit {
     this.nav.openReader(
       this.router,
       item.type === 'MANGA' ? 'image' : 'text',
-      item.fkReference
+      item.fkReference,
+      instanceId
     );
   }
 
