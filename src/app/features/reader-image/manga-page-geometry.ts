@@ -45,7 +45,7 @@ export function pageImageClasses(
   const maxW = zoom > 1 ? 'max-w-none' : 'max-w-full';
 
   if (longStrip) {
-    return `${base} w-full h-auto`;
+    return `${base} w-auto h-auto ${maxW}`;
   }
   if (fitMode === MangaFitMode.FitHeight) {
     return `${base} w-auto h-full ${maxW}`;

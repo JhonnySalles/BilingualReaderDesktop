@@ -200,6 +200,9 @@ const TAP_DEDUPE_MS = 350;
       background: #334155;
       z-index: 0;
     }
+    :host ::ng-deep .epub-container {
+      overflow-anchor: none !important;
+    }
     .reader-seek-dots {
       left: 0.5rem;
       right: 0.5rem;
@@ -3003,7 +3006,32 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     if (ev.ctrlKey) {
       ev.preventDefault();
       const dir = ev.deltaY > 0 ? -1 : 1;
-      this.setZoom(this.zoom() + dir * ZOOM_STEP_WHEEL);
+      
+      const oldZoom = this.zoom();
+      const nextZoom = Math.round(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, oldZoom + dir * ZOOM_STEP_WHEEL)) * 100) / 100;
+      if (nextZoom === oldZoom) return;
+
+      const host = this.viewerHostRef?.nativeElement;
+      const scrollEl = this.continuousScrollContainer() || host;
+      if (!host || !scrollEl) {
+        this.setZoom(nextZoom);
+        return;
+      }
+
+      const rect = host.getBoundingClientRect();
+      const localX = ev.clientX - rect.left;
+      const localY = ev.clientY - rect.top;
+
+      const scale = nextZoom / oldZoom;
+      const newScrollLeft = (scrollEl.scrollLeft + localX) * scale - localX;
+      const newScrollTop = (scrollEl.scrollTop + localY) * scale - localY;
+
+      this.setZoom(nextZoom);
+
+      requestAnimationFrame(() => {
+        scrollEl.scrollLeft = newScrollLeft;
+        scrollEl.scrollTop = newScrollTop;
+      });
       return;
     }
 
@@ -3533,6 +3561,9 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!doc) return;
     const imgs = Array.from(doc.querySelectorAll('img')) as HTMLImageElement[];
     for (const img of imgs) {
+      img.style.setProperty('-webkit-user-drag', 'none', 'important');
+      img.style.setProperty('user-drag', 'none', 'important');
+      img.ondragstart = (e) => e.preventDefault();
       const apply = () => {
         if (img.naturalWidth > 1 && img.naturalHeight > 1) {
           if (!img.getAttribute('width')) img.setAttribute('width', String(img.naturalWidth));
@@ -3550,18 +3581,29 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
         const textLen = (body.textContent || '').trim().length;
         const totalImgs = imgs.length;
         const hasImgOrSvg = totalImgs > 0 || !!doc.querySelector('svg, image');
+        const isContinuous = this.scrollingMode() === BookScrollingMode.Continuous;
+
         if (hasImgOrSvg && textLen < 40) {
           const maxPct = totalImgs > 1 ? Math.floor(96 / totalImgs) : 96;
           body.style.display = 'flex';
           body.style.flexDirection = 'column';
           body.style.justifyContent = 'center';
           body.style.alignItems = 'center';
-          body.style.minHeight = '100vh';
           body.style.boxSizing = 'border-box';
-          for (const img of imgs) {
-            img.style.setProperty('max-height', `calc(${maxPct}vh - 12px)`, 'important');
-            img.style.setProperty('max-width', '100%', 'important');
-            img.style.setProperty('object-fit', 'contain', 'important');
+          
+          if (!isContinuous) {
+            body.style.minHeight = '100vh';
+            for (const img of imgs) {
+              img.style.setProperty('max-height', `calc(${maxPct}vh - 12px)`, 'important');
+              img.style.setProperty('max-width', '100%', 'important');
+              img.style.setProperty('object-fit', 'contain', 'important');
+            }
+          } else {
+            for (const img of imgs) {
+              img.style.setProperty('max-width', '100%', 'important');
+              img.style.setProperty('height', 'auto', 'important');
+              img.style.setProperty('max-height', 'none', 'important');
+            }
           }
           for (const p of Array.from(body.querySelectorAll('p, div, figure'))) {
             const el = p as HTMLElement;
@@ -4796,8 +4838,8 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       if (this.panSelectMode) return;
       if (!this.panning()) return;
 
-      const dx = ev.screenX - this.panLastX;
-      const dy = ev.screenY - this.panLastY;
+      let dx = ev.screenX - this.panLastX;
+      let dy = ev.screenY - this.panLastY;
       this.panLastX = ev.screenX;
       this.panLastY = ev.screenY;
       this.panLastClientY = ev.clientY;
@@ -4834,6 +4876,23 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
         // Paginated: scroll internal content first; at edge, rubber-band overscroll
         if (this.isPaginatedMode()) {
           const host = this.viewerHostRef?.nativeElement;
+          if (host && this.effectiveZoom() > 1) {
+            const oldScrollX = host.scrollLeft;
+            const oldScrollY = host.scrollTop;
+            host.scrollLeft -= dx;
+            host.scrollTop -= dy;
+            
+            const consumedX = oldScrollX - host.scrollLeft;
+            const consumedY = oldScrollY - host.scrollTop;
+            
+            dx -= consumedX;
+            dy -= consumedY;
+            
+            if (Math.abs(dx) < 1 && Math.abs(dy) < 1) {
+              return;
+            }
+          }
+
           const horizontal = this.isHorizontalMode();
           if (horizontal) {
             // Prefer vertical scroll inside page when content overflows
@@ -5086,6 +5145,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     this.peekStale = true;
     if (destroy) {
       try {
+        this.clearRenditionSpineHooks();
         this.peekRendition?.destroy();
       } catch {
         /* ignore */
@@ -5661,6 +5721,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
         this.rendition?.off?.('touchend', this.onRenditionTouchEnd);
       } catch {}
       this.clearContentPanListeners();
+      this.clearRenditionSpineHooks();
       this.rendition?.destroy();
       this.rendition = null;
       el.innerHTML = '';
@@ -7169,6 +7230,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     this.epubUrl = null;
     void this.electron.disposeBookCapture();
     try {
+      this.clearRenditionSpineHooks();
       this.rendition?.destroy();
     } catch {}
     try {
@@ -7176,6 +7238,20 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     } catch {}
     this.rendition = null;
     this.epubBook = null;
+  }
+
+  /**
+   * Helper to fix an EPUB.js memory leak/crash where destroying a Rendition
+   * leaves behind its bound hooks inside Book.spine.hooks.content.
+   */
+  private clearRenditionSpineHooks(): void {
+    const contentHook = this.epubBook?.spine?.hooks?.content as any;
+    const hooks = contentHook?.hooks;
+    if (Array.isArray(hooks)) {
+      contentHook.hooks = hooks.filter(
+        (hook: Function) => !hook.name || !hook.name.startsWith('bound ')
+      );
+    }
   }
 
   private async cleanup(): Promise<void> {

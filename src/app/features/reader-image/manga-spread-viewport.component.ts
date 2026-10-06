@@ -124,7 +124,7 @@ const PROGRAMMATIC_SCROLL_FALLBACK_MS = 1000;
                 }
               </div>
             } @else {
-              <div class="relative inline-block max-h-full max-w-full">
+              <div class="relative inline-block max-w-full" [class.max-h-full]="!isLongStrip()">
                 <img
                   [attr.data-page]="i"
                   [src]="displayUrl(i)"
@@ -549,28 +549,33 @@ export class MangaSpreadViewportComponent implements OnChanges {
     if (this.gestureModePending && this.didDrag) {
       this.gestureModePending = false;
       const dominantX = Math.abs(totalDx) >= Math.abs(totalDy);
-      const slotEl = slot && slot !== viewport ? slot : this.currentPageSlot();
-      if (slotEl) {
+      const scrollTarget = slot && slot !== viewport ? slot : viewport;
+      if (scrollTarget) {
         if (dominantX) {
           const dir = (totalDx < 0 ? 1 : -1) as 1 | -1;
-          this.lockToPagePan = canScrollSlot(slotEl, 'x', dir);
+          this.lockToPagePan = canScrollSlot(scrollTarget, 'x', dir);
           if (!this.lockToPagePan && Math.abs(totalDy) > DRAG_THRESHOLD_PX) {
-            this.lockToPagePan = canScrollSlot(slotEl, 'y', totalDy < 0 ? 1 : -1);
+            this.lockToPagePan = canScrollSlot(scrollTarget, 'y', totalDy < 0 ? 1 : -1);
           }
         } else {
           const dir = (totalDy < 0 ? 1 : -1) as 1 | -1;
-          this.lockToPagePan = canScrollSlot(slotEl, 'y', dir);
+          this.lockToPagePan = canScrollSlot(scrollTarget, 'y', dir);
           if (!this.lockToPagePan && Math.abs(totalDx) > DRAG_THRESHOLD_PX) {
-            this.lockToPagePan = canScrollSlot(slotEl, 'x', totalDx < 0 ? 1 : -1);
+            this.lockToPagePan = canScrollSlot(scrollTarget, 'x', totalDx < 0 ? 1 : -1);
           }
         }
       }
       this.pagerDragActive = !this.lockToPagePan;
     }
 
-    if (this.lockToPagePan && slot && slot !== viewport) {
-      slot.scrollTop -= dy;
-      slot.scrollLeft -= dx;
+    if (this.lockToPagePan) {
+      if (slot && slot !== viewport) {
+        slot.scrollTop -= dy;
+        slot.scrollLeft -= dx;
+      } else {
+        viewport.scrollTop -= dy;
+        viewport.scrollLeft -= dx;
+      }
       return;
     }
 

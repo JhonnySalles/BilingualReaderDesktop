@@ -2156,7 +2156,31 @@ export class ReaderImageComponent implements OnInit, OnDestroy, AfterViewChecked
     if (ev.ctrlKey) {
       ev.preventDefault();
       const dir = ev.deltaY > 0 ? -1 : 1;
-      this.setZoom(this.zoom() + dir * ZOOM_STEP_WHEEL);
+      
+      const oldZoom = this.zoom();
+      const nextZoom = Math.round(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, oldZoom + dir * ZOOM_STEP_WHEEL)) * 100) / 100;
+      if (nextZoom === oldZoom) return;
+
+      const el = this.activeViewportEl();
+      if (!el) {
+        this.setZoom(nextZoom);
+        return;
+      }
+
+      const rect = el.getBoundingClientRect();
+      const localX = ev.clientX - rect.left;
+      const localY = ev.clientY - rect.top;
+
+      const scale = nextZoom / oldZoom;
+      const newScrollLeft = (el.scrollLeft + localX) * scale - localX;
+      const newScrollTop = (el.scrollTop + localY) * scale - localY;
+
+      this.setZoom(nextZoom);
+
+      requestAnimationFrame(() => {
+        el.scrollLeft = newScrollLeft;
+        el.scrollTop = newScrollTop;
+      });
     }
     // Non-ctrl wheel is owned by MangaSpreadViewport / MangaDualSpreadViewport.
   }
