@@ -24,6 +24,9 @@ export interface SectorStats {
   completeReadingSeconds: number;
   currentReadingPages: number;
   currentReadingSeconds: number;
+  currentMonthPages: number;
+  currentMonthSeconds: number;
+  readThisMonth: number;
   totalReadPages: number;
   totalReadSeconds: number;
   averageMinutesPerPage: number;

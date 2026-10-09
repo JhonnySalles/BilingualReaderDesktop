@@ -34,6 +34,15 @@ class StatisticsRepository {
       FROM History
       WHERE type = ?
     `).get(type);
+        const currentMonthPrefix = this.toLocalDateKey(new Date()).slice(0, 7);
+        const currentMonthHistory = this.db.prepare(`
+      SELECT
+        COALESCE(SUM(CASE WHEN page_end > page_start THEN page_end - page_start ELSE 0 END), 0) AS currentMonthPages,
+        COALESCE(SUM(seconds_read), 0) AS currentMonthSeconds,
+        COALESCE(COUNT(DISTINCT CASE WHEN completed = 1 THEN id_reference END), 0) AS readThisMonth
+      FROM History
+      WHERE type = ? AND SUBSTR(date_time_start, 1, 7) = ?
+    `).get(type, currentMonthPrefix);
         const totalReadPages = Number(history?.totalReadPages ?? 0);
         const totalReadSeconds = Number(history?.totalReadSeconds ?? 0);
         const averageMinutesPerPage = totalReadPages > 0 ? Math.round(totalReadSeconds / totalReadPages / 60) : 0;
@@ -47,6 +56,9 @@ class StatisticsRepository {
             completeReadingSeconds: Number(history?.completeReadingSeconds ?? 0),
             currentReadingPages: Number(history?.currentReadingPages ?? 0),
             currentReadingSeconds: Number(history?.currentReadingSeconds ?? 0),
+            currentMonthPages: Number(currentMonthHistory?.currentMonthPages ?? 0),
+            currentMonthSeconds: Number(currentMonthHistory?.currentMonthSeconds ?? 0),
+            readThisMonth: Number(currentMonthHistory?.readThisMonth ?? 0),
             totalReadPages,
             totalReadSeconds,
             averageMinutesPerPage

@@ -41,28 +41,34 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
         class="h-full shrink-0 bg-slate-900/90 backdrop-blur border-r border-slate-800 flex flex-col transition-all duration-300 z-30 select-none">
 
         <!-- Top Header (Fixed) -->
-        <div class="h-16 px-4 flex items-center justify-between border-b border-slate-800 shrink-0">
-          <div class="flex items-center gap-3 min-w-0">
-            <img
-              src="assets/icons/icon.png"
-              alt="Bilingual Reader"
-              class="w-9 h-9 min-w-[2.25rem] rounded-xl object-contain shrink-0 filter drop-shadow-[0_4px_10px_rgb(var(--accent-500)/0.35)]" />
-            @if (isExpanded()) {
-              <div class="truncate">
-                <h1 class="text-sm font-bold tracking-wide leading-none text-slate-100">Bilingual Reader</h1>
-                <span class="text-[10px] text-indigo-400 font-semibold tracking-wider uppercase">Desktop v{{ appVersion() }}</span>
-              </div>
-            }
-          </div>
-
+        <div class="px-4 border-b border-slate-800 shrink-0 transition-all duration-300 ease-in-out relative overflow-hidden"
+             [class.h-16]="isExpanded()"
+             [class.h-24]="!isExpanded()">
+          
           <button
             (click)="isExpanded.set(!isExpanded())"
-            class="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors cursor-pointer"
+            class="absolute p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-all duration-300 ease-in-out cursor-pointer z-20 shrink-0"
+            [style.left]="isExpanded() ? '212px' : '16px'"
+            [style.top]="isExpanded() ? '14px' : '10px'"
             title="Expandir / Recolher Menu">
-            <svg class="w-5 h-5 transition-transform duration-300" [class.rotate-180]="!isExpanded()" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-5 h-5 transition-transform duration-300 ease-in-out" [class.rotate-180]="!isExpanded()" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
             </svg>
           </button>
+
+          <div class="absolute left-3.5 flex items-center gap-3 min-w-0 pointer-events-none transition-all"
+               [ngClass]="isExpanded() ? 'top-3.5 delay-150 duration-300 ease-out' : 'top-12 delay-0 duration-200 ease-in'">
+            <img
+              src="assets/icons/icon.png"
+              alt="Bilingual Reader"
+              class="w-9 h-9 min-w-[2.25rem] rounded-xl object-contain shrink-0 filter drop-shadow-[0_4px_10px_rgb(var(--accent-500)/0.35)] transition-all duration-300"
+              [class.scale-105]="!isExpanded()" />
+            <div class="truncate transition-all overflow-hidden whitespace-nowrap"
+                 [ngClass]="isExpanded() ? 'opacity-100 max-w-[160px] translate-x-0 duration-300 delay-150 ease-out' : 'opacity-0 max-w-0 -translate-x-3 duration-150 delay-0 ease-in'">
+              <h1 class="text-sm font-bold tracking-wide leading-none text-slate-100">Bilingual Reader</h1>
+              <span class="text-[10px] text-indigo-400 font-semibold tracking-wider uppercase">Desktop v{{ appVersion() }}</span>
+            </div>
+          </div>
         </div>
 
         <!-- Middle Navigation (Scrollable on demand) -->
@@ -71,35 +77,39 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
             routerLink="/"
             [queryParams]="{ lib: 'home' }"
             [ngClass]="isHomeActive() ? 'bg-indigo-600/15 text-indigo-400 font-semibold border-r-2 border-indigo-500' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'"
-            class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs transition-all cursor-pointer">
-            <svg class="w-5 h-5 min-w-[1.25rem]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            class="flex items-center px-3 py-2.5 rounded-lg text-xs transition-all cursor-pointer">
+            <svg class="w-5 h-5 min-w-[1.25rem] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
             </svg>
-            @if (isExpanded()) { <span>Início</span> }
+            <span class="overflow-hidden whitespace-nowrap transition-all"
+                  [ngClass]="isExpanded() ? 'opacity-100 max-w-[200px] translate-x-0 ml-3 duration-300 delay-100 ease-out' : 'opacity-0 max-w-0 -translate-x-2 ml-0 duration-150 delay-0 ease-in'">
+              Início
+            </span>
           </a>
 
           <div class="my-2 border-t border-slate-800"></div>
-          @if (isExpanded()) {
-            <div class="px-3 pt-1 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 flex items-center justify-between">
-              <span>Mangás & Comics</span>
-            </div>
-          }
+          <div class="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-500 overflow-hidden whitespace-nowrap transition-all flex items-center justify-between"
+               [ngClass]="isExpanded() ? 'opacity-100 max-h-[20px] translate-x-0 pt-1 pb-1 duration-300 delay-100 ease-out' : 'opacity-0 max-h-0 -translate-x-2 pt-0 pb-0 duration-150 delay-0 ease-in'">
+            <span>Mangás & Comics</span>
+          </div>
 
           <button
             (click)="selectLibrary(defaultMangaLibrary())"
             [ngClass]="getNavMangaButtonClass(defaultMangaLibrary().id)"
             class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-all cursor-pointer">
-            <div class="flex items-center gap-3 overflow-hidden">
-              <span class="text-base min-w-[1.25rem] text-center">🎨</span>
-              @if (isExpanded()) { <span class="truncate font-medium">{{ defaultMangaLibrary().name }}</span> }
-            </div>
-            @if (isExpanded()) {
-              <span
-                class="text-[10px] px-1.5 py-0.5 rounded transition-colors"
-                [ngClass]="getNavMangaBadgeClass(defaultMangaLibrary().id)">
-                {{ defaultMangaLibrary().count }}
+            <div class="flex items-center overflow-hidden">
+              <span class="text-base min-w-[1.25rem] text-center shrink-0">🎨</span>
+              <span class="overflow-hidden whitespace-nowrap truncate font-medium transition-all"
+                    [ngClass]="isExpanded() ? 'opacity-100 max-w-[150px] translate-x-0 ml-3 duration-300 delay-100 ease-out' : 'opacity-0 max-w-0 -translate-x-2 ml-0 duration-150 delay-0 ease-in'">
+                {{ defaultMangaLibrary().name }}
               </span>
-            }
+            </div>
+            <span
+              class="text-[10px] rounded overflow-hidden whitespace-nowrap flex items-center justify-center transition-all"
+              [ngClass]="getNavMangaBadgeClass(defaultMangaLibrary().id)"
+              [ngClass]="isExpanded() ? 'opacity-100 max-w-[40px] translate-x-0 px-1.5 py-0.5 duration-300 delay-100 ease-out' : 'opacity-0 max-w-0 -translate-x-1 px-0 py-0 duration-150 delay-0 ease-in'">
+              {{ defaultMangaLibrary().count }}
+            </span>
           </button>
 
           @for (lib of customMangaLibraries(); track lib.id) {
@@ -107,42 +117,45 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
               (click)="selectLibrary(lib)"
               [ngClass]="getNavMangaButtonClass(lib.id)"
               class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-all cursor-pointer">
-              <div class="flex items-center gap-3 overflow-hidden">
-                <span class="text-base min-w-[1.25rem] text-center">🎨</span>
-                @if (isExpanded()) { <span class="truncate">{{ lib.name }}</span> }
-              </div>
-              @if (isExpanded()) {
-                <span
-                  class="text-[10px] px-1.5 py-0.5 rounded transition-colors"
-                  [ngClass]="getNavMangaBadgeClass(lib.id)">
-                  {{ lib.count }}
+              <div class="flex items-center overflow-hidden">
+                <span class="text-base min-w-[1.25rem] text-center shrink-0">🎨</span>
+                <span class="overflow-hidden whitespace-nowrap truncate transition-all"
+                      [ngClass]="isExpanded() ? 'opacity-100 max-w-[150px] translate-x-0 ml-3 duration-300 delay-100 ease-out' : 'opacity-0 max-w-0 -translate-x-2 ml-0 duration-150 delay-0 ease-in'">
+                  {{ lib.name }}
                 </span>
-              }
+              </div>
+              <span
+                class="text-[10px] rounded overflow-hidden whitespace-nowrap flex items-center justify-center transition-all"
+                [ngClass]="getNavMangaBadgeClass(lib.id)"
+                [ngClass]="isExpanded() ? 'opacity-100 max-w-[40px] translate-x-0 px-1.5 py-0.5 duration-300 delay-100 ease-out' : 'opacity-0 max-w-0 -translate-x-1 px-0 py-0 duration-150 delay-0 ease-in'">
+                {{ lib.count }}
+              </span>
             </button>
           }
 
           <div class="my-2 border-t border-slate-800"></div>
-          @if (isExpanded()) {
-            <div class="px-3 pt-1 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 flex items-center justify-between">
-              <span>Livros & EPUBs</span>
-            </div>
-          }
+          <div class="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-500 overflow-hidden whitespace-nowrap transition-all flex items-center justify-between"
+               [ngClass]="isExpanded() ? 'opacity-100 max-h-[20px] translate-x-0 pt-1 pb-1 duration-300 delay-100 ease-out' : 'opacity-0 max-h-0 -translate-x-2 pt-0 pb-0 duration-150 delay-0 ease-in'">
+            <span>Livros & EPUBs</span>
+          </div>
 
           <button
             (click)="selectLibrary(defaultBookLibrary())"
             [ngClass]="getNavBookButtonClass(defaultBookLibrary().id)"
             class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-all cursor-pointer">
-            <div class="flex items-center gap-3 overflow-hidden">
-              <span class="text-base min-w-[1.25rem] text-center">📚</span>
-              @if (isExpanded()) { <span class="truncate font-medium">{{ defaultBookLibrary().name }}</span> }
-            </div>
-            @if (isExpanded()) {
-              <span
-                class="text-[10px] px-1.5 py-0.5 rounded transition-colors"
-                [ngClass]="getNavBookBadgeClass(defaultBookLibrary().id)">
-                {{ defaultBookLibrary().count }}
+            <div class="flex items-center overflow-hidden">
+              <span class="text-base min-w-[1.25rem] text-center shrink-0">📚</span>
+              <span class="overflow-hidden whitespace-nowrap truncate font-medium transition-all"
+                    [ngClass]="isExpanded() ? 'opacity-100 max-w-[150px] translate-x-0 ml-3 duration-300 delay-100 ease-out' : 'opacity-0 max-w-0 -translate-x-2 ml-0 duration-150 delay-0 ease-in'">
+                {{ defaultBookLibrary().name }}
               </span>
-            }
+            </div>
+            <span
+              class="text-[10px] rounded overflow-hidden whitespace-nowrap flex items-center justify-center transition-all"
+              [ngClass]="getNavBookBadgeClass(defaultBookLibrary().id)"
+              [ngClass]="isExpanded() ? 'opacity-100 max-w-[40px] translate-x-0 px-1.5 py-0.5 duration-300 delay-100 ease-out' : 'opacity-0 max-w-0 -translate-x-1 px-0 py-0 duration-150 delay-0 ease-in'">
+              {{ defaultBookLibrary().count }}
+            </span>
           </button>
 
           @for (lib of customBookLibraries(); track lib.id) {
@@ -150,77 +163,93 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
               (click)="selectLibrary(lib)"
               [ngClass]="getNavBookButtonClass(lib.id)"
               class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-all cursor-pointer">
-              <div class="flex items-center gap-3 overflow-hidden">
-                <span class="text-base min-w-[1.25rem] text-center">📚</span>
-                @if (isExpanded()) { <span class="truncate">{{ lib.name }}</span> }
-              </div>
-              @if (isExpanded()) {
-                <span
-                  class="text-[10px] px-1.5 py-0.5 rounded transition-colors"
-                  [ngClass]="getNavBookBadgeClass(lib.id)">
-                  {{ lib.count }}
+              <div class="flex items-center overflow-hidden">
+                <span class="text-base min-w-[1.25rem] text-center shrink-0">📚</span>
+                <span class="overflow-hidden whitespace-nowrap truncate transition-all"
+                      [ngClass]="isExpanded() ? 'opacity-100 max-w-[150px] translate-x-0 ml-3 duration-300 delay-100 ease-out' : 'opacity-0 max-w-0 -translate-x-2 ml-0 duration-150 delay-0 ease-in'">
+                  {{ lib.name }}
                 </span>
-              }
+              </div>
+              <span
+                class="text-[10px] rounded overflow-hidden whitespace-nowrap flex items-center justify-center transition-all"
+                [ngClass]="getNavBookBadgeClass(lib.id)"
+                [ngClass]="isExpanded() ? 'opacity-100 max-w-[40px] translate-x-0 px-1.5 py-0.5 duration-300 delay-100 ease-out' : 'opacity-0 max-w-0 -translate-x-1 px-0 py-0 duration-150 delay-0 ease-in'">
+                {{ lib.count }}
+              </span>
             </button>
           }
 
           <div class="my-2 border-t border-slate-800"></div>
-          @if (isExpanded()) {
-            <div class="px-3 pt-1 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-              <span>Menu do Leitor</span>
-            </div>
-          }
+          <div class="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-500 overflow-hidden whitespace-nowrap transition-all"
+               [ngClass]="isExpanded() ? 'opacity-100 max-h-[20px] translate-x-0 pt-1 pb-1 duration-300 delay-100 ease-out' : 'opacity-0 max-h-0 -translate-x-2 pt-0 pb-0 duration-150 delay-0 ease-in'">
+            <span>Menu do Leitor</span>
+          </div>
 
           <a
             routerLink="/history"
             routerLinkActive="bg-indigo-600/15 text-indigo-400 font-semibold border-r-2 border-indigo-500"
-            class="flex items-center gap-3 px-3 py-2 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer">
-            <svg class="w-5 h-5 min-w-[1.25rem]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            class="flex items-center px-3 py-2 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer">
+            <svg class="w-5 h-5 min-w-[1.25rem] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            @if (isExpanded()) { <span>Histórico de Leitura</span> }
+            <span class="overflow-hidden whitespace-nowrap transition-all"
+                  [ngClass]="isExpanded() ? 'opacity-100 max-w-[200px] translate-x-0 ml-3 duration-300 delay-100 ease-out' : 'opacity-0 max-w-0 -translate-x-2 ml-0 duration-150 delay-0 ease-in'">
+              Histórico de Leitura
+            </span>
           </a>
 
           <a
             routerLink="/annotations"
             routerLinkActive="bg-indigo-600/15 text-indigo-400 font-semibold border-r-2 border-indigo-500"
-            class="flex items-center gap-3 px-3 py-2 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer">
-            <svg class="w-5 h-5 min-w-[1.25rem]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            class="flex items-center px-3 py-2 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer">
+            <svg class="w-5 h-5 min-w-[1.25rem] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                 d="M7 8h10M7 12h6m-6 8l-4-4V6a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H7z" />
             </svg>
-            @if (isExpanded()) { <span>Anotações</span> }
+            <span class="overflow-hidden whitespace-nowrap transition-all"
+                  [ngClass]="isExpanded() ? 'opacity-100 max-w-[200px] translate-x-0 ml-3 duration-300 delay-100 ease-out' : 'opacity-0 max-w-0 -translate-x-2 ml-0 duration-150 delay-0 ease-in'">
+              Anotações
+            </span>
           </a>
 
           <a
             routerLink="/vocabulary"
             routerLinkActive="bg-indigo-600/15 text-indigo-400 font-semibold border-r-2 border-indigo-500"
-            class="flex items-center gap-3 px-3 py-2 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer">
-            <svg class="w-5 h-5 min-w-[1.25rem]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            class="flex items-center px-3 py-2 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer">
+            <svg class="w-5 h-5 min-w-[1.25rem] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
             </svg>
-            @if (isExpanded()) { <span>Vocabulário</span> }
+            <span class="overflow-hidden whitespace-nowrap transition-all"
+                  [ngClass]="isExpanded() ? 'opacity-100 max-w-[200px] translate-x-0 ml-3 duration-300 delay-100 ease-out' : 'opacity-0 max-w-0 -translate-x-2 ml-0 duration-150 delay-0 ease-in'">
+              Vocabulário
+            </span>
           </a>
 
           <a
             routerLink="/trackers"
             routerLinkActive="bg-indigo-600/15 text-indigo-400 font-semibold border-r-2 border-indigo-500"
-            class="flex items-center gap-3 px-3 py-2 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer">
-            <svg class="w-5 h-5 min-w-[1.25rem]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            class="flex items-center px-3 py-2 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer">
+            <svg class="w-5 h-5 min-w-[1.25rem] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
-            @if (isExpanded()) { <span>Rastreadores (Trackers)</span> }
+            <span class="overflow-hidden whitespace-nowrap transition-all"
+                  [ngClass]="isExpanded() ? 'opacity-100 max-w-[200px] translate-x-0 ml-3 duration-300 delay-100 ease-out' : 'opacity-0 max-w-0 -translate-x-2 ml-0 duration-150 delay-0 ease-in'">
+              Rastreadores (Trackers)
+            </span>
           </a>
 
           <a
             routerLink="/statistics"
             routerLinkActive="bg-indigo-600/15 text-indigo-400 font-semibold border-r-2 border-indigo-500"
             [routerLinkActiveOptions]="{ exact: false }"
-            class="flex items-center gap-3 px-3 py-2 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer">
-            <svg class="w-5 h-5 min-w-[1.25rem]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            class="flex items-center px-3 py-2 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer">
+            <svg class="w-5 h-5 min-w-[1.25rem] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
             </svg>
-            @if (isExpanded()) { <span>Estatísticas de Uso</span> }
+            <span class="overflow-hidden whitespace-nowrap transition-all"
+                  [ngClass]="isExpanded() ? 'opacity-100 max-w-[200px] translate-x-0 ml-3 duration-300 delay-100 ease-out' : 'opacity-0 max-w-0 -translate-x-2 ml-0 duration-150 delay-0 ease-in'">
+              Estatísticas de Uso
+            </span>
           </a>
         </nav>
 
@@ -229,32 +258,41 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
           <a
             routerLink="/settings"
             routerLinkActive="bg-indigo-600/15 text-indigo-400 font-semibold border-r-2 border-indigo-500"
-            class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer">
-            <svg class="w-5 h-5 min-w-[1.25rem]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            class="flex items-center px-3 py-2.5 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer">
+            <svg class="w-5 h-5 min-w-[1.25rem] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
-            @if (isExpanded()) { <span>Configurações</span> }
+            <span class="overflow-hidden whitespace-nowrap transition-all"
+                  [ngClass]="isExpanded() ? 'opacity-100 max-w-[200px] translate-x-0 ml-3 duration-300 delay-100 ease-out' : 'opacity-0 max-w-0 -translate-x-2 ml-0 duration-150 delay-0 ease-in'">
+              Configurações
+            </span>
           </a>
           <a
             routerLink="/help"
             routerLinkActive="bg-indigo-600/15 text-indigo-400 font-semibold border-r-2 border-indigo-500"
-            class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer">
-            <svg class="w-5 h-5 min-w-[1.25rem]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            class="flex items-center px-3 py-2.5 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer">
+            <svg class="w-5 h-5 min-w-[1.25rem] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                 d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            @if (isExpanded()) { <span>Ajuda</span> }
+            <span class="overflow-hidden whitespace-nowrap transition-all"
+                  [ngClass]="isExpanded() ? 'opacity-100 max-w-[200px] translate-x-0 ml-3 duration-300 delay-100 ease-out' : 'opacity-0 max-w-0 -translate-x-2 ml-0 duration-150 delay-0 ease-in'">
+              Ajuda
+            </span>
           </a>
           <a
             routerLink="/about"
             routerLinkActive="bg-indigo-600/15 text-indigo-400 font-semibold border-r-2 border-indigo-500"
-            class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer">
-            <svg class="w-5 h-5 min-w-[1.25rem]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            class="flex items-center px-3 py-2.5 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer">
+            <svg class="w-5 h-5 min-w-[1.25rem] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                 d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            @if (isExpanded()) { <span>Sobre</span> }
+            <span class="overflow-hidden whitespace-nowrap transition-all"
+                  [ngClass]="isExpanded() ? 'opacity-100 max-w-[200px] translate-x-0 ml-3 duration-300 delay-100 ease-out' : 'opacity-0 max-w-0 -translate-x-2 ml-0 duration-150 delay-0 ease-in'">
+              Sobre
+            </span>
           </a>
         </div>
       </aside>

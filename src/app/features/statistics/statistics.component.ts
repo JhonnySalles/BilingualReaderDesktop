@@ -3,19 +3,23 @@ import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { StatisticsService } from '../../core/services/statistics.service';
 import { StatisticsSectorComponent } from './components/statistics-sector.component';
+import { StatisticsHeatmapComponent } from './components/statistics-heatmap.component';
 
 @Component({
   selector: 'app-statistics',
   standalone: true,
-  imports: [CommonModule, StatisticsSectorComponent],
+  imports: [CommonModule, StatisticsSectorComponent, StatisticsHeatmapComponent],
   template: `
     <div class="h-full flex flex-col bg-slate-950 text-slate-100 overflow-hidden select-none">
       @if (stats.loading()) {
         <div class="px-6 py-2 text-[10px] text-indigo-300 animate-pulse border-b border-slate-800">Atualizando…</div>
       }
 
-      <div class="flex-1 min-h-0 overflow-y-auto px-6 pb-6 pt-24">
-        <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 h-full min-h-[640px]">
+      <div class="flex-1 min-h-0 overflow-y-auto px-6 pb-12 pt-24">
+        <!-- Reading Days Heatmap -->
+        <app-statistics-heatmap [days]="stats.heatmap()" />
+
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 min-h-[640px] mb-8">
           <app-statistics-sector
             type="MANGA"
             title="Mangás & Comics"

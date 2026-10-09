@@ -77,6 +77,20 @@ import { StatisticsChartComponent } from './statistics-chart.component';
           </div>
         </div>
 
+        <div class="rounded-xl bg-slate-800 border border-slate-700 p-4 space-y-3">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Mês atual</h3>
+          <div class="grid grid-cols-2 gap-3">
+            <div class="text-center">
+              <p class="text-[10px] text-slate-500 mb-1">Páginas</p>
+              <p class="text-sm font-semibold text-slate-200 tabular-nums">{{ stats.currentMonthPages }}</p>
+            </div>
+            <div class="text-center">
+              <p class="text-[10px] text-slate-500 mb-1">Tempo</p>
+              <p class="text-sm font-semibold text-slate-200">{{ formatDuration(stats.currentMonthSeconds) }}</p>
+            </div>
+          </div>
+        </div>
+
         <div class="space-y-2.5">
           <div class="flex items-center justify-between gap-3 text-xs">
             <span class="text-slate-400">Total de páginas lidas</span>
@@ -89,6 +103,10 @@ import { StatisticsChartComponent } from './statistics-chart.component';
           <div class="flex items-center justify-between gap-3 text-xs">
             <span class="text-slate-400">Média de leitura</span>
             <span class="font-semibold text-slate-200">{{ stats.averageMinutesPerPage }} min / página</span>
+          </div>
+          <div class="flex items-center justify-between gap-3 text-xs">
+            <span class="text-slate-400">Quantidade no mês</span>
+            <span class="font-semibold text-slate-200 tabular-nums">{{ stats.readThisMonth }}</span>
           </div>
         </div>
 

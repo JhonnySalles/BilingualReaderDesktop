@@ -1,7 +1,7 @@
 import { Component, Input, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { HeatmapDay } from '../../../../core/models';
-import { formatShortDuration } from '../../../../core/services/statistics.service';
+import { HeatmapDay } from '../../../core/models';
+import { formatShortDuration } from '../../../core/services/statistics.service';
 
 interface HeatCell {
   date: string;
@@ -15,26 +15,28 @@ const WEEKDAY_LABELS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 const MONTH_LABELS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
 @Component({
-  selector: 'app-home-reading-heatmap',
+  selector: 'app-statistics-heatmap',
   standalone: true,
   imports: [CommonModule],
   template: `
-    <div class="rounded-2xl bg-slate-900/80 border border-slate-800 p-5 space-y-4">
+    <div class="rounded-2xl bg-slate-900 border border-slate-800 p-5 space-y-4 shadow-sm mb-6">
       <div class="flex items-center justify-between gap-3 flex-wrap">
-        <h3 class="text-sm font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
-          <span class="w-2 h-2 rounded-full bg-indigo-500"></span>
-          Atividade de leitura
-        </h3>
+        <div class="flex items-center gap-2.5">
+          <span class="w-2.5 h-2.5 rounded-full" [style.background-color]="'rgb(var(--accent-500))'"></span>
+          <h3 class="text-sm font-bold tracking-wider text-slate-200">
+            Atividade de Leitura Diária
+          </h3>
+        </div>
         <div class="flex items-center gap-1.5 text-[10px] text-slate-500">
           <span>Menos</span>
           @for (lv of [0, 1, 2, 3, 4]; track lv) {
-            <span class="w-3 h-3 rounded-sm" [ngClass]="levelClass(lv)"></span>
+            <span class="w-3 h-3 rounded-sm" [ngStyle]="cellStyle(lv)"></span>
           }
           <span>Mais</span>
         </div>
       </div>
 
-      <div class="overflow-x-auto">
+      <div class="overflow-x-auto custom-scrollbar pb-1">
         <div class="w-fit mx-auto min-w-max flex gap-1.5 justify-center">
           <div class="flex flex-col gap-1 pr-1 pt-4 justify-between py-[2px]">
             @for (label of weekdayLabels; track label; let i = $index) {
@@ -56,8 +58,8 @@ const MONTH_LABELS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'S
                 <div class="flex flex-col gap-1">
                   @for (cell of week; track cell.date) {
                     <div
-                      class="w-3 h-3 rounded-sm"
-                      [ngClass]="levelClass(cell.level)"
+                      class="w-3 h-3 rounded-sm transition-transform hover:scale-125 cursor-pointer"
+                      [ngStyle]="cellStyle(cell.level)"
                       [attr.title]="cell.title"></div>
                   }
                 </div>
@@ -69,13 +71,29 @@ const MONTH_LABELS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'S
 
       @if (!hasActivity) {
         <p class="text-[11px] text-slate-500">
-          Sem leituras registradas neste período. Abra um mangá ou livro para começar o gráfico.
+          Nenhuma atividade de leitura registrada recentemente. Seus dias lidos aparecerão aqui.
         </p>
       }
     </div>
-  `
+  `,
+  styles: [`
+    .custom-scrollbar::-webkit-scrollbar {
+      height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.6);
+      border-radius: 9999px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(51, 65, 85, 0.6);
+      border-radius: 9999px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: rgba(71, 85, 105, 0.8);
+    }
+  `]
 })
-export class HomeReadingHeatmapComponent implements OnChanges {
+export class StatisticsHeatmapComponent implements OnChanges {
   @Input() days: HeatmapDay[] = [];
 
   readonly weekdayLabels = WEEKDAY_LABELS;
@@ -89,13 +107,18 @@ export class HomeReadingHeatmapComponent implements OnChanges {
     }
   }
 
-  levelClass(level: number): string {
+  cellStyle(level: number): { [key: string]: string } {
     switch (level) {
-      case 1: return 'bg-indigo-900/80';
-      case 2: return 'bg-indigo-700/80';
-      case 3: return 'bg-indigo-500/90';
-      case 4: return 'bg-indigo-400';
-      default: return 'bg-slate-800';
+      case 1:
+        return { 'background-color': 'rgb(var(--accent-900) / 0.8)' };
+      case 2:
+        return { 'background-color': 'rgb(var(--accent-700) / 0.85)' };
+      case 3:
+        return { 'background-color': 'rgb(var(--accent-500) / 0.9)' };
+      case 4:
+        return { 'background-color': 'rgb(var(--accent-400))' };
+      default:
+        return { 'background-color': 'rgb(30 41 59)' }; // bg-slate-800
     }
   }
 
@@ -112,7 +135,6 @@ export class HomeReadingHeatmapComponent implements OnChanges {
       return { date: d.date, value: d.value, pages: d.pages, level, title };
     });
 
-    // Align to week starting Sunday (like GitHub)
     const first = this.parseLocalDate(cells[0].date);
     const pad = first.getDay(); // 0=Sun
     const padded: (HeatCell | null)[] = [
@@ -142,7 +164,6 @@ export class HomeReadingHeatmapComponent implements OnChanges {
   private buildMonthLabels(weeks: HeatCell[][]): { text: string; offsetPx: number }[] {
     const labels: { text: string; offsetPx: number }[] = [];
     let lastMonth = -1;
-    // cell 12px + gap 4px = 16px per week column
     const colWidth = 16;
 
     for (let wi = 0; wi < weeks.length; wi++) {
@@ -167,7 +188,6 @@ export class HomeReadingHeatmapComponent implements OnChanges {
     return 4;
   }
 
-  /** Last ~12 months ending today, Sunday-aligned start (matches backend). */
   private emptyTwelveMonths(): HeatmapDay[] {
     const today = new Date();
     today.setHours(12, 0, 0, 0);

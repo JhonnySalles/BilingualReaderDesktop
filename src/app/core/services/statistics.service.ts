@@ -6,7 +6,8 @@ import {
   LibraryOption,
   HistoryStatisticsItem,
   HistoryContentType,
-  StatisticsOverview
+  StatisticsOverview,
+  HeatmapDay
 } from '../models';
 
 export function formatReadingDuration(totalSeconds: number): string {
@@ -47,6 +48,9 @@ const emptySector = (type: HistoryContentType): SectorStats => ({
   completeReadingSeconds: 0,
   currentReadingPages: 0,
   currentReadingSeconds: 0,
+  currentMonthPages: 0,
+  currentMonthSeconds: 0,
+  readThisMonth: 0,
   totalReadPages: 0,
   totalReadSeconds: 0,
   averageMinutesPerPage: 0
@@ -63,6 +67,7 @@ export class StatisticsService {
   readonly bookYears = signal<number[]>([new Date().getFullYear()]);
   readonly mangaLibraries = signal<LibraryOption[]>([]);
   readonly bookLibraries = signal<LibraryOption[]>([]);
+  readonly heatmap = signal<HeatmapDay[]>([]);
 
   constructor(private electron: ElectronService) {}
 
@@ -75,17 +80,19 @@ export class StatisticsService {
         this.bookStats.set(overview.book);
       }
 
-      const [mangaYears, bookYears, mangaLibs, bookLibs] = await Promise.all([
+      const [mangaYears, bookYears, mangaLibs, bookLibs, heatmap] = await Promise.all([
         this.electron.getStatisticsYears('MANGA'),
         this.electron.getStatisticsYears('BOOK'),
         this.electron.listLibrariesByType('MANGA'),
-        this.electron.listLibrariesByType('BOOK')
+        this.electron.listLibrariesByType('BOOK'),
+        this.electron.getReadingActivityHeatmap()
       ]);
 
       this.mangaYears.set(mangaYears);
       this.bookYears.set(bookYears);
       this.mangaLibraries.set(mangaLibs);
       this.bookLibraries.set(bookLibs);
+      this.heatmap.set(heatmap || []);
     } finally {
       this.loading.set(false);
     }
