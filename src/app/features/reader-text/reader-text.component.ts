@@ -440,14 +440,18 @@ const TAP_DEDUPE_MS = 350;
         </div>
       }
 
-      <!-- EPUB viewport (clicks/pan via iframe hooks — does not bubble to Angular) -->
+      <!-- EPUB viewport (direct DOM pagination) -->
       <div
         #viewerHost
         data-br-viewer-host
         class="absolute inset-0 outline-none z-0 touch-none overflow-hidden"
         [style.background]="pageBg"
-        [class.cursor-grab]="!panning()"
-        [class.cursor-grabbing]="panning()">
+        (pointerdown)="onViewerPointerDown($event)"
+        (pointermove)="onViewerPointerMove($event)"
+        (pointerup)="onViewerPointerUp($event)"
+        (pointercancel)="onViewerPointerUp($event)"
+        (click)="onViewerClick($event)"
+        (dblclick)="onViewerDblClick($event)">
         <!-- Opaque surface mask during turns (Depth/Zoom/Fade holes) — no destination bitmap. -->
         <div
           class="absolute inset-0 pointer-events-none"
@@ -1634,6 +1638,8 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     string,
     { bitmap: ImageBitmap; width: number; height: number; timestamp: number }
   >();
+  /** Cache of headless extracted page data (1-based page number -> PageData). */
+  private pageDataCache = new Map<number, any>();
   private backgroundPreloadBusy = false;
   private bitmapPreloadToken = 0;
   private bitmapPreloadPromise: Promise<void> | null = null;
@@ -2201,18 +2207,16 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
 
   onAnnotationListOpen(item: AnnotationItem): void {
     this.closeAnnotations();
-    if (item.cfiRange && this.rendition) {
-      void this.rendition.display(item.cfiRange);
+    if (typeof item.page === 'number' && item.page >= 0) {
+      void this.goToPageIndex(item.page);
       return;
     }
-    if (this.epubBook?.locations && this.rendition) {
-      try {
-        const cfi = this.epubBook.locations.cfiFromLocation(item.page);
-        if (cfi) {
-          void this.rendition.display(cfi);
-          return;
-        }
-      } catch { /* fall through */ }
+    if (item.cfiRange) {
+      const loc = this.locationFromCfiSafe(item.cfiRange);
+      if (loc >= 0) {
+        void this.goToPageIndex(loc);
+        return;
+      }
     }
   }
 
@@ -2351,16 +2355,15 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   async goToSearchHit(hit: Extract<BookSearchListItem, { kind: 'hit' }>): Promise<void> {
-    if (!this.rendition || !hit?.cfi) return;
+    if (!hit?.cfi) return;
     this.closeSearch();
     this.chromeVisible.set(false);
-    try {
-      await this.rendition.display(hit.cfi);
-    } catch (e) {
-      console.warn('[reader-text] display search hit failed', e);
-      return;
+    const targetPage = this.locationFromCfiSafe(hit.cfi);
+    await this.goToPageIndex(targetPage >= 0 ? targetPage : this.currentPage());
+    const snippet = hit.plainExcerpt || (hit as any).excerpt || hit.query;
+    if (snippet) {
+      this.applyTemporarySearchHighlight(snippet);
     }
-    this.applyTemporarySearchHighlight(hit.cfi);
   }
 
   private async runSearch(rawQuery: string): Promise<void> {
@@ -2408,29 +2411,21 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  private applyTemporarySearchHighlight(cfi: string): void {
+  private applyTemporarySearchHighlight(textOrCfi: string): void {
     this.clearTemporarySearchHighlight();
-    if (!this.rendition || !cfi) return;
-    try {
-      this.rendition.annotations.highlight(
-        cfi,
-        { id: 'br-search-temp' },
-        undefined,
-        'br-search-hit',
-        {
-          fill: '#facc15',
-          'fill-opacity': '0.45',
-          'mix-blend-mode': 'multiply'
-        }
-      );
-      this.searchHighlightCfi = cfi;
-      this.searchHighlightIgnoreRelocate = 2;
-      this.searchHighlightTimer = setTimeout(() => {
-        this.clearTemporarySearchHighlight();
-      }, 4000);
-    } catch (e) {
-      console.warn('[reader-text] search highlight failed', e);
-    }
+    const viewerEl = this.viewerRef?.nativeElement;
+    if (!viewerEl || !textOrCfi) return;
+    const contentEl = viewerEl.querySelector('.epub-page-content') || viewerEl;
+    this.highlightTextInElement(
+      contentEl as HTMLElement,
+      textOrCfi,
+      'br-search-temp',
+      'rgba(250, 204, 21, 0.45)',
+      'br-search-hit'
+    );
+    this.searchHighlightTimer = setTimeout(() => {
+      this.clearTemporarySearchHighlight();
+    }, 4000);
   }
 
   private clearTemporarySearchHighlight(): void {
@@ -2438,13 +2433,14 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       clearTimeout(this.searchHighlightTimer);
       this.searchHighlightTimer = null;
     }
-    this.searchHighlightIgnoreRelocate = 0;
-    if (this.searchHighlightCfi && this.rendition) {
-      try {
-        this.rendition.annotations.remove(this.searchHighlightCfi, 'highlight');
-      } catch { /* ignore */ }
-    }
-    this.searchHighlightCfi = null;
+    const viewerEl = this.viewerRef?.nativeElement;
+    if (!viewerEl) return;
+    const hits = viewerEl.querySelectorAll('.br-search-hit');
+    hits.forEach((el: any) => {
+      const parent = el.parentNode;
+      while (el.firstChild) parent.insertBefore(el.firstChild, el);
+      el.remove();
+    });
   }
 
   /** True while a page-turn animation or interactive driver owns the viewport. */
@@ -2478,77 +2474,38 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   prevPage(): Promise<void> {
-    if (!this.rendition) return Promise.resolve();
     if (this.isAtBookStart()) return Promise.resolve();
     this.sequentialNavDirection = -1;
-    return Promise.resolve(this.rendition.prev()).then(() => undefined);
+    return this.flipToPage(this.currentPage() - 1, -1);
   }
 
   nextPage(): Promise<void> {
-    if (!this.rendition) return Promise.resolve();
     if (this.isAtBookEnd()) {
       this.requestAdjacentFile('next');
       return Promise.resolve();
     }
     this.sequentialNavDirection = 1;
-    return Promise.resolve(this.rendition.next()).then(() => undefined);
+    return this.flipToPage(this.currentPage() + 1, 1);
   }
 
   /**
-   * Navigate one page and wait for relocated (or a short timeout) so the
-   * animation layer can release its last frame over the new content.
+   * Navigate one page with native transition without relying on rendition.
    */
   private async turnPageAndSettle(dir: 1 | -1): Promise<void> {
-    if (!this.rendition) return;
-    const beforeCfi = this.currentCfi() || this.rendition.location?.start?.cfi || '';
-    await new Promise<void>(resolve => {
-      let settled = false;
-      const done = () => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timer);
-        try {
-          this.rendition?.off?.('relocated', onRelocated);
-        } catch {
-          /* ignore */
-        }
-        resolve();
-      };
-      const onRelocated = (location: any) => {
-        const cfi = location?.start?.cfi || '';
-        if (!beforeCfi || cfi !== beforeCfi) done();
-      };
-      const timer = setTimeout(done, Math.max(120, PAGE_TURN_DURATION_MS));
-      try {
-        this.rendition?.on?.('relocated', onRelocated);
-      } catch {
-        /* ignore */
-      }
-      void (dir > 0 ? this.nextPage() : this.prevPage()).then(() => {
-        // If next/prev resolved synchronously without relocated, still wait briefly
-      });
-    });
+    const targetIndex = this.currentPage() + dir;
+    const max = Math.max(0, this.pageCount() - 1);
+    if (targetIndex < 0 || targetIndex > max) return;
+    await this.flipToPage(targetIndex, dir);
     this.didDrag = false;
   }
 
   /** True when EPUB location reports start or current page is 0 (or at the first spine item). */
   isAtBookStart(): boolean {
-    if (this.currentPage() <= 0) return true;
-    if (this.rendition?.location?.atStart) return true;
-    const spineFirstHref = (this.epubBook as any)?.spine?.first?.()?.href?.split('#')[0];
-    const currentHref = this.rendition?.location?.start?.href?.split('#')[0];
-    if (
-      (spineFirstHref && currentHref && (currentHref === spineFirstHref || currentHref.endsWith(spineFirstHref) || spineFirstHref.endsWith(currentHref))) ||
-      (currentHref && /(cover|titlepage)\.x?html?$/i.test(currentHref))
-    ) {
-      return true;
-    }
-    return false;
+    return this.currentPage() <= 0;
   }
 
   /** True when EPUB location reports end or current page is the last location. */
   private isAtBookEnd(): boolean {
-    if (this.rendition?.location?.atEnd) return true;
     const max = Math.max(0, this.pageCount() - 1);
     return this.currentPage() >= max;
   }
@@ -2754,78 +2711,36 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /** Home — first spine / location 0; continuous scrollTop = 0. */
   async goToFirstPage(): Promise<void> {
-    if (!this.rendition || !this.epubBook) return;
+    if (!this.epubBook) return;
     this.forceStartPageUntil = Date.now() + 800;
-    this.currentPage.set(0);
-    try {
-      // Prefer spine.first — locations.cfiFromLocation(0) skips image-only covers.
-      const spineFirst = (this.epubBook as any).spine?.first?.();
-      let target: string | undefined = spineFirst?.href || undefined;
-      if (!target) {
-        try {
-          target = this.epubBook.locations.cfiFromPercentage(0) as string;
-        } catch { /* ignore */ }
-      }
-      if (!target) {
-        try {
-          target = this.epubBook.locations.cfiFromLocation(0) as string;
-        } catch { /* ignore */ }
-      }
-      if (target) {
-        await this.rendition.display(target);
-      } else {
-        await this.rendition.display();
-      }
-      this.currentPage.set(0);
-      const container = this.continuousScrollContainer();
-      if (container) container.scrollTop = 0;
-    } catch (e) {
-      console.warn('[reader-text] goToFirstPage failed', e);
-    }
+    await this.goToPageIndex(0);
+    const container = this.continuousScrollContainer();
+    if (container) container.scrollTop = 0;
     this.scheduleProgressUpdate();
   }
 
   /** End — last location; continuous scroll to bottom. */
   async goToLastPage(): Promise<void> {
-    if (!this.rendition || !this.epubBook) return;
+    if (!this.epubBook) return;
     const max = Math.max(0, this.pageCount() - 1);
     this.forceStartPageUntil = 0;
-    try {
-      let endCfi: string | undefined;
-      try {
-        endCfi = this.epubBook.locations.cfiFromLocation(max) as string;
-      } catch { /* ignore */ }
-      if (!endCfi) {
-        try {
-          endCfi = this.epubBook.locations.cfiFromPercentage(1) as string;
-        } catch { /* ignore */ }
-      }
-      const spineLast = (this.epubBook as any).spine?.last?.();
-      const target = endCfi || spineLast?.href || undefined;
-      if (target) {
-        await this.rendition.display(target);
-      }
-      this.currentPage.set(max);
-      const container = this.continuousScrollContainer();
-      if (container) {
-        requestAnimationFrame(() => {
-          container.scrollTop = container.scrollHeight;
-        });
-      }
-    } catch (e) {
-      console.warn('[reader-text] goToLastPage failed', e);
+    await this.goToPageIndex(max);
+    const container = this.continuousScrollContainer();
+    if (container) {
+      requestAnimationFrame(() => {
+        container.scrollTop = container.scrollHeight;
+      });
     }
     this.scheduleProgressUpdate();
   }
 
   goToToc(entry: TocEntry): void {
     this.showToc.set(false);
-    if (!this.rendition) return;
     const dest = entry.location >= 0 ? entry.location : this.currentPage();
     if (dest !== this.currentPage()) {
       this.recordLastPage(this.currentPage(), dest);
     }
-    void this.rendition.display(entry.href);
+    void this.goToPageIndex(dest);
   }
 
   async markPage(): Promise<void> {
@@ -3045,7 +2960,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
-    if (this.canScrollContents(ev.deltaY)) {
+    if (this.rendition && this.canScrollContents(ev.deltaY)) {
       this.scrollContentsBy(ev.deltaY);
       this.wheelAccum = 0;
       return;
@@ -3105,15 +3020,25 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     );
   }
 
-  private onRenditionClick = (event: MouseEvent): void => {
+  onViewerClick(event: MouseEvent): void {
     if (this.editingAnnotation()) return;
     const vocabEl = (event.target as Element | null)?.closest?.('.br-vocab') as HTMLElement | null;
     if (vocabEl) {
       void this.openVocabularyFromElement(vocabEl);
       return;
     }
+    const annotEl = (event.target as Element | null)?.closest?.('.br-annotation') as HTMLElement | null;
+    if (annotEl) {
+      const id = annotEl.getAttribute('data-annotation-id');
+      if (id) {
+        const a = this.annotations().find(x => String(x.id) === id);
+        if (a) {
+          this.openAnnotationPopup(a);
+          return;
+        }
+      }
+    }
     if (this.textSelectVisible()) {
-      // Keep toolbar while native selection remains (mouseup after drag must not clear it)
       if (this.hasActiveTextSelection()) return;
       this.dismissTextSelect();
       return;
@@ -3123,39 +3048,300 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
     if (this.hasActiveTextSelection()) return;
-    const mapped = this.iframeEventToHostLocal(event);
-    if (!mapped) {
+
+    const host = this.viewerHostRef?.nativeElement;
+    if (!host) {
       if (!this.isBookTurnBusy()) this.chromeVisible.update(v => !v);
       return;
     }
+    const hostRect = host.getBoundingClientRect();
+    const mapped = {
+      x: event.clientX - hostRect.left,
+      y: event.clientY - hostRect.top
+    };
     this.ingestMappedTap('click', mapped);
-  };
+  }
 
-  private onRenditionTouchEnd = (event: TouchEvent): void => {
-    if (this.editingAnnotation()) return;
-    if (this.textSelectVisible()) {
-      if (this.hasActiveTextSelection()) return;
-      this.dismissTextSelect();
-      return;
-    }
-    if (this.didDrag) {
-      this.didDrag = false;
-      return;
-    }
-    if (this.hasActiveTextSelection()) return;
-    const touch = event?.changedTouches?.[0];
-    if (!touch) return;
-    const mapped = this.iframeEventToHostLocal(touch);
-    if (!mapped) return;
-    this.ingestMappedTap('touch', mapped);
-  };
-
-  private onRenditionDblClick = (_event: MouseEvent): void => {
+  onViewerDblClick(_event: MouseEvent): void {
     if (this.clickTimer) {
       clearTimeout(this.clickTimer);
       this.clickTimer = null;
     }
     this.setZoom(1);
+  }
+
+  private isPointerDirectlyOverText(ev: PointerEvent): boolean {
+    if (this.hasActiveTextSelection()) return true;
+    if (ev.pointerType !== 'mouse') return false;
+
+    const targetEl = ev.target as HTMLElement | null;
+    if (!targetEl) return false;
+
+    const textAncestor = targetEl.closest(
+      'p, span, h1, h2, h3, h4, h5, h6, ruby, rt, a, b, i, em, strong'
+    );
+    if (!textAncestor) return false;
+
+    const doc = document as any;
+    if (typeof doc.caretRangeFromPoint !== 'function') return false;
+
+    try {
+      const range = doc.caretRangeFromPoint(ev.clientX, ev.clientY);
+      if (!range || !range.startContainer || range.startContainer.nodeType !== Node.TEXT_NODE) {
+        return false;
+      }
+
+      const textNode = range.startContainer as Text;
+      const textContent = textNode.textContent || '';
+      if (!textContent.trim()) return false;
+
+      const offset = range.startOffset;
+      const charRange = document.createRange();
+
+      // Check current character index
+      const start = Math.max(0, Math.min(offset, textContent.length - 1));
+      const end = Math.min(textContent.length, start + 1);
+      if (start < end) {
+        charRange.setStart(textNode, start);
+        charRange.setEnd(textNode, end);
+        const rects = charRange.getClientRects();
+        for (let i = 0; i < rects.length; i++) {
+          const r = rects[i];
+          if (
+            ev.clientX >= r.left - 3 &&
+            ev.clientX <= r.right + 3 &&
+            ev.clientY >= r.top - 3 &&
+            ev.clientY <= r.bottom + 3
+          ) {
+            const ch = textContent.slice(start, end);
+            if (ch.trim()) return true;
+          }
+        }
+      }
+
+      // Also check character immediately preceding the caret
+      if (offset > 0) {
+        charRange.setStart(textNode, offset - 1);
+        charRange.setEnd(textNode, offset);
+        const rectsPrev = charRange.getClientRects();
+        for (let i = 0; i < rectsPrev.length; i++) {
+          const r = rectsPrev[i];
+          if (
+            ev.clientX >= r.left - 3 &&
+            ev.clientX <= r.right + 3 &&
+            ev.clientY >= r.top - 3 &&
+            ev.clientY <= r.bottom + 3
+          ) {
+            const ch = textContent.slice(offset - 1, offset);
+            if (ch.trim()) return true;
+          }
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+
+    return false;
+  }
+
+  onViewerPointerDown(ev: PointerEvent): void {
+    if (ev.button !== 0 || this.loading()) return;
+    this.didDrag = false;
+    this.panSelectMode = false;
+    this.overscrollX = 0;
+    this.overscrollY = 0;
+    this.panVelocityX = 0;
+    this.panVelocityY = 0;
+    this.panStartTime = performance.now();
+    this.panLastMoveAt = this.panStartTime;
+    this.panPointerId = ev.pointerId;
+    this.panStartX = ev.screenX;
+    this.panStartY = ev.screenY;
+    this.panLastX = ev.screenX;
+    this.panLastY = ev.screenY;
+    this.panLastClientY = ev.clientY;
+    this.syncOverscrollSignals(false);
+
+    // If pointer is directly over character glyphs in native DOM mode, allow browser text selection.
+    // Clicking on margins, page background, or whitespace outside characters initiates page drag.
+    if (this.isPointerDirectlyOverText(ev)) {
+      this.panSelectMode = true;
+      this.panning.set(false);
+      return;
+    }
+
+    try {
+      (ev.currentTarget as HTMLElement)?.setPointerCapture?.(ev.pointerId);
+    } catch { /* ignore */ }
+
+    this.panning.set(true);
+  }
+
+  onViewerPointerMove(ev: PointerEvent): void {
+    if (this.panPointerId !== ev.pointerId) return;
+    if (this.panSelectMode) {
+      if (this.hasActiveTextSelection()) {
+        this.abortPanForSelect();
+      }
+      return;
+    }
+    if (!this.panning()) return;
+
+    let dx = ev.screenX - this.panLastX;
+    let dy = ev.screenY - this.panLastY;
+    this.panLastX = ev.screenX;
+    this.panLastY = ev.screenY;
+    this.panLastClientY = ev.clientY;
+    const now = performance.now();
+    const dt = Math.max(1, now - this.panLastMoveAt) / 1000;
+    this.panVelocityX = dx / dt;
+    this.panVelocityY = dy / dt;
+    this.panLastMoveAt = now;
+
+    if (!this.didDrag) {
+      if (this.hasActiveTextSelection()) {
+        this.abortPanForSelect();
+        return;
+      }
+      const totalDistance = Math.hypot(ev.screenX - this.panStartX, ev.screenY - this.panStartY);
+      if (totalDistance <= DRAG_THRESHOLD_PX) {
+        return;
+      }
+      this.didDrag = true;
+    }
+
+    try {
+      if (this.isContinuousScrollMode()) {
+        const container = this.continuousScrollContainer();
+        if (container) {
+          container.scrollBy(-dx, -dy);
+        }
+        return;
+      }
+
+      if (this.isPaginatedMode()) {
+        const host = this.viewerHostRef?.nativeElement;
+        if (host && this.effectiveZoom() > 1) {
+          const oldScrollX = host.scrollLeft;
+          const oldScrollY = host.scrollTop;
+          host.scrollLeft -= dx;
+          host.scrollTop -= dy;
+          const consumedX = oldScrollX - host.scrollLeft;
+          const consumedY = oldScrollY - host.scrollTop;
+          dx -= consumedX;
+          dy -= consumedY;
+          if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
+        }
+
+        const horizontal = this.isHorizontalMode();
+        if (horizontal) {
+          const maxX = host?.clientWidth || window.innerWidth;
+          this.peekViewportW.set(maxX);
+          this.peekViewportH.set(host?.clientHeight || window.innerHeight);
+          this.overscrollX = Math.max(-maxX, Math.min(maxX, this.overscrollX + dx));
+          this.overscrollY = 0;
+          if (this.isCurlOverscrollMode()) {
+            this.overscrollXSignal.set(0);
+            this.overscrollYSignal.set(0);
+            this.overscrollAnimatingSignal.set(false);
+          } else {
+            this.syncOverscrollSignals(false);
+          }
+          if (this.overscrollX !== 0) {
+            if (!this.isCurlOverscrollMode()) {
+              this.activatePeekLayer();
+            }
+            this.ensurePeekForOverscroll();
+            const dir = this.overscrollPageDirection();
+            if (dir && !prefersReducedMotion()) {
+              this.queueDragDriverScrub(dir, maxX);
+            }
+          }
+          return;
+        }
+
+        // Vertical pagination
+        const maxY = host?.clientHeight || window.innerHeight;
+        this.peekViewportW.set(host?.clientWidth || window.innerWidth);
+        this.peekViewportH.set(maxY);
+        this.overscrollY = Math.max(-maxY, Math.min(maxY, this.overscrollY + dy));
+        this.overscrollX = 0;
+        this.syncOverscrollSignals(false);
+        if (this.overscrollY !== 0) {
+          this.activatePeekLayer();
+          this.ensurePeekForOverscroll();
+          const dir = this.overscrollPageDirection();
+          if (dir && !prefersReducedMotion()) {
+            this.queueDragDriverScrub(dir, maxY);
+          }
+        }
+        return;
+      }
+    } catch { /* ignore */ }
+  }
+
+  onViewerPointerUp(ev: PointerEvent): void {
+    if (this.panPointerId !== ev.pointerId) return;
+    try {
+      (ev.currentTarget as HTMLElement)?.releasePointerCapture?.(ev.pointerId);
+    } catch { /* ignore */ }
+
+    const hadDrag = this.didDrag;
+    this.panPointerId = null;
+    this.panSelectMode = false;
+    this.panning.set(false);
+
+    if (hadDrag) {
+      try {
+        window.getSelection()?.removeAllRanges();
+      } catch { /* ignore */ }
+      this.pendingSelectShow = null;
+
+      if (this.isPaginatedMode()) {
+        this.commitOrSnapOverscroll();
+      } else {
+        this.resetOverscroll(true);
+        this.deactivatePeekLayer();
+        this.didDrag = false;
+      }
+      return;
+    }
+
+    this.didDrag = false;
+    this.resetOverscroll(true);
+    this.deactivatePeekLayer();
+    this.checkTextSelection();
+  }
+
+  private checkTextSelection(): void {
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed) return;
+    const text = (sel.toString() || '').trim();
+    if (!text) return;
+
+    const range = sel.rangeCount > 0 ? sel.getRangeAt(0) : null;
+    if (!range) return;
+
+    const viewerEl = this.viewerRef?.nativeElement;
+    if (!viewerEl || !viewerEl.contains(range.commonAncestorContainer)) return;
+
+    const pageIdx = this.currentPage();
+    const cfi = this.currentCfi() || `page-${pageIdx + 1}`;
+    const contents = this.activeContents();
+
+    this.showTextSelectPopup(cfi, text, undefined, contents, range);
+  }
+
+  private onRenditionClick = (event: MouseEvent): void => {
+    this.onViewerClick(event);
+  };
+
+  private onRenditionTouchEnd = (_event: TouchEvent): void => {
+    /* deprecated - handled via pointer events */
+  };
+
+  private onRenditionDblClick = (event: MouseEvent): void => {
+    this.onViewerDblClick(event);
   };
 
   /**
@@ -3369,70 +3555,59 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     this.loadingProgress.set(65);
     this.loadingMessage.set('Gerando índice de progresso…');
     const charsPerPage = this.calculateCharsPerPage();
-    await book.locations.generate(charsPerPage);
-    this.augmentBookLocations(book);
-    const locationCount = Math.max(1, book.locations.length());
-    this.pageCount.set(locationCount);
+    const dims = this.getEffectiveVirtualDimensions();
+    if (typeof (book as any).generateTrueLocations === 'function') {
+      await (book as any).generateTrueLocations({
+        width: dims.width,
+        height: dims.height,
+        charsPerPage,
+        fontSize: this.fontSize() || 18,
+        direction: this.tateGakiEnabled()
+          ? 'vertical'
+          : this.scrollingMode() === BookScrollingMode.PaginationRtl
+            ? 'rtl'
+            : 'ltr'
+      });
+      this.augmentBookLocations(book);
+      const total =
+        (book as any).locations?.totalPages ||
+        (book as any)._faithfulTotalPages ||
+        (typeof book.locations.length === 'function' ? book.locations.length() : 1);
+      this.pageCount.set(Math.max(1, total));
+    } else {
+      await book.locations.generate(charsPerPage);
+      this.augmentBookLocations(book);
+      const locationCount = Math.max(
+        1,
+        typeof book.locations.length === 'function'
+          ? book.locations.length()
+          : ((book.locations as any).totalPages || 1)
+      );
+      this.pageCount.set(locationCount);
+    }
+    const locationCount = this.pageCount();
 
     this.loadingProgress.set(80);
     this.loadingMessage.set('Construindo sumário…');
     await this.buildToc(book);
-    this.createRendition(el);
     await this.hydrateAnnotationCfis();
-    this.applyAnnotations();
 
     this.loadingProgress.set(90);
     this.loadingMessage.set('Renderizando conteúdo…');
 
     // Query `page` is a 0-based reader index; stored bookMark is 1-based.
-    const startMark =
+    const openAtCover = !jumpCfi && (jumpPageRaw == null || Number.isNaN(jumpPage)) && bookMark <= 1;
+    let startMark =
       !Number.isNaN(jumpPage) && jumpPage >= 0
         ? Math.min(Math.floor(jumpPage), locationCount - 1)
         : toReaderIndex(bookMark, locationCount);
 
-    // Page 1 (cover): always spine.first — ignore stale bookMarkCfi that may point at body.
-    // Explicit query `cfi` still wins.
-    const openAtCover = (startMark <= 0 || (bookMark != null && bookMark <= 1)) && !jumpCfi;
-
-    let resolvedCfi = openAtCover ? undefined : (jumpCfi || startCfi || undefined);
-    if (!resolvedCfi && startMark > 0) {
-      try {
-        resolvedCfi = book.locations.cfiFromLocation(startMark) as string;
-      } catch { /* ignore */ }
+    if (jumpCfi) {
+      const loc = this.locationFromCfiSafe(jumpCfi);
+      if (loc >= 0) startMark = loc;
     }
 
-    if (resolvedCfi && !openAtCover) {
-      await this.rendition!.display(resolvedCfi);
-      this.currentPage.set(Math.min(startMark, locationCount - 1));
-      this.currentCfi.set(resolvedCfi);
-    } else {
-      // Same path as Home — spine.first so image-only covers are not skipped
-      this.forceStartPageUntil = Date.now() + 1000;
-      try {
-        const spineFirst = (book as any).spine?.first?.();
-        let target: string | undefined = spineFirst?.href;
-        if (!target) {
-          try {
-            target = book.locations.cfiFromPercentage(0) as string;
-          } catch { /* ignore */ }
-        }
-        if (!target) {
-          try {
-            target = book.locations.cfiFromLocation(0) as string;
-          } catch { /* ignore */ }
-        }
-        if (target) {
-          await this.rendition!.display(target);
-        } else {
-          await this.rendition!.display();
-        }
-      } catch {
-        await this.rendition!.display();
-      }
-      this.currentPage.set(0);
-      const container = this.continuousScrollContainer();
-      if (container) container.scrollTop = 0;
-    }
+    await this.goToPageIndex(startMark, true);
 
     this.historySessionId = await this.electron.startHistorySession({
       fkLibrary: this.bookMeta?.fkLibrary ?? 0,
@@ -3443,12 +3618,26 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       volume: this.bookMeta?.volume || ''
     });
 
+    let openCfi: string | undefined = undefined;
+    const curCfiVal = this.currentCfi();
+    if (!openAtCover) {
+      if (typeof curCfiVal === 'string' && curCfiVal.trim().length > 0) {
+        openCfi = curCfiVal.trim();
+      } else if (curCfiVal && typeof curCfiVal === 'object') {
+        const obj = curCfiVal as any;
+        const candidate = obj.start || obj.startCfi || obj.cfi;
+        if (typeof candidate === 'string') openCfi = candidate.trim();
+      }
+    }
+
     void this.electron.setBookBookmark({
       id: this.bookId,
       bookMark: fromReaderIndex(this.currentPage(), locationCount),
       // Opening at cover: do not re-persist a stale body CFI from the library row
-      bookMarkCfi: openAtCover ? undefined : this.currentCfi() || undefined,
+      bookMarkCfi: openCfi,
       pages: locationCount
+    }).catch(err => {
+      console.warn('[reader-text] initial setBookBookmark error:', err);
     });
 
     this.finishLoading();
@@ -4429,32 +4618,28 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private applyTtsHighlight(text: string): void {
     this.clearTtsHighlight();
-    const contents = this.activeContents();
-    const cfi = cfiForSentence(contents, text);
-    if (!cfi || !this.rendition) return;
-    try {
-      this.rendition.annotations.highlight(
-        cfi,
-        {},
-        undefined,
-        'br-tts-hit',
-        {
-          fill: '#818cf8',
-          'fill-opacity': '0.4',
-          'mix-blend-mode': 'multiply'
-        }
-      );
-      this.ttsHighlightCfi = cfi;
-    } catch (e) {
-      console.warn('[reader-text] TTS highlight failed', e);
-    }
+    const viewerEl = this.viewerRef?.nativeElement;
+    if (!viewerEl || !text) return;
+    const contentEl = viewerEl.querySelector('.epub-page-content') || viewerEl;
+    this.highlightTextInElement(
+      contentEl as HTMLElement,
+      text,
+      'br-tts-hit',
+      'rgba(129, 140, 248, 0.4)',
+      'br-tts-hit'
+    );
+    this.ttsHighlightCfi = text;
   }
 
   private clearTtsHighlight(): void {
-    if (this.ttsHighlightCfi && this.rendition) {
-      try {
-        this.rendition.annotations.remove(this.ttsHighlightCfi, 'highlight');
-      } catch {}
+    const viewerEl = this.viewerRef?.nativeElement;
+    if (viewerEl) {
+      const hits = viewerEl.querySelectorAll('.br-tts-hit');
+      hits.forEach((el: any) => {
+        const parent = el.parentNode;
+        while (el.firstChild) parent.insertBefore(el.firstChild, el);
+        el.remove();
+      });
     }
     this.ttsHighlightCfi = null;
   }
@@ -4536,7 +4721,12 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     const book = this.epubBook;
     if (!book?.locations) return;
 
-    const localPages = Math.max(1, book.locations.length());
+    const localPages = Math.max(
+      1,
+      typeof book.locations.length === 'function'
+        ? book.locations.length()
+        : ((book.locations as any).totalPages || (book.locations as any)._pages?.length || 1)
+    );
     const list = [...this.annotations()];
     let changedAny = false;
 
@@ -4635,6 +4825,8 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private hasActiveTextSelection(): boolean {
     try {
+      const sel = window.getSelection();
+      if (sel && !sel.isCollapsed && (sel.toString() || '').trim()) return true;
       const contents = this.activeContents();
       return this.hasSelectionInWindow(contents?.window);
     } catch { /* ignore */ }
@@ -5107,57 +5299,34 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   /**
-   * Load adjacent visual page for ViewPager-style peek.
-   * Reuses a single peek Rendition to avoid leaking spine.hooks.content handlers.
+   * Load adjacent visual page for ViewPager-style peek directly from epub.js true pages.
    * @returns true when peek shows a distinct page from the main viewer.
    */
   private async loadPeek(dir: 1 | -1): Promise<boolean> {
-    if (!this.epubBook || !this.rendition || !this.isPaginatedMode()) return false;
+    if (!this.epubBook || !this.isPaginatedMode()) return false;
     const peekEl = this.viewerPeekRef?.nativeElement;
     if (!peekEl) return false;
 
-    const mainLoc = this.rendition.location;
-    if (dir > 0 && mainLoc?.atEnd) return false;
-    if (dir < 0 && mainLoc?.atStart) return false;
-
-    const cfi = this.currentCfi() || mainLoc?.start?.cfi;
-    if (!cfi) return false;
+    const targetPage = this.currentPage() + dir;
+    if (targetPage < 0 || targetPage >= this.pageCount()) return false;
 
     this.peekDirection = dir;
     this.peekStale = false;
     const token = ++this.peekLoadToken;
 
     try {
-      let peek = await this.ensurePeekRendition();
-      if (!peek || token !== this.peekLoadToken) return false;
+      const pageData = await this.getPageData(targetPage + 1);
+      if (token !== this.peekLoadToken || !pageData) return false;
 
-      await peek.display(cfi);
-      if (token !== this.peekLoadToken) return false;
-
-      // Paginated epub.js needs a non-zero iframe before next/prev or it can
-      // jump multiple columns / an entire chapter.
-      await this.waitForPeekLayout(peekEl);
-      if (token !== this.peekLoadToken) return false;
-
-      // Paginated epub.js often keeps the same start.cfi across column pages and
-      // does not change iframe scrollX/Y — do not require CFI/scroll deltas.
-      if (dir > 0) await peek.next();
-      else await peek.prev();
-      if (token !== this.peekLoadToken) return false;
-
-      // Ensure the iframe has rendered the new page before resolving
-      await this.waitForPeekLayout(peekEl);
-      await this.doubleRaf();
-      if (token !== this.peekLoadToken) return false;
-
-      const peekCfi = (peek as any)?.location?.start?.cfi;
-      if (peekCfi) {
-        const targetPage = this.currentPage() + dir;
-        if (targetPage >= 0 && targetPage < this.pageCount()) {
-          this.adjacentScreenCfiMap.set(targetPage, peekCfi);
-        }
+      this.renderPageToElement(pageData, peekEl);
+      const peekCfi =
+        (typeof pageData?.startCfi === 'string' && pageData.startCfi) ||
+        (typeof pageData?.cfi?.start === 'string' && pageData.cfi.start) ||
+        (typeof pageData?.cfi === 'string' && pageData.cfi) ||
+        undefined;
+      if (typeof peekCfi === 'string' && peekCfi) {
+        this.adjacentScreenCfiMap.set(targetPage, peekCfi);
       }
-
       return true;
     } catch (e) {
       console.warn('[reader-text] peek load failed', e);
@@ -5166,6 +5335,425 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       this.peekDirection = 0;
       return false;
     }
+  }
+
+  private async getPageData(pageNum: number): Promise<any> {
+    if (!this.epubBook) return null;
+    const cached = this.pageDataCache.get(pageNum);
+    if (cached) return cached;
+
+    try {
+      if (typeof (this.epubBook as any).getPage === 'function') {
+        const pageData = await (this.epubBook as any).getPage(pageNum, {
+          inlineStyles: true,
+          resolveImages: true
+        });
+        if (pageData) {
+          if (this.furiganaEnabled() && this.isJapaneseBook()) {
+            pageData.html = await this.enhanceJapaneseHtml(pageData.html);
+          }
+          this.pageDataCache.set(pageNum, pageData);
+          return pageData;
+        }
+      }
+    } catch (e) {
+      console.warn('[reader-text] getPageData failed for page', pageNum, e);
+    }
+    return null;
+  }
+
+  private buildPageSheetHtml(pageData: any): string {
+    let rawHtml = pageData?.html || '<p></p>';
+    if (typeof rawHtml === 'string') {
+      rawHtml = rawHtml
+        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+        .replace(/<link\b[^>]*rel=["']stylesheet["'][^>]*>/gi, '');
+    }
+
+    const pad = (MARGIN_PX[this.margin()] ?? 32) + 'px';
+    const fontSize = (this.fontSize() || 18) + 'px';
+    let family = this.isJapaneseBook()
+      ? (this.fontFamily() || this.settings.bookFontFamilyJapanese())
+      : this.fontFamily();
+    const isTate = this.tateGakiEnabled();
+    if (isTate && this.isJapaneseBook()) {
+      family = resolveFontFamilyForTate(family);
+    }
+    const defaultFont = this.isJapaneseBook()
+      ? "'Noto Sans JP', 'Yu Gothic', 'Hiragino Sans', sans-serif"
+      : 'system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+    const fontFamily = family || defaultFont;
+    const lineHeight = String(
+      SPACING_LH[this.spacing()] ?? this.settings.bookLineHeight() ?? 1.6
+    );
+    const color = '#e2e8f0';
+    const titleColor = '#ffffff';
+    const bg = this.pageBg;
+    const writingMode = isTate ? 'vertical-rl' : 'horizontal-tb';
+    const textOrientation = isTate ? 'upright' : 'mixed';
+    const textAlign = this.align();
+    let customStyles = '';
+    if (pageData?.styles) {
+      const s = String(pageData.styles).trim();
+      customStyles = s.startsWith('<style') ? s : `<style>${s}</style>`;
+    }
+
+    return `
+      <div class="br-page-sheet" style="
+        box-sizing: border-box;
+        width: 100%;
+        height: 100%;
+        padding: ${pad};
+        background-color: ${bg};
+        color: ${color};
+        overflow: hidden;
+        user-select: text;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        text-rendering: optimizeLegibility;
+      ">
+        <style>
+          .br-page-sheet, .epub-page-content, .epub-page-content * {
+            -webkit-font-smoothing: antialiased !important;
+            -moz-osx-font-smoothing: grayscale !important;
+            text-rendering: optimizeLegibility !important;
+          }
+          .epub-page-content img, .epub-page-content svg, .epub-page-content image {
+            max-width: 100%; max-height: 100%; object-fit: contain; display: block; margin: auto;
+          }
+          .epub-page-content ruby rt { font-size: 0.55em; opacity: 0.85; }
+          .epub-page-content h1, .epub-page-content h2, .epub-page-content h3,
+          .epub-page-content h4, .epub-page-content h5, .epub-page-content h6,
+          .epub-page-content .title, .epub-page-content .chapter-title {
+            color: ${titleColor};
+            font-weight: 700;
+            line-height: 1.3;
+            margin-top: 0.8em;
+            margin-bottom: 0.4em;
+          }
+          .epub-page-content h1 { font-size: 1.85em; }
+          .epub-page-content h2 { font-size: 1.5em; }
+          .epub-page-content h3 { font-size: 1.25em; }
+          .epub-page-content h4 { font-size: 1.1em; }
+          .epub-page-content h5, .epub-page-content h6 { font-size: 1.0em; }
+          .epub-page-content p { margin-top: 0; margin-bottom: 0.7em; }
+          .epub-page-content b, .epub-page-content strong { font-weight: 700; }
+          .epub-page-content i, .epub-page-content em { font-style: italic; }
+        </style>
+        ${customStyles}
+        <div class="br-page-body epub-page-content" style="
+          box-sizing: border-box;
+          width: 100%;
+          height: 100%;
+          overflow: hidden;
+          font-size: ${fontSize};
+          font-family: ${fontFamily};
+          line-height: ${lineHeight};
+          text-align: ${textAlign};
+          writing-mode: ${writingMode};
+          -webkit-writing-mode: ${writingMode};
+          text-orientation: ${textOrientation};
+          -webkit-font-smoothing: antialiased;
+          -moz-osx-font-smoothing: grayscale;
+          text-rendering: optimizeLegibility;
+        ">
+          ${rawHtml}
+        </div>
+      </div>
+    `;
+  }
+
+  private renderPageToElement(pageData: any, targetEl?: HTMLElement | null): void {
+    if (!targetEl) return;
+    targetEl.innerHTML = this.buildPageSheetHtml(pageData);
+    targetEl.style.boxSizing = 'border-box';
+    targetEl.style.backgroundColor = this.pageBg;
+    targetEl.style.overflow = 'hidden';
+
+    const images = targetEl.querySelectorAll('img, svg, image');
+    images.forEach((img: any) => {
+      img.style.maxWidth = '100%';
+      img.style.maxHeight = '100%';
+      img.style.objectFit = 'contain';
+      img.style.display = 'block';
+      img.style.margin = 'auto';
+    });
+  }
+
+  private applyPageAnnotations(targetEl: HTMLElement, pageIndex: number): void {
+    const annots = this.annotations().filter(a => a.page === pageIndex);
+    if (!annots.length) return;
+
+    const contentEl = targetEl.querySelector('.epub-page-content') || targetEl;
+    for (const a of annots) {
+      if (!a.text) continue;
+      this.highlightTextInElement(
+        contentEl as HTMLElement,
+        a.text,
+        String(a.id ?? ''),
+        this.annotationColorHex(a.color),
+        'br-annotation'
+      );
+    }
+  }
+
+  private highlightTextInElement(
+    root: HTMLElement,
+    text: string,
+    id: string,
+    color: string,
+    className = 'br-annotation'
+  ): void {
+    if (!root || !text) return;
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let node = walker.nextNode();
+    const needle = text.trim();
+    if (!needle) return;
+
+    while (node) {
+      const val = node.nodeValue || '';
+      const idx = val.indexOf(needle);
+      if (idx !== -1) {
+        try {
+          const range = document.createRange();
+          range.setStart(node, idx);
+          range.setEnd(node, idx + needle.length);
+          const mark = document.createElement('mark');
+          mark.className = className;
+          if (id) mark.setAttribute('data-annotation-id', id);
+          mark.style.backgroundColor = color;
+          mark.style.color = 'inherit';
+          mark.style.borderRadius = '2px';
+          mark.style.padding = '0 2px';
+          mark.style.cursor = 'pointer';
+          range.surroundContents(mark);
+        } catch {
+          /* ignore range DOM surrounding errors */
+        }
+        break;
+      }
+      node = walker.nextNode();
+    }
+  }
+
+  private preloadAdjacentPages(pageNumber: number): void {
+    if (!this.epubBook || !this.isPaginatedMode()) return;
+    const max = this.pageCount();
+    const adjacent = [pageNumber - 1, pageNumber + 1, pageNumber + 2, pageNumber - 2].filter(
+      p => p >= 1 && p <= max && !this.pageDataCache.has(p)
+    );
+    for (const p of adjacent) {
+      void this.getPageData(p);
+    }
+  }
+
+  private async goToPageIndex(targetIndex: number, force = false): Promise<void> {
+    const max = Math.max(0, this.pageCount() - 1);
+    const clamped = Math.max(0, Math.min(targetIndex, max));
+    const pageNum = clamped + 1;
+    const pageData = await this.getPageData(pageNum);
+
+    this.currentPage.set(clamped);
+    const rawCfi =
+      (typeof pageData?.startCfi === 'string' && pageData.startCfi) ||
+      (typeof pageData?.cfi?.start === 'string' && pageData.cfi.start) ||
+      (typeof pageData?.cfi === 'string' && pageData.cfi) ||
+      this.cfiForLocation(clamped) ||
+      pageData?.sectionHref ||
+      undefined;
+    const cfi = typeof rawCfi === 'string' ? rawCfi : undefined;
+
+    if (cfi) {
+      this.currentCfi.set(cfi);
+      this.adjacentScreenCfiMap.set(clamped, cfi);
+    }
+    if (!this.isScrubbingSeek) {
+      this.displayedSeekPage.set(clamped);
+    }
+
+    if (pageData?.chapter?.label) {
+      this.chapterTitle.set(pageData.chapter.label);
+    } else if (pageData?.sectionHref) {
+      this.updateChapterFromHref(pageData.sectionHref);
+    }
+
+    const viewerEl = this.viewerRef?.nativeElement;
+    if (viewerEl && pageData) {
+      this.renderPageToElement(pageData, viewerEl);
+      this.applyPageAnnotations(viewerEl, clamped);
+    }
+
+    this.scheduleProgressUpdate();
+    this.preloadAdjacentPages(pageNum);
+    this.scheduleAdjacentBookBitmaps();
+  }
+
+  async flipToPage(targetIndex: number, direction?: 1 | -1): Promise<void> {
+    if (this.turningPage) return;
+    const max = Math.max(0, this.pageCount() - 1);
+    const clamped = Math.max(0, Math.min(targetIndex, max));
+    if (clamped === this.currentPage()) return;
+
+    const dir = direction || (clamped > this.currentPage() ? 1 : -1);
+    this.turningPage = true;
+    this.turningSignal.set(true);
+
+    try {
+      const effect = this.pageTransition();
+      const isCurl =
+        (effect === PageTransitionType.CurlPage ||
+          effect === PageTransitionType.Curl3DPage) &&
+        this.isHorizontalMode();
+
+      if (isCurl && this.viewerHostRef?.nativeElement) {
+        const bitmaps = await this.ensureBookCurlBitmaps(dir as TurnDir);
+        if (bitmaps) {
+          const canvas = this.ensureBookCurlCanvas();
+          if (canvas) {
+            await playBookCurlTurn({
+              host: this.viewerHostRef.nativeElement,
+              viewerShell: this.viewerShellRef?.nativeElement || this.viewerRef!.nativeElement,
+              peekShell: this.peekShellRef?.nativeElement || this.viewerPeekRef!.nativeElement,
+              canvas,
+              bitmaps,
+              dir: dir as TurnDir,
+              mode: effect === PageTransitionType.Curl3DPage ? '3d' : '2d',
+              durationMs: PAGE_TURN_DURATION_MS,
+              commit: async () => {
+                await this.goToPageIndex(clamped);
+              }
+            });
+            return;
+          }
+        }
+      }
+
+      // Pre-render destination page in peek layer
+      const peekOk = await this.loadPeek(dir);
+      if (peekOk && this.viewerRef && this.viewerPeekRef) {
+        this.activatePeekLayer();
+        const visualDir = this.visualTurnDir(dir);
+        const axis: TurnAxis = this.isHorizontalMode() ? 'x' : 'y';
+        const size = this.isHorizontalMode()
+          ? this.viewerHostRef?.nativeElement?.clientWidth || window.innerWidth
+          : this.viewerHostRef?.nativeElement?.clientHeight || window.innerHeight;
+
+        await playPageTurn({
+          outgoing: this.viewerShellRef?.nativeElement || this.viewerRef.nativeElement,
+          incoming: this.peekShellRef?.nativeElement || this.viewerPeekRef.nativeElement,
+          effect,
+          axis,
+          dir: visualDir,
+          size,
+          durationMs: PAGE_TURN_DURATION_MS,
+          commit: async () => {
+            await this.goToPageIndex(clamped);
+            this.deactivatePeekLayer();
+          }
+        });
+      } else {
+        await this.goToPageIndex(clamped);
+      }
+    } finally {
+      this.turningPage = false;
+      this.turningSignal.set(false);
+      this.didDrag = false;
+    }
+  }
+
+  private async enhanceJapaneseHtml(html: string): Promise<string> {
+    if (!this.japaneseProcessingEnabled() || !html) return html;
+    try {
+      await this.electron.japaneseInit();
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      await this.applyFuriganaToDocument(doc);
+      return doc.body.innerHTML || html;
+    } catch {
+      return html;
+    }
+  }
+
+  private async rasterizeHtmlToBitmap(
+    pageData: any,
+    width: number,
+    height: number
+  ): Promise<ImageBitmap | null> {
+    try {
+      const sheetHtml = this.buildPageSheetHtml(pageData);
+      const bg = this.pageBg;
+
+      const svg = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+          <foreignObject width="${width}" height="${height}">
+            <div xmlns="http://www.w3.org/1999/xhtml" style="
+              box-sizing: border-box;
+              width: ${width}px;
+              height: ${height}px;
+              margin: 0;
+              padding: 0;
+              overflow: hidden;
+              background-color: ${bg};
+              -webkit-font-smoothing: antialiased;
+              -moz-osx-font-smoothing: grayscale;
+              text-rendering: optimizeLegibility;
+            ">
+              ${sheetHtml}
+            </div>
+          </foreignObject>
+        </svg>
+      `;
+
+      const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      try {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        await new Promise<void>((resolve, reject) => {
+          img.onload = () => resolve();
+          img.onerror = reject;
+          img.src = url;
+        });
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return null;
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+        return await createImageBitmap(canvas);
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    } catch {
+      return null;
+    }
+  }
+
+  private async getPageBitmap(pageIndex: number): Promise<ImageBitmap | null> {
+    const key = String(pageIndex);
+    const cached = this.pageBitmapCache.get(key);
+    if (cached) return cached.bitmap;
+
+    const pageData = await this.getPageData(pageIndex + 1);
+    if (!pageData) return null;
+
+    const size = this.bookCurlCaptureSizeCss();
+    const width = size?.width || 720;
+    const height = size?.height || 1080;
+
+    try {
+      const bitmap = await this.rasterizeHtmlToBitmap(pageData, width, height);
+      if (bitmap) {
+        this.savePageBitmap(pageIndex, bitmap, width, height);
+        return bitmap;
+      }
+    } catch {
+      /* ignore */
+    }
+    return null;
   }
 
   /**
@@ -5299,7 +5887,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
 
     if (!isCurl) {
       // Reuse peek already loaded for this direction during the gesture.
-      if (!(this.peekDirection === dir && !this.peekStale && this.peekRendition)) {
+      if (!(this.peekDirection === dir && !this.peekStale)) {
         const peekOk = await this.loadPeek(dir);
         if (!peekOk) return false;
       }
@@ -5331,7 +5919,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
         }
       }
       // Bitmaps unavailable — Fade stand-in needs peek
-      if (!(this.peekDirection === dir && !this.peekStale && this.peekRendition)) {
+      if (!(this.peekDirection === dir && !this.peekStale)) {
         const peekOk = await this.loadPeek(dir);
         if (!peekOk) return false;
       }
@@ -5457,7 +6045,10 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
                 commit: () =>
                   this.ngZone.run(async () => {
                     this.markBookTurn('commit');
-                    await this.turnPageAndSettle(dir);
+                    const targetIndex = this.currentPage() + dir;
+                    const max = Math.max(0, this.pageCount() - 1);
+                    const clamped = Math.max(0, Math.min(targetIndex, max));
+                    await this.goToPageIndex(clamped);
                   }),
                 owner: 'book-reader'
               })
@@ -5479,7 +6070,10 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
                 commit: () =>
                   this.ngZone.run(async () => {
                     this.markBookTurn('commit');
-                    await this.turnPageAndSettle(dir);
+                    const targetIndex = this.currentPage() + dir;
+                    const max = Math.max(0, this.pageCount() - 1);
+                    const clamped = Math.max(0, Math.min(targetIndex, max));
+                    await this.goToPageIndex(clamped);
                   }),
                 owner: 'book-reader'
               })
@@ -5487,7 +6081,10 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
           }
         } else {
           this.markBookTurn('commit');
-          await this.turnPageAndSettle(dir);
+          const targetIndex = this.currentPage() + dir;
+          const max = Math.max(0, this.pageCount() - 1);
+          const clamped = Math.max(0, Math.min(targetIndex, max));
+          await this.goToPageIndex(clamped);
         }
       } else {
         const visualDir = this.visualTurnDir(dir);
@@ -5496,7 +6093,10 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
           driver.animateTo(-visualDir, PAGE_TURN_DURATION_MS, () =>
             this.ngZone.run(async () => {
               this.markBookTurn('commit');
-              await this.turnPageAndSettle(dir);
+              const targetIndex = this.currentPage() + dir;
+              const max = Math.max(0, this.pageCount() - 1);
+              const clamped = Math.max(0, Math.min(targetIndex, max));
+              await this.goToPageIndex(clamped);
             })
           )
         );
@@ -5605,6 +6205,22 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /** Active epub.js Contents for the visible view (if any). */
   private activeContents(): any | null {
+    const el = this.viewerRef?.nativeElement;
+    if (el) {
+      return {
+        document: {
+          body: el,
+          defaultView: window,
+          querySelectorAll: (sel: string) => el.querySelectorAll(sel),
+          querySelector: (sel: string) => el.querySelector(sel)
+        },
+        window: window,
+        content: el,
+        section: {
+          output: () => el.innerHTML
+        }
+      };
+    }
     if (!this.rendition) return null;
     try {
       const list = this.rendition.getContents();
@@ -5694,7 +6310,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /** @returns true if scrolled within the current page contents */
   private tryScrollContents(dir: 1 | -1): boolean {
-    if (!this.isPaginatedMode()) return false;
+    if (!this.rendition || !this.isPaginatedMode()) return false;
     const contents = this.activeContents();
     const win: Window | undefined = contents?.window;
     if (!win) return false;
@@ -6088,7 +6704,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private async turnWithEffect(dir: 1 | -1): Promise<void> {
     // Never extra-advance while a turn is in flight (was skipping 5–7 pages).
-    if (!this.rendition || this.turningPage || this.driverActive()) {
+    if (this.turningPage || this.driverActive()) {
       return;
     }
     if (dir < 0 && this.isAtBookStart()) {
@@ -6114,25 +6730,29 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
           effect === PageTransitionType.Curl3DPage) &&
         this.isHorizontalMode();
 
+      const targetIndex = this.currentPage() + dir;
+      const max = Math.max(0, this.pageCount() - 1);
+      const clamped = Math.max(0, Math.min(targetIndex, max));
+
       if (isCurl) {
         const bitmaps = await this.ensureBookCurlBitmaps(dir as TurnDir);
         if (!bitmaps) {
           this.markBookTurn('peek-miss');
-          await this.turnPageAndSettle(dir);
+          await this.goToPageIndex(clamped);
           return;
         }
       } else {
         const peekOk = await this.loadPeek(dir);
         if (!peekOk) {
           this.markBookTurn('peek-miss');
-          await this.turnPageAndSettle(dir);
+          await this.goToPageIndex(clamped);
           return;
         }
         this.activatePeekLayer();
       }
       await this.animateViewerTurn(dir, effect, async () => {
         this.markBookTurn('commit');
-        await this.turnPageAndSettle(dir);
+        await this.goToPageIndex(clamped);
       });
     } finally {
       // Hide peek only after player released the last frame.
@@ -6413,11 +7033,40 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
   private async regenerateBookLocations(): Promise<void> {
     if (!this.epubBook?.locations) return;
     try {
+      const dims = this.getEffectiveVirtualDimensions();
       const chars = this.calculateCharsPerPage();
-      await this.epubBook.locations.generate(chars);
-      this.augmentBookLocations(this.epubBook);
-      const locationCount = Math.max(1, this.epubBook.locations.length());
-      this.pageCount.set(locationCount);
+      this.pageDataCache.clear();
+      if (typeof (this.epubBook as any).generateTrueLocations === 'function') {
+        await (this.epubBook as any).generateTrueLocations({
+          width: dims.width,
+          height: dims.height,
+          charsPerPage: chars,
+          fontSize: this.fontSize() || 18,
+          direction: this.tateGakiEnabled()
+            ? 'vertical'
+            : this.scrollingMode() === BookScrollingMode.PaginationRtl
+              ? 'rtl'
+              : 'ltr'
+        });
+        this.augmentBookLocations(this.epubBook);
+        const total =
+          (this.epubBook as any).locations?.totalPages ||
+          (this.epubBook as any)._faithfulTotalPages ||
+          (typeof this.epubBook.locations.length === 'function'
+            ? this.epubBook.locations.length()
+            : 1);
+        this.pageCount.set(Math.max(1, total));
+      } else {
+        await this.epubBook.locations.generate(chars);
+        this.augmentBookLocations(this.epubBook);
+        const locationCount = Math.max(
+          1,
+          typeof this.epubBook.locations.length === 'function'
+            ? this.epubBook.locations.length()
+            : ((this.epubBook.locations as any).totalPages || 1)
+        );
+        this.pageCount.set(locationCount);
+      }
     } catch (e) {
       console.warn('[reader-text] regenerateBookLocations failed', e);
     }
@@ -6428,6 +7077,15 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
    * not the progress-cropped CSS height used only for canvas bottom inset.
    */
   private bookCurlCaptureSizeCss(): { width: number; height: number } | null {
+    const viewer = this.viewerRef?.nativeElement;
+    if (viewer) {
+      const rect = viewer.getBoundingClientRect();
+      const w = Math.round(rect.width);
+      const h = Math.round(rect.height);
+      if (w >= 8 && h >= 8) {
+        return { width: w, height: h };
+      }
+    }
     const dims = this.getEffectiveVirtualDimensions();
     const width = Math.round(dims.width);
     const height = Math.round(dims.height);
@@ -6833,21 +7491,22 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     let frontSrc = this.pageBitmapCache.get(String(current))?.bitmap ?? null;
     let underSrc = this.pageBitmapCache.get(String(underIndex))?.bitmap ?? null;
 
-    if (!underSrc && !this.adjacentScreenCfiMap.has(underIndex)) {
-      try {
-        await this.loadPeek(logicalDir);
-      } catch {
-        /* ignore */
-      }
+    if (!frontSrc) {
+      frontSrc = await this.getPageBitmap(current);
+    }
+    if (!underSrc) {
+      underSrc = await this.getPageBitmap(underIndex);
     }
 
-    // Gesture: only wait for current ±1 (short timeout). Full ±2 stays in background.
-    if (!frontSrc || !underSrc) {
+    // In legacy rendition mode, fallback to headless electron capture if needed
+    if (this.rendition && (!frontSrc || !underSrc)) {
       await this.capturePriorityBookBitmaps([current, underIndex], 800);
       frontSrc = this.pageBitmapCache.get(String(current))?.bitmap ?? frontSrc;
       underSrc = this.pageBitmapCache.get(String(underIndex))?.bitmap ?? underSrc;
     }
-    void this.preloadAdjacentBookBitmaps(current);
+    if (this.rendition) {
+      void this.preloadAdjacentBookBitmaps(current);
+    }
 
     if (!frontSrc || !underSrc) {
       this.curlAnimating = false;
@@ -6985,6 +7644,28 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private async buildToc(book: EpubBook): Promise<void> {
     try {
+      if (typeof (book as any).getChapterMarkers === 'function') {
+        const markers = await (book as any).getChapterMarkers();
+        if (markers && markers.length > 0) {
+          const flatMarkers: TocEntry[] = [];
+          const flatten = (items: any[]) => {
+            for (const item of items) {
+              if (item.label || item.href) {
+                flatMarkers.push({
+                  label: item.label?.trim() || 'Capítulo',
+                  href: item.href || '',
+                  location: Math.max(0, (item.page || 1) - 1)
+                });
+              }
+              if (item.subitems?.length) flatten(item.subitems);
+            }
+          };
+          flatten(markers);
+          this.toc.set(flatMarkers);
+          return;
+        }
+      }
+
       const nav = await book.loaded.navigation;
       const flat: TocEntry[] = [];
       const walk = (items: NavItem[]) => {
@@ -7166,7 +7847,10 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       const pctRaw = book.locations.percentageFromCfi(formattedCfi) as unknown;
       const pct = typeof pctRaw === 'number' ? pctRaw : Number(pctRaw);
       if (Number.isFinite(pct) && pct >= 0) {
-        const len = Math.max(1, book.locations.length() - 1);
+        const locLen = typeof book.locations.length === 'function'
+          ? book.locations.length()
+          : ((book.locations as any).totalPages || 1);
+        const len = Math.max(1, locLen - 1);
         return Math.min(len, Math.max(0, Math.round(pct * len)));
       }
     } catch { /* ignore */ }
@@ -7211,9 +7895,16 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
         pages: this.pageCount()
       });
     }
-    // Page 1 with a mid-book CFI is stale (locations skip image covers). Keep cover /
-    // first-location CFIs; clear anything that would reopen past page 1.
-    let bookMarkCfi = this.currentCfi() || undefined;
+    let bookMarkCfi: string | undefined = undefined;
+    const curCfiVal = this.currentCfi();
+    if (typeof curCfiVal === 'string' && curCfiVal.trim().length > 0) {
+      bookMarkCfi = curCfiVal.trim();
+    } else if (curCfiVal && typeof curCfiVal === 'object') {
+      const obj = curCfiVal as any;
+      const candidate = obj.start || obj.startCfi || obj.cfi;
+      if (typeof candidate === 'string') bookMarkCfi = candidate.trim();
+    }
+
     if (bookMark <= 1 && bookMarkCfi) {
       const atStart = !!(this.rendition as any)?.location?.atStart;
       if (!atStart) {
@@ -7221,13 +7912,18 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
         if (loc > 0) bookMarkCfi = undefined;
       }
     }
-    return await this.electron.setBookBookmark({
-      id: this.bookId,
-      bookMark,
-      bookMarkCfi,
-      chapter: this.chapterTitle() || undefined,
-      pages: this.pageCount()
-    });
+    try {
+      return await this.electron.setBookBookmark({
+        id: this.bookId,
+        bookMark,
+        bookMarkCfi,
+        chapter: this.chapterTitle() || undefined,
+        pages: this.pageCount()
+      });
+    } catch (err) {
+      console.warn('[reader-text] setBookBookmark failed:', err);
+      return null;
+    }
   }
 
   private async persistConfiguration(): Promise<void> {
@@ -7261,6 +7957,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     this.driverActive.set(false);
     this.destroyPeekRendition(true, true);
     this.clearPageBitmapCache();
+    this.pageDataCache.clear();
     this.epubUrl = null;
     void this.electron.disposeBookCapture();
     try {

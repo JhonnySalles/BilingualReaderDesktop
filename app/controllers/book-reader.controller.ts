@@ -90,11 +90,20 @@ export class BookReaderController {
         const isCompleted = bookMark >= pages;
         const now = new Date().toISOString();
 
+        let safeCfi: string | undefined = undefined;
+        if (typeof payload.bookMarkCfi === 'string' && payload.bookMarkCfi.trim().length > 0) {
+          safeCfi = payload.bookMarkCfi.trim();
+        } else if (payload.bookMarkCfi && typeof payload.bookMarkCfi === 'object') {
+          const obj = payload.bookMarkCfi as any;
+          const candidate = obj.start || obj.startCfi || obj.cfi;
+          if (typeof candidate === 'string') safeCfi = candidate.trim();
+        }
+
         const id = this.storage.saveBook({
           ...book,
           bookMark,
           pages,
-          ...(payload.bookMarkCfi ? { bookMarkCfi: payload.bookMarkCfi } : {}),
+          ...(safeCfi ? { bookMarkCfi: safeCfi } : {}),
           ...(payload.chapter ? { chapter: payload.chapter } : {}),
           ...(payload.chapterDescription ? { chapterDescription: payload.chapterDescription } : {}),
           completed: isCompleted,

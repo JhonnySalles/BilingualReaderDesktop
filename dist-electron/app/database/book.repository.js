@@ -210,6 +210,13 @@ class BookRepository extends base_repository_1.BaseRepository {
         return { prev, next };
     }
     updateBookMark(id, marker, options) {
+        const safeCfi = typeof options?.bookMarkCfi === 'string'
+            ? options.bookMarkCfi
+            : (options?.bookMarkCfi && typeof options.bookMarkCfi.start === 'string'
+                ? options.bookMarkCfi.start
+                : (options?.bookMarkCfi && typeof options.bookMarkCfi.startCfi === 'string'
+                    ? options.bookMarkCfi.startCfi
+                    : null));
         const stmt = this.db.prepare(`
       UPDATE Book SET
         book_mark = ?,
@@ -220,7 +227,7 @@ class BookRepository extends base_repository_1.BaseRepository {
         last_alteration = ?
       WHERE id = ?
     `);
-        stmt.run(marker, options?.bookMarkCfi ?? null, options?.chapter ?? null, options?.chapterDescription ?? null, options?.pages ?? null, new Date().toISOString(), id);
+        stmt.run(marker, safeCfi, options?.chapter ?? null, options?.chapterDescription ?? null, options?.pages ?? null, new Date().toISOString(), id);
     }
     softDelete(id) {
         const stmt = this.db.prepare(`UPDATE Book SET excluded = 1 WHERE id = ?`);
@@ -266,6 +273,13 @@ class BookRepository extends base_repository_1.BaseRepository {
             const resolvedTitle = merged.title || resolvedName || '';
             const resolvedType = merged.fileType || (merged.path ? path.extname(merged.path).toUpperCase().replace('.', '') : app_enums_1.FileType.EPUB);
             const resolvedFileAlteration = merged.fileAlteration || new Date().toISOString();
+            const safeBookMarkCfi = typeof merged.bookMarkCfi === 'string'
+                ? merged.bookMarkCfi
+                : (merged.bookMarkCfi && typeof merged.bookMarkCfi.start === 'string'
+                    ? merged.bookMarkCfi.start
+                    : (merged.bookMarkCfi && typeof merged.bookMarkCfi.startCfi === 'string'
+                        ? merged.bookMarkCfi.startCfi
+                        : null));
             const stmt = this.db.prepare(`
         UPDATE Book SET
           title = ?, path = ?, folder = ?, name = ?, size = ?,
@@ -276,7 +290,7 @@ class BookRepository extends base_repository_1.BaseRepository {
           file_alteration = ?, last_vocabulary_import = ?, last_verify = ?, cover_path = ?
         WHERE id = ?
       `);
-            stmt.run(resolvedTitle, merged.path, resolvedFolder, resolvedName, merged.fileSize ?? 0, resolvedType, merged.pages ?? 1, merged.bookMark ?? 0, merged.bookMarkCfi ?? null, merged.completed ? 1 : 0, merged.favorite ? 1 : 0, merged.author ?? '', merged.series ?? '', merged.genre ?? '', merged.publisher ?? '', merged.volume ?? '', merged.release ?? null, merged.language ?? '', merged.isbn ?? '', merged.annotation ?? '', merged.tags ?? '', merged.chapter ?? '', merged.chapterDescription ?? '', merged.password ?? '', merged.fkLibrary ?? null, merged.excluded ? 1 : 0, merged.lastAccess ?? null, merged.lastAlteration ?? new Date().toISOString(), resolvedFileAlteration, merged.lastVocabImport ?? null, merged.lastVerify ?? null, merged.coverPath ?? null, book.id);
+            stmt.run(resolvedTitle, merged.path, resolvedFolder, resolvedName, merged.fileSize ?? 0, resolvedType, merged.pages ?? 1, merged.bookMark ?? 0, safeBookMarkCfi, merged.completed ? 1 : 0, merged.favorite ? 1 : 0, merged.author ?? '', merged.series ?? '', merged.genre ?? '', merged.publisher ?? '', merged.volume ?? '', merged.release ?? null, merged.language ?? '', merged.isbn ?? '', merged.annotation ?? '', merged.tags ?? '', merged.chapter ?? '', merged.chapterDescription ?? '', merged.password ?? '', merged.fkLibrary ?? null, merged.excluded ? 1 : 0, merged.lastAccess ?? null, merged.lastAlteration ?? new Date().toISOString(), resolvedFileAlteration, merged.lastVocabImport ?? null, merged.lastVerify ?? null, merged.coverPath ?? null, book.id);
             return book.id;
         }
         else {
@@ -285,6 +299,13 @@ class BookRepository extends base_repository_1.BaseRepository {
             const resolvedTitle = book.title || resolvedName || '';
             const resolvedType = book.fileType || (book.path ? path.extname(book.path).toUpperCase().replace('.', '') : app_enums_1.FileType.EPUB);
             const resolvedFileAlteration = book.fileAlteration || new Date().toISOString();
+            const safeInsertBookMarkCfi = typeof book.bookMarkCfi === 'string'
+                ? book.bookMarkCfi
+                : (book.bookMarkCfi && typeof book.bookMarkCfi.start === 'string'
+                    ? book.bookMarkCfi.start
+                    : (book.bookMarkCfi && typeof book.bookMarkCfi.startCfi === 'string'
+                        ? book.bookMarkCfi.startCfi
+                        : null));
             const stmt = this.db.prepare(`
         INSERT INTO Book (
           title, path, folder, name, size, type, pages,
@@ -297,7 +318,7 @@ class BookRepository extends base_repository_1.BaseRepository {
           ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
         )
       `);
-            const info = stmt.run(resolvedTitle, book.path, resolvedFolder, resolvedName, book.fileSize ?? 0, resolvedType, book.pages ?? 1, book.bookMark ?? 0, book.bookMarkCfi ?? null, book.completed ? 1 : 0, book.favorite ? 1 : 0, book.author ?? '', book.series ?? '', book.genre ?? '', book.publisher ?? '', book.volume ?? '', book.release ?? null, book.language ?? '', book.isbn ?? '', book.annotation ?? '', book.tags ?? '', book.chapter ?? '', book.chapterDescription ?? '', book.password ?? '', book.fkLibrary ?? null, book.excluded ? 1 : 0, new Date().toISOString(), book.lastAccess ?? null, book.lastAlteration ?? new Date().toISOString(), resolvedFileAlteration, book.lastVocabImport ?? null, book.lastVerify ?? null, book.coverPath ?? null);
+            const info = stmt.run(resolvedTitle, book.path, resolvedFolder, resolvedName, book.fileSize ?? 0, resolvedType, book.pages ?? 1, book.bookMark ?? 0, safeInsertBookMarkCfi, book.completed ? 1 : 0, book.favorite ? 1 : 0, book.author ?? '', book.series ?? '', book.genre ?? '', book.publisher ?? '', book.volume ?? '', book.release ?? null, book.language ?? '', book.isbn ?? '', book.annotation ?? '', book.tags ?? '', book.chapter ?? '', book.chapterDescription ?? '', book.password ?? '', book.fkLibrary ?? null, book.excluded ? 1 : 0, new Date().toISOString(), book.lastAccess ?? null, book.lastAlteration ?? new Date().toISOString(), resolvedFileAlteration, book.lastVocabImport ?? null, book.lastVerify ?? null, book.coverPath ?? null);
             return Number(info.lastInsertRowid);
         }
     }

@@ -141,7 +141,7 @@
     "adm-zip": "^0.6.0",
     "better-sqlite3": "^13.0.3",
     "chokidar": "^5.0.0",
-    "epubjs": "^0.3.93",
+    "epubjs": "file:./libs/epubjs",
     "google-auth-library": "^11.0.2",
     "googleapis": "^178.0.0",
     "kuromoji": "^0.1.2",

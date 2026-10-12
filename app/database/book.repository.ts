@@ -217,6 +217,15 @@ export class BookRepository extends BaseRepository<Book, number> {
       pages?: number;
     }
   ): void {
+    const safeCfi =
+      typeof options?.bookMarkCfi === 'string'
+        ? options.bookMarkCfi
+        : (options?.bookMarkCfi && typeof (options.bookMarkCfi as any).start === 'string'
+          ? (options.bookMarkCfi as any).start
+          : (options?.bookMarkCfi && typeof (options.bookMarkCfi as any).startCfi === 'string'
+            ? (options.bookMarkCfi as any).startCfi
+            : null));
+
     const stmt = this.db.prepare(`
       UPDATE Book SET
         book_mark = ?,
@@ -229,7 +238,7 @@ export class BookRepository extends BaseRepository<Book, number> {
     `);
     stmt.run(
       marker,
-      options?.bookMarkCfi ?? null,
+      safeCfi,
       options?.chapter ?? null,
       options?.chapterDescription ?? null,
       options?.pages ?? null,
@@ -292,6 +301,15 @@ export class BookRepository extends BaseRepository<Book, number> {
       const resolvedType = merged.fileType || (merged.path ? (path.extname(merged.path).toUpperCase().replace('.', '') as FileType) : FileType.EPUB);
       const resolvedFileAlteration = merged.fileAlteration || new Date().toISOString();
 
+      const safeBookMarkCfi =
+        typeof merged.bookMarkCfi === 'string'
+          ? merged.bookMarkCfi
+          : (merged.bookMarkCfi && typeof (merged.bookMarkCfi as any).start === 'string'
+            ? (merged.bookMarkCfi as any).start
+            : (merged.bookMarkCfi && typeof (merged.bookMarkCfi as any).startCfi === 'string'
+              ? (merged.bookMarkCfi as any).startCfi
+              : null));
+
       const stmt = this.db.prepare(`
         UPDATE Book SET
           title = ?, path = ?, folder = ?, name = ?, size = ?,
@@ -304,7 +322,7 @@ export class BookRepository extends BaseRepository<Book, number> {
       `);
       stmt.run(
         resolvedTitle, merged.path, resolvedFolder, resolvedName, merged.fileSize ?? 0,
-        resolvedType, merged.pages ?? 1, merged.bookMark ?? 0, merged.bookMarkCfi ?? null,
+        resolvedType, merged.pages ?? 1, merged.bookMark ?? 0, safeBookMarkCfi,
         merged.completed ? 1 : 0, merged.favorite ? 1 : 0, merged.author ?? '', merged.series ?? '',
         merged.genre ?? '', merged.publisher ?? '', merged.volume ?? '', merged.release ?? null,
         merged.language ?? '', merged.isbn ?? '', merged.annotation ?? '', merged.tags ?? '',
@@ -321,6 +339,14 @@ export class BookRepository extends BaseRepository<Book, number> {
       const resolvedTitle = book.title || resolvedName || '';
       const resolvedType = book.fileType || (book.path ? (path.extname(book.path).toUpperCase().replace('.', '') as FileType) : FileType.EPUB);
       const resolvedFileAlteration = book.fileAlteration || new Date().toISOString();
+      const safeInsertBookMarkCfi =
+        typeof book.bookMarkCfi === 'string'
+          ? book.bookMarkCfi
+          : (book.bookMarkCfi && typeof (book.bookMarkCfi as any).start === 'string'
+            ? (book.bookMarkCfi as any).start
+            : (book.bookMarkCfi && typeof (book.bookMarkCfi as any).startCfi === 'string'
+              ? (book.bookMarkCfi as any).startCfi
+              : null));
 
       const stmt = this.db.prepare(`
         INSERT INTO Book (
@@ -336,7 +362,7 @@ export class BookRepository extends BaseRepository<Book, number> {
       `);
       const info = stmt.run(
         resolvedTitle, book.path, resolvedFolder, resolvedName, book.fileSize ?? 0, resolvedType, book.pages ?? 1,
-        book.bookMark ?? 0, book.bookMarkCfi ?? null, book.completed ? 1 : 0, book.favorite ? 1 : 0,
+        book.bookMark ?? 0, safeInsertBookMarkCfi, book.completed ? 1 : 0, book.favorite ? 1 : 0,
         book.author ?? '', book.series ?? '', book.genre ?? '', book.publisher ?? '', book.volume ?? '',
         book.release ?? null, book.language ?? '', book.isbn ?? '', book.annotation ?? '', book.tags ?? '',
         book.chapter ?? '', book.chapterDescription ?? '', book.password ?? '',
