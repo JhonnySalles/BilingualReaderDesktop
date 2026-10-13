@@ -2966,6 +2966,17 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
+    const sheet = this.viewerRef?.nativeElement?.querySelector('.br-page-sheet') as HTMLElement | null;
+    if (sheet && sheet.scrollHeight > sheet.clientHeight + 2) {
+      const atTop = sheet.scrollTop <= 1;
+      const atBottom = sheet.scrollTop >= sheet.scrollHeight - sheet.clientHeight - 1;
+      if ((ev.deltaY > 0 && !atBottom) || (ev.deltaY < 0 && !atTop)) {
+        sheet.scrollTop += ev.deltaY;
+        this.wheelAccum = 0;
+        return;
+      }
+    }
+
     this.wheelAccum += ev.deltaY;
     if (Math.abs(this.wheelAccum) < WHEEL_PAGE_THRESHOLD) return;
 
@@ -3173,6 +3184,10 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     try {
       (ev.currentTarget as HTMLElement)?.setPointerCapture?.(ev.pointerId);
     } catch { /* ignore */ }
+
+    if (ev.target instanceof HTMLImageElement || (ev.target as HTMLElement)?.closest?.('img, svg, image')) {
+      ev.preventDefault();
+    }
 
     this.panning.set(true);
   }
@@ -5406,13 +5421,30 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
         padding: ${pad};
         background-color: ${bg};
         color: ${color};
-        overflow: hidden;
+        overflow-y: ${isTate ? 'hidden' : 'auto'};
+        overflow-x: ${isTate ? 'auto' : 'hidden'};
+        scrollbar-width: thin;
+        scrollbar-color: rgba(148, 163, 184, 0.4) transparent;
         user-select: text;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
         text-rendering: optimizeLegibility;
       ">
         <style>
+          .br-page-sheet::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+          }
+          .br-page-sheet::-webkit-scrollbar-track {
+            background: transparent;
+          }
+          .br-page-sheet::-webkit-scrollbar-thumb {
+            background-color: rgba(148, 163, 184, 0.4);
+            border-radius: 9999px;
+          }
+          .br-page-sheet::-webkit-scrollbar-thumb:hover {
+            background-color: rgba(148, 163, 184, 0.7);
+          }
           .br-page-sheet, .epub-page-content, .epub-page-content * {
             -webkit-font-smoothing: antialiased !important;
             -moz-osx-font-smoothing: grayscale !important;
@@ -5420,6 +5452,11 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
           }
           .epub-page-content img, .epub-page-content svg, .epub-page-content image {
             max-width: 100%; max-height: 100%; object-fit: contain; display: block; margin: auto;
+            user-select: none !important;
+            -webkit-user-select: none !important;
+            -webkit-user-drag: none !important;
+            user-drag: none !important;
+            pointer-events: none !important;
           }
           .epub-page-content ruby rt { font-size: 0.55em; opacity: 0.85; }
           .epub-page-content h1, .epub-page-content h2, .epub-page-content h3,
@@ -5444,8 +5481,9 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
         <div class="br-page-body epub-page-content" style="
           box-sizing: border-box;
           width: 100%;
-          height: 100%;
-          overflow: hidden;
+          min-height: 100%;
+          height: auto;
+          overflow: visible;
           font-size: ${fontSize};
           font-family: ${fontFamily};
           line-height: ${lineHeight};
@@ -5477,6 +5515,10 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       img.style.objectFit = 'contain';
       img.style.display = 'block';
       img.style.margin = 'auto';
+      img.style.userSelect = 'none';
+      img.style.webkitUserSelect = 'none';
+      img.style.webkitUserDrag = 'none';
+      img.style.pointerEvents = 'none';
     });
   }
 
@@ -5547,7 +5589,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  private async goToPageIndex(targetIndex: number, force = false): Promise<void> {
+  private async goToPageIndex(targetIndex: number, force = false, direction?: 1 | -1): Promise<void> {
     const max = Math.max(0, this.pageCount() - 1);
     const clamped = Math.max(0, Math.min(targetIndex, max));
     const pageNum = clamped + 1;
@@ -5580,6 +5622,14 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     const viewerEl = this.viewerRef?.nativeElement;
     if (viewerEl && pageData) {
       this.renderPageToElement(pageData, viewerEl);
+      const sheet = viewerEl.querySelector('.br-page-sheet') as HTMLElement | null;
+      if (sheet) {
+        if (direction === -1) {
+          sheet.scrollTop = Math.max(0, sheet.scrollHeight - sheet.clientHeight);
+        } else {
+          sheet.scrollTop = 0;
+        }
+      }
       this.applyPageAnnotations(viewerEl, clamped);
     }
 
@@ -5594,7 +5644,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     const clamped = Math.max(0, Math.min(targetIndex, max));
     if (clamped === this.currentPage()) return;
 
-    const dir = direction || (clamped > this.currentPage() ? 1 : -1);
+    const dir: 1 | -1 = direction || (clamped > this.currentPage() ? 1 : -1);
     this.turningPage = true;
     this.turningSignal.set(true);
 
@@ -5620,7 +5670,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
               mode: effect === PageTransitionType.Curl3DPage ? '3d' : '2d',
               durationMs: PAGE_TURN_DURATION_MS,
               commit: async () => {
-                await this.goToPageIndex(clamped);
+                await this.goToPageIndex(clamped, false, dir);
               }
             });
             return;
@@ -5647,12 +5697,12 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
           size,
           durationMs: PAGE_TURN_DURATION_MS,
           commit: async () => {
-            await this.goToPageIndex(clamped);
+            await this.goToPageIndex(clamped, false, dir);
             this.deactivatePeekLayer();
           }
         });
       } else {
-        await this.goToPageIndex(clamped);
+        await this.goToPageIndex(clamped, false, dir);
       }
     } finally {
       this.turningPage = false;
@@ -5677,11 +5727,103 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
   private async rasterizeHtmlToBitmap(
     pageData: any,
     width: number,
-    height: number
+    height: number,
+    scrollTop = 0
   ): Promise<ImageBitmap | null> {
+    const bg = this.pageBg;
+
+    // Check if the page contains an image
+    const rawHtml = pageData?.html || '';
+    const imgMatch = rawHtml.match(/<img[^>]+src=["'](data:[^"']+)["']/i);
+    const textSample = (pageData?.text || rawHtml.replace(/<[^>]+>/g, '')).trim();
+
+    // Fast path: if the page is primarily an image (e.g. covers, characters, illustrations with little/no text),
+    // render image directly onto canvas without SVG foreignObject to guarantee instant and reliable bitmap generation.
+    if (imgMatch && imgMatch[1] && textSample.length < 80) {
+      try {
+        const dataUrl = imgMatch[1];
+        const img = new Image();
+        img.src = dataUrl;
+        await new Promise<void>((resolve, reject) => {
+          if (img.complete && img.naturalWidth > 0) return resolve();
+          img.onload = () => resolve();
+          img.onerror = reject;
+        });
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return null;
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, width, height);
+
+        const nw = img.naturalWidth || width;
+        const nh = img.naturalHeight || height;
+
+        // Calculate layout matching reader exactly (.br-page-sheet and #viewer styles)
+        let dw: number, dh: number, dx: number, dy: number;
+
+        const viewerEl = this.viewerRef?.nativeElement;
+        const currentSheet = viewerEl?.querySelector('.br-page-sheet') as HTMLElement | null;
+        const isCurrentPage =
+          viewerEl &&
+          Math.abs(scrollTop - (currentSheet?.scrollTop || 0)) < 4;
+        const liveImg = isCurrentPage
+          ? (viewerEl.querySelector('.epub-page-content img') as HTMLImageElement | null)
+          : null;
+
+        if (viewerEl && liveImg && liveImg.isConnected && liveImg.naturalWidth > 0) {
+          const ir = liveImg.getBoundingClientRect();
+          const vr = viewerEl.getBoundingClientRect();
+          dw = Math.round(ir.width);
+          dh = Math.round(ir.height);
+          dx = Math.round(ir.left - vr.left);
+          dy = Math.round(ir.top - vr.top);
+        } else {
+          const pad = MARGIN_PX[this.margin()] ?? 32;
+          const z = this.effectiveZoom();
+          const availW = Math.max(10, (width / z) - 2 * pad);
+          const targetW = Math.min(nw, availW);
+          const targetH = Math.round(targetW * (nh / nw));
+          dw = Math.round(targetW * z);
+          dh = Math.round(targetH * z);
+          dx = Math.round((width - dw) / 2);
+          dy = Math.round(pad * z - scrollTop);
+        }
+
+        ctx.drawImage(img, dx, dy, dw, dh);
+        return await createImageBitmap(canvas);
+      } catch (err) {
+        console.warn('[reader-text] fast image rasterize error:', err);
+      }
+    }
+
     try {
-      const sheetHtml = this.buildPageSheetHtml(pageData);
-      const bg = this.pageBg;
+      let sheetHtml = this.buildPageSheetHtml(pageData);
+
+      // Clean HTML to ensure strict XML compatibility for SVG foreignObject
+      sheetHtml = sheetHtml
+        .replace(/&nbsp;/g, '&#160;')
+        .replace(/<img\b((?:(?!>|\/>).)*)(?<!\/)>/gi, '<img$1 />')
+        .replace(/<br\b((?:(?!>|\/>).)*)(?<!\/)>/gi, '<br$1 />')
+        .replace(/<hr\b((?:(?!>|\/>).)*)(?<!\/)>/gi, '<hr$1 />');
+
+      // Hide scrollbars completely in the snap bitmap and apply vertical scroll offset if page was scrolled
+      const snapHideScrollbarCss = `
+        <style>
+          .br-page-sheet {
+            scrollbar-width: none !important;
+            overflow: hidden !important;
+            ${scrollTop > 0 ? `margin-top: -${scrollTop}px !important;` : ''}
+          }
+          .br-page-sheet::-webkit-scrollbar {
+            display: none !important;
+            width: 0 !important;
+            height: 0 !important;
+          }
+        </style>
+      `;
 
       const svg = `
         <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
@@ -5694,10 +5836,12 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
               padding: 0;
               overflow: hidden;
               background-color: ${bg};
+              zoom: ${this.effectiveZoom()};
               -webkit-font-smoothing: antialiased;
               -moz-osx-font-smoothing: grayscale;
               text-rendering: optimizeLegibility;
             ">
+              ${snapHideScrollbarCss}
               ${sheetHtml}
             </div>
           </foreignObject>
@@ -5708,7 +5852,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       const url = URL.createObjectURL(blob);
       try {
         const img = new Image();
-        img.crossOrigin = 'anonymous';
+        // Do NOT set crossOrigin on blob URL
         await new Promise<void>((resolve, reject) => {
           img.onload = () => resolve();
           img.onerror = reject;
@@ -5727,15 +5871,54 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       } finally {
         URL.revokeObjectURL(url);
       }
-    } catch {
+    } catch (e) {
+      console.warn('[reader-text] rasterizeHtmlToBitmap foreignObject failed, attempting fallback', e);
+      // Fallback: if page had an image, draw image on background canvas
+      if (imgMatch && imgMatch[1]) {
+        try {
+          const img = new Image();
+          img.src = imgMatch[1];
+          await new Promise<void>((resolve, reject) => {
+            if (img.complete && img.naturalWidth > 0) return resolve();
+            img.onload = () => resolve();
+            img.onerror = reject;
+          });
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) return null;
+          ctx.fillStyle = bg;
+          ctx.fillRect(0, 0, width, height);
+          const nw = img.naturalWidth || width;
+          const nh = img.naturalHeight || height;
+
+          const pad = MARGIN_PX[this.margin()] ?? 32;
+          const z = this.effectiveZoom();
+          const availW = Math.max(10, (width / z) - 2 * pad);
+          const targetW = Math.min(nw, availW);
+          const targetH = Math.round(targetW * (nh / nw));
+          const dw = Math.round(targetW * z);
+          const dh = Math.round(targetH * z);
+          const dx = Math.round((width - dw) / 2);
+          const dy = Math.round(pad * z - scrollTop);
+
+          ctx.drawImage(img, dx, dy, dw, dh);
+          return await createImageBitmap(canvas);
+        } catch {
+          /* ignore */
+        }
+      }
       return null;
     }
   }
 
-  private async getPageBitmap(pageIndex: number): Promise<ImageBitmap | null> {
+  private async getPageBitmap(pageIndex: number, scrollTop = 0): Promise<ImageBitmap | null> {
     const key = String(pageIndex);
-    const cached = this.pageBitmapCache.get(key);
-    if (cached) return cached.bitmap;
+    if (scrollTop === 0) {
+      const cached = this.pageBitmapCache.get(key);
+      if (cached) return cached.bitmap;
+    }
 
     const pageData = await this.getPageData(pageIndex + 1);
     if (!pageData) return null;
@@ -5745,9 +5928,11 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     const height = size?.height || 1080;
 
     try {
-      const bitmap = await this.rasterizeHtmlToBitmap(pageData, width, height);
+      const bitmap = await this.rasterizeHtmlToBitmap(pageData, width, height, scrollTop);
       if (bitmap) {
-        this.savePageBitmap(pageIndex, bitmap, width, height);
+        if (scrollTop === 0) {
+          this.savePageBitmap(pageIndex, bitmap, width, height);
+        }
         return bitmap;
       }
     } catch {
@@ -6310,7 +6495,48 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /** @returns true if scrolled within the current page contents */
   private tryScrollContents(dir: 1 | -1): boolean {
-    if (!this.rendition || !this.isPaginatedMode()) return false;
+    if (!this.isPaginatedMode()) return false;
+
+    // Check native DOM reader sheet (.br-page-sheet) first
+    const sheet = this.viewerRef?.nativeElement?.querySelector('.br-page-sheet') as HTMLElement | null;
+    if (sheet) {
+      const isTate = this.tateGakiEnabled();
+      if (!isTate) {
+        const scrollTop = sheet.scrollTop;
+        const scrollHeight = sheet.scrollHeight;
+        const clientHeight = sheet.clientHeight;
+        const maxScroll = scrollHeight - clientHeight;
+        if (maxScroll > 4) {
+          const step = Math.round(clientHeight * 0.88);
+          if (dir > 0 && scrollTop < maxScroll - 4) {
+            sheet.scrollBy({ top: step, behavior: 'smooth' });
+            return true;
+          }
+          if (dir < 0 && scrollTop > 4) {
+            sheet.scrollBy({ top: -step, behavior: 'smooth' });
+            return true;
+          }
+        }
+      } else {
+        // Vertical-rl (Tate-gaki) horizontal scrolling
+        const scrollLeft = Math.abs(sheet.scrollLeft);
+        const maxScroll = sheet.scrollWidth - sheet.clientWidth;
+        if (maxScroll > 4) {
+          const step = Math.round(sheet.clientWidth * 0.88);
+          if (dir > 0 && scrollLeft < maxScroll - 4) {
+            sheet.scrollBy({ left: -step, behavior: 'smooth' });
+            return true;
+          }
+          if (dir < 0 && scrollLeft > 4) {
+            sheet.scrollBy({ left: step, behavior: 'smooth' });
+            return true;
+          }
+        }
+      }
+      return false;
+    }
+
+    if (!this.rendition) return false;
     const contents = this.activeContents();
     const win: Window | undefined = contents?.window;
     if (!win) return false;
@@ -7488,14 +7714,17 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
       return null;
     }
 
-    let frontSrc = this.pageBitmapCache.get(String(current))?.bitmap ?? null;
+    const viewerEl = this.viewerRef?.nativeElement;
+    const currentScrollTop = viewerEl?.querySelector('.br-page-sheet')?.scrollTop || 0;
+
+    let frontSrc = currentScrollTop > 0 ? null : (this.pageBitmapCache.get(String(current))?.bitmap ?? null);
     let underSrc = this.pageBitmapCache.get(String(underIndex))?.bitmap ?? null;
 
     if (!frontSrc) {
-      frontSrc = await this.getPageBitmap(current);
+      frontSrc = await this.getPageBitmap(current, currentScrollTop);
     }
     if (!underSrc) {
-      underSrc = await this.getPageBitmap(underIndex);
+      underSrc = await this.getPageBitmap(underIndex, 0);
     }
 
     // In legacy rendition mode, fallback to headless electron capture if needed
