@@ -414,6 +414,18 @@ html[data-covers-3d='1'] .cover-3d-host:hover .cover-3d-face {
   background: linear-gradient(to right, #6366f1, #818cf8) !important; /* true indigo-500 to indigo-400 */
 }
 
+.scan-progress-manga {
+  background: linear-gradient(90deg, #4f46e5 0%, #818cf8 50%, #4f46e5 100%) !important;
+  box-shadow: 0 0 10px rgba(99, 102, 241, 0.7);
+  border-radius: 9999px;
+}
+
+.scan-progress-book {
+  background: linear-gradient(90deg, #d97706 0%, #fb923c 50%, #d97706 100%) !important;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.7);
+  border-radius: 9999px;
+}
+
 .manga-nav-active {
   background-color: rgba(99, 102, 241, 0.15) !important;
   color: #818cf8 !important;

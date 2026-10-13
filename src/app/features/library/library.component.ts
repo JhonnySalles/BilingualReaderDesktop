@@ -373,7 +373,10 @@ import { ShareMarkType } from '../../core/models/enums/sharemark.enum';
 
       @if (isCurrentlyScanning() || shareMark.syncing()) {
         <div class="absolute bottom-0 left-0 right-0 h-1 bg-slate-900 overflow-hidden z-50">
-          <div class="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500 animate-indeterminate"></div>
+          <div 
+            class="h-full animate-indeterminate"
+            [ngClass]="isBookScanning() ? 'scan-progress-book' : 'scan-progress-manga'">
+          </div>
         </div>
       }
 
@@ -423,6 +426,16 @@ export class LibraryComponent implements OnInit {
 
   isCurrentlyScanning = computed(() => {
     return this.mangaLibraryService.isScanning() || this.bookLibraryService.isScanning();
+  });
+
+  isBookScanning = computed(() => {
+    if (this.bookLibraryService.isScanning() && !this.mangaLibraryService.isScanning()) {
+      return true;
+    }
+    if (this.mangaLibraryService.isScanning() && !this.bookLibraryService.isScanning()) {
+      return false;
+    }
+    return this.activeLibType() === 'book';
   });
 
   mangaCustomLibraries = computed(() =>
