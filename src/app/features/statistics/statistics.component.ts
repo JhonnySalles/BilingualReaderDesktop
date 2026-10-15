@@ -31,7 +31,7 @@ import { StatisticsHeatmapComponent } from './components/statistics-heatmap.comp
             [selectedYear]="mangaYear()"
             [selectedLibraryId]="mangaLibraryId()"
             (filtersChange)="onMangaFilters($event)"
-            (openHistory)="goHistory('manga', $event.year)" />
+            (openHistory)="goHistory('manga', $event.year, $event.libraryId)" />
 
           <app-statistics-sector
             type="BOOK"
@@ -44,7 +44,7 @@ import { StatisticsHeatmapComponent } from './components/statistics-heatmap.comp
             [selectedYear]="bookYear()"
             [selectedLibraryId]="bookLibraryId()"
             (filtersChange)="onBookFilters($event)"
-            (openHistory)="goHistory('book', $event.year)" />
+            (openHistory)="goHistory('book', $event.year, $event.libraryId)" />
         </div>
       </div>
     </div>
@@ -83,9 +83,19 @@ export class StatisticsComponent implements OnInit {
     await this.stats.loadChart('BOOK', event.year, event.libraryId);
   }
 
-  goHistory(type: 'manga' | 'book', year: number | null): void {
+  goHistory(type: 'manga' | 'book', year: number, libraryId: number | null): void {
+    const currentYear = new Date().getFullYear();
     const queryParams: Record<string, string | number> = {};
-    if (year != null) queryParams['year'] = year;
-    this.router.navigate(['/statistics/history', type], { queryParams });
+
+    if (year !== currentYear) {
+      queryParams['year'] = year;
+    }
+    if (libraryId !== null) {
+      queryParams['libraryId'] = libraryId;
+    }
+
+    this.router.navigate(['/statistics/history', type], {
+      queryParams: Object.keys(queryParams).length > 0 ? queryParams : undefined
+    });
   }
 }

@@ -1,5 +1,10 @@
 import Database from 'better-sqlite3';
 import { HistoryContentType } from './history.repository';
+import { SettingsService } from '../services/settings.service';
+
+function normalizePath(p?: string): string {
+  return (p || '').replace(/\\/g, '/').toLowerCase().replace(/\/+$/, '');
+}
 
 export interface SectorStats {
   type: HistoryContentType;
@@ -126,7 +131,11 @@ export class StatisticsRepository {
     const params: any[] = [type, dateStart, dateEnd];
 
     if (libraryId != null && libraryId > 0) {
-      sql += ` AND id_library = ?`;
+      if (this.isDefaultLibraryId(libraryId, type)) {
+        sql += ` AND (id_library = ? OR id_library = 0 OR id_library IS NULL)`;
+      } else {
+        sql += ` AND id_library = ?`;
+      }
       params.push(libraryId);
     }
 
@@ -142,6 +151,26 @@ export class StatisticsRepository {
       points.push({ month, count: byMonth.get(month) ?? 0 });
     }
     return points;
+  }
+
+  public isDefaultLibraryId(libraryId: number, type: HistoryContentType): boolean {
+    const stmt = this.db.prepare(`SELECT path FROM Libraries WHERE id = ? LIMIT 1`);
+    const row = stmt.get(libraryId) as { path: string } | undefined;
+    if (!row) return false;
+
+    const defaultKey = type === 'MANGA' ? 'mangaBasePath' : 'bookBasePath';
+    const fallbackPath = type === 'MANGA'
+      ? 'C:\\Users\\Jhonny\\Documents\\BilingualReader\\Mangas'
+      : 'C:\\Users\\Jhonny\\Documents\\BilingualReader\\Books';
+    const defaultBasePath = normalizePath(SettingsService.instance?.get ? SettingsService.instance.get(defaultKey, fallbackPath) : fallbackPath);
+
+    const norm = normalizePath(row.path);
+    if (norm === defaultBasePath) return true;
+
+    const customLibs = (SettingsService.instance?.get ? SettingsService.instance.get<Array<{ id: string; title: string; path: string; type: string }>>('libraries', []) : []) || [];
+    const filteredCustom = customLibs.filter(l => l.type?.toLowerCase() === (type === 'MANGA' ? 'manga' : 'book'));
+    const isCustom = filteredCustom.some(c => normalizePath(c.path) === norm);
+    return !isCustom;
   }
 
   public listYears(type: HistoryContentType): number[] {
@@ -163,18 +192,86 @@ export class StatisticsRepository {
   }
 
   public listLibrariesByType(type: HistoryContentType): LibraryOption[] {
+    const defaultKey = type === 'MANGA' ? 'mangaBasePath' : 'bookBasePath';
+    const fallbackPath = type === 'MANGA'
+      ? 'C:\\Users\\Jhonny\\Documents\\BilingualReader\\Mangas'
+      : 'C:\\Users\\Jhonny\\Documents\\BilingualReader\\Books';
+    const defaultBasePath = normalizePath(SettingsService.instance?.get ? SettingsService.instance.get(defaultKey, fallbackPath) : fallbackPath);
+
+    const customLibs = (SettingsService.instance?.get ? SettingsService.instance.get<Array<{ id: string; title: string; path: string; type: string }>>('libraries', []) : []) || [];
+    const filteredCustom = customLibs.filter(l => l.type?.toLowerCase() === (type === 'MANGA' ? 'manga' : 'book'));
+
+    const customByNormPath = new Map<string, string>();
+    for (const c of filteredCustom) {
+      if (c.path && c.title) {
+        customByNormPath.set(normalizePath(c.path), c.title);
+      }
+    }
+
     const stmt = this.db.prepare(`
       SELECT id, title, type, path
       FROM Libraries
       WHERE type = ? AND excluded = 0 AND enabled = 1
-      ORDER BY title ASC
     `);
-    return (stmt.all(type) as any[]).map(row => ({
-      id: row.id,
-      title: row.title,
-      type: row.type as HistoryContentType,
-      path: row.path
-    }));
+    const rows = stmt.all(type) as Array<{ id: number; title: string; type: HistoryContentType; path: string }>;
+
+    let updateTitleStmt: Database.Statement | null = null;
+    try {
+      updateTitleStmt = this.db.prepare(`UPDATE Libraries SET title = ? WHERE id = ?`);
+    } catch {
+      updateTitleStmt = null;
+    }
+
+    const result: LibraryOption[] = [];
+    let defaultLibOption: LibraryOption | null = null;
+
+    for (const row of rows) {
+      const norm = normalizePath(row.path);
+      const isCustom = customByNormPath.has(norm);
+
+      let effectiveTitle: string;
+      let isDefault = false;
+
+      if (isCustom) {
+        effectiveTitle = customByNormPath.get(norm)!;
+      } else if (norm === defaultBasePath || (!isCustom && !defaultLibOption)) {
+        effectiveTitle = 'Padrão';
+        isDefault = true;
+      } else {
+        effectiveTitle = row.title;
+      }
+
+      if (updateTitleStmt && row.title !== effectiveTitle) {
+        try {
+          updateTitleStmt.run(effectiveTitle, row.id);
+        } catch {
+          // Ignore
+        }
+      }
+
+      const opt: LibraryOption = {
+        id: row.id,
+        title: effectiveTitle,
+        type: row.type,
+        path: row.path
+      };
+
+      if (isDefault) {
+        defaultLibOption = opt;
+      } else {
+        result.push(opt);
+      }
+    }
+
+    // Ordenar as bibliotecas customizadas em ordem alfabética
+    result.sort((a, b) => a.title.localeCompare(b.title));
+
+    // A biblioteca padrão vem primeiro
+    if (defaultLibOption) {
+      result.unshift(defaultLibOption);
+    }
+
+    return result;
   }
 
   /**

@@ -12,7 +12,7 @@ import { BookLibraryService } from '../../core/services/book-library.service';
 import { HistoryStatisticsItem, LibraryViewType, OrderType } from '../../core/models';
 import { HistoryStatsCardComponent } from './components/history-stats-card.component';
 import { HistoryStatsListItemComponent } from './components/history-stats-list-item.component';
-import { MangaFilterModalComponent } from '../library/manga-library/components/manga-filter-modal/manga-filter-modal.component';
+import { HistoryFilterModalComponent } from '../history/components/history-filter-modal/history-filter-modal.component';
 import { formatShortDuration } from '../../core/services/statistics.service';
 import { parseLibrarySearch } from '../../core/utils/library-search.parser';
 
@@ -42,12 +42,12 @@ export interface VirtualHistoryGroup {
     RouterModule,
     HistoryStatsCardComponent,
     HistoryStatsListItemComponent,
-    MangaFilterModalComponent
+    HistoryFilterModalComponent
   ],
   template: `
     <div class="h-full flex flex-col bg-slate-950 text-slate-100 overflow-hidden select-none relative">
       @if (libraryState.showFilterModal()) {
-        <app-manga-filter-modal (close)="libraryState.showFilterModal.set(false)"></app-manga-filter-modal>
+        <app-history-filter-modal (close)="libraryState.showFilterModal.set(false)"></app-history-filter-modal>
       }
 
       <div class="flex-1 min-h-0 overflow-y-auto px-6 pb-6 pt-24">
@@ -364,10 +364,21 @@ export class StatisticsHistoryComponent implements OnInit, OnDestroy {
       this.historyUi.activeType() === 'BOOK' ? 'history-book' : 'history-manga'
     );
 
+    const currentYear = new Date().getFullYear();
     const yearParam = this.route.snapshot.queryParamMap.get('year');
     if (yearParam) {
       const y = parseInt(yearParam, 10);
-      if (!isNaN(y)) this.historyUi.year.set(y);
+      this.historyUi.year.set(!isNaN(y) ? y : currentYear);
+    } else {
+      this.historyUi.year.set(currentYear);
+    }
+
+    const libParam = this.route.snapshot.queryParamMap.get('libraryId');
+    if (libParam) {
+      const l = parseInt(libParam, 10);
+      this.historyUi.libraryId.set(!isNaN(l) ? l : null);
+    } else {
+      this.historyUi.libraryId.set(null);
     }
 
     await this.reloadFilterOptions();

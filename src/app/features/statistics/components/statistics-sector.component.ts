@@ -34,7 +34,7 @@ import { StatisticsChartComponent } from './statistics-chart.component';
             [value]="stats.reading"
             [accent]="accent"
             [clickable]="true"
-            (pressed)="openHistory.emit({ year: null })" />
+            (pressed)="openHistory.emit({ year: selectedYear, libraryId: selectedLibraryId })" />
           <app-statistics-kpi-card
             label="Pendentes"
             [value]="stats.toRead"
@@ -151,7 +151,7 @@ import { StatisticsChartComponent } from './statistics-chart.component';
 
         <button
           type="button"
-          (click)="openHistory.emit({ year: selectedYear })"
+          (click)="openHistory.emit({ year: selectedYear, libraryId: selectedLibraryId })"
           class="w-full py-2.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer text-white"
           [ngClass]="ctaClass">
           Histórico
@@ -171,7 +171,7 @@ export class StatisticsSectorComponent implements OnChanges {
   @Input() selectedLibraryId: number | null = null;
   @Input() accent: 'indigo' | 'amber' = 'indigo';
 
-  @Output() openHistory = new EventEmitter<{ year: number | null }>();
+  @Output() openHistory = new EventEmitter<{ year: number; libraryId: number | null }>();
   @Output() filtersChange = new EventEmitter<{ year: number; libraryId: number | null }>();
 
   get chartTitle(): string {

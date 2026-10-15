@@ -1,6 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.StatisticsRepository = void 0;
+const settings_service_1 = require("../services/settings.service");
+function normalizePath(p) {
+    return (p || '').replace(/\\/g, '/').toLowerCase().replace(/\/+$/, '');
+}
 class StatisticsRepository {
     db;
     constructor(db) {
@@ -78,7 +82,12 @@ class StatisticsRepository {
     `;
         const params = [type, dateStart, dateEnd];
         if (libraryId != null && libraryId > 0) {
-            sql += ` AND id_library = ?`;
+            if (this.isDefaultLibraryId(libraryId, type)) {
+                sql += ` AND (id_library = ? OR id_library = 0 OR id_library IS NULL)`;
+            }
+            else {
+                sql += ` AND id_library = ?`;
+            }
             params.push(libraryId);
         }
         sql += ` GROUP BY SUBSTR(date_time_start, 6, 2) ORDER BY month`;
@@ -91,6 +100,24 @@ class StatisticsRepository {
             points.push({ month, count: byMonth.get(month) ?? 0 });
         }
         return points;
+    }
+    isDefaultLibraryId(libraryId, type) {
+        const stmt = this.db.prepare(`SELECT path FROM Libraries WHERE id = ? LIMIT 1`);
+        const row = stmt.get(libraryId);
+        if (!row)
+            return false;
+        const defaultKey = type === 'MANGA' ? 'mangaBasePath' : 'bookBasePath';
+        const fallbackPath = type === 'MANGA'
+            ? 'C:\\Users\\Jhonny\\Documents\\BilingualReader\\Mangas'
+            : 'C:\\Users\\Jhonny\\Documents\\BilingualReader\\Books';
+        const defaultBasePath = normalizePath(settings_service_1.SettingsService.instance?.get ? settings_service_1.SettingsService.instance.get(defaultKey, fallbackPath) : fallbackPath);
+        const norm = normalizePath(row.path);
+        if (norm === defaultBasePath)
+            return true;
+        const customLibs = (settings_service_1.SettingsService.instance?.get ? settings_service_1.SettingsService.instance.get('libraries', []) : []) || [];
+        const filteredCustom = customLibs.filter(l => l.type?.toLowerCase() === (type === 'MANGA' ? 'manga' : 'book'));
+        const isCustom = filteredCustom.some(c => normalizePath(c.path) === norm);
+        return !isCustom;
     }
     listYears(type) {
         const stmt = this.db.prepare(`
@@ -109,18 +136,77 @@ class StatisticsRepository {
         return years;
     }
     listLibrariesByType(type) {
+        const defaultKey = type === 'MANGA' ? 'mangaBasePath' : 'bookBasePath';
+        const fallbackPath = type === 'MANGA'
+            ? 'C:\\Users\\Jhonny\\Documents\\BilingualReader\\Mangas'
+            : 'C:\\Users\\Jhonny\\Documents\\BilingualReader\\Books';
+        const defaultBasePath = normalizePath(settings_service_1.SettingsService.instance?.get ? settings_service_1.SettingsService.instance.get(defaultKey, fallbackPath) : fallbackPath);
+        const customLibs = (settings_service_1.SettingsService.instance?.get ? settings_service_1.SettingsService.instance.get('libraries', []) : []) || [];
+        const filteredCustom = customLibs.filter(l => l.type?.toLowerCase() === (type === 'MANGA' ? 'manga' : 'book'));
+        const customByNormPath = new Map();
+        for (const c of filteredCustom) {
+            if (c.path && c.title) {
+                customByNormPath.set(normalizePath(c.path), c.title);
+            }
+        }
         const stmt = this.db.prepare(`
       SELECT id, title, type, path
       FROM Libraries
       WHERE type = ? AND excluded = 0 AND enabled = 1
-      ORDER BY title ASC
     `);
-        return stmt.all(type).map(row => ({
-            id: row.id,
-            title: row.title,
-            type: row.type,
-            path: row.path
-        }));
+        const rows = stmt.all(type);
+        let updateTitleStmt = null;
+        try {
+            updateTitleStmt = this.db.prepare(`UPDATE Libraries SET title = ? WHERE id = ?`);
+        }
+        catch {
+            updateTitleStmt = null;
+        }
+        const result = [];
+        let defaultLibOption = null;
+        for (const row of rows) {
+            const norm = normalizePath(row.path);
+            const isCustom = customByNormPath.has(norm);
+            let effectiveTitle;
+            let isDefault = false;
+            if (isCustom) {
+                effectiveTitle = customByNormPath.get(norm);
+            }
+            else if (norm === defaultBasePath || (!isCustom && !defaultLibOption)) {
+                effectiveTitle = 'Padrão';
+                isDefault = true;
+            }
+            else {
+                effectiveTitle = row.title;
+            }
+            if (updateTitleStmt && row.title !== effectiveTitle) {
+                try {
+                    updateTitleStmt.run(effectiveTitle, row.id);
+                }
+                catch {
+                    // Ignore
+                }
+            }
+            const opt = {
+                id: row.id,
+                title: effectiveTitle,
+                type: row.type,
+                path: row.path
+            };
+            if (isDefault) {
+                defaultLibOption = opt;
+            }
+            else {
+                result.push(opt);
+            }
+        }
+        // Ordenar as bibliotecas customizadas em ordem alfabética
+        result.sort((a, b) => a.title.localeCompare(b.title));
+        // A biblioteca padrão vem primeiro
+        if (defaultLibOption) {
+            result.unshift(defaultLibOption);
+        }
+        return result;
     }
     /**
      * Daily reading activity for the last 12 months (GitHub contribution style).

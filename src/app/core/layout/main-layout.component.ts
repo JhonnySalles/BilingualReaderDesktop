@@ -366,9 +366,14 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
                 (valueChange)="onLibrarySearchCommit($event)" />
 
               <button
-                (click)="libraryStateService.toggleViewMode()"
+                (pointerdown)="onButtonPointerDown('view', $event)"
+                (pointerup)="onButtonPointerUp('view', $event)"
+                (pointercancel)="onButtonPointerCancel()"
+                (pointerleave)="onButtonPointerCancel()"
+                (click)="onButtonClick('view', $event)"
+                (contextmenu)="onButtonContextMenu($event)"
                 class="p-2 bg-slate-900 border border-slate-800 hover:border-slate-700 active:scale-90 active:rotate-12 rounded-xl text-slate-300 hover:text-white transition-all duration-200 flex items-center justify-center cursor-pointer shadow-sm hover:shadow-indigo-500/10"
-                [title]="'Modo Atual: ' + getViewLabel(libraryStateService.currentView())">
+                [title]="'Modo Atual: ' + getViewLabel(libraryStateService.currentView()) + ' (Pressione para mais opções)'">
                 @switch (libraryStateService.currentView()) {
                   @case (LibraryViewType.GRID_BIG) {
                     <!-- Grid Big: 4 large tiles -->
@@ -427,9 +432,14 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
               </button>
 
               <button
-                (click)="libraryStateService.toggleSortDirection()"
+                (pointerdown)="onButtonPointerDown('sort', $event)"
+                (pointerup)="onButtonPointerUp('sort', $event)"
+                (pointercancel)="onButtonPointerCancel()"
+                (pointerleave)="onButtonPointerCancel()"
+                (click)="onButtonClick('sort', $event)"
+                (contextmenu)="onButtonContextMenu($event)"
                 class="p-2 bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl text-slate-300 hover:text-white transition-all flex items-center justify-center cursor-pointer"
-                [title]="libraryStateService.isAscending() ? 'Ordem Crescente (A-Z)' : 'Ordem Decrescente (Z-A)'">
+                [title]="(libraryStateService.isAscending() ? 'Ordem Crescente (A-Z)' : 'Ordem Decrescente (Z-A)') + ' (Pressione para mais opções)'">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 transition-transform duration-300" [class.rotate-180]="!libraryStateService.isAscending()" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
                 </svg>
@@ -496,10 +506,14 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
               </div>
 
               <button
-                (click)="libraryStateService.toggleViewMode()"
-                (contextmenu)="libraryStateService.showFilterModal.set(true); $event.preventDefault()"
+                (pointerdown)="onButtonPointerDown('view', $event)"
+                (pointerup)="onButtonPointerUp('view', $event)"
+                (pointercancel)="onButtonPointerCancel()"
+                (pointerleave)="onButtonPointerCancel()"
+                (click)="onButtonClick('view', $event)"
+                (contextmenu)="onButtonContextMenu($event)"
                 class="p-2 bg-slate-900 border border-slate-800 hover:border-slate-700 active:scale-90 active:rotate-12 rounded-xl text-slate-300 hover:text-white transition-all duration-200 flex items-center justify-center cursor-pointer shadow-sm hover:shadow-indigo-500/10"
-                [title]="'Modo Atual: ' + getViewLabel(libraryStateService.currentView())">
+                [title]="'Modo Atual: ' + getViewLabel(libraryStateService.currentView()) + ' (Pressione para mais opções)'">
                 @switch (libraryStateService.currentView()) {
                   @case (LibraryViewType.GRID_BIG) {
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -550,12 +564,25 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
               </button>
 
               <button
-                (click)="libraryStateService.toggleSortDirection()"
-                (contextmenu)="libraryStateService.showFilterModal.set(true); $event.preventDefault()"
+                (pointerdown)="onButtonPointerDown('sort', $event)"
+                (pointerup)="onButtonPointerUp('sort', $event)"
+                (pointercancel)="onButtonPointerCancel()"
+                (pointerleave)="onButtonPointerCancel()"
+                (click)="onButtonClick('sort', $event)"
+                (contextmenu)="onButtonContextMenu($event)"
                 class="p-2 bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl text-slate-300 hover:text-white transition-all flex items-center justify-center cursor-pointer"
-                [title]="libraryStateService.isAscending() ? 'Ordem Crescente' : 'Ordem Decrescente'">
+                [title]="(libraryStateService.isAscending() ? 'Ordem Crescente' : 'Ordem Decrescente') + ' (Pressione para mais opções)'">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 transition-transform duration-300" [class.rotate-180]="!libraryStateService.isAscending()" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
+                </svg>
+              </button>
+
+              <button
+                (click)="libraryStateService.showFilterModal.set(true)"
+                class="p-2 bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl text-slate-300 hover:text-white transition-all flex items-center justify-center cursor-pointer"
+                title="Filtros e Opções">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
                 </svg>
               </button>
             </div>
@@ -764,7 +791,66 @@ export class MainLayoutComponent implements OnInit {
     return view === LibraryViewType.LINE || view === LibraryViewType.SEPARATOR_LINE;
   });
 
+  private longPressTimer: ReturnType<typeof setTimeout> | null = null;
+  private isLongPressTriggered = false;
+
+  onButtonPointerDown(action: 'view' | 'sort', event: PointerEvent): void {
+    if (event.button !== 0) return;
+    this.isLongPressTriggered = false;
+    if (this.longPressTimer) {
+      clearTimeout(this.longPressTimer);
+    }
+    this.longPressTimer = setTimeout(() => {
+      this.isLongPressTriggered = true;
+      this.libraryStateService.showFilterModal.set(true);
+    }, 400);
+  }
+
+  onButtonPointerUp(action: 'view' | 'sort', event: PointerEvent): void {
+    if (this.longPressTimer) {
+      clearTimeout(this.longPressTimer);
+      this.longPressTimer = null;
+    }
+  }
+
+  onButtonPointerCancel(): void {
+    if (this.longPressTimer) {
+      clearTimeout(this.longPressTimer);
+      this.longPressTimer = null;
+    }
+  }
+
+  onButtonClick(action: 'view' | 'sort', event: MouseEvent): void {
+    if (this.isLongPressTriggered) {
+      this.isLongPressTriggered = false;
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    if (action === 'view') {
+      this.libraryStateService.toggleViewMode();
+    } else if (action === 'sort') {
+      this.libraryStateService.toggleSortDirection();
+    }
+  }
+
+  onButtonContextMenu(event: MouseEvent): void {
+    event.preventDefault();
+    if (this.longPressTimer) {
+      clearTimeout(this.longPressTimer);
+      this.longPressTimer = null;
+    }
+    this.isLongPressTriggered = false;
+    this.libraryStateService.showFilterModal.set(true);
+  }
+
   constructor() {
+    this.destroyRef.onDestroy(() => {
+      if (this.longPressTimer) {
+        clearTimeout(this.longPressTimer);
+      }
+    });
+
     effect(() => {
       this.settingsService.libraries();
       this.settingsService.mangaBasePath();

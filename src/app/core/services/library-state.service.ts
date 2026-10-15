@@ -21,6 +21,10 @@ interface StoredViewPreferences {
   bookIsAscending?: boolean;
   historyMangaView?: LibraryViewType;
   historyBookView?: LibraryViewType;
+  historyMangaOrder?: OrderType;
+  historyBookOrder?: OrderType;
+  historyMangaIsAscending?: boolean;
+  historyBookIsAscending?: boolean;
 }
 
 @Injectable({
@@ -114,7 +118,11 @@ export class LibraryStateService {
         bookOrder: this.bookOrder(),
         bookIsAscending: this.bookIsAscending(),
         historyMangaView: this.historyMangaView(),
-        historyBookView: this.historyBookView()
+        historyBookView: this.historyBookView(),
+        historyMangaOrder: this.historyMangaOrder(),
+        historyBookOrder: this.historyBookOrder(),
+        historyMangaIsAscending: this.historyMangaIsAscending(),
+        historyBookIsAscending: this.historyBookIsAscending()
       };
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
@@ -153,9 +161,21 @@ export class LibraryStateService {
       if (data.historyMangaView && Object.values(LibraryViewType).includes(data.historyMangaView)) {
         this.historyMangaView.set(data.historyMangaView);
       }
+      if (data.historyMangaOrder && Object.values(OrderType).includes(data.historyMangaOrder)) {
+        this.historyMangaOrder.set(data.historyMangaOrder);
+      }
+      if (typeof data.historyMangaIsAscending === 'boolean') {
+        this.historyMangaIsAscending.set(data.historyMangaIsAscending);
+      }
 
       if (data.historyBookView && Object.values(LibraryViewType).includes(data.historyBookView)) {
         this.historyBookView.set(data.historyBookView);
+      }
+      if (data.historyBookOrder && Object.values(OrderType).includes(data.historyBookOrder)) {
+        this.historyBookOrder.set(data.historyBookOrder);
+      }
+      if (typeof data.historyBookIsAscending === 'boolean') {
+        this.historyBookIsAscending.set(data.historyBookIsAscending);
       }
     } catch (e) {
       console.error('Failed to load library view preferences from localStorage', e);

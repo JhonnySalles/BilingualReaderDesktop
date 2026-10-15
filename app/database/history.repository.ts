@@ -1,5 +1,10 @@
 import Database from 'better-sqlite3';
 import { BaseRepository } from './base.repository';
+import { SettingsService } from '../services/settings.service';
+
+function normalizePath(p?: string): string {
+  return (p || '').replace(/\\/g, '/').toLowerCase().replace(/\/+$/, '');
+}
 
 export type HistoryContentType = 'MANGA' | 'BOOK';
 
@@ -434,6 +439,26 @@ export class HistoryRepository extends BaseRepository<HistoryRow, number> {
       .filter(y => !!y);
   }
 
+  public isDefaultLibraryId(libraryId: number, type: HistoryContentType): boolean {
+    const stmt = this.db.prepare(`SELECT path FROM Libraries WHERE id = ? LIMIT 1`);
+    const row = stmt.get(libraryId) as { path: string } | undefined;
+    if (!row) return false;
+
+    const defaultKey = type === 'MANGA' ? 'mangaBasePath' : 'bookBasePath';
+    const fallbackPath = type === 'MANGA'
+      ? 'C:\\Users\\Jhonny\\Documents\\BilingualReader\\Mangas'
+      : 'C:\\Users\\Jhonny\\Documents\\BilingualReader\\Books';
+    const defaultBasePath = normalizePath(SettingsService.instance?.get ? SettingsService.instance.get(defaultKey, fallbackPath) : fallbackPath);
+
+    const norm = normalizePath(row.path);
+    if (norm === defaultBasePath) return true;
+
+    const customLibs = (SettingsService.instance?.get ? SettingsService.instance.get<Array<{ id: string; title: string; path: string; type: string }>>('libraries', []) : []) || [];
+    const filteredCustom = customLibs.filter(l => l.type?.toLowerCase() === (type === 'MANGA' ? 'manga' : 'book'));
+    const isCustom = filteredCustom.some(c => normalizePath(c.path) === norm);
+    return !isCustom;
+  }
+
   public listAggregated(options: {
     type: HistoryContentType;
     year?: number | null;
@@ -469,7 +494,7 @@ export class HistoryRepository extends BaseRepository<HistoryRow, number> {
         COALESCE(I.book_mark, 0) AS bookMark,
         COALESCE(I.pages, 1) AS pages,
         COALESCE(I.completed, 0) AS completed,
-        COALESCE(L.title, '') AS libraryName,
+        COALESCE(NULLIF(L.title, ''), 'Padrão') AS libraryName,
         SUM(CASE WHEN H.page_end > H.page_start THEN H.page_end - H.page_start ELSE 0 END) AS pagesRead,
         SUM(COALESCE(H.seconds_read, 0)) AS timeRead,
         SUBSTR(H.date_time_start, 1, 10) AS sessionDate,
@@ -488,7 +513,11 @@ export class HistoryRepository extends BaseRepository<HistoryRow, number> {
     }
 
     if (libraryId != null && libraryId > 0) {
-      sql += ` AND H.id_library = ?`;
+      if (this.isDefaultLibraryId(libraryId, type)) {
+        sql += ` AND (H.id_library = ? OR H.id_library = 0 OR H.id_library IS NULL)`;
+      } else {
+        sql += ` AND H.id_library = ?`;
+      }
       params.push(libraryId);
     }
 

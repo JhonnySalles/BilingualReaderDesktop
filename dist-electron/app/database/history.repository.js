@@ -2,6 +2,10 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.HistoryRepository = void 0;
 const base_repository_1 = require("./base.repository");
+const settings_service_1 = require("../services/settings.service");
+function normalizePath(p) {
+    return (p || '').replace(/\\/g, '/').toLowerCase().replace(/\/+$/, '');
+}
 class HistoryRepository extends base_repository_1.BaseRepository {
     constructor(db) {
         super(db, 'History');
@@ -203,6 +207,24 @@ class HistoryRepository extends base_repository_1.BaseRepository {
             .map(r => r.year)
             .filter(y => !!y);
     }
+    isDefaultLibraryId(libraryId, type) {
+        const stmt = this.db.prepare(`SELECT path FROM Libraries WHERE id = ? LIMIT 1`);
+        const row = stmt.get(libraryId);
+        if (!row)
+            return false;
+        const defaultKey = type === 'MANGA' ? 'mangaBasePath' : 'bookBasePath';
+        const fallbackPath = type === 'MANGA'
+            ? 'C:\\Users\\Jhonny\\Documents\\BilingualReader\\Mangas'
+            : 'C:\\Users\\Jhonny\\Documents\\BilingualReader\\Books';
+        const defaultBasePath = normalizePath(settings_service_1.SettingsService.instance?.get ? settings_service_1.SettingsService.instance.get(defaultKey, fallbackPath) : fallbackPath);
+        const norm = normalizePath(row.path);
+        if (norm === defaultBasePath)
+            return true;
+        const customLibs = (settings_service_1.SettingsService.instance?.get ? settings_service_1.SettingsService.instance.get('libraries', []) : []) || [];
+        const filteredCustom = customLibs.filter(l => l.type?.toLowerCase() === (type === 'MANGA' ? 'manga' : 'book'));
+        const isCustom = filteredCustom.some(c => normalizePath(c.path) === norm);
+        return !isCustom;
+    }
     listAggregated(options) {
         const { type, year, libraryId, search, filters } = options;
         const table = type === 'MANGA' ? 'Manga' : 'Book';
@@ -231,7 +253,7 @@ class HistoryRepository extends base_repository_1.BaseRepository {
         COALESCE(I.book_mark, 0) AS bookMark,
         COALESCE(I.pages, 1) AS pages,
         COALESCE(I.completed, 0) AS completed,
-        COALESCE(L.title, '') AS libraryName,
+        COALESCE(NULLIF(L.title, ''), 'Padrão') AS libraryName,
         SUM(CASE WHEN H.page_end > H.page_start THEN H.page_end - H.page_start ELSE 0 END) AS pagesRead,
         SUM(COALESCE(H.seconds_read, 0)) AS timeRead,
         SUBSTR(H.date_time_start, 1, 10) AS sessionDate,
@@ -247,7 +269,12 @@ class HistoryRepository extends base_repository_1.BaseRepository {
             params.push(String(year));
         }
         if (libraryId != null && libraryId > 0) {
-            sql += ` AND H.id_library = ?`;
+            if (this.isDefaultLibraryId(libraryId, type)) {
+                sql += ` AND (H.id_library = ? OR H.id_library = 0 OR H.id_library IS NULL)`;
+            }
+            else {
+                sql += ` AND H.id_library = ?`;
+            }
             params.push(libraryId);
         }
         if (search && search.trim()) {

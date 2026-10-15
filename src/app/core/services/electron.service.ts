@@ -596,7 +596,7 @@ export class ElectronService {
         getTags: async () => [{ id: 1, name: 'Favorito' }, { id: 2, name: 'Lendo' }],
         saveTag: async (name: string) => ({ id: Date.now(), name }),
         deleteTag: async () => true,
-        listLibrariesByType: async () => [{ id: 1, name: 'Principal' }],
+        listLibrariesByType: async (type: HistoryContentType = 'MANGA') => [{ id: 1, title: 'Padrão', type }],
         listTrackerLibraries: async () => [],
         listTracksByLibrary: async () => [],
         listAllTracks: async () => [],

@@ -12,7 +12,7 @@ import { BookLibraryService } from '../../core/services/book-library.service';
 import { HistoryStatisticsItem, LibraryViewType, OrderType } from '../../core/models';
 import { HistoryStatsCardComponent } from '../statistics/components/history-stats-card.component';
 import { HistoryStatsListItemComponent } from '../statistics/components/history-stats-list-item.component';
-import { MangaFilterModalComponent } from '../library/manga-library/components/manga-filter-modal/manga-filter-modal.component';
+import { HistoryFilterModalComponent } from './components/history-filter-modal/history-filter-modal.component';
 import { parseLibrarySearch } from '../../core/utils/library-search.parser';
 
 interface HistoryDayGroup {
@@ -41,12 +41,12 @@ export interface VirtualHistoryGroup {
     RouterModule,
     HistoryStatsCardComponent,
     HistoryStatsListItemComponent,
-    MangaFilterModalComponent
+    HistoryFilterModalComponent
   ],
   template: `
     <div class="h-full flex flex-col bg-slate-950 text-slate-100 overflow-hidden select-none relative">
       @if (libraryState.showFilterModal()) {
-        <app-manga-filter-modal (close)="libraryState.showFilterModal.set(false)"></app-manga-filter-modal>
+        <app-history-filter-modal (close)="libraryState.showFilterModal.set(false)"></app-history-filter-modal>
       }
 
       <div class="flex-1 min-h-0 overflow-y-auto px-6 pb-6 pt-24">
@@ -367,6 +367,12 @@ export class HistoryComponent implements OnInit, OnDestroy {
     if (yearParam) {
       const y = parseInt(yearParam, 10);
       if (!isNaN(y)) this.historyUi.year.set(y);
+    }
+
+    const libParam = this.route.snapshot.queryParamMap.get('libraryId');
+    if (libParam) {
+      const l = parseInt(libParam, 10);
+      if (!isNaN(l)) this.historyUi.libraryId.set(l);
     }
 
     await this.reloadFilterOptions();
