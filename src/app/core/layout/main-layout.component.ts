@@ -372,59 +372,72 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
                 (pointerleave)="onButtonPointerCancel()"
                 (click)="onButtonClick('view', $event)"
                 (contextmenu)="onButtonContextMenu($event)"
-                class="p-2 bg-slate-900 border border-slate-800 hover:border-slate-700 active:scale-90 active:rotate-12 rounded-xl text-slate-300 hover:text-white transition-all duration-200 flex items-center justify-center cursor-pointer shadow-sm hover:shadow-indigo-500/10"
-                [title]="'Modo Atual: ' + getViewLabel(libraryStateService.currentView()) + ' (Pressione para mais opções)'">
-                @switch (libraryStateService.currentView()) {
+                class="p-2 bg-slate-900 border border-slate-800 hover:border-slate-700 active:scale-90 active:rotate-12 rounded-xl text-slate-300 hover:text-white transition-all duration-200 flex items-center justify-center cursor-pointer shadow-sm"
+                [ngClass]="currentLibraryType() === 'book' ? 'hover:shadow-amber-500/10' : 'hover:shadow-indigo-500/10'"
+                [title]="'Modo Atual: ' + getViewLabel(libraryStateService.getView(currentLibraryType())) + ' (Pressione para mais opções)'">
+                @switch (libraryStateService.getView(currentLibraryType())) {
                   @case (LibraryViewType.GRID_BIG) {
                     <!-- Grid Big: 4 large tiles -->
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" [ngClass]="currentLibraryType() === 'book' ? 'text-amber-400' : 'text-indigo-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h5a1 1 0 011 1v5a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h5a1 1 0 011 1v5a1 1 0 01-1 1h-5a1 1 0 01-1-1V5zM4 14a1 1 0 011-1h5a1 1 0 011 1v5a1 1 0 01-1 1H5a1 1 0 01-1-1v-5zM14 14a1 1 0 011-1h5a1 1 0 011 1v5a1 1 0 01-1 1h-5a1 1 0 01-1-1v-5z" />
                     </svg>
                   }
                   @case (LibraryViewType.GRID_MEDIUM) {
                     <!-- Grid Medium: 9 smaller grid blocks -->
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" [ngClass]="currentLibraryType() === 'book' ? 'text-amber-400' : 'text-indigo-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
                     </svg>
                   }
                   @case (LibraryViewType.GRID_OVERLAY) {
                     <!-- Grid Blur / Overlay: Card with blur layer / image icon -->
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" [ngClass]="currentLibraryType() === 'book' ? 'text-amber-400' : 'text-indigo-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  }
+                  @case (LibraryViewType.CAROUSEL) {
+                    <!-- Carousel: 3 horizontal cards side-by-side -->
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" [ngClass]="currentLibraryType() === 'book' ? 'text-amber-400' : 'text-indigo-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h4v14H3zm7 0h4v14h-4zm7 0h4v14h-4z" />
                     </svg>
                   }
                   @case (LibraryViewType.SEPARATOR_BIG) {
                     <!-- Big with Separator: Header bar on top + large grid blocks -->
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" [ngClass]="currentLibraryType() === 'book' ? 'text-amber-400' : 'text-indigo-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h18M4 9h6v10H4zm10 0h6v10h-6z" />
                     </svg>
                   }
                   @case (LibraryViewType.SEPARATOR_MEDIUM) {
                     <!-- Medium with Separator: Header bar on top + 4 grid blocks -->
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" [ngClass]="currentLibraryType() === 'book' ? 'text-amber-400' : 'text-indigo-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h18M4 8h5v5H4zm11 0h5v5h-5zM4 15h5v5H4zm11 0h5v5h-5z" />
                     </svg>
                   }
                   @case (LibraryViewType.SEPARATOR_OVERLAY) {
                     <!-- Blur with Separator: Header bar + image overlay card -->
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" [ngClass]="currentLibraryType() === 'book' ? 'text-amber-400' : 'text-indigo-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h18M4 8h16v12H4zM4 16h16" />
+                    </svg>
+                  }
+                  @case (LibraryViewType.SEPARATOR_CAROUSEL) {
+                    <!-- Separator Carousel: Header line on top + horizontal cards -->
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" [ngClass]="currentLibraryType() === 'book' ? 'text-amber-400' : 'text-indigo-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h18M3 8h4v12H3zm7 0h4v12h-4zm7 0h4v12h-4z" />
                     </svg>
                   }
                   @case (LibraryViewType.SEPARATOR_LINE) {
                     <!-- Line with Separator: Header bar + horizontal items -->
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" [ngClass]="currentLibraryType() === 'book' ? 'text-amber-400' : 'text-indigo-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h18M4 9h16M4 14h16M4 19h16" />
                     </svg>
                   }
                   @case (LibraryViewType.LINE) {
                     <!-- Line: clean list lines -->
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" [ngClass]="currentLibraryType() === 'book' ? 'text-amber-400' : 'text-indigo-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
                     </svg>
                   }
                   @default {
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" [ngClass]="currentLibraryType() === 'book' ? 'text-amber-400' : 'text-indigo-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
                     </svg>
                   }
@@ -439,8 +452,8 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
                 (click)="onButtonClick('sort', $event)"
                 (contextmenu)="onButtonContextMenu($event)"
                 class="p-2 bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl text-slate-300 hover:text-white transition-all flex items-center justify-center cursor-pointer"
-                [title]="(libraryStateService.isAscending() ? 'Ordem Crescente (A-Z)' : 'Ordem Decrescente (Z-A)') + ' (Pressione para mais opções)'">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 transition-transform duration-300" [class.rotate-180]="!libraryStateService.isAscending()" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                [title]="(libraryStateService.getIsAscending(currentLibraryType()) ? 'Ordem Crescente (A-Z)' : 'Ordem Decrescente (Z-A)') + ' (Pressione para mais opções)'">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 transition-transform duration-300" [class.rotate-180]="!libraryStateService.getIsAscending(currentLibraryType())" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
                 </svg>
               </button>
@@ -530,6 +543,11 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
                   }
+                  @case (LibraryViewType.CAROUSEL) {
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h4v14H3zm7 0h4v14h-4zm7 0h4v14h-4z" />
+                    </svg>
+                  }
                   @case (LibraryViewType.SEPARATOR_BIG) {
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h18M4 9h6v10H4zm10 0h6v10h-6z" />
@@ -543,6 +561,11 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
                   @case (LibraryViewType.SEPARATOR_OVERLAY) {
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h18M4 8h16v12H4zM4 16h16" />
+                    </svg>
+                  }
+                  @case (LibraryViewType.SEPARATOR_CAROUSEL) {
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h18M3 8h4v12H3zm7 0h4v12h-4zm7 0h4v12h-4z" />
                     </svg>
                   }
                   @case (LibraryViewType.SEPARATOR_LINE) {
@@ -733,8 +756,16 @@ export class MainLayoutComponent implements OnInit {
   customMangaLibraries = signal<NavLibrary[]>([]);
   customBookLibraries = signal<NavLibrary[]>([]);
 
+  readonly currentLibraryType = computed<'manga' | 'book'>(() => {
+    const id = this.currentLibId();
+    if (id === 'book-default' || this.customBookLibraries().some(c => c.id === id)) {
+      return 'book';
+    }
+    return 'manga';
+  });
+
   readonly librarySearchScope = computed<LibrarySearchScope>(() =>
-    this.libraryStateService.activeLibrary().type === 'book' ? 'book' : 'manga'
+    this.currentLibraryType()
   );
 
   isHomeActive(): boolean {
@@ -828,9 +859,15 @@ export class MainLayoutComponent implements OnInit {
       return;
     }
     if (action === 'view') {
-      this.libraryStateService.toggleViewMode();
+      const ctx = this.headerMode() === 'history'
+        ? (this.historyUi.activeType() === 'BOOK' ? 'history-book' : 'history-manga')
+        : this.currentLibraryType();
+      this.libraryStateService.toggleViewMode(ctx);
     } else if (action === 'sort') {
-      this.libraryStateService.toggleSortDirection();
+      const ctx = this.headerMode() === 'history'
+        ? (this.historyUi.activeType() === 'BOOK' ? 'history-book' : 'history-manga')
+        : this.currentLibraryType();
+      this.libraryStateService.toggleSortDirection(ctx);
     }
   }
 
@@ -911,9 +948,7 @@ export class MainLayoutComponent implements OnInit {
       } else {
         this.headerMode.set('library');
       }
-      this.libraryStateService.activeContext.set(
-        this.libraryStateService.activeLibrary().type === 'book' ? 'book' : 'manga'
-      );
+      this.libraryStateService.activeContext.set(this.currentLibraryType());
       return;
     }
     if (path === '/history' || path.startsWith('/statistics/history')) {
@@ -1018,17 +1053,31 @@ export class MainLayoutComponent implements OnInit {
     this.libraryStateService.clearSearch();
     this.currentPath.set('/');
     this.currentLibId.set(lib.id);
+    this.libraryStateService.activeContext.set(lib.type === 'book' ? 'book' : 'manga');
     this.router.navigate(['/'], { queryParams: { lib: lib.id } });
   }
 
   getViewLabel(view: LibraryViewType): string {
+    if (this.headerMode() === 'history') {
+      switch (view) {
+        case LibraryViewType.SEPARATOR_BIG: return 'Grid Grande';
+        case LibraryViewType.SEPARATOR_MEDIUM: return 'Grid Médio';
+        case LibraryViewType.SEPARATOR_OVERLAY: return 'Grid Blur';
+        case LibraryViewType.SEPARATOR_CAROUSEL: return 'Carrossel';
+        case LibraryViewType.SEPARATOR_LINE: return 'Linha Detalhada';
+        default: return 'Grade';
+      }
+    }
+
     switch (view) {
       case LibraryViewType.GRID_BIG: return 'Grid Grande';
       case LibraryViewType.GRID_MEDIUM: return 'Grid Médio';
       case LibraryViewType.GRID_OVERLAY: return 'Grid Blur';
+      case LibraryViewType.CAROUSEL: return 'Carrossel';
       case LibraryViewType.SEPARATOR_BIG: return 'Grande c/ Separador';
       case LibraryViewType.SEPARATOR_MEDIUM: return 'Médio c/ Separador';
       case LibraryViewType.SEPARATOR_OVERLAY: return 'Grid Blur c/ Separador';
+      case LibraryViewType.SEPARATOR_CAROUSEL: return 'Carrossel c/ Separador';
       case LibraryViewType.SEPARATOR_LINE: return 'Linha c/ Separador';
       case LibraryViewType.LINE: return 'Linha Detalhada';
       default: return 'Grade';

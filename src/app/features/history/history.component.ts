@@ -12,6 +12,7 @@ import { BookLibraryService } from '../../core/services/book-library.service';
 import { HistoryStatisticsItem, LibraryViewType, OrderType } from '../../core/models';
 import { HistoryStatsCardComponent } from '../statistics/components/history-stats-card.component';
 import { HistoryStatsListItemComponent } from '../statistics/components/history-stats-list-item.component';
+import { HistoryStatsCarouselShelfComponent } from '../statistics/components/history-stats-carousel-shelf.component';
 import { HistoryFilterModalComponent } from './components/history-filter-modal/history-filter-modal.component';
 import { parseLibrarySearch } from '../../core/utils/library-search.parser';
 
@@ -30,6 +31,7 @@ export interface VirtualHistoryGroup {
     id: string;
     items: HistoryStatisticsItem[];
     isLine: boolean;
+    isCarousel?: boolean;
   }[];
 }
 
@@ -41,6 +43,7 @@ export interface VirtualHistoryGroup {
     RouterModule,
     HistoryStatsCardComponent,
     HistoryStatsListItemComponent,
+    HistoryStatsCarouselShelfComponent,
     HistoryFilterModalComponent
   ],
   template: `
@@ -63,22 +66,39 @@ export interface VirtualHistoryGroup {
           </div>
         } @else {
           <div class="space-y-8">
-            @for (group of virtualGroups(); track group.date) {
+            @for (group of virtualGroups(); track group.date + '-' + $index) {
               <section>
-                <!-- Sticky Date Header -->
-                <div class="sticky top-0 z-10 mb-4 bg-slate-950/90 backdrop-blur py-2 border-b border-slate-800 flex items-center gap-3">
-                  <span class="text-xs font-bold uppercase tracking-wider text-indigo-400 font-mono bg-indigo-500/10 px-2.5 py-1 rounded-lg border border-indigo-500/20">
-                    {{ formatDateLabel(group.date) }}
-                  </span>
-                  <div class="h-px bg-slate-800 flex-1"></div>
-                </div>
+                <!-- Sticky Date Header (for non-carousel views with date) -->
+                @if (!isCarouselView() && group.date) {
+                  <div class="sticky top-0 z-10 mb-4 bg-slate-950/90 backdrop-blur py-2 border-b border-slate-800 flex items-center gap-3">
+                    <span
+                      class="text-xs font-bold uppercase tracking-wider font-mono px-2.5 py-1 rounded-lg border"
+                      [ngClass]="historyUi.activeType() === 'BOOK'
+                        ? 'bg-amber-500/10 text-amber-300 border-amber-500/20'
+                        : (historyUi.activeType() === 'MANGA' ? 'manga-badge bg-indigo-500/10' : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20')">
+                      {{ formatDateLabel(group.date) }}
+                    </span>
+                    <div class="h-px bg-slate-800 flex-1"></div>
+                  </div>
+                }
 
                 <!-- Top Spacer for Virtual Windowing in this group -->
                 @if (group.topSpacer > 0) {
                   <div [style.height.px]="group.topSpacer" class="w-full pointer-events-none"></div>
                 }
 
-                @if (isLineView()) {
+                @if (isCarouselView()) {
+                  @for (row of group.visibleRows; track row.id) {
+                    <app-history-stats-carousel-shelf
+                      [title]="(hasSeparator() && group.date) ? formatDateLabel(group.date) : ''"
+                      [items]="row.items"
+                      [cardStyle]="effectiveCardStyle()"
+                      [shelfId]="row.id"
+                      [mediaType]="historyUi.activeType()"
+                      (open)="openItem($event)">
+                    </app-history-stats-carousel-shelf>
+                  }
+                } @else if (isLineView()) {
                   <div class="flex flex-col gap-2">
                     @for (row of group.visibleRows; track row.id) {
                       @for (item of row.items; track item.id + '-' + item.sessionDate + '-' + item.fkReference) {
@@ -138,9 +158,18 @@ export class HistoryComponent implements OnInit, OnDestroy {
   private ready = false;
 
   readonly isLineView = computed(() => {
-    const view = this.libraryState.currentView();
-    return view === LibraryViewType.LINE || view === LibraryViewType.SEPARATOR_LINE;
+    return this.libraryState.currentView() === LibraryViewType.SEPARATOR_LINE;
   });
+
+  readonly isCarouselView = computed(() => {
+    return this.libraryState.currentView() === LibraryViewType.SEPARATOR_CAROUSEL;
+  });
+
+  readonly isSeparatorCarouselView = computed(() => {
+    return this.libraryState.currentView() === LibraryViewType.SEPARATOR_CAROUSEL;
+  });
+
+  readonly hasSeparator = computed(() => true);
 
   readonly effectiveCardStyle = computed<'STANDARD' | 'OVERLAY'>(() => {
     const view = this.libraryState.currentView();
@@ -189,7 +218,7 @@ export class HistoryComponent implements OnInit, OnDestroy {
   });
 
   get columnsCount(): number {
-    if (this.isLineView()) return 1;
+    if (this.isLineView() || this.isCarouselView()) return 1;
     const width = this.containerWidth();
     const view = this.libraryState.currentView();
 
@@ -218,6 +247,9 @@ export class HistoryComponent implements OnInit, OnDestroy {
     if (this.isLineView()) {
       return 84;
     }
+    if (this.isCarouselView()) {
+      return 390;
+    }
     const view = this.libraryState.currentView();
     switch (view) {
       case LibraryViewType.GRID_BIG:
@@ -239,6 +271,7 @@ export class HistoryComponent implements OnInit, OnDestroy {
 
     const cols = this.columnsCount;
     const isLine = this.isLineView();
+    const isCarousel = this.isCarouselView();
     const rowHeight = this.rowItemSize;
     const scroll = this.scrollTop();
     const vh = this.viewportHeight();
@@ -248,15 +281,15 @@ export class HistoryComponent implements OnInit, OnDestroy {
     const windowEnd = scroll + vh + BUFFER_PX;
 
     let currentY = 0;
-    const HEADER_HEIGHT = 56;
-    const SECTION_MARGIN = 32;
+    const HEADER_HEIGHT = isCarousel ? 0 : 56;
+    const SECTION_MARGIN = isCarousel ? 16 : 32;
 
     return rawGroups.map((group, groupIdx) => {
       const items = group.items;
-      const totalRows = Math.ceil(items.length / cols);
+      const totalRows = isCarousel ? 1 : Math.ceil(items.length / cols);
       const groupItemsHeight = totalRows * rowHeight;
       const sectionStartY = currentY;
-      const itemsStartY = sectionStartY + HEADER_HEIGHT;
+      const itemsStartY = sectionStartY + (group.date && !isCarousel ? HEADER_HEIGHT : 0);
       const itemsEndY = itemsStartY + groupItemsHeight;
       const sectionEndY = itemsEndY + (groupIdx > 0 ? SECTION_MARGIN : 0);
 
@@ -293,16 +326,30 @@ export class HistoryComponent implements OnInit, OnDestroy {
       const topSpacer = startRow * rowHeight;
       const bottomSpacer = Math.max(0, (totalRows - endRow) * rowHeight);
 
-      const visibleRows: { id: string; items: HistoryStatisticsItem[]; isLine: boolean }[] = [];
-      for (let r = startRow; r < endRow; r++) {
-        const chunk = items.slice(r * cols, (r + 1) * cols);
-        const firstItem = chunk[0];
-        const firstId = `${firstItem.id}-${firstItem.sessionDate}-${firstItem.fkReference}`;
-        visibleRows.push({
-          id: `row-${group.date}-${firstId}-${r}`,
-          items: chunk,
-          isLine
-        });
+      const visibleRows: { id: string; items: HistoryStatisticsItem[]; isLine: boolean; isCarousel?: boolean }[] = [];
+      if (isCarousel) {
+        if (startRow === 0 && endRow >= 1) {
+          const firstItem = items[0];
+          const firstId = `${firstItem.id}-${firstItem.sessionDate}-${firstItem.fkReference}`;
+          visibleRows.push({
+            id: `carousel-shelf-${group.date || 'shelf'}-${firstId}-${groupIdx}`,
+            items,
+            isLine: false,
+            isCarousel: true
+          });
+        }
+      } else {
+        for (let r = startRow; r < endRow; r++) {
+          const chunk = items.slice(r * cols, (r + 1) * cols);
+          const firstItem = chunk[0];
+          const firstId = `${firstItem.id}-${firstItem.sessionDate}-${firstItem.fkReference}`;
+          visibleRows.push({
+            id: `row-${group.date}-${firstId}-${r}`,
+            items: chunk,
+            isLine,
+            isCarousel: false
+          });
+        }
       }
 
       return {

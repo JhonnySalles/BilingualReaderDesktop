@@ -5,7 +5,7 @@ import { MangaLibraryService } from '../../../core/services/manga-library.servic
 import { SettingsService } from '../../../core/services/settings.service';
 import { MangaCardComponent } from './components/manga-card/manga-card.component';
 import { MangaListItemComponent } from './components/manga-list-item/manga-list-item.component';
-import { MangaFilterModalComponent } from './components/manga-filter-modal/manga-filter-modal.component';
+import { LibraryFilterModalComponent } from '../components/library-filter-modal/library-filter-modal.component';
 import { LibraryViewType, OrderType } from '../../../core/models';
 
 @Component({
@@ -16,7 +16,7 @@ import { LibraryViewType, OrderType } from '../../../core/models';
     FormsModule,
     MangaCardComponent,
     MangaListItemComponent,
-    MangaFilterModalComponent
+    LibraryFilterModalComponent
   ],
   template: `
     <div class="min-h-screen bg-slate-950 text-slate-100 flex flex-col p-6">
@@ -131,7 +131,7 @@ import { LibraryViewType, OrderType } from '../../../core/models';
 
       <!-- Filter/Order Modal -->
       @if (showModal()) {
-        <app-manga-filter-modal (close)="showModal.set(false)"></app-manga-filter-modal>
+        <app-library-filter-modal (close)="showModal.set(false)"></app-library-filter-modal>
       }
 
     </div>

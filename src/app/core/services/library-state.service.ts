@@ -55,8 +55,8 @@ export class LibraryStateService {
   // Separate view types for Manga, Book, History Manga, and History Book
   mangaView = signal<LibraryViewType>(LibraryViewType.GRID_MEDIUM);
   bookView = signal<LibraryViewType>(LibraryViewType.GRID_MEDIUM);
-  historyMangaView = signal<LibraryViewType>(LibraryViewType.GRID_MEDIUM);
-  historyBookView = signal<LibraryViewType>(LibraryViewType.GRID_MEDIUM);
+  historyMangaView = signal<LibraryViewType>(LibraryViewType.SEPARATOR_MEDIUM);
+  historyBookView = signal<LibraryViewType>(LibraryViewType.SEPARATOR_MEDIUM);
 
   // Separate sorting for Manga, Book, History Manga, and History Book
   mangaOrder = signal<OrderType>(OrderType.Name);
@@ -159,7 +159,7 @@ export class LibraryStateService {
       }
 
       if (data.historyMangaView && Object.values(LibraryViewType).includes(data.historyMangaView)) {
-        this.historyMangaView.set(data.historyMangaView);
+        this.historyMangaView.set(this.sanitizeHistoryView(data.historyMangaView));
       }
       if (data.historyMangaOrder && Object.values(OrderType).includes(data.historyMangaOrder)) {
         this.historyMangaOrder.set(data.historyMangaOrder);
@@ -169,7 +169,7 @@ export class LibraryStateService {
       }
 
       if (data.historyBookView && Object.values(LibraryViewType).includes(data.historyBookView)) {
-        this.historyBookView.set(data.historyBookView);
+        this.historyBookView.set(this.sanitizeHistoryView(data.historyBookView));
       }
       if (data.historyBookOrder && Object.values(OrderType).includes(data.historyBookOrder)) {
         this.historyBookOrder.set(data.historyBookOrder);
@@ -179,6 +179,24 @@ export class LibraryStateService {
       }
     } catch (e) {
       console.error('Failed to load library view preferences from localStorage', e);
+    }
+  }
+
+  // Ensures history always uses separator-enabled views where dates are shown
+  private sanitizeHistoryView(view: LibraryViewType): LibraryViewType {
+    switch (view) {
+      case LibraryViewType.GRID_BIG:
+        return LibraryViewType.SEPARATOR_BIG;
+      case LibraryViewType.GRID_MEDIUM:
+        return LibraryViewType.SEPARATOR_MEDIUM;
+      case LibraryViewType.GRID_OVERLAY:
+        return LibraryViewType.SEPARATOR_OVERLAY;
+      case LibraryViewType.CAROUSEL:
+        return LibraryViewType.SEPARATOR_CAROUSEL;
+      case LibraryViewType.LINE:
+        return LibraryViewType.SEPARATOR_LINE;
+      default:
+        return view;
     }
   }
 
@@ -227,10 +245,10 @@ export class LibraryStateService {
         this.bookView.set(view);
         break;
       case 'history-manga':
-        this.historyMangaView.set(view);
+        this.historyMangaView.set(this.sanitizeHistoryView(view));
         break;
       case 'history-book':
-        this.historyBookView.set(view);
+        this.historyBookView.set(this.sanitizeHistoryView(view));
         break;
       case 'manga':
       default:
@@ -281,16 +299,29 @@ export class LibraryStateService {
   toggleViewMode(context?: LibraryContext) {
     const ctx = context || this.activeContext();
     const current = this.getView(ctx);
-    const sequence: LibraryViewType[] = [
-      LibraryViewType.GRID_BIG,
-      LibraryViewType.GRID_MEDIUM,
-      LibraryViewType.GRID_OVERLAY,
-      LibraryViewType.SEPARATOR_BIG,
-      LibraryViewType.SEPARATOR_MEDIUM,
-      LibraryViewType.SEPARATOR_OVERLAY,
-      LibraryViewType.SEPARATOR_LINE,
-      LibraryViewType.LINE
-    ];
+
+    const isHistory = ctx === 'history-manga' || ctx === 'history-book';
+    const sequence: LibraryViewType[] = isHistory
+      ? [
+          LibraryViewType.SEPARATOR_BIG,
+          LibraryViewType.SEPARATOR_MEDIUM,
+          LibraryViewType.SEPARATOR_OVERLAY,
+          LibraryViewType.SEPARATOR_CAROUSEL,
+          LibraryViewType.SEPARATOR_LINE
+        ]
+      : [
+          LibraryViewType.GRID_BIG,
+          LibraryViewType.GRID_MEDIUM,
+          LibraryViewType.GRID_OVERLAY,
+          LibraryViewType.CAROUSEL,
+          LibraryViewType.LINE,
+          LibraryViewType.SEPARATOR_BIG,
+          LibraryViewType.SEPARATOR_MEDIUM,
+          LibraryViewType.SEPARATOR_OVERLAY,
+          LibraryViewType.SEPARATOR_CAROUSEL,
+          LibraryViewType.SEPARATOR_LINE
+        ];
+
     const currentIndex = sequence.indexOf(current);
     const nextIndex = (currentIndex + 1) % sequence.length;
     this.setCurrentView(sequence[nextIndex], ctx);

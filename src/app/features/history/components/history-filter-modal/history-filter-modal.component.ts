@@ -14,8 +14,7 @@ import { OrderType, LibraryViewType } from '../../../../core/models';
       (click)="close.emit()">
 
       <div
-        class="bg-slate-900 border border-slate-800 rounded-2xl p-6 w-full max-w-md shadow-2xl text-slate-200"
-        [ngClass]="isBook() ? 'shadow-amber-950/30' : 'shadow-indigo-950/30'"
+        class="bg-slate-900 border border-slate-800 rounded-2xl p-6 w-full max-w-md shadow-2xl shadow-indigo-950/20 text-slate-200"
         (click)="$event.stopPropagation()">
 
         <!-- Header -->
@@ -23,9 +22,7 @@ import { OrderType, LibraryViewType } from '../../../../core/models';
           <h3 class="text-lg font-semibold text-slate-100 flex items-center gap-2">
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              class="w-5 h-5 transition-colors"
-              [class.text-indigo-400]="!isBook()"
-              [class.text-amber-400]="isBook()"
+              class="w-5 h-5 text-indigo-400"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor">
@@ -58,9 +55,10 @@ import { OrderType, LibraryViewType } from '../../../../core/models';
                 type="button"
                 (click)="libraryStateService.setCurrentView(viewOpt.value)"
                 [ngClass]="libraryStateService.currentView() === viewOpt.value 
-                  ? (isBook() ? 'bg-amber-600 text-white' : 'bg-indigo-600 text-white')
-                  : 'bg-slate-800 text-slate-300'"
-                class="flex items-center justify-center gap-1.5 p-2 rounded-xl border border-slate-700/60 text-xs font-medium transition-all text-center cursor-pointer hover:border-slate-600">
+                  ? 'bg-indigo-600 text-white font-semibold shadow-sm shadow-indigo-600/20'
+                  : 'bg-slate-800 text-slate-300 hover:border-slate-600'"
+                [class.col-span-2]="viewOpt.value === LibraryViewType.SEPARATOR_LINE"
+                class="flex items-center justify-center gap-1.5 p-2 rounded-xl border border-slate-700/60 text-xs font-medium transition-all text-center cursor-pointer">
                 {{ viewOpt.label }}
               </button>
             }
@@ -74,9 +72,7 @@ import { OrderType, LibraryViewType } from '../../../../core/models';
             <button
               type="button"
               (click)="libraryStateService.toggleSortDirection()"
-              class="text-xs flex items-center gap-1 font-medium hover:underline cursor-pointer transition-colors"
-              [class.text-indigo-400]="!isBook()"
-              [class.text-amber-400]="isBook()">
+              class="text-xs text-indigo-400 flex items-center gap-1 font-medium hover:underline cursor-pointer transition-colors">
               {{ libraryStateService.isAscending() ? 'Crescente ↑' : 'Decrescente ↓' }}
             </button>
           </div>
@@ -86,9 +82,9 @@ import { OrderType, LibraryViewType } from '../../../../core/models';
                 type="button"
                 (click)="libraryStateService.setCurrentOrder(order.value)"
                 [ngClass]="libraryStateService.currentOrder() === order.value
-                  ? (isBook() ? 'border-amber-500 bg-amber-950/70 text-amber-300' : 'border-indigo-500 bg-indigo-950/70 text-indigo-300')
-                  : 'border-slate-800 bg-slate-800/50 text-slate-300'"
-                class="p-2.5 rounded-xl border text-left text-sm font-medium hover:border-slate-700 transition-all cursor-pointer">
+                  ? 'border-indigo-500 bg-indigo-950/70 text-indigo-300 font-semibold'
+                  : 'border-slate-800 bg-slate-800/50 text-slate-300 hover:border-slate-700'"
+                class="p-2.5 rounded-xl border text-left text-sm font-medium transition-all cursor-pointer">
                 {{ order.label }}
               </button>
             }
@@ -99,10 +95,7 @@ import { OrderType, LibraryViewType } from '../../../../core/models';
         <button
           type="button"
           (click)="close.emit()"
-          [ngClass]="isBook()
-            ? 'bg-amber-600 hover:bg-amber-500 shadow-amber-600/20'
-            : 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/20'"
-          class="w-full py-2.5 rounded-xl text-white font-medium text-sm transition-all cursor-pointer shadow-lg">
+          class="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-sm transition-all cursor-pointer shadow-lg shadow-indigo-600/20">
           Concluído
         </button>
 
@@ -126,14 +119,11 @@ export class HistoryFilterModalComponent {
   ];
 
   viewOptions = [
-    { label: 'Grid Grande', value: LibraryViewType.GRID_BIG },
-    { label: 'Grande c/ Separador', value: LibraryViewType.SEPARATOR_BIG },
-    { label: 'Grid Médio', value: LibraryViewType.GRID_MEDIUM },
-    { label: 'Médio c/ Separador', value: LibraryViewType.SEPARATOR_MEDIUM },
-    { label: 'Grid Blur', value: LibraryViewType.GRID_OVERLAY },
-    { label: 'Grid Blur c/ Sep.', value: LibraryViewType.SEPARATOR_OVERLAY },
-    { label: 'Linha Detalhada', value: LibraryViewType.LINE },
-    { label: 'Linha c/ Separador', value: LibraryViewType.SEPARATOR_LINE }
+    { label: 'Grid Grande', value: LibraryViewType.SEPARATOR_BIG },
+    { label: 'Grid Médio', value: LibraryViewType.SEPARATOR_MEDIUM },
+    { label: 'Grid Blur', value: LibraryViewType.SEPARATOR_OVERLAY },
+    { label: 'Carrossel', value: LibraryViewType.SEPARATOR_CAROUSEL },
+    { label: 'Linha Detalhada', value: LibraryViewType.SEPARATOR_LINE }
   ];
 
   OrderType = OrderType;

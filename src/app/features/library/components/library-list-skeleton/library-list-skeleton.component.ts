@@ -2,7 +2,7 @@ import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 @Component({
-  selector: 'app-manga-list-skeleton',
+  selector: 'app-library-list-skeleton',
   standalone: true,
   imports: [CommonModule],
   template: `
@@ -22,4 +22,4 @@ import { CommonModule } from '@angular/common';
     </div>
   `
 })
-export class MangaListSkeletonComponent {}
+export class LibraryListSkeletonComponent {}

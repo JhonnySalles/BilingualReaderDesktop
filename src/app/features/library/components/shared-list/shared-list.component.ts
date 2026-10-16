@@ -15,18 +15,21 @@ import { Manga, Book, LibraryViewType, OrderType } from '../../../../core/models
 import { MangaCardComponent } from '../../manga-library/components/manga-card/manga-card.component';
 import { MangaListItemComponent } from '../../manga-library/components/manga-list-item/manga-list-item.component';
 import { BookCardComponent } from '../book-card/book-card.component';
-import { MangaCardSkeletonComponent } from '../manga-card-skeleton/manga-card-skeleton.component';
-import { MangaListSkeletonComponent } from '../manga-list-skeleton/manga-list-skeleton.component';
+import { LibraryCardSkeletonComponent } from '../library-card-skeleton/library-card-skeleton.component';
+import { LibraryListSkeletonComponent } from '../library-list-skeleton/library-list-skeleton.component';
 import { LibraryStateService } from '../../../../core/services/library-state.service';
 import { BookLibraryService } from '../../../../core/services/book-library.service';
 import { SharedTransitionService } from '../../../../core/services/shared-transition.service';
 import { progressPercent } from '../../../../core/utils/reading-progress.util';
+import { LibraryCarouselShelfComponent } from '../library-carousel-shelf/library-carousel-shelf.component';
+import { LibraryCarouselSkeletonComponent } from '../library-carousel-skeleton/library-carousel-skeleton.component';
 
 export interface VirtualRow {
   id: string;
   groupTitle?: string;
   items: (Manga | Book)[];
   isLine: boolean;
+  isCarousel?: boolean;
 }
 
 function formatSeparatorDate(dateStr?: string | null): string {
@@ -56,10 +59,15 @@ function formatSeparatorDate(dateStr?: string | null): string {
   return monthName.charAt(0).toUpperCase() + monthName.slice(1);
 }
 
+function getItemDisplayName(item: Manga | Book): string {
+  return (item.title || (item as any).name || '').trim();
+}
+
 function getItemSeparatorTitle(item: Manga | Book, order: OrderType): string {
   switch (order) {
     case OrderType.Name: {
-      const letter = (item.title || '?').trim()[0]?.toUpperCase() || '#';
+      const displayName = getItemDisplayName(item);
+      const letter = displayName[0]?.toUpperCase() || '#';
       return /[A-Z0-9]/.test(letter) ? letter : '#';
     }
     case OrderType.Author: {
@@ -86,10 +94,297 @@ function getItemSeparatorTitle(item: Manga | Book, order: OrderType): string {
       return series ? series : 'Sem série';
     }
     default: {
-      const letter = (item.title || '?').trim()[0]?.toUpperCase() || '#';
+      const displayName = getItemDisplayName(item);
+      const letter = displayName[0]?.toUpperCase() || '#';
       return /[A-Z0-9]/.test(letter) ? letter : '#';
     }
   }
+}
+
+function getDayGroupInfo(dateStr?: string | null, fallbackLabel = 'Sem data'): { dayKey: string; title: string } {
+  if (!dateStr || !dateStr.trim()) {
+    return { dayKey: '0000-00-00', title: fallbackLabel };
+  }
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) {
+    return { dayKey: '0000-00-00', title: fallbackLabel };
+  }
+
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  const dayKey = `${yyyy}-${mm}-${dd}`;
+
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const itemDateStart = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const diffDays = Math.floor((todayStart - itemDateStart) / (1000 * 60 * 60 * 24));
+
+  const formattedDate = `${dd}/${mm}/${yyyy}`;
+  let title = formattedDate;
+  if (diffDays === 0) {
+    title = `Hoje (${formattedDate})`;
+  } else if (diffDays === 1) {
+    title = `Ontem (${formattedDate})`;
+  }
+
+  return { dayKey, title };
+}
+
+function sortGroupItems(items: (Manga | Book)[], order: OrderType, isAsc: boolean): (Manga | Book)[] {
+  return [...items].sort((a, b) => {
+    let cmp = 0;
+    const nameA = getItemDisplayName(a);
+    const nameB = getItemDisplayName(b);
+    switch (order) {
+      case OrderType.Name:
+        cmp = nameA.localeCompare(nameB);
+        break;
+      case OrderType.Date: {
+        const da = (a as any).dateCreate || '';
+        const db = (b as any).dateCreate || '';
+        cmp = da.localeCompare(db);
+        if (cmp === 0) {
+          cmp = nameA.localeCompare(nameB);
+        }
+        break;
+      }
+      case OrderType.LastAccess: {
+        const la = (a as any).lastAccess || '';
+        const lb = (b as any).lastAccess || '';
+        if (!la && lb) return 1;
+        if (la && !lb) return -1;
+        cmp = la.localeCompare(lb);
+        if (cmp === 0) {
+          cmp = nameA.localeCompare(nameB);
+        }
+        break;
+      }
+      case OrderType.Favorite:
+        // "favorito continua por nome"
+        cmp = nameA.localeCompare(nameB);
+        break;
+      case OrderType.Author:
+        cmp = (a.author || '').localeCompare(b.author || '');
+        if (cmp === 0) {
+          cmp = nameA.localeCompare(nameB);
+        }
+        break;
+      default:
+        cmp = nameA.localeCompare(nameB);
+        break;
+    }
+    return isAsc ? cmp : -cmp;
+  });
+}
+
+function buildSimpleCarouselRows(
+  items: (Manga | Book)[],
+  order: OrderType,
+  isAsc: boolean,
+  getItemKey: (item: Manga | Book) => string | number
+): VirtualRow[] {
+  const rows: VirtualRow[] = [];
+
+  switch (order) {
+    case OrderType.Name: {
+      // 1-Nome: Agrupar pela primeira letra do registro
+      const letterMap = new Map<string, (Manga | Book)[]>();
+      for (const item of items) {
+        const name = getItemDisplayName(item);
+        const char = name[0]?.toUpperCase() || '#';
+        const key = /[A-Z0-9]/.test(char) ? char : '#';
+        if (!letterMap.has(key)) letterMap.set(key, []);
+        letterMap.get(key)!.push(item);
+      }
+
+      const keys = Array.from(letterMap.keys()).sort((a, b) => {
+        if (a === '#') return 1;
+        if (b === '#') return -1;
+        return isAsc ? a.localeCompare(b) : b.localeCompare(a);
+      });
+
+      for (const key of keys) {
+        const groupItems = sortGroupItems(letterMap.get(key)!, OrderType.Name, isAsc);
+        const firstId = getItemKey(groupItems[0]);
+        rows.push({
+          id: `carousel-letter-${key}-${firstId}`,
+          items: groupItems,
+          isLine: false,
+          isCarousel: true
+        });
+      }
+      break;
+    }
+
+    case OrderType.Date: {
+      // 2-Data de adição: Agrupar por dia de adição
+      const dayMap = new Map<string, { title: string; dateSortKey: string; items: (Manga | Book)[] }>();
+      for (const item of items) {
+        const rawDate = (item as any).dateCreate;
+        const info = getDayGroupInfo(rawDate, 'Sem data');
+        if (!dayMap.has(info.dayKey)) {
+          dayMap.set(info.dayKey, { title: info.title, dateSortKey: info.dayKey, items: [] });
+        }
+        dayMap.get(info.dayKey)!.items.push(item);
+      }
+
+      const groups = Array.from(dayMap.values()).sort((a, b) => {
+        if (a.dateSortKey === '0000-00-00') return 1;
+        if (b.dateSortKey === '0000-00-00') return -1;
+        return isAsc ? a.dateSortKey.localeCompare(b.dateSortKey) : b.dateSortKey.localeCompare(a.dateSortKey);
+      });
+
+      for (const g of groups) {
+        const groupItems = sortGroupItems(g.items, OrderType.Date, isAsc);
+        const firstId = getItemKey(groupItems[0]);
+        rows.push({
+          id: `carousel-date-${g.dateSortKey}-${firstId}`,
+          items: groupItems,
+          isLine: false,
+          isCarousel: true
+        });
+      }
+      break;
+    }
+
+    case OrderType.LastAccess: {
+      // 3-Ultimo acesso: Agrupar por dia de ultimo acesso
+      const dayMap = new Map<string, { title: string; dateSortKey: string; items: (Manga | Book)[] }>();
+      for (const item of items) {
+        const rawDate = (item as any).lastAccess;
+        const info = getDayGroupInfo(rawDate, 'Nunca acessado');
+        if (!dayMap.has(info.dayKey)) {
+          dayMap.set(info.dayKey, { title: info.title, dateSortKey: info.dayKey, items: [] });
+        }
+        dayMap.get(info.dayKey)!.items.push(item);
+      }
+
+      const groups = Array.from(dayMap.values()).sort((a, b) => {
+        if (a.dateSortKey === '0000-00-00') return 1;
+        if (b.dateSortKey === '0000-00-00') return -1;
+        return isAsc ? a.dateSortKey.localeCompare(b.dateSortKey) : b.dateSortKey.localeCompare(a.dateSortKey);
+      });
+
+      for (const g of groups) {
+        const groupItems = sortGroupItems(g.items, OrderType.LastAccess, isAsc);
+        const firstId = getItemKey(groupItems[0]);
+        rows.push({
+          id: `carousel-last-access-${g.dateSortKey}-${firstId}`,
+          items: groupItems,
+          isLine: false,
+          isCarousel: true
+        });
+      }
+      break;
+    }
+
+    case OrderType.Author: {
+      // 4-Autor: Agrupar por registros de mesmo autor
+      const authorMap = new Map<string, (Manga | Book)[]>();
+      for (const item of items) {
+        const author = item.author?.trim() || 'Sem autor';
+        if (!authorMap.has(author)) authorMap.set(author, []);
+        authorMap.get(author)!.push(item);
+      }
+
+      const authors = Array.from(authorMap.keys()).sort((a, b) => {
+        if (a === 'Sem autor') return 1;
+        if (b === 'Sem autor') return -1;
+        return isAsc ? a.localeCompare(b) : b.localeCompare(a);
+      });
+
+      for (const author of authors) {
+        const groupItems = sortGroupItems(authorMap.get(author)!, OrderType.Name, isAsc);
+        const firstId = getItemKey(groupItems[0]);
+        rows.push({
+          id: `carousel-author-${author}-${firstId}`,
+          items: groupItems,
+          isLine: false,
+          isCarousel: true
+        });
+      }
+      break;
+    }
+
+    case OrderType.Favorite: {
+      // 5-Favorito: O favorito será uma mesclagem, onde o primeiro agrupa os registros marcado como favoritos,
+      // já os não favoritos será agrupado por nome.
+      const favItems = items.filter(i => !!i.favorite);
+      const nonFavItems = items.filter(i => !i.favorite);
+
+      if (favItems.length > 0) {
+        const sortedFavs = sortGroupItems(favItems, OrderType.Name, isAsc);
+        const firstId = getItemKey(sortedFavs[0]);
+        rows.push({
+          id: `carousel-fav-${firstId}`,
+          items: sortedFavs,
+          isLine: false,
+          isCarousel: true
+        });
+      }
+
+      if (nonFavItems.length > 0) {
+        const letterMap = new Map<string, (Manga | Book)[]>();
+        for (const item of nonFavItems) {
+          const name = getItemDisplayName(item);
+          const char = name[0]?.toUpperCase() || '#';
+          const key = /[A-Z0-9]/.test(char) ? char : '#';
+          if (!letterMap.has(key)) letterMap.set(key, []);
+          letterMap.get(key)!.push(item);
+        }
+
+        const keys = Array.from(letterMap.keys()).sort((a, b) => {
+          if (a === '#') return 1;
+          if (b === '#') return -1;
+          return isAsc ? a.localeCompare(b) : b.localeCompare(a);
+        });
+
+        for (const key of keys) {
+          const groupItems = sortGroupItems(letterMap.get(key)!, OrderType.Name, isAsc);
+          const firstId = getItemKey(groupItems[0]);
+          rows.push({
+            id: `carousel-nonfav-letter-${key}-${firstId}`,
+            items: groupItems,
+            isLine: false,
+            isCarousel: true
+          });
+        }
+      }
+      break;
+    }
+
+    default: {
+      const letterMap = new Map<string, (Manga | Book)[]>();
+      for (const item of items) {
+        const name = getItemDisplayName(item);
+        const char = name[0]?.toUpperCase() || '#';
+        const key = /[A-Z0-9]/.test(char) ? char : '#';
+        if (!letterMap.has(key)) letterMap.set(key, []);
+        letterMap.get(key)!.push(item);
+      }
+
+      const keys = Array.from(letterMap.keys()).sort((a, b) => {
+        if (a === '#') return 1;
+        if (b === '#') return -1;
+        return isAsc ? a.localeCompare(b) : b.localeCompare(a);
+      });
+
+      for (const key of keys) {
+        const groupItems = sortGroupItems(letterMap.get(key)!, OrderType.Name, isAsc);
+        const firstId = getItemKey(groupItems[0]);
+        rows.push({
+          id: `carousel-default-letter-${key}-${firstId}`,
+          items: groupItems,
+          isLine: false,
+          isCarousel: true
+        });
+      }
+      break;
+    }
+  }
+
+  return rows;
 }
 
 @Component({
@@ -100,8 +395,10 @@ function getItemSeparatorTitle(item: Manga | Book, order: OrderType): string {
     MangaCardComponent,
     MangaListItemComponent,
     BookCardComponent,
-    MangaCardSkeletonComponent,
-    MangaListSkeletonComponent
+    LibraryCardSkeletonComponent,
+    LibraryListSkeletonComponent,
+    LibraryCarouselShelfComponent,
+    LibraryCarouselSkeletonComponent
   ],
   host: {
     class: 'block w-full min-h-0'
@@ -109,16 +406,21 @@ function getItemSeparatorTitle(item: Manga | Book, order: OrderType): string {
   template: `
     <div class="w-full">
       @if (isLoading) {
-        @if (!isLineView) {
+        @if (isCarouselView) {
+          <div class="space-y-6">
+            <app-library-carousel-skeleton></app-library-carousel-skeleton>
+            <app-library-carousel-skeleton></app-library-carousel-skeleton>
+          </div>
+        } @else if (!isLineView) {
           <div [class]="gridClasses + ' transition-all duration-300'">
             @for (dummy of skeletonItems; track $index) {
-              <app-manga-card-skeleton></app-manga-card-skeleton>
+              <app-library-card-skeleton></app-library-card-skeleton>
             }
           </div>
         } @else {
           <div class="flex flex-col gap-2 transition-all duration-300">
             @for (dummy of skeletonItems; track $index) {
-              <app-manga-list-skeleton></app-manga-list-skeleton>
+              <app-library-list-skeleton></app-library-list-skeleton>
             }
           </div>
         }
@@ -131,18 +433,32 @@ function getItemSeparatorTitle(item: Manga | Book, order: OrderType): string {
         <!-- Visible Rows (Windowed) -->
         @for (row of visibleRows(); track trackRow($index, row)) {
           <div class="w-full">
-            @if (row.groupTitle) {
-              <div class="flex items-center gap-3 my-4 first:mt-1">
-                <span class="text-sm font-bold text-indigo-400 font-mono bg-indigo-500/10 px-2.5 py-1 rounded-lg border border-indigo-500/20">
-                  {{ row.groupTitle }}
-                </span>
-                <div class="h-px bg-slate-800 flex-1"></div>
-              </div>
-            }
+            @if (row.isCarousel) {
+              <app-library-carousel-shelf
+                [title]="row.groupTitle"
+                [items]="row.items"
+                [type]="type"
+                [order]="currentOrder"
+                [shelfId]="row.id"
+                (open)="open.emit($event)"
+                (openDetail)="openDetail.emit($event)"
+                (setBookmark)="setBookmark.emit($event)"
+                (openTracker)="openTracker.emit($event)"
+                (openTags)="openTags.emit($event)">
+              </app-library-carousel-shelf>
+            } @else {
+              @if (row.groupTitle) {
+                <div class="flex items-center gap-3 my-4 first:mt-1">
+                  <span class="text-sm font-bold text-indigo-400 font-mono bg-indigo-500/10 px-2.5 py-1 rounded-lg border border-indigo-500/20">
+                    {{ row.groupTitle }}
+                  </span>
+                  <div class="h-px bg-slate-800 flex-1"></div>
+                </div>
+              }
 
-            @if (!row.isLine) {
-              <div [class]="gridClasses + ' transition-all duration-300 pb-5'">
-                @for (item of row.items; track getItemKey(item); let colIndex = $index) {
+              @if (!row.isLine) {
+                <div [class]="gridClasses + ' transition-all duration-300 pb-5'">
+                  @for (item of row.items; track getItemKey(item); let colIndex = $index) {
                   <div
                     draggable="true"
                     (dragstart)="onDragStart($event, item)"
@@ -283,6 +599,7 @@ function getItemSeparatorTitle(item: Manga | Book, order: OrderType): string {
                 }
               </div>
             }
+            }
           </div>
         }
 
@@ -408,6 +725,20 @@ export class SharedListComponent implements OnInit, OnDestroy {
     this.clearPressTimer();
   }
 
+  get currentOrder(): OrderType {
+    return this.libraryStateService.getOrder(this._type());
+  }
+
+  get isCarouselView(): boolean {
+    const view = this.libraryStateService.getView(this._type());
+    return view === LibraryViewType.CAROUSEL || view === LibraryViewType.SEPARATOR_CAROUSEL;
+  }
+
+  get isSeparatorCarouselView(): boolean {
+    const view = this.libraryStateService.getView(this._type());
+    return view === LibraryViewType.SEPARATOR_CAROUSEL;
+  }
+
   get isLineView(): boolean {
     const view = this.libraryStateService.getView(this._type());
     return view === LibraryViewType.LINE || view === LibraryViewType.SEPARATOR_LINE;
@@ -418,6 +749,7 @@ export class SharedListComponent implements OnInit, OnDestroy {
     return view === LibraryViewType.SEPARATOR_BIG ||
       view === LibraryViewType.SEPARATOR_MEDIUM ||
       view === LibraryViewType.SEPARATOR_OVERLAY ||
+      view === LibraryViewType.SEPARATOR_CAROUSEL ||
       view === LibraryViewType.SEPARATOR_LINE;
   }
 
@@ -446,7 +778,7 @@ export class SharedListComponent implements OnInit, OnDestroy {
   }
 
   get columnsCount(): number {
-    if (this.isLineView) return 1;
+    if (this.isLineView || this.isCarouselView) return 1;
     const width = this.containerWidth();
     const view = this.libraryStateService.getView(this._type());
 
@@ -475,6 +807,9 @@ export class SharedListComponent implements OnInit, OnDestroy {
     if (this.isLineView) {
       return 84;
     }
+    if (this.isCarouselView) {
+      return 350;
+    }
     const view = this.libraryStateService.getView(this._type());
     switch (view) {
       case LibraryViewType.GRID_BIG:
@@ -494,9 +829,43 @@ export class SharedListComponent implements OnInit, OnDestroy {
     const items = this._items();
     if (!items || items.length === 0) return [];
 
-    const cols = this.columnsCount;
+    const isCarousel = this.isCarouselView;
     const isLine = this.isLineView;
     const rows: VirtualRow[] = [];
+
+    if (isCarousel) {
+      const order = this.libraryStateService.getOrder(this._type());
+      const isAsc = this.libraryStateService.getIsAscending(this._type());
+
+      if (!this.hasSeparator) {
+        return buildSimpleCarouselRows(items, order, isAsc, (item) => this.getItemKey(item));
+      }
+
+      // Separator Carousel: group items by category
+      const groups: Map<string, (Manga | Book)[]> = new Map();
+      for (const item of items) {
+        const title = getItemSeparatorTitle(item, order);
+        if (!groups.has(title)) {
+          groups.set(title, []);
+        }
+        groups.get(title)!.push(item);
+      }
+
+      for (const [title, groupItems] of groups.entries()) {
+        const sortedItems = sortGroupItems(groupItems, order, isAsc);
+        const firstId = this.getItemKey(sortedItems[0]);
+        rows.push({
+          id: `carousel-group-${title}-${firstId}`,
+          groupTitle: title,
+          items: sortedItems,
+          isLine: false,
+          isCarousel: true
+        });
+      }
+      return rows;
+    }
+
+    const cols = this.columnsCount;
 
     if (!this.hasSeparator) {
       for (let i = 0; i < items.length; i += cols) {
@@ -511,7 +880,7 @@ export class SharedListComponent implements OnInit, OnDestroy {
       return rows;
     }
 
-    const order = this.libraryStateService.currentOrder();
+    const order = this.libraryStateService.getOrder(this._type());
     const groups: Map<string, (Manga | Book)[]> = new Map();
     for (const item of items) {
       const title = getItemSeparatorTitle(item, order);

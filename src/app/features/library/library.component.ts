@@ -11,7 +11,7 @@ import { HomeDashboardService } from '../../core/services/home-dashboard.service
 import { LibrarySearchService } from '../../core/services/library-search.service';
 import { ShareMarkUiService } from '../../core/services/sharemark/share-mark-ui.service';
 import { SharedListComponent } from './components/shared-list/shared-list.component';
-import { MangaFilterModalComponent } from './manga-library/components/manga-filter-modal/manga-filter-modal.component';
+import { LibraryFilterModalComponent } from './components/library-filter-modal/library-filter-modal.component';
 import { HomeRecentCardComponent } from './components/home-recent-card/home-recent-card.component';
 import { HomeReadingHeatmapComponent } from './components/home-reading-heatmap/home-reading-heatmap.component';
 import {
@@ -31,7 +31,7 @@ import { ShareMarkType } from '../../core/models/enums/sharemark.enum';
     CommonModule,
     RouterModule,
     SharedListComponent,
-    MangaFilterModalComponent,
+    LibraryFilterModalComponent,
     HomeRecentCardComponent,
     HomeReadingHeatmapComponent,
     LibraryBookmarkDialogComponent,
@@ -43,7 +43,10 @@ import { ShareMarkType } from '../../core/models/enums/sharemark.enum';
     <div class="h-full flex flex-col bg-slate-950 text-slate-100 overflow-hidden relative">
       
       @if (libraryStateService.showFilterModal()) {
-        <app-manga-filter-modal (close)="libraryStateService.showFilterModal.set(false)"></app-manga-filter-modal>
+        <app-library-filter-modal 
+          [context]="activeLibType()" 
+          (close)="libraryStateService.showFilterModal.set(false)">
+        </app-library-filter-modal>
       }
 
       <app-library-bookmark-dialog
@@ -813,45 +816,54 @@ export class LibraryComponent implements OnInit {
       : [...this.bookLibraryService.books()];
 
     const query = this.libraryStateService.filterQuery();
-    const order = this.libraryStateService.currentOrder();
-    const isAsc = this.libraryStateService.isAscending();
+    const order = this.libraryStateService.getOrder(scope);
+    const isAsc = this.libraryStateService.getIsAscending(scope);
 
     if (query.trim()) {
       list = this.librarySearch.filterItems(list, query, scope);
     }
 
+    const getItemName = (item: Manga | Book): string => {
+      return (item.title || (item as any).name || '').trim();
+    };
+
     list.sort((a, b) => {
       let comparison = 0;
       switch (order) {
         case OrderType.Name:
-          comparison = a.title.localeCompare(b.title);
+          comparison = getItemName(a).localeCompare(getItemName(b));
           break;
         case OrderType.Date:
           comparison = ((a as any).dateCreate || '').localeCompare((b as any).dateCreate || '');
           if (comparison === 0) {
-            comparison = a.title.localeCompare(b.title);
+            comparison = getItemName(a).localeCompare(getItemName(b));
           }
           break;
-        case OrderType.LastAccess:
-          comparison = ((a as any).lastAccess || '').localeCompare((b as any).lastAccess || '');
+        case OrderType.LastAccess: {
+          const la = (a as any).lastAccess || '';
+          const lb = (b as any).lastAccess || '';
+          if (!la && lb) return isAsc ? 1 : -1;
+          if (la && !lb) return isAsc ? -1 : 1;
+          comparison = la.localeCompare(lb);
           if (comparison === 0) {
-            comparison = a.title.localeCompare(b.title);
+            comparison = getItemName(a).localeCompare(getItemName(b));
           }
           break;
+        }
         case OrderType.Favorite:
           comparison = (b.favorite ? 1 : 0) - (a.favorite ? 1 : 0);
           if (comparison === 0) {
-            comparison = a.title.localeCompare(b.title);
+            comparison = getItemName(a).localeCompare(getItemName(b));
           }
           break;
         case OrderType.Author:
           comparison = (a.author || '').localeCompare(b.author || '');
           if (comparison === 0) {
-            comparison = a.title.localeCompare(b.title);
+            comparison = getItemName(a).localeCompare(getItemName(b));
           }
           break;
         default:
-          comparison = a.title.localeCompare(b.title);
+          comparison = getItemName(a).localeCompare(getItemName(b));
           break;
       }
       return isAsc ? comparison : -comparison;

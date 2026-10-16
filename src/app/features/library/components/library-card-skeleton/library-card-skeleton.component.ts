@@ -2,7 +2,7 @@ import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 @Component({
-  selector: 'app-manga-card-skeleton',
+  selector: 'app-library-card-skeleton',
   standalone: true,
   imports: [CommonModule],
   template: `
@@ -31,4 +31,4 @@ import { CommonModule } from '@angular/common';
     </div>
   `
 })
-export class MangaCardSkeletonComponent {}
+export class LibraryCardSkeletonComponent {}

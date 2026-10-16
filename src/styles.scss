@@ -543,4 +543,25 @@ html[data-covers-3d='1'] .cover-3d-host:hover .cover-3d-face {
   }
 }
 
+/* Custom Horizontal Scrollbar for Carousel Shelves */
+.custom-horizontal-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(71, 85, 105, 0.4) transparent;
+
+  &::-webkit-scrollbar {
+    height: 6px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: rgba(71, 85, 105, 0.4);
+    border-radius: 9999px;
+
+    &:hover {
+      background: rgba(99, 102, 241, 0.6);
+    }
+  }
+}
+
 
