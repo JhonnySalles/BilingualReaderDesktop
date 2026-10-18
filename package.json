@@ -19,7 +19,7 @@
     "test:ebook-convert-smoke": "yarn compile:electron && node dist-electron/app/services/ebook-convert/smoke.spec.js && node dist-electron/app/services/ebook-convert/smoke-calibre.spec.js",
     "generate:icons": "powershell -ExecutionPolicy Bypass -File ./scripts/generate-icons.ps1",
     "copy:jp-assets": "powershell -ExecutionPolicy Bypass -File ./scripts/copy-japanese-assets.ps1",
-    "electron:dev": "concurrently \"ng serve\" \"tsc -p tsconfig.electron.json --watch\" \"wait-on http://localhost:4200 && electron .\"",
+    "electron:dev": "node scripts/dev.js",
     "compile:all": "yarn compile:electron && yarn build:native && yarn build",
     "pack:light": "electron-builder --publish never",
     "pack:full": "electron-builder --config electron-builder-full.json --publish never",

@@ -256,7 +256,10 @@ function createWindow(): void {
   const isDev = process.env['NODE_ENV'] === 'development' || !app.isPackaged;
 
   if (isDev) {
-    mainWindow.loadURL('http://localhost:4200');
+    const devPort = process.env['DEV_PORT'] || process.env['DEV_SERVER_PORT'] || process.env['PORT'] || '4500';
+    const devUrl = process.env['ELECTRON_START_URL'] || `http://127.0.0.1:${devPort}`;
+    console.log(`[main] Modo dev: carregando URL ${devUrl}`);
+    mainWindow.loadURL(devUrl);
     mainWindow.webContents.openDevTools();
   } else {
     const indexHtml = path.join(
