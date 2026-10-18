@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, OnInit, DestroyRef, effect, untracked } from '@angular/core';
+import { Component, inject, signal, computed, OnInit, AfterViewInit, DestroyRef, effect, untracked, ViewChild, ElementRef, NgZone } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -37,7 +37,8 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
     <div class="h-screen w-screen flex bg-slate-950 text-slate-100 overflow-hidden font-sans">
       <aside
         [class.w-64]="isExpanded()"
-        [class.w-16]="!isExpanded()"
+        [class.w-16]="!isExpanded() && !hasSidebarScroll()"
+        [class.w-20]="!isExpanded() && hasSidebarScroll()"
         class="h-full shrink-0 bg-slate-900/90 backdrop-blur border-r border-slate-800 flex flex-col transition-all duration-300 z-30 select-none">
 
         <!-- Top Header (Fixed) -->
@@ -48,7 +49,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
           <button
             (click)="isExpanded.set(!isExpanded())"
             class="absolute p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-all duration-300 ease-in-out cursor-pointer z-20 shrink-0"
-            [style.left]="isExpanded() ? '212px' : '16px'"
+            [style.left]="isExpanded() ? '212px' : (hasSidebarScroll() ? '24px' : '16px')"
             [style.top]="isExpanded() ? '14px' : '10px'"
             title="Expandir / Recolher Menu">
             <svg class="w-5 h-5 transition-transform duration-300 ease-in-out" [class.rotate-180]="!isExpanded()" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -56,7 +57,8 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
             </svg>
           </button>
 
-          <div class="absolute left-3.5 flex items-center gap-3 min-w-0 pointer-events-none transition-all"
+          <div class="absolute flex items-center gap-3 min-w-0 pointer-events-none transition-all"
+               [style.left]="isExpanded() || !hasSidebarScroll() ? '14px' : '22px'"
                [ngClass]="isExpanded() ? 'top-3.5 delay-150 duration-300 ease-out' : 'top-12 delay-0 duration-200 ease-in'">
             <img
               src="assets/icons/icon.png"
@@ -72,7 +74,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
         </div>
 
         <!-- Middle Navigation (Scrollable on demand) -->
-        <nav class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-2 space-y-1 custom-sidebar-scroll">
+        <nav #navElement class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-2 space-y-1 custom-sidebar-scroll">
           <a
             routerLink="/"
             [queryParams]="{ lib: 'home' }"
@@ -729,7 +731,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
     </div>
   `
 })
-export class MainLayoutComponent implements OnInit {
+export class MainLayoutComponent implements OnInit, AfterViewInit {
   private router = inject(Router);
   private destroyRef = inject(DestroyRef);
   private settingsService = inject(SettingsService);
@@ -743,8 +745,13 @@ export class MainLayoutComponent implements OnInit {
   private librarySearch = inject(LibrarySearchService);
   public mangaLibraryService = inject(MangaLibraryService);
   public bookLibraryService = inject(BookLibraryService);
+  private ngZone = inject(NgZone);
+
+  @ViewChild('navElement', { static: false }) navRef?: ElementRef<HTMLElement>;
 
   isExpanded = signal<boolean>(true);
+  hasSidebarScroll = signal<boolean>(false);
+  private navResizeObserver: ResizeObserver | null = null;
   LibraryViewType = LibraryViewType;
   headerMode = signal<HeaderMode>('home');
   appVersion = signal('…');
@@ -889,6 +896,9 @@ export class MainLayoutComponent implements OnInit {
     });
 
     effect(() => {
+      this.isExpanded();
+      this.customMangaLibraries();
+      this.customBookLibraries();
       this.settingsService.libraries();
       this.settingsService.mangaBasePath();
       this.settingsService.bookBasePath();
@@ -896,6 +906,8 @@ export class MainLayoutComponent implements OnInit {
       this.bookLibraryService.books();
       untracked(() => {
         void this.updateCounts();
+        this.checkNavScroll();
+        setTimeout(() => this.checkNavScroll(), 320);
       });
     });
   }
@@ -925,6 +937,46 @@ export class MainLayoutComponent implements OnInit {
         takeUntilDestroyed(this.destroyRef)
       )
       .subscribe(e => this.applyRoute(e.urlAfterRedirects || e.url));
+  }
+
+  ngAfterViewInit(): void {
+    if (typeof ResizeObserver !== 'undefined' && this.navRef?.nativeElement) {
+      this.navResizeObserver = new ResizeObserver(() => {
+        this.ngZone.run(() => {
+          this.checkNavScroll();
+        });
+      });
+      this.navResizeObserver.observe(this.navRef.nativeElement);
+    }
+
+    const onWindowResize = () => {
+      this.ngZone.run(() => {
+        this.checkNavScroll();
+      });
+    };
+    window.addEventListener('resize', onWindowResize, { passive: true });
+
+    this.destroyRef.onDestroy(() => {
+      window.removeEventListener('resize', onWindowResize);
+      if (this.navResizeObserver) {
+        this.navResizeObserver.disconnect();
+        this.navResizeObserver = null;
+      }
+    });
+
+    setTimeout(() => this.checkNavScroll(), 50);
+  }
+
+  checkNavScroll(): void {
+    const el = this.navRef?.nativeElement;
+    if (!el) {
+      this.hasSidebarScroll.set(false);
+      return;
+    }
+    const overflows = el.scrollHeight > el.clientHeight + 1;
+    if (this.hasSidebarScroll() !== overflows) {
+      this.hasSidebarScroll.set(overflows);
+    }
   }
 
   private applyRoute(url: string): void {
