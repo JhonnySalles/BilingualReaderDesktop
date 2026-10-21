@@ -1,7 +1,8 @@
 const net = require('net');
 const fs = require('fs');
 const path = require('path');
-const concurrently = require('concurrently');
+const concurrentlyMod = require('concurrently');
+const concurrently = concurrentlyMod.default || concurrentlyMod.concurrently || concurrentlyMod;
 
 function readEnvFile() {
   const envPath = path.join(__dirname, '..', '.env');

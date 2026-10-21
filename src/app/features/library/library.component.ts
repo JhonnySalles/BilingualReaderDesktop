@@ -21,8 +21,10 @@ import {
 import { TrackerSimpleDialogComponent } from '../../shared/tracker-simple-dialog/tracker-simple-dialog.component';
 import { TrackerConfigDialogComponent } from '../../shared/tracker-config-dialog/tracker-config-dialog.component';
 import { TagsDialogComponent } from '../../shared/tags-dialog/tags-dialog.component';
+import { ScrollEdgesButtonComponent } from '../../shared/scroll-edges-button/scroll-edges-button.component';
 import { Manga, Book, Track, OrderType, HomeRecentItem } from '../../core/models';
 import { ShareMarkType } from '../../core/models/enums/sharemark.enum';
+import { sortLibraryItems } from '../../core/utils/library-sort.util';
 
 @Component({
   selector: 'app-library',
@@ -37,7 +39,8 @@ import { ShareMarkType } from '../../core/models/enums/sharemark.enum';
     LibraryBookmarkDialogComponent,
     TrackerSimpleDialogComponent,
     TrackerConfigDialogComponent,
-    TagsDialogComponent
+    TagsDialogComponent,
+    ScrollEdgesButtonComponent
   ],
   template: `
     <div class="h-full flex flex-col bg-slate-950 text-slate-100 overflow-hidden relative">
@@ -272,7 +275,7 @@ import { ShareMarkType } from '../../core/models/enums/sharemark.enum';
       }
 
       @if (activeLibId() !== 'home') {
-        <div class="flex-1 flex flex-col min-h-0 overflow-y-auto px-6 pb-6 pt-24 custom-scrollbar">
+        <div #libraryScrollContainer class="flex-1 flex flex-col min-h-0 overflow-y-auto px-6 pb-6 pt-24 custom-scrollbar">
           <div class="flex justify-between items-center mb-6 shrink-0">
             <div class="flex items-center gap-2">
               <span class="text-xs font-semibold px-2.5 py-1 rounded-md bg-slate-900 border border-slate-800 text-slate-400">
@@ -371,6 +374,12 @@ import { ShareMarkType } from '../../core/models/enums/sharemark.enum';
               (openTags)="onOpenTags($event)">
             </app-shared-list>
           }
+
+          <!-- Botões de rolagem suave para início e fim da lista -->
+          <app-scroll-edges-button
+            [target]="libraryScrollContainer"
+            [accent]="activeLibType() === 'book' ? 'amber' : 'indigo'">
+          </app-scroll-edges-button>
         </div>
       }
 
@@ -823,53 +832,7 @@ export class LibraryComponent implements OnInit {
       list = this.librarySearch.filterItems(list, query, scope);
     }
 
-    const getItemName = (item: Manga | Book): string => {
-      return (item.title || (item as any).name || '').trim();
-    };
-
-    list.sort((a, b) => {
-      let comparison = 0;
-      switch (order) {
-        case OrderType.Name:
-          comparison = getItemName(a).localeCompare(getItemName(b));
-          break;
-        case OrderType.Date:
-          comparison = ((a as any).dateCreate || '').localeCompare((b as any).dateCreate || '');
-          if (comparison === 0) {
-            comparison = getItemName(a).localeCompare(getItemName(b));
-          }
-          break;
-        case OrderType.LastAccess: {
-          const la = (a as any).lastAccess || '';
-          const lb = (b as any).lastAccess || '';
-          if (!la && lb) return isAsc ? 1 : -1;
-          if (la && !lb) return isAsc ? -1 : 1;
-          comparison = la.localeCompare(lb);
-          if (comparison === 0) {
-            comparison = getItemName(a).localeCompare(getItemName(b));
-          }
-          break;
-        }
-        case OrderType.Favorite:
-          comparison = (b.favorite ? 1 : 0) - (a.favorite ? 1 : 0);
-          if (comparison === 0) {
-            comparison = getItemName(a).localeCompare(getItemName(b));
-          }
-          break;
-        case OrderType.Author:
-          comparison = (a.author || '').localeCompare(b.author || '');
-          if (comparison === 0) {
-            comparison = getItemName(a).localeCompare(getItemName(b));
-          }
-          break;
-        default:
-          comparison = getItemName(a).localeCompare(getItemName(b));
-          break;
-      }
-      return isAsc ? comparison : -comparison;
-    });
-
-    return list;
+    return sortLibraryItems(list, order, isAsc);
   });
 
   onReordered(newOrder: (Manga | Book)[]) {

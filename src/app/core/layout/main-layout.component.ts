@@ -752,6 +752,8 @@ export class MainLayoutComponent implements OnInit, AfterViewInit {
   isExpanded = signal<boolean>(true);
   hasSidebarScroll = signal<boolean>(false);
   private navResizeObserver: ResizeObserver | null = null;
+  private navScrollTimer: ReturnType<typeof setTimeout> | null = null;
+  private isUpdatingCounts = false;
   LibraryViewType = LibraryViewType;
   headerMode = signal<HeaderMode>('home');
   appVersion = signal('…');
@@ -893,12 +895,13 @@ export class MainLayoutComponent implements OnInit, AfterViewInit {
       if (this.longPressTimer) {
         clearTimeout(this.longPressTimer);
       }
+      if (this.navScrollTimer) {
+        clearTimeout(this.navScrollTimer);
+      }
     });
 
+    // Efeito 1: Atualiza contagens quando configurações ou bibliotecas primárias mudarem
     effect(() => {
-      this.isExpanded();
-      this.customMangaLibraries();
-      this.customBookLibraries();
       this.settingsService.libraries();
       this.settingsService.mangaBasePath();
       this.settingsService.bookBasePath();
@@ -906,8 +909,18 @@ export class MainLayoutComponent implements OnInit, AfterViewInit {
       this.bookLibraryService.books();
       untracked(() => {
         void this.updateCounts();
+      });
+    });
+
+    // Efeito 2: Ajuste de scroll da navegação lateral APENAS quando o estado de expansão mudar
+    effect(() => {
+      this.isExpanded();
+      untracked(() => {
         this.checkNavScroll();
-        setTimeout(() => this.checkNavScroll(), 320);
+        if (this.navScrollTimer) {
+          clearTimeout(this.navScrollTimer);
+        }
+        this.navScrollTimer = setTimeout(() => this.checkNavScroll(), 320);
       });
     });
   }
@@ -1076,29 +1089,37 @@ export class MainLayoutComponent implements OnInit, AfterViewInit {
   }
 
   async updateCounts(): Promise<void> {
-    const mangaPath = this.settingsService.mangaBasePath();
-    const mangaDefCount = await this.electronService.getLibraryCount(mangaPath as any, 'MANGA');
-    this.defaultMangaLibrary.update(l => ({ ...l, count: mangaDefCount }));
+    if (this.isUpdatingCounts) return;
+    this.isUpdatingCounts = true;
+    try {
+      const mangaPath = this.settingsService.mangaBasePath();
+      const mangaDefCount = await this.electronService.getLibraryCount(mangaPath as any, 'MANGA');
+      this.defaultMangaLibrary.update(l => ({ ...l, count: mangaDefCount }));
 
-    const bookPath = this.settingsService.bookBasePath();
-    const bookDefCount = await this.electronService.getLibraryCount(bookPath as any, 'BOOK');
-    this.defaultBookLibrary.update(l => ({ ...l, count: bookDefCount }));
+      const bookPath = this.settingsService.bookBasePath();
+      const bookDefCount = await this.electronService.getLibraryCount(bookPath as any, 'BOOK');
+      this.defaultBookLibrary.update(l => ({ ...l, count: bookDefCount }));
 
-    const allCustom = this.settingsService.libraries();
+      const allCustom = this.settingsService.libraries();
 
-    const customMangas: NavLibrary[] = [];
-    for (const l of allCustom.filter(c => c.type === 'manga')) {
-      const count = await this.electronService.getLibraryCount(l.path as any, 'MANGA');
-      customMangas.push({ id: l.id, name: l.title, type: l.type, icon: 'ico_manga', count });
+      const customMangas: NavLibrary[] = [];
+      for (const l of allCustom.filter(c => c.type === 'manga')) {
+        const count = await this.electronService.getLibraryCount(l.path as any, 'MANGA');
+        customMangas.push({ id: l.id, name: l.title, type: l.type, icon: 'ico_manga', count });
+      }
+      this.customMangaLibraries.set(customMangas);
+
+      const customBooks: NavLibrary[] = [];
+      for (const l of allCustom.filter(c => c.type === 'book')) {
+        const count = await this.electronService.getLibraryCount(l.path as any, 'BOOK');
+        customBooks.push({ id: l.id, name: l.title, type: l.type, icon: 'ico_book', count });
+      }
+      this.customBookLibraries.set(customBooks);
+
+      this.checkNavScroll();
+    } finally {
+      this.isUpdatingCounts = false;
     }
-    this.customMangaLibraries.set(customMangas);
-
-    const customBooks: NavLibrary[] = [];
-    for (const l of allCustom.filter(c => c.type === 'book')) {
-      const count = await this.electronService.getLibraryCount(l.path as any, 'BOOK');
-      customBooks.push({ id: l.id, name: l.title, type: l.type, icon: 'ico_book', count });
-    }
-    this.customBookLibraries.set(customBooks);
   }
 
   selectLibrary(lib: NavLibrary) {

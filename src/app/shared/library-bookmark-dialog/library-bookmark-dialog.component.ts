@@ -29,6 +29,21 @@ export interface LibraryBookmarkPayload {
   selector: 'app-library-bookmark-dialog',
   standalone: true,
   imports: [CommonModule, FormsModule],
+  styles: [`
+    input[type="date"]::-webkit-calendar-picker-indicator,
+    input[type="time"]::-webkit-calendar-picker-indicator {
+      cursor: pointer;
+      border-radius: 4px;
+      filter: brightness(0) saturate(100%) invert(49%) sepia(12%) saturate(735%) hue-rotate(178deg) brightness(91%) contrast(88%);
+      opacity: 1;
+      transition: filter 0.2s ease, opacity 0.2s ease;
+    }
+    input[type="date"]::-webkit-calendar-picker-indicator:hover,
+    input[type="time"]::-webkit-calendar-picker-indicator:hover {
+      filter: brightness(0) saturate(100%) invert(88%) sepia(8%) saturate(350%) hue-rotate(180deg) brightness(95%) contrast(92%);
+      opacity: 1;
+    }
+  `],
   template: `
     @if (open) {
       <div

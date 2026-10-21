@@ -224,19 +224,17 @@ input[type="time"]::-webkit-calendar-picker-indicator,
 input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   cursor: pointer;
   border-radius: 4px;
+  /* Harmonizado com slate-500 (#64748b) dos caracteres h/m no tempo de leitura */
+  filter: brightness(0) saturate(100%) invert(49%) sepia(12%) saturate(735%) hue-rotate(178deg) brightness(91%) contrast(88%);
+  opacity: 1;
+  transition: filter 0.2s ease, opacity 0.2s ease;
 }
 
-html:not([data-theme="light"]):not([data-theme="win-mica-light"]) input[type="date"]::-webkit-calendar-picker-indicator,
-html:not([data-theme="light"]):not([data-theme="win-mica-light"]) input[type="time"]::-webkit-calendar-picker-indicator,
-html:not([data-theme="light"]):not([data-theme="win-mica-light"]) input[type="datetime-local"]::-webkit-calendar-picker-indicator {
-  filter: invert(0.85);
-  opacity: 0.8;
-}
-
-html:not([data-theme="light"]):not([data-theme="win-mica-light"]) input[type="date"]::-webkit-calendar-picker-indicator:hover,
-html:not([data-theme="light"]):not([data-theme="win-mica-light"]) input[type="time"]::-webkit-calendar-picker-indicator:hover,
-html:not([data-theme="light"]):not([data-theme="win-mica-light"]) input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
-  filter: invert(1);
+input[type="date"]::-webkit-calendar-picker-indicator:hover,
+input[type="time"]::-webkit-calendar-picker-indicator:hover,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
+  /* Transição suave para slate-300 (#cbd5e1) no hover */
+  filter: brightness(0) saturate(100%) invert(88%) sepia(8%) saturate(350%) hue-rotate(180deg) brightness(95%) contrast(92%);
   opacity: 1;
 }
 
@@ -563,5 +561,71 @@ html[data-covers-3d='1'] .cover-3d-host:hover .cover-3d-face {
     }
   }
 }
+
+/* Directional Arrow Animations on Click for Scroll Navigation */
+@keyframes arrow-glide-up {
+  0% { transform: translateY(0); }
+  35% { transform: translateY(-8px); }
+  65% { transform: translateY(-2px); }
+  85% { transform: translateY(-5px); }
+  100% { transform: translateY(0); }
+}
+
+@keyframes arrow-glide-down {
+  0% { transform: translateY(0); }
+  35% { transform: translateY(8px); }
+  65% { transform: translateY(2px); }
+  85% { transform: translateY(5px); }
+  100% { transform: translateY(0); }
+}
+
+@keyframes arrow-glide-left {
+  0% { transform: translateX(0); }
+  35% { transform: translateX(-8px); }
+  65% { transform: translateX(-2px); }
+  85% { transform: translateX(-5px); }
+  100% { transform: translateX(0); }
+}
+
+@keyframes arrow-glide-right {
+  0% { transform: translateX(0); }
+  35% { transform: translateX(8px); }
+  65% { transform: translateX(2px); }
+  85% { transform: translateX(5px); }
+  100% { transform: translateX(0); }
+}
+
+.animate-arrow-up {
+  animation: arrow-glide-up 0.5s ease-out;
+}
+
+.animate-arrow-down {
+  animation: arrow-glide-down 0.5s ease-out;
+}
+
+.animate-arrow-left {
+  animation: arrow-glide-left 0.5s ease-out;
+}
+
+.animate-arrow-right {
+  animation: arrow-glide-right 0.5s ease-out;
+}
+
+/* Scroll Edge Buttons - Primary Theme Accent */
+.scroll-edge-primary {
+  color: rgb(var(--accent-400)) !important;
+  border-color: rgba(51, 65, 85, 0.7);
+
+  &:hover {
+    border-color: rgba(var(--accent-500), 0.7) !important;
+    color: rgb(var(--accent-400)) !important;
+    box-shadow: 0 10px 25px -5px rgba(var(--accent-500), 0.25) !important;
+  }
+
+  &:active {
+    background-color: rgba(var(--accent-950), 0.4) !important;
+  }
+}
+
 
 

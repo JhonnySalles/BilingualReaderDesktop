@@ -13,6 +13,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { Manga, Book, OrderType } from '../../../../core/models';
 import { LibraryCarouselCardComponent } from '../library-carousel-card/library-carousel-card.component';
+import { isBigScroll } from '../../../../shared/scroll-edges-button/scroll-edges.util';
 
 @Component({
   selector: 'app-library-carousel-shelf',
@@ -71,29 +72,55 @@ import { LibraryCarouselCardComponent } from '../library-carousel-card/library-c
       <!-- Carousel Track Container -->
       <div class="relative w-full">
         
-        <!-- Floating Left Arrow Overlay -->
+        <!-- Floating Left Arrow Overlay (Ir para o início) -->
         <button
           type="button"
-          (click)="scrollLeft()"
-          [class.opacity-0]="!canScrollLeft()"
-          [class.pointer-events-none]="!canScrollLeft()"
-          class="absolute -left-2 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-slate-900/90 backdrop-blur-md border border-slate-700/80 text-white flex items-center justify-center shadow-2xl opacity-0 group-hover/shelf:opacity-100 transition-all duration-200 hover:scale-110 hover:bg-slate-800 cursor-pointer focus:outline-none"
-          title="Anterior">
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+          (click)="scrollToStart()"
+          (mouseenter)="onButtonMouseEnter()"
+          (mouseleave)="onButtonMouseLeave()"
+          [class.opacity-0]="!canScrollLeft() || !isVisible()"
+          [class.pointer-events-none]="!canScrollLeft() || !isVisible()"
+          [class.opacity-100]="canScrollLeft() && isVisible()"
+          class="absolute -left-2 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full flex items-center justify-center shadow-2xl transition-all duration-300 transform hover:scale-110 active:scale-95 backdrop-blur-xl border cursor-pointer focus:outline-none group opacity-0 pointer-events-none"
+          [ngClass]="type === 'book'
+            ? 'bg-slate-900/90 text-amber-300 border-slate-700/70 hover:border-amber-500/70 hover:bg-slate-800 hover:text-amber-200 hover:shadow-amber-500/25 active:bg-amber-950/40'
+            : 'bg-slate-900/90 text-indigo-300 border-slate-700/70 hover:border-indigo-500/70 hover:bg-slate-800 hover:text-indigo-200 hover:shadow-indigo-500/25 active:bg-indigo-950/40'"
+          title="Ir para o início">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="w-5 h-5 transition-transform duration-200 group-hover:-translate-x-0.5"
+            [class.animate-arrow-left]="isAnimatingLeft()"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            stroke-width="2.2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
           </svg>
         </button>
 
-        <!-- Floating Right Arrow Overlay -->
+        <!-- Floating Right Arrow Overlay (Ir para o final) -->
         <button
           type="button"
-          (click)="scrollRight()"
-          [class.opacity-0]="!canScrollRight()"
-          [class.pointer-events-none]="!canScrollRight()"
-          class="absolute -right-2 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-slate-900/90 backdrop-blur-md border border-slate-700/80 text-white flex items-center justify-center shadow-2xl opacity-0 group-hover/shelf:opacity-100 transition-all duration-200 hover:scale-110 hover:bg-slate-800 cursor-pointer focus:outline-none"
-          title="Próximo">
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+          (click)="scrollToEnd()"
+          (mouseenter)="onButtonMouseEnter()"
+          (mouseleave)="onButtonMouseLeave()"
+          [class.opacity-0]="!canScrollRight() || !isVisible()"
+          [class.pointer-events-none]="!canScrollRight() || !isVisible()"
+          [class.opacity-100]="canScrollRight() && isVisible()"
+          class="absolute -right-2 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full flex items-center justify-center shadow-2xl transition-all duration-300 transform hover:scale-110 active:scale-95 backdrop-blur-xl border cursor-pointer focus:outline-none group opacity-0 pointer-events-none"
+          [ngClass]="type === 'book'
+            ? 'bg-slate-900/90 text-amber-300 border-slate-700/70 hover:border-amber-500/70 hover:bg-slate-800 hover:text-amber-200 hover:shadow-amber-500/25 active:bg-amber-950/40'
+            : 'bg-slate-900/90 text-indigo-300 border-slate-700/70 hover:border-indigo-500/70 hover:bg-slate-800 hover:text-indigo-200 hover:shadow-indigo-500/25 active:bg-indigo-950/40'"
+          title="Ir para o final">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="w-5 h-5 transition-transform duration-200 group-hover:translate-x-0.5"
+            [class.animate-arrow-right]="isAnimatingRight()"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            stroke-width="2.2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
           </svg>
         </button>
 
@@ -105,7 +132,7 @@ import { LibraryCarouselCardComponent } from '../library-carousel-card/library-c
           (pointermove)="onPointerMove($event)"
           (pointerup)="onPointerUp()"
           (pointercancel)="onPointerUp()"
-          (scroll)="checkScroll()"
+          (scroll)="onTrackScroll()"
           class="flex items-stretch gap-3.5 overflow-x-auto pb-3 pt-1 px-1 custom-horizontal-scrollbar scroll-smooth cursor-grab select-none">
           
           @for (item of items; track getItemKey(item); let idx = $index) {
@@ -164,16 +191,25 @@ export class LibraryCarouselShelfComponent implements AfterViewInit, OnDestroy {
 
   canScrollLeft = signal<boolean>(false);
   canScrollRight = signal<boolean>(false);
+  isVisible = signal<boolean>(false);
+  isAnimatingLeft = signal<boolean>(false);
+  isAnimatingRight = signal<boolean>(false);
 
   private isDragging = false;
   private startX = 0;
   private scrollStart = 0;
   private dragThresholdPassed = false;
   private resizeObserver?: ResizeObserver;
+  private lastRestScrollLeft = 0;
+  private hideTimer: any = null;
+  private isHovered = false;
 
   ngAfterViewInit(): void {
     setTimeout(() => {
       this.checkScroll();
+      if (this.trackRef?.nativeElement) {
+        this.lastRestScrollLeft = this.trackRef.nativeElement.scrollLeft;
+      }
     }, 100);
 
     if (typeof ResizeObserver !== 'undefined' && this.trackRef?.nativeElement) {
@@ -185,6 +221,9 @@ export class LibraryCarouselShelfComponent implements AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    if (this.hideTimer) {
+      clearTimeout(this.hideTimer);
+    }
     this.resizeObserver?.disconnect();
   }
 
@@ -201,6 +240,50 @@ export class LibraryCarouselShelfComponent implements AfterViewInit, OnDestroy {
       : (this.type === 'manga' ? 'itens' : 'livros');
   }
 
+  onTrackScroll(): void {
+    this.checkScroll();
+    const el = this.trackRef?.nativeElement;
+    if (!el) return;
+
+    if (isBigScroll(el.scrollLeft, this.lastRestScrollLeft, 150)) {
+      this.isVisible.set(true);
+    }
+
+    if (this.isVisible()) {
+      this.resetHideTimer();
+    }
+  }
+
+  private resetHideTimer(): void {
+    if (this.hideTimer) {
+      clearTimeout(this.hideTimer);
+    }
+
+    this.hideTimer = setTimeout(() => {
+      if (!this.isHovered) {
+        this.isVisible.set(false);
+        const el = this.trackRef?.nativeElement;
+        if (el) {
+          this.lastRestScrollLeft = el.scrollLeft;
+        }
+      }
+    }, 3000);
+  }
+
+  onButtonMouseEnter(): void {
+    this.isHovered = true;
+    if (this.hideTimer) {
+      clearTimeout(this.hideTimer);
+    }
+  }
+
+  onButtonMouseLeave(): void {
+    this.isHovered = false;
+    if (this.isVisible()) {
+      this.resetHideTimer();
+    }
+  }
+
   checkScroll(): void {
     const el = this.trackRef?.nativeElement;
     if (!el) return;
@@ -210,6 +293,26 @@ export class LibraryCarouselShelfComponent implements AfterViewInit, OnDestroy {
 
     this.canScrollLeft.set(!atStart);
     this.canScrollRight.set(!atEnd);
+  }
+
+  scrollToStart(): void {
+    const el = this.trackRef?.nativeElement;
+    if (!el) return;
+    this.isAnimatingLeft.set(true);
+    setTimeout(() => this.isAnimatingLeft.set(false), 500);
+    this.isVisible.set(true);
+    this.resetHideTimer();
+    el.scrollTo({ left: 0, behavior: 'smooth' });
+  }
+
+  scrollToEnd(): void {
+    const el = this.trackRef?.nativeElement;
+    if (!el) return;
+    this.isAnimatingRight.set(true);
+    setTimeout(() => this.isAnimatingRight.set(false), 500);
+    this.isVisible.set(true);
+    this.resetHideTimer();
+    el.scrollTo({ left: el.scrollWidth, behavior: 'smooth' });
   }
 
   scrollLeft(): void {
@@ -235,7 +338,7 @@ export class LibraryCarouselShelfComponent implements AfterViewInit, OnDestroy {
       if (el.scrollWidth > el.clientWidth) {
         el.scrollLeft += event.deltaY * 1.5;
         event.preventDefault();
-        this.checkScroll();
+        this.onTrackScroll();
       }
     }
   }
@@ -263,7 +366,7 @@ export class LibraryCarouselShelfComponent implements AfterViewInit, OnDestroy {
       this.dragThresholdPassed = true;
     }
     el.scrollLeft = this.scrollStart - diff;
-    this.checkScroll();
+    this.onTrackScroll();
   }
 
   onPointerUp(): void {

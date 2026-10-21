@@ -21,6 +21,7 @@ import { LibraryStateService } from '../../../../core/services/library-state.ser
 import { BookLibraryService } from '../../../../core/services/book-library.service';
 import { SharedTransitionService } from '../../../../core/services/shared-transition.service';
 import { progressPercent } from '../../../../core/utils/reading-progress.util';
+import { sortLibraryItems } from '../../../../core/utils/library-sort.util';
 import { LibraryCarouselShelfComponent } from '../library-carousel-shelf/library-carousel-shelf.component';
 import { LibraryCarouselSkeletonComponent } from '../library-carousel-skeleton/library-carousel-skeleton.component';
 
@@ -32,10 +33,10 @@ export interface VirtualRow {
   isCarousel?: boolean;
 }
 
-function formatSeparatorDate(dateStr?: string | null): string {
-  if (!dateStr || !dateStr.trim()) return 'Sem data';
+function formatSeparatorDate(dateStr?: string | null, fallbackLabel = 'Sem data'): string {
+  if (!dateStr || !dateStr.trim() || dateStr === '0' || dateStr === '0000-00-00') return fallbackLabel;
   const d = new Date(dateStr);
-  if (Number.isNaN(d.getTime())) return 'Sem data';
+  if (Number.isNaN(d.getTime())) return fallbackLabel;
 
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
@@ -80,7 +81,7 @@ function getItemSeparatorTitle(item: Manga | Book, order: OrderType): string {
     }
     case OrderType.LastAccess: {
       const lastAccess = (item as any).lastAccess;
-      return formatSeparatorDate(lastAccess);
+      return formatSeparatorDate(lastAccess, 'Nunca acessado');
     }
     case OrderType.Favorite: {
       return item.favorite ? 'Favoritos' : 'Outros';
@@ -132,50 +133,7 @@ function getDayGroupInfo(dateStr?: string | null, fallbackLabel = 'Sem data'): {
 }
 
 function sortGroupItems(items: (Manga | Book)[], order: OrderType, isAsc: boolean): (Manga | Book)[] {
-  return [...items].sort((a, b) => {
-    let cmp = 0;
-    const nameA = getItemDisplayName(a);
-    const nameB = getItemDisplayName(b);
-    switch (order) {
-      case OrderType.Name:
-        cmp = nameA.localeCompare(nameB);
-        break;
-      case OrderType.Date: {
-        const da = (a as any).dateCreate || '';
-        const db = (b as any).dateCreate || '';
-        cmp = da.localeCompare(db);
-        if (cmp === 0) {
-          cmp = nameA.localeCompare(nameB);
-        }
-        break;
-      }
-      case OrderType.LastAccess: {
-        const la = (a as any).lastAccess || '';
-        const lb = (b as any).lastAccess || '';
-        if (!la && lb) return 1;
-        if (la && !lb) return -1;
-        cmp = la.localeCompare(lb);
-        if (cmp === 0) {
-          cmp = nameA.localeCompare(nameB);
-        }
-        break;
-      }
-      case OrderType.Favorite:
-        // "favorito continua por nome"
-        cmp = nameA.localeCompare(nameB);
-        break;
-      case OrderType.Author:
-        cmp = (a.author || '').localeCompare(b.author || '');
-        if (cmp === 0) {
-          cmp = nameA.localeCompare(nameB);
-        }
-        break;
-      default:
-        cmp = nameA.localeCompare(nameB);
-        break;
-    }
-    return isAsc ? cmp : -cmp;
-  });
+  return sortLibraryItems(items, order, isAsc);
 }
 
 function buildSimpleCarouselRows(

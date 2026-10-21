@@ -7,6 +7,8 @@ import { MangaCardComponent } from './components/manga-card/manga-card.component
 import { MangaListItemComponent } from './components/manga-list-item/manga-list-item.component';
 import { LibraryFilterModalComponent } from '../components/library-filter-modal/library-filter-modal.component';
 import { LibraryViewType, OrderType } from '../../../core/models';
+import { sortLibraryItems } from '../../../core/utils/library-sort.util';
+import { ScrollEdgesButtonComponent } from '../../../shared/scroll-edges-button/scroll-edges-button.component';
 
 @Component({
   selector: 'app-manga-library',
@@ -16,10 +18,11 @@ import { LibraryViewType, OrderType } from '../../../core/models';
     FormsModule,
     MangaCardComponent,
     MangaListItemComponent,
-    LibraryFilterModalComponent
+    LibraryFilterModalComponent,
+    ScrollEdgesButtonComponent
   ],
   template: `
-    <div class="min-h-screen bg-slate-950 text-slate-100 flex flex-col p-6">
+    <div #mangaScrollContainer class="min-h-screen bg-slate-950 text-slate-100 flex flex-col p-6 overflow-y-auto">
       
       <!-- Top Navigation & Controls Header -->
       <header class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
@@ -134,6 +137,8 @@ import { LibraryViewType, OrderType } from '../../../core/models';
         <app-library-filter-modal (close)="showModal.set(false)"></app-library-filter-modal>
       }
 
+      <app-scroll-edges-button [target]="mangaScrollContainer" accent="indigo"></app-scroll-edges-button>
+
     </div>
   `
 })
@@ -172,31 +177,6 @@ export class MangaLibraryComponent implements OnInit {
     }
 
     // Sort
-    list.sort((a, b) => {
-      let comparison = 0;
-      switch (order) {
-        case OrderType.Name:
-          comparison = a.title.localeCompare(b.title);
-          break;
-        case OrderType.Date:
-          comparison = (a.dateCreate || '').localeCompare(b.dateCreate || '');
-          break;
-        case OrderType.LastAccess:
-          comparison = (a.lastAccess || '').localeCompare(b.lastAccess || '');
-          break;
-        case OrderType.Favorite:
-          comparison = (b.favorite ? 1 : 0) - (a.favorite ? 1 : 0);
-          break;
-        case OrderType.Author:
-          comparison = a.author.localeCompare(b.author);
-          break;
-        case OrderType.Genre:
-          comparison = a.genre.localeCompare(b.genre);
-          break;
-      }
-      return isAsc ? comparison : -comparison;
-    });
-
-    return list;
+    return sortLibraryItems(list, order, isAsc);
   });
 }

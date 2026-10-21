@@ -14,6 +14,7 @@ import { HistoryStatsCardComponent } from './components/history-stats-card.compo
 import { HistoryStatsListItemComponent } from './components/history-stats-list-item.component';
 import { HistoryStatsCarouselShelfComponent } from './components/history-stats-carousel-shelf.component';
 import { HistoryFilterModalComponent } from '../history/components/history-filter-modal/history-filter-modal.component';
+import { ScrollEdgesButtonComponent } from '../../shared/scroll-edges-button/scroll-edges-button.component';
 import { formatShortDuration } from '../../core/services/statistics.service';
 import { parseLibrarySearch } from '../../core/utils/library-search.parser';
 
@@ -45,7 +46,8 @@ export interface VirtualHistoryGroup {
     HistoryStatsCardComponent,
     HistoryStatsListItemComponent,
     HistoryStatsCarouselShelfComponent,
-    HistoryFilterModalComponent
+    HistoryFilterModalComponent,
+    ScrollEdgesButtonComponent
   ],
   template: `
     <div class="h-full flex flex-col bg-slate-950 text-slate-100 overflow-hidden select-none relative">
@@ -53,7 +55,7 @@ export interface VirtualHistoryGroup {
         <app-history-filter-modal (close)="libraryState.showFilterModal.set(false)"></app-history-filter-modal>
       }
 
-      <div class="flex-1 min-h-0 overflow-y-auto px-6 pb-6 pt-24">
+      <div #statsScrollContainer class="flex-1 min-h-0 overflow-y-auto px-6 pb-6 pt-24">
         @if (loading()) {
           <div class="h-40 flex items-center justify-center text-sm text-slate-400 animate-pulse">
             Carregando histórico…
@@ -128,6 +130,12 @@ export interface VirtualHistoryGroup {
             }
           </div>
         }
+
+        <!-- Botões de rolagem suave para início e fim do histórico de estatística -->
+        <app-scroll-edges-button
+          [target]="statsScrollContainer"
+          accent="primary">
+        </app-scroll-edges-button>
       </div>
     </div>
   `
