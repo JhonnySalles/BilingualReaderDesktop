@@ -51,6 +51,13 @@ export class StatisticsController {
       return this.storage.listRecentReads(limit ?? 3);
     });
 
+    ipcMain.handle(
+      'history:delete-by-reference',
+      async (_event, fkReference: number, type: HistoryContentType) => {
+        return this.storage.deleteHistoryByReference(fkReference, type);
+      }
+    );
+
     ipcMain.handle('statistics:heatmap', async (_event, _weeks?: number) => {
       return this.storage.getReadingActivityHeatmap();
     });

@@ -156,65 +156,92 @@ const MENU_WIDTH = 180;
         </div>
       </div>
 
-      <!-- Context Dropdown Menu -->
-      @if (showMenu()) {
+      <!-- Teleported dropdown (body) -->
+      @if (isMenuOpen()) {
         <div
-          #menuContainer
-          class="fixed z-50 py-1 rounded-xl bg-slate-900/95 backdrop-blur-xl border border-slate-700/80 shadow-2xl text-xs text-slate-200 min-w-44 animate-in fade-in zoom-in-95 duration-100"
-          [style.top.px]="menuPosition().top"
-          [style.left.px]="menuPosition().left"
-          (click)="$event.stopPropagation()">
-
+          #menuEl
+          (click)="$event.stopPropagation()"
+          class="fixed z-[200] w-44 bg-slate-900 border border-slate-700/80 rounded-xl shadow-2xl py-1 overflow-hidden animate-fade-in text-xs font-medium backdrop-blur-xl"
+          [style.top.px]="menuPos().top"
+          [style.left.px]="menuPos().left">
           <button
-            type="button"
-            (click)="onOpenClick($event)"
-            class="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-slate-800/80 text-left transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            (click)="onOpenTracker($event)"
+            class="w-full px-3 py-2 text-left text-slate-300 hover:bg-slate-800/80 flex items-center gap-2 transition-colors"
+            [ngClass]="type === 'manga' ? 'hover:text-indigo-400' : 'hover:text-amber-400'">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" [ngClass]="type === 'manga' ? 'text-indigo-400' : 'text-amber-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
-            Ler Agora
+            Rastreador
           </button>
-
           <button
-            type="button"
-            (click)="onDetailClick($event)"
-            class="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-slate-800/80 text-left transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            (click)="onSetBookmark($event)"
+            class="w-full px-3 py-2 text-left text-slate-300 hover:bg-slate-800/80 flex items-center gap-2 transition-colors"
+            [ngClass]="type === 'manga' ? 'hover:text-indigo-400' : 'hover:text-amber-400'">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" [ngClass]="type === 'manga' ? 'text-indigo-400' : 'text-amber-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
             </svg>
-            Detalhes
+            Marcador
           </button>
-
           <button
-            type="button"
-            (click)="onBookmarkClick($event)"
-            class="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-slate-800/80 text-left transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-            </svg>
-            Marcador de Leitura
-          </button>
-
-          <button
-            type="button"
-            (click)="onTrackerClick($event)"
-            class="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-slate-800/80 text-left transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
-            Sincronizar Leitura
-          </button>
-
-          <button
-            type="button"
-            (click)="onTagsClick($event)"
-            class="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-slate-800/80 text-left transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5a1.99 1.99 0 011.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+            (click)="onOpenTags($event)"
+            class="w-full px-3 py-2 text-left text-slate-300 hover:bg-slate-800/80 flex items-center gap-2 transition-colors"
+            [ngClass]="type === 'manga' ? 'hover:text-indigo-400' : 'hover:text-amber-400'">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" [ngClass]="type === 'manga' ? 'text-indigo-400' : 'text-amber-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
             </svg>
             Tags
           </button>
+          <button
+            (click)="onClearProgress($event)"
+            class="w-full px-3 py-2 text-left text-slate-300 hover:bg-slate-800/80 flex items-center gap-2 transition-colors"
+            [ngClass]="type === 'manga' ? 'hover:text-indigo-400' : 'hover:text-amber-400'">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" [ngClass]="type === 'manga' ? 'text-indigo-400' : 'text-amber-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Limpar progresso
+          </button>
+          <button
+            (click)="onPromptDelete($event)"
+            class="w-full px-3 py-2 text-left text-rose-400 hover:bg-rose-500/10 flex items-center gap-2 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            Deletar
+          </button>
+        </div>
+      }
+
+      <!-- Teleported delete confirm (body) -->
+      @if (showDeleteModal()) {
+        <div
+          #deleteModalEl
+          (click)="$event.stopPropagation()"
+          class="fixed inset-0 z-[210] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in">
+          <div class="bg-slate-900 border border-slate-700 rounded-2xl p-5 max-w-md w-full shadow-2xl flex flex-col gap-4 text-center">
+            <div class="w-12 h-12 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center mx-auto border border-rose-500/20">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </div>
+            <div>
+              <h3 class="text-base font-bold text-slate-100">Excluir item</h3>
+              <p class="text-xs text-slate-400 mt-1 break-words">
+                Deseja remover <strong>"{{ item.title }}"</strong> da biblioteca?
+              </p>
+            </div>
+            <div class="flex flex-col gap-2 mt-3 w-full">
+              <button
+                (click)="confirmDelete($event)"
+                class="px-4 py-2.5 text-xs font-semibold rounded-lg bg-rose-600 text-white hover:bg-rose-500 transition-colors shadow-lg shadow-rose-600/20 w-full">
+                Confirmar
+              </button>
+              <button
+                (click)="cancelDelete($event)"
+                class="px-4 py-2.5 text-xs font-semibold rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white transition-colors w-full">
+                Cancelar
+              </button>
+            </div>
+          </div>
         </div>
       }
 
@@ -236,16 +263,44 @@ export class LibraryCarouselCardComponent implements OnDestroy {
   public sharedTransition = inject(SharedTransitionService);
   private mangaService = inject(MangaLibraryService);
   private bookService = inject(BookLibraryService);
+  private host = inject(ElementRef<HTMLElement>);
 
-  @ViewChild('menuButton') menuButton?: ElementRef<HTMLButtonElement>;
-  @ViewChild('menuContainer') menuContainer?: ElementRef<HTMLDivElement>;
+  public isMenuOpen = signal(false);
+  public showDeleteModal = signal(false);
+  public menuPos = signal({ top: 0, left: 0 });
 
-  showMenu = signal<boolean>(false);
-  menuPosition = signal<{ top: number; left: number }>({ top: 0, left: 0 });
+  private menuButtonEl: HTMLElement | null = null;
+  private menuNode: HTMLElement | null = null;
+  private deleteModalNode: HTMLElement | null = null;
 
   private pressTimer: ReturnType<typeof setTimeout> | null = null;
   private longPressFired = false;
   private suppressClick = false;
+
+  @ViewChild('menuEl')
+  set menuEl(ref: ElementRef<HTMLElement> | undefined) {
+    if (this.menuNode && this.menuNode.parentElement === document.body) {
+      this.menuNode.remove();
+      this.menuNode = null;
+    }
+    if (ref?.nativeElement) {
+      this.menuNode = ref.nativeElement;
+      document.body.appendChild(this.menuNode);
+      this.updateMenuPosition();
+    }
+  }
+
+  @ViewChild('deleteModalEl')
+  set deleteModalEl(ref: ElementRef<HTMLElement> | undefined) {
+    if (this.deleteModalNode && this.deleteModalNode.parentElement === document.body) {
+      this.deleteModalNode.remove();
+      this.deleteModalNode = null;
+    }
+    if (ref?.nativeElement) {
+      this.deleteModalNode = ref.nativeElement;
+      document.body.appendChild(this.deleteModalNode);
+    }
+  }
 
   get isSeriesOrder(): boolean {
     return this.order === OrderType.Series;
@@ -282,44 +337,36 @@ export class LibraryCarouselCardComponent implements OnDestroy {
 
   toggleMenu(event: MouseEvent): void {
     event.stopPropagation();
-    if (this.showMenu()) {
-      this.closeMenu();
-      return;
+    const button = event.currentTarget as HTMLElement;
+    this.menuButtonEl = button;
+    const opening = !this.isMenuOpen();
+    if (opening) {
+      this.updateMenuPositionFromButton(button);
+      this.isMenuOpen.set(true);
+      queueMicrotask(() => this.updateMenuPosition());
+    } else {
+      this.isMenuOpen.set(false);
     }
-    this.openMenu();
   }
 
-  private openMenu(): void {
-    const rect = this.menuButton?.nativeElement.getBoundingClientRect();
-    if (!rect) return;
-
-    let top = rect.bottom + 6;
-    let left = rect.left - (MENU_WIDTH - rect.width);
-
-    if (left < 10) left = 10;
-    if (left + MENU_WIDTH > window.innerWidth - 10) {
-      left = window.innerWidth - MENU_WIDTH - 10;
+  @HostListener('document:mousedown', ['$event'])
+  onDocumentMouseDown(ev: MouseEvent): void {
+    if (!this.isMenuOpen()) return;
+    const target = ev.target as Node;
+    const inHost = this.host.nativeElement.contains(target);
+    const inMenu = this.menuNode?.contains(target) ?? false;
+    if (!inHost && !inMenu) {
+      this.isMenuOpen.set(false);
+    } else if (inHost && !inMenu && target !== this.menuButtonEl && !this.menuButtonEl?.contains(target)) {
+      this.isMenuOpen.set(false);
     }
-    if (top + 200 > window.innerHeight - 10) {
-      top = rect.top - 200;
-    }
-
-    this.menuPosition.set({ top, left });
-    this.showMenu.set(true);
   }
 
-  closeMenu(): void {
-    this.showMenu.set(false);
-  }
-
-  @HostListener('document:click', ['$event'])
-  onDocumentClick(event: MouseEvent): void {
-    if (this.showMenu()) {
-      const insideMenu = this.menuContainer?.nativeElement.contains(event.target as Node);
-      const insideButton = this.menuButton?.nativeElement.contains(event.target as Node);
-      if (!insideMenu && !insideButton) {
-        this.closeMenu();
-      }
+  @HostListener('window:resize')
+  @HostListener('window:scroll')
+  onViewportChange(): void {
+    if (this.isMenuOpen()) {
+      this.updateMenuPosition();
     }
   }
 
@@ -360,34 +407,82 @@ export class LibraryCarouselCardComponent implements OnDestroy {
     this.openDetail.emit(this.item);
   }
 
-  onOpenClick(event: MouseEvent): void {
+  onOpenTracker(event: MouseEvent): void {
     event.stopPropagation();
-    this.closeMenu();
-    this.open.emit(this.item);
-  }
-
-  onDetailClick(event: MouseEvent): void {
-    event.stopPropagation();
-    this.closeMenu();
-    this.openDetail.emit(this.item);
-  }
-
-  onBookmarkClick(event: MouseEvent): void {
-    event.stopPropagation();
-    this.closeMenu();
-    this.setBookmark.emit(this.item);
-  }
-
-  onTrackerClick(event: MouseEvent): void {
-    event.stopPropagation();
-    this.closeMenu();
+    this.isMenuOpen.set(false);
     this.openTracker.emit(this.item);
   }
 
-  onTagsClick(event: MouseEvent): void {
+  onSetBookmark(event: MouseEvent): void {
     event.stopPropagation();
-    this.closeMenu();
+    this.isMenuOpen.set(false);
+    this.setBookmark.emit(this.item);
+  }
+
+  onOpenTags(event: MouseEvent): void {
+    event.stopPropagation();
+    this.isMenuOpen.set(false);
     this.openTags.emit(this.item);
+  }
+
+  onClearProgress(event: MouseEvent): void {
+    event.stopPropagation();
+    this.isMenuOpen.set(false);
+    if (this.type === 'manga') {
+      this.mangaService.clearProgress(this.item as Manga);
+    } else {
+      this.bookService.clearProgress(this.item as Book);
+    }
+  }
+
+  onPromptDelete(event: MouseEvent): void {
+    event.stopPropagation();
+    this.isMenuOpen.set(false);
+    this.showDeleteModal.set(true);
+  }
+
+  cancelDelete(event: MouseEvent): void {
+    event.stopPropagation();
+    this.showDeleteModal.set(false);
+  }
+
+  confirmDelete(event: MouseEvent): void {
+    event.stopPropagation();
+    this.showDeleteModal.set(false);
+    if (this.type === 'manga') {
+      this.mangaService.deleteManga(this.item as Manga);
+    } else {
+      this.bookService.deleteBook(this.item as Book);
+    }
+  }
+
+  private updateMenuPosition(): void {
+    if (this.menuButtonEl) {
+      this.updateMenuPositionFromButton(this.menuButtonEl);
+    }
+  }
+
+  private updateMenuPositionFromButton(button: HTMLElement): void {
+    const rect = button.getBoundingClientRect();
+    const left = Math.max(8, Math.min(rect.right - MENU_WIDTH, window.innerWidth - MENU_WIDTH - 8));
+    this.menuPos.set({
+      top: rect.bottom + 4,
+      left
+    });
+  }
+
+  private detachMenu(): void {
+    if (this.menuNode?.parentElement === document.body) {
+      this.menuNode.remove();
+    }
+    this.menuNode = null;
+  }
+
+  private detachDeleteModal(): void {
+    if (this.deleteModalNode?.parentElement === document.body) {
+      this.deleteModalNode.remove();
+    }
+    this.deleteModalNode = null;
   }
 
   private clearPressTimer(): void {
@@ -399,5 +494,7 @@ export class LibraryCarouselCardComponent implements OnDestroy {
 
   ngOnDestroy(): void {
     this.clearPressTimer();
+    this.detachMenu();
+    this.detachDeleteModal();
   }
 }

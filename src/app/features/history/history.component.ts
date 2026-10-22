@@ -104,7 +104,12 @@ export interface VirtualHistoryGroup {
                   <div class="flex flex-col gap-2">
                     @for (row of group.visibleRows; track row.id) {
                       @for (item of row.items; track item.id + '-' + item.sessionDate + '-' + item.fkReference) {
-                        <app-history-stats-list-item [item]="item" (open)="openItem($event)" />
+                        <app-history-stats-list-item
+                          [item]="item"
+                          (open)="openItem($event)"
+                          (favoriteChange)="onItemFavoriteChanged($event)"
+                          (historyCleared)="onItemRemoved($event)"
+                          (fileDeleted)="onItemRemoved($event)" />
                       }
                     }
                   </div>
@@ -482,6 +487,22 @@ export class HistoryComponent implements OnInit, OnDestroy {
   openItem(item: HistoryStatisticsItem): void {
     const type = item.type === 'MANGA' ? 'manga' : 'book';
     this.nav.openDetail(this.router, type, item.fkReference, item);
+  }
+
+  onItemFavoriteChanged(item: HistoryStatisticsItem): void {
+    this.items.update(list =>
+      list.map(i =>
+        i.fkReference === item.fkReference && i.type === item.type
+          ? { ...i, favorite: item.favorite }
+          : i
+      )
+    );
+  }
+
+  onItemRemoved(item: HistoryStatisticsItem): void {
+    this.items.update(list =>
+      list.filter(i => !(i.fkReference === item.fkReference && i.type === item.type))
+    );
   }
 
   formatDateLabel(date: string): string {

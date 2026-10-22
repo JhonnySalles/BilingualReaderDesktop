@@ -45,6 +45,7 @@ electron_1.contextBridge.exposeInMainWorld('electronAPI', {
     listLibrariesByType: (type) => electron_1.ipcRenderer.invoke('libraries:listByType', type),
     listHistoryAggregated: (options) => electron_1.ipcRenderer.invoke('history:listAggregated', options),
     listRecentReads: (limit) => electron_1.ipcRenderer.invoke('history:listRecent', limit),
+    deleteHistoryByReference: (fkReference, type) => electron_1.ipcRenderer.invoke('history:delete-by-reference', fkReference, type),
     updateJumpList: () => electron_1.ipcRenderer.invoke('app:update-jump-list'),
     getReadingActivityHeatmap: (weeks) => electron_1.ipcRenderer.invoke('statistics:heatmap', weeks),
     startHistorySession: (input) => electron_1.ipcRenderer.invoke('history:start', input),

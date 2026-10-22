@@ -69,6 +69,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     filters?: Array<{ kind: string; value: string }> | null;
   }) => ipcRenderer.invoke('history:listAggregated', options),
   listRecentReads: (limit?: number) => ipcRenderer.invoke('history:listRecent', limit),
+  deleteHistoryByReference: (fkReference: number, type: 'MANGA' | 'BOOK') =>
+    ipcRenderer.invoke('history:delete-by-reference', fkReference, type),
   updateJumpList: () => ipcRenderer.invoke('app:update-jump-list'),
   getReadingActivityHeatmap: (weeks?: number) => ipcRenderer.invoke('statistics:heatmap', weeks),
   startHistorySession: (input: {

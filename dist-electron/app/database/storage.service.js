@@ -127,6 +127,9 @@ class StorageService {
     clearHistory() {
         return this.historyRepository.clearAll();
     }
+    deleteHistoryByReference(fkReference, type) {
+        return this.historyRepository.deleteByReference(fkReference, type);
+    }
     // --- Manga Repository Delegates ---
     listMangas(libraryId) {
         return this.mangaRepository.list(libraryId);

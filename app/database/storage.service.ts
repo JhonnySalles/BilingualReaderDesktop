@@ -110,6 +110,10 @@ export class StorageService {
     return this.historyRepository.clearAll();
   }
 
+  deleteHistoryByReference(fkReference: number, type: HistoryContentType): number {
+    return this.historyRepository.deleteByReference(fkReference, type);
+  }
+
   // --- Manga Repository Delegates ---
 
   public listMangas(libraryId?: number): Manga[] {

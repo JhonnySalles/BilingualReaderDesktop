@@ -704,4 +704,9 @@ export class HistoryRepository extends BaseRepository<HistoryRow, number> {
     const result = this.db.prepare('DELETE FROM History').run();
     return Number(result.changes || 0);
   }
+
+  deleteByReference(fkReference: number, type: HistoryContentType): number {
+    const result = this.db.prepare('DELETE FROM History WHERE id_reference = ? AND type = ?').run(fkReference, type);
+    return Number(result.changes || 0);
+  }
 }

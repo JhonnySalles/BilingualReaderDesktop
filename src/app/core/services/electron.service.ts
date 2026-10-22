@@ -145,6 +145,7 @@ declare global {
         filters?: HistorySearchFilter[] | null;
       }) => Promise<HistoryStatisticsItem[]>;
       listRecentReads: (limit?: number) => Promise<HomeRecentItem[]>;
+      deleteHistoryByReference: (fkReference: number, type: HistoryContentType) => Promise<number>;
       updateJumpList: () => Promise<boolean>;
       getReadingActivityHeatmap: (weeks?: number) => Promise<HeatmapDay[]>;
       startHistorySession: (input: {
@@ -624,6 +625,7 @@ export class ElectronService {
         getStatisticsYears: async () => [2026],
         listHistoryAggregated: async () => [],
         listRecentReads: async () => [],
+        deleteHistoryByReference: async () => 0,
         updateJumpList: async () => true,
         getReadingActivityHeatmap: async () => []
       };
@@ -945,6 +947,13 @@ export class ElectronService {
       return await window.electronAPI.listRecentReads(limit);
     }
     return [];
+  }
+
+  async deleteHistoryByReference(fkReference: number, type: HistoryContentType): Promise<number> {
+    if (this.isElectron && window.electronAPI?.deleteHistoryByReference) {
+      return await window.electronAPI.deleteHistoryByReference(fkReference, type);
+    }
+    return 0;
   }
 
   async updateJumpList(): Promise<boolean> {

@@ -31,6 +31,9 @@ class StatisticsController {
         electron_1.ipcMain.handle('history:listRecent', async (_event, limit) => {
             return this.storage.listRecentReads(limit ?? 3);
         });
+        electron_1.ipcMain.handle('history:delete-by-reference', async (_event, fkReference, type) => {
+            return this.storage.deleteHistoryByReference(fkReference, type);
+        });
         electron_1.ipcMain.handle('statistics:heatmap', async (_event, _weeks) => {
             return this.storage.getReadingActivityHeatmap();
         });

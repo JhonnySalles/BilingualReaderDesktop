@@ -15,6 +15,7 @@ import { Manga, Book, LibraryViewType, OrderType } from '../../../../core/models
 import { MangaCardComponent } from '../../manga-library/components/manga-card/manga-card.component';
 import { MangaListItemComponent } from '../../manga-library/components/manga-list-item/manga-list-item.component';
 import { BookCardComponent } from '../book-card/book-card.component';
+import { BookListItemComponent } from '../book-list-item/book-list-item.component';
 import { LibraryCardSkeletonComponent } from '../library-card-skeleton/library-card-skeleton.component';
 import { LibraryListSkeletonComponent } from '../library-list-skeleton/library-list-skeleton.component';
 import { LibraryStateService } from '../../../../core/services/library-state.service';
@@ -353,6 +354,7 @@ function buildSimpleCarouselRows(
     MangaCardComponent,
     MangaListItemComponent,
     BookCardComponent,
+    BookListItemComponent,
     LibraryCardSkeletonComponent,
     LibraryListSkeletonComponent,
     LibraryCarouselShelfComponent,
@@ -485,73 +487,13 @@ function buildSimpleCarouselRows(
                         (openTags)="openTags.emit($event)">
                       </app-manga-list-item>
                     } @else {
-                      <div class="group bg-slate-800/40 backdrop-blur-md rounded-lg overflow-hidden border border-slate-700/40 hover:border-amber-500/50 hover:bg-slate-800/80 hover:shadow-xl hover:shadow-amber-500/10 transition-all duration-200 cursor-pointer flex items-stretch justify-between gap-3 pr-3">
-                        <div class="flex items-center gap-2.5 min-w-0 flex-1">
-                          <div class="w-16 self-stretch min-h-[4.5rem] bg-slate-900 rounded-l-lg overflow-hidden shrink-0 relative border-r border-slate-700/50 flex items-center justify-center" [style.view-transition-name]="sharedTransition.getCoverName(item.id, 'book', 'shared-list-book-' + getItemKey(item))">
-                            @if (item.coverPath) {
-                              <img [src]="'local-cover:///' + item.coverPath" [alt]="item.title" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                            } @else {
-                              <span class="text-amber-400 font-bold text-[10px] uppercase p-1">
-                                {{ item.fileType || 'EPUB' }}
-                              </span>
-                            }
-                          </div>
-
-                          <!-- Stacked Buttons: Favorite -->
-                          <div class="flex flex-col justify-center items-center gap-1 shrink-0 py-1" (click)="$event.stopPropagation()">
-                            <button
-                              (click)="onBookFavoriteClick($event, $any(item))"
-                              class="p-1 rounded-md text-amber-400 hover:text-amber-300 hover:bg-slate-700/60 transition-colors"
-                              [title]="$any(item).favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'">
-                              <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" [class.fill-current]="$any(item).favorite" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-                              </svg>
-                            </button>
-                          </div>
-
-                          <div class="min-w-0 flex-1 py-2">
-                            <h4 class="text-sm font-medium text-slate-200 truncate group-hover:text-amber-400 transition-colors" [title]="item.title" [style.view-transition-name]="sharedTransition.getTitleName(item.id, 'book', 'shared-list-book-' + getItemKey(item))">
-                              {{ item.title }}
-                            </h4>
-                            <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400 mt-1">
-                              <span class="px-1.5 py-0.5 rounded bg-slate-900/80 text-amber-300 font-mono text-[10px] border border-slate-700/60 uppercase">
-                                {{ item.fileType || 'EPUB' }}
-                              </span>
-                              @if (item.series) {
-                                <span class="flex items-center gap-1 text-slate-300 truncate">
-                                  <span class="text-slate-500 font-medium">Série:</span> {{ item.series }}
-                                </span>
-                              }
-                              @if (item.author) {
-                                <span class="flex items-center gap-1 text-slate-300 truncate">
-                                  <span class="text-slate-500 font-medium">Autor:</span> {{ item.author }}
-                                </span>
-                              }
-                              @if (item.publisher) {
-                                <span class="flex items-center gap-1 text-slate-400 truncate">
-                                  <span class="text-slate-500 font-medium">Editora:</span> {{ item.publisher }}
-                                </span>
-                              }
-                            </div>
-                          </div>
-                        </div>
-
-                        <div class="flex items-center gap-4 shrink-0 py-2">
-                          <div class="w-32 hidden sm:block">
-                            <div class="flex justify-between text-[10px] text-slate-400 mb-1">
-                              <span>{{ item.bookMark || 0 }}/{{ item.pages || 0 }} págs</span>
-                              <span>{{ getBookProgressPercentage(item) }}%</span>
-                            </div>
-                            <div class="w-full h-1.5 bg-slate-700/60 rounded-full overflow-hidden" [style.view-transition-name]="sharedTransition.getProgressName(item.id, 'book', 'shared-list-book-' + getItemKey(item))">
-                              <div class="h-full bg-amber-500 rounded-full" [style.width.%]="getBookProgressPercentage(item)"></div>
-                            </div>
-                          </div>
-
-                          <div class="text-right text-xs text-slate-400 w-16 font-mono">
-                            {{ item.pages || 0 }} págs
-                          </div>
-                        </div>
-                      </div>
+                      <app-book-list-item
+                        [book]="$any(item)"
+                        [instanceId]="'shared-list-book-' + getItemKey(item)"
+                        (setBookmark)="setBookmark.emit($event)"
+                        (openTracker)="openTracker.emit($event)"
+                        (openTags)="openTags.emit($event)">
+                      </app-book-list-item>
                     }
                   </div>
                 }

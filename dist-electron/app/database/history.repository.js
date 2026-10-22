@@ -456,5 +456,9 @@ class HistoryRepository extends base_repository_1.BaseRepository {
         const result = this.db.prepare('DELETE FROM History').run();
         return Number(result.changes || 0);
     }
+    deleteByReference(fkReference, type) {
+        const result = this.db.prepare('DELETE FROM History WHERE id_reference = ? AND type = ?').run(fkReference, type);
+        return Number(result.changes || 0);
+    }
 }
 exports.HistoryRepository = HistoryRepository;
