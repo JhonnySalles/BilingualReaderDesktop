@@ -98,7 +98,10 @@ export interface VirtualHistoryGroup {
                       [cardStyle]="effectiveCardStyle()"
                       [shelfId]="row.id"
                       [mediaType]="historyUi.activeType()"
-                      (open)="openItem($event)">
+                      (open)="openItem($event)"
+                      (favoriteChange)="onItemFavoriteChanged($event)"
+                      (historyCleared)="onItemRemoved($event)"
+                      (fileDeleted)="onItemRemoved($event)">
                     </app-history-stats-carousel-shelf>
                   }
                 } @else if (isLineView()) {
@@ -121,7 +124,10 @@ export interface VirtualHistoryGroup {
                         <app-history-stats-card
                           [item]="item"
                           [cardStyle]="effectiveCardStyle()"
-                          (open)="openItem($event)" />
+                          (open)="openItem($event)"
+                          (favoriteChange)="onItemFavoriteChanged($event)"
+                          (historyCleared)="onItemRemoved($event)"
+                          (fileDeleted)="onItemRemoved($event)" />
                       }
                     }
                   </div>

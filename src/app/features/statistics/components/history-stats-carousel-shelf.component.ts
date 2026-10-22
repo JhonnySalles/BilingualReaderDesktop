@@ -139,7 +139,10 @@ import { isBigScroll } from '../../../shared/scroll-edges-button/scroll-edges.ut
                 [item]="item"
                 [cardStyle]="cardStyle"
                 [instanceId]="'shelf-' + (shelfId || 'hist') + '-' + getItemKey(item)"
-                (open)="onCardClick(item)">
+                (open)="onCardClick(item)"
+                (favoriteChange)="favoriteChange.emit($event)"
+                (historyCleared)="historyCleared.emit($event)"
+                (fileDeleted)="fileDeleted.emit($event)">
               </app-history-stats-card>
             </div>
           }
@@ -158,6 +161,9 @@ export class HistoryStatsCarouselShelfComponent implements AfterViewInit, OnDest
   @Input() mediaType?: 'ALL' | 'MANGA' | 'BOOK' = 'ALL';
 
   @Output() open = new EventEmitter<HistoryStatisticsItem>();
+  @Output() favoriteChange = new EventEmitter<HistoryStatisticsItem>();
+  @Output() historyCleared = new EventEmitter<HistoryStatisticsItem>();
+  @Output() fileDeleted = new EventEmitter<HistoryStatisticsItem>();
 
   @ViewChild('track') trackRef?: ElementRef<HTMLDivElement>;
 
