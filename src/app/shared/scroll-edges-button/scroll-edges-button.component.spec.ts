@@ -50,10 +50,49 @@ describe('scroll-edges.util', () => {
   });
 
   describe('smoothScrollTo', () => {
-    it('should call scrollTo with smooth behavior', () => {
+    it('should fallback to element.scrollTo with smooth behavior when rAF is undefined', () => {
       const mockEl = { scrollTo: jest.fn() } as unknown as HTMLElement;
       smoothScrollTo(mockEl, 1200);
       expect(mockEl.scrollTo).toHaveBeenCalledWith({ top: 1200, behavior: 'smooth' });
+    });
+
+    it('should animate scrollTop using requestAnimationFrame when available', () => {
+      let rAfCallback: ((time: number) => void) | null = null;
+      const originalRaf = (global as any).requestAnimationFrame;
+      (global as any).requestAnimationFrame = jest.fn((cb: any) => {
+        rAfCallback = cb;
+        return 1;
+      });
+
+      try {
+        const mockEl = {
+          scrollTop: 0,
+          addEventListener: jest.fn(),
+          removeEventListener: jest.fn()
+        } as unknown as HTMLElement;
+
+        smoothScrollTo(mockEl, 1200);
+        expect((global as any).requestAnimationFrame).toHaveBeenCalled();
+        expect(mockEl.addEventListener).toHaveBeenCalledWith('wheel', expect.any(Function), expect.any(Object));
+
+        if (rAfCallback) {
+          (rAfCallback as any)(performance.now() + 600);
+        }
+        expect(mockEl.scrollTop).toBeGreaterThan(0);
+      } finally {
+        (global as any).requestAnimationFrame = originalRaf;
+      }
+    });
+
+    it('should immediately set scrollTop if distance is negligible', () => {
+      const mockEl = {
+        scrollTop: 100,
+        addEventListener: jest.fn(),
+        removeEventListener: jest.fn()
+      } as unknown as HTMLElement;
+
+      smoothScrollTo(mockEl, 101);
+      expect(mockEl.scrollTop).toBe(101);
     });
 
     it('should safely do nothing when element is null or undefined', () => {
@@ -63,10 +102,38 @@ describe('scroll-edges.util', () => {
   });
 
   describe('smoothScrollHorizontalTo', () => {
-    it('should call scrollTo with smooth behavior for horizontal scroll', () => {
+    it('should fallback to element.scrollTo with smooth behavior when rAF is undefined', () => {
       const mockEl = { scrollTo: jest.fn() } as unknown as HTMLElement;
       smoothScrollHorizontalTo(mockEl, 800);
       expect(mockEl.scrollTo).toHaveBeenCalledWith({ left: 800, behavior: 'smooth' });
+    });
+
+    it('should animate scrollLeft using requestAnimationFrame when available', () => {
+      let rAfCallback: ((time: number) => void) | null = null;
+      const originalRaf = (global as any).requestAnimationFrame;
+      (global as any).requestAnimationFrame = jest.fn((cb: any) => {
+        rAfCallback = cb;
+        return 1;
+      });
+
+      try {
+        const mockEl = {
+          scrollLeft: 0,
+          addEventListener: jest.fn(),
+          removeEventListener: jest.fn()
+        } as unknown as HTMLElement;
+
+        smoothScrollHorizontalTo(mockEl, 800);
+        expect((global as any).requestAnimationFrame).toHaveBeenCalled();
+        expect(mockEl.addEventListener).toHaveBeenCalledWith('wheel', expect.any(Function), expect.any(Object));
+
+        if (rAfCallback) {
+          (rAfCallback as any)(performance.now() + 400);
+        }
+        expect(mockEl.scrollLeft).toBeGreaterThan(0);
+      } finally {
+        (global as any).requestAnimationFrame = originalRaf;
+      }
     });
 
     it('should safely do nothing when element is null or undefined', () => {

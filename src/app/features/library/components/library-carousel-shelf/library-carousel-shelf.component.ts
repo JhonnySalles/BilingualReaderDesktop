@@ -13,7 +13,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { Manga, Book, OrderType } from '../../../../core/models';
 import { LibraryCarouselCardComponent } from '../library-carousel-card/library-carousel-card.component';
-import { isBigScroll } from '../../../../shared/scroll-edges-button/scroll-edges.util';
+import { isBigScroll, smoothScrollHorizontalTo } from '../../../../shared/scroll-edges-button/scroll-edges.util';
 
 @Component({
   selector: 'app-library-carousel-shelf',
@@ -302,7 +302,7 @@ export class LibraryCarouselShelfComponent implements AfterViewInit, OnDestroy {
     setTimeout(() => this.isAnimatingLeft.set(false), 500);
     this.isVisible.set(true);
     this.resetHideTimer();
-    el.scrollTo({ left: 0, behavior: 'smooth' });
+    smoothScrollHorizontalTo(el, 0);
   }
 
   scrollToEnd(): void {
@@ -312,7 +312,7 @@ export class LibraryCarouselShelfComponent implements AfterViewInit, OnDestroy {
     setTimeout(() => this.isAnimatingRight.set(false), 500);
     this.isVisible.set(true);
     this.resetHideTimer();
-    el.scrollTo({ left: el.scrollWidth, behavior: 'smooth' });
+    smoothScrollHorizontalTo(el, el.scrollWidth);
   }
 
   scrollLeft(): void {
