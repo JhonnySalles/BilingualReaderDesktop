@@ -127,7 +127,10 @@ class MangaImageCoverController {
             parser.destroy();
         }
     }
-    async getMangaCoverFile(manga) {
+    inFlight = new Map();
+    async getMangaCoverFile(manga, signal) {
+        if (signal?.aborted)
+            return null;
         const filePath = manga.path || manga.file;
         if (!filePath || !fs.existsSync(filePath)) {
             return null;
@@ -138,25 +141,43 @@ class MangaImageCoverController {
         if (fs.existsSync(coverPath)) {
             return coverPath;
         }
-        const parser = await parse_factory_1.ParseFactory.create(filePath);
-        if (!parser) {
+        if (signal?.aborted)
             return null;
+        if (this.inFlight.has(coverPath)) {
+            return this.inFlight.get(coverPath);
         }
-        try {
-            const cover = parser.getCover();
-            const coverBuffer = cover.front;
-            if (coverBuffer) {
-                fs.writeFileSync(coverPath, coverBuffer);
-                return coverPath;
+        const task = (async () => {
+            if (signal?.aborted)
+                return null;
+            const parser = await parse_factory_1.ParseFactory.create(filePath);
+            if (!parser) {
+                return null;
             }
-        }
-        catch (e) {
-            console.error('Error extracting cover for manga:', manga.name, e);
+            try {
+                if (signal?.aborted)
+                    return null;
+                const cover = parser.getCover();
+                const coverBuffer = cover.front;
+                if (coverBuffer && !signal?.aborted) {
+                    fs.writeFileSync(coverPath, coverBuffer);
+                    return coverPath;
+                }
+            }
+            catch (e) {
+                console.error('Error extracting cover for manga:', manga.name, e);
+            }
+            finally {
+                parser.destroy();
+            }
+            return null;
+        })();
+        this.inFlight.set(coverPath, task);
+        try {
+            return await task;
         }
         finally {
-            parser.destroy();
+            this.inFlight.delete(coverPath);
         }
-        return null;
     }
     /** Return existing coverPath if present on disk; otherwise re-extract from source. */
     async ensureCover(manga) {

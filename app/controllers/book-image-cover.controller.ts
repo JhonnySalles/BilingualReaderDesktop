@@ -42,7 +42,8 @@ export class BookImageCoverController {
     };
   }
 
-  public getBookCoverFile(book: Book): string | null {
+  public getBookCoverFile(book: Book, signal?: AbortSignal): string | null {
+    if (signal?.aborted) return null;
     if (!book.path || !fs.existsSync(book.path)) {
       return null;
     }
@@ -54,8 +55,10 @@ export class BookImageCoverController {
     if (fs.existsSync(coverPath)) {
       return coverPath;
     }
+    if (signal?.aborted) return null;
 
     const meta = BookExtractorFactory.getMetadata(book.path);
+    if (signal?.aborted) return null;
     if (meta.coverImage) {
       try {
         fs.writeFileSync(coverPath, meta.coverImage);

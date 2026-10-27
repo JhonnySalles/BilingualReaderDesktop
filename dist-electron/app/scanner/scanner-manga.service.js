@@ -58,6 +58,7 @@ class ScannerMangaService {
         if (!this.isScanning && !this.currentWorker)
             return;
         this.isStopping = true;
+        this.isScanning = false;
         const stoppedFolder = this.currentFolderPath;
         if (this.currentWorker) {
             try {
@@ -69,7 +70,6 @@ class ScannerMangaService {
             }
             this.currentWorker = null;
         }
-        this.isScanning = false;
         this.isStopping = false;
         if (window) {
             window.webContents.send('manga:scan-status', { status: 'CANCELLED', folderPath: stoppedFolder });
@@ -80,19 +80,24 @@ class ScannerMangaService {
             await this.stopScanning(window);
         }
         this.isScanning = true;
+        this.isStopping = false;
         this.currentFolderPath = folderPath;
+        let isCancelled = false;
         if (window) {
             window.webContents.send('manga:scan-status', { status: 'STARTED', folderPath });
         }
         let libraryId = 0;
         try {
+            if (this.isStopping || !this.isScanning) {
+                return { success: false, cancelled: true };
+            }
             if (!fs.existsSync(folderPath)) {
                 if (externalHd) {
                     if (window) {
                         window.webContents.send('manga:scan-status', { status: 'SKIPPED_EXTERNAL_HD', folderPath });
                     }
                     this.isScanning = false;
-                    return;
+                    return { success: false, cancelled: false };
                 }
                 try {
                     fs.mkdirSync(folderPath, { recursive: true });
@@ -100,8 +105,11 @@ class ScannerMangaService {
                 catch (e) {
                     console.warn(`Could not create directory ${folderPath}:`, e);
                     this.isScanning = false;
-                    return;
+                    return { success: false, cancelled: false };
                 }
+            }
+            if (this.isStopping || !this.isScanning) {
+                return { success: false, cancelled: true };
             }
             libraryId = this.storageService.getOrCreateLibrary(folderPath, 'MANGA');
             const existingMangas = this.storageService.listMangas(libraryId);
@@ -128,6 +136,9 @@ class ScannerMangaService {
                     };
                 }
             });
+            if (this.isStopping || !this.isScanning) {
+                return { success: false, cancelled: true };
+            }
             const workerPath = path.join(__dirname, 'manga-scanner.worker.js');
             await new Promise((resolve, reject) => {
                 const worker = new worker_threads_1.Worker(workerPath, {
@@ -142,11 +153,13 @@ class ScannerMangaService {
                 this.currentWorker = worker;
                 worker.on('message', (msg) => {
                     try {
-                        if (this.isStopping)
+                        if (this.isStopping || !this.isScanning) {
+                            isCancelled = true;
                             return;
+                        }
                         if (msg.type === 'BATCH' && msg.items && msg.items.length > 0) {
                             const savedList = this.storageService.saveMangasBatch(msg.items);
-                            if (window && savedList.length > 0) {
+                            if (window && savedList.length > 0 && !this.isStopping && this.isScanning) {
                                 window.webContents.send('manga:updated-batch', {
                                     folderPath,
                                     libraryId,
@@ -155,7 +168,7 @@ class ScannerMangaService {
                             }
                         }
                         else if (msg.type === 'PROGRESS') {
-                            if (window) {
+                            if (window && !this.isStopping && this.isScanning) {
                                 window.webContents.send('manga:scan-status', {
                                     status: 'PROGRESS',
                                     folderPath,
@@ -166,12 +179,17 @@ class ScannerMangaService {
                             }
                         }
                         else if (msg.type === 'DONE') {
+                            if (this.isStopping || !this.isScanning) {
+                                isCancelled = true;
+                                resolve();
+                                return;
+                            }
                             const foundSet = new Set((msg.foundPaths || []).map((p) => path.normalize(p).toLowerCase()));
                             // Remove missing mangas
                             for (const [missingPath, missingManga] of existingMap.entries()) {
                                 if (!foundSet.has(missingPath) && missingManga.id) {
                                     this.storageService.deleteManga(missingManga.id);
-                                    if (window) {
+                                    if (window && !this.isStopping && this.isScanning) {
                                         window.webContents.send('manga:updated-remove', { id: missingManga.id, path: missingPath, folderPath, libraryId });
                                     }
                                 }
@@ -188,7 +206,8 @@ class ScannerMangaService {
                     }
                 });
                 worker.on('error', (err) => {
-                    if (this.isStopping) {
+                    if (this.isStopping || !this.isScanning) {
+                        isCancelled = true;
                         resolve();
                         return;
                     }
@@ -198,7 +217,7 @@ class ScannerMangaService {
                 });
                 worker.on('exit', (code) => {
                     this.currentWorker = null;
-                    if (code !== 0 && !this.isStopping) {
+                    if (code !== 0 && !this.isStopping && this.isScanning) {
                         console.warn(`[ScannerMangaService] Worker stopped with exit code ${code}`);
                     }
                     resolve();
@@ -206,7 +225,7 @@ class ScannerMangaService {
             });
         }
         catch (err) {
-            if (!this.isStopping) {
+            if (!this.isStopping && this.isScanning) {
                 console.error('Error scanning manga folder:', err);
                 telemetry_1.Telemetry.recordException(err, 'Error scanning manga folder');
             }
@@ -221,10 +240,11 @@ class ScannerMangaService {
             }
             const wasScanning = this.isScanning;
             this.isScanning = false;
-            if (window && wasScanning && !this.isStopping) {
+            if (window && wasScanning && !this.isStopping && !isCancelled) {
                 window.webContents.send('manga:scan-status', { status: 'FINISHED', folderPath, libraryId });
             }
         }
+        return { success: !isCancelled && !this.isStopping, cancelled: isCancelled || this.isStopping };
     }
     async processSingleFile(filePath, window) {
         try {

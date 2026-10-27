@@ -19,6 +19,7 @@ export class MangaLibraryService {
 
   private currentFolderPath?: string;
   private loadSequenceId = 0;
+  private scanSessionId = 0;
 
   private normalizePath(p?: string): string {
     return (p || '').replace(/\\/g, '/').toLowerCase().replace(/\/+$/, '');
@@ -31,7 +32,13 @@ export class MangaLibraryService {
     return normItem.startsWith(normFolder);
   }
 
+  public clear(): void {
+    this.mangas.set([]);
+    this.currentFolderPath = undefined;
+  }
+
   public async cancelScan(): Promise<void> {
+    this.scanSessionId++;
     this.isScanning.set(false);
     if (window.electronAPI?.cancelMangaScan) {
       await window.electronAPI.cancelMangaScan();
@@ -41,16 +48,22 @@ export class MangaLibraryService {
   private initElectronListeners(): void {
     if (window.electronAPI?.on) {
       window.electronAPI.on('manga:scan-status', (data: { status: string; folderPath?: string; libraryId?: number; processedCount?: number; totalFound?: number }) => {
+        const isCurrentFolder = !data.folderPath || !this.currentFolderPath || this.normalizePath(data.folderPath) === this.normalizePath(this.currentFolderPath);
         if (data.status === 'STARTED' || data.status === 'PROGRESS') {
-          if (!data.folderPath || !this.currentFolderPath || this.normalizePath(data.folderPath) === this.normalizePath(this.currentFolderPath)) {
+          if (isCurrentFolder) {
             this.isScanning.set(true);
           }
         } else if (data.status === 'CANCELLED') {
-          this.isScanning.set(false);
-          void this.loadMangas(this.currentFolderPath);
+          if (isCurrentFolder) {
+            this.isScanning.set(false);
+          }
+          // Do not reload automatically on CANCELLED: the navigation flow coordinates loading the selected library.
         } else {
-          this.isScanning.set(false);
-          void this.loadMangas(this.currentFolderPath);
+          // FINISHED
+          if (isCurrentFolder) {
+            this.isScanning.set(false);
+            void this.loadMangas(this.currentFolderPath);
+          }
         }
       });
 
@@ -105,9 +118,23 @@ export class MangaLibraryService {
 
   public async scanFolder(folderPath: string, externalHd?: boolean): Promise<void> {
     if (!window.electronAPI?.scanLibrary || !folderPath) return;
+    const currentSession = ++this.scanSessionId;
     this.currentFolderPath = folderPath;
-    await window.electronAPI.scanLibrary(folderPath, externalHd);
-    await this.loadMangas(folderPath);
+    this.isScanning.set(true);
+    try {
+      const res = await window.electronAPI.scanLibrary(folderPath, externalHd);
+      if (
+        currentSession === this.scanSessionId &&
+        this.normalizePath(folderPath) === this.normalizePath(this.currentFolderPath) &&
+        res !== false
+      ) {
+        await this.loadMangas(folderPath);
+      }
+    } finally {
+      if (currentSession === this.scanSessionId) {
+        this.isScanning.set(false);
+      }
+    }
   }
 
   public async selectAndScanDirectory(): Promise<void> {
@@ -123,7 +150,10 @@ export class MangaLibraryService {
     this.currentFolderPath = folderPath;
     const seq = ++this.loadSequenceId;
     const mangas = await window.electronAPI.listMangas(folderPath);
-    if (seq === this.loadSequenceId) {
+    if (
+      seq === this.loadSequenceId &&
+      (!folderPath || !this.currentFolderPath || this.normalizePath(folderPath) === this.normalizePath(this.currentFolderPath))
+    ) {
       this.mangas.set(mangas || []);
     }
   }

@@ -66,7 +66,9 @@ class BookImageCoverController {
             isFullCover: false
         };
     }
-    getBookCoverFile(book) {
+    getBookCoverFile(book, signal) {
+        if (signal?.aborted)
+            return null;
         if (!book.path || !fs.existsSync(book.path)) {
             return null;
         }
@@ -76,7 +78,11 @@ class BookImageCoverController {
         if (fs.existsSync(coverPath)) {
             return coverPath;
         }
+        if (signal?.aborted)
+            return null;
         const meta = book_extractor_factory_1.BookExtractorFactory.getMetadata(book.path);
+        if (signal?.aborted)
+            return null;
         if (meta.coverImage) {
             try {
                 fs.writeFileSync(coverPath, meta.coverImage);

@@ -31,7 +31,7 @@ const MENU_WIDTH = 176; // w-44
         <!-- Cover Image Container -->
         <div class="relative aspect-[2/3] w-full overflow-hidden bg-slate-900 cover-3d-host" [style.view-transition-name]="sharedTransition.getCoverName(book.id, 'book', instanceId)">
           @if (book.coverPath) {
-            <img [src]="'local-cover:///' + book.coverPath" [alt]="book.title" class="cover-3d-face w-full h-full object-cover" />
+            <img [src]="'local-cover:///' + book.coverPath" [alt]="book.title" loading="lazy" class="cover-3d-face w-full h-full object-cover" />
           } @else {
             <div class="w-full h-full flex flex-col items-center justify-center p-4 text-amber-500/70 bg-gradient-to-br from-slate-900 via-slate-900 to-amber-950/30">
               <svg xmlns="http://www.w3.org/2000/svg" class="w-12 h-12 mb-2 opacity-75" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -104,7 +104,7 @@ const MENU_WIDTH = 176; // w-44
     @if (cardStyle === 'OVERLAY') {
       <div class="group relative aspect-[2/3] w-full rounded-xl overflow-hidden border border-slate-700/50 hover:border-amber-500/50 transition-all duration-300 hover:shadow-xl hover:shadow-amber-500/10 hover:-translate-y-1 cursor-pointer flex flex-col justify-between bg-slate-900" [style.view-transition-name]="sharedTransition.getCoverName(book.id, 'book', instanceId)">
         @if (book.coverPath) {
-          <img [src]="'local-cover:///' + book.coverPath" [alt]="book.title" class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+          <img [src]="'local-cover:///' + book.coverPath" [alt]="book.title" loading="lazy" class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
         } @else {
           <div class="absolute inset-0 w-full h-full flex flex-col items-center justify-center p-4 text-amber-500/70 bg-gradient-to-br from-slate-900 via-slate-900 to-amber-950/30">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-12 h-12 mb-2 opacity-75" fill="none" viewBox="0 0 24 24" stroke="currentColor">

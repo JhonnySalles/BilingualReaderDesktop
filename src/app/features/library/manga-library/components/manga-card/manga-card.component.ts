@@ -30,7 +30,7 @@ const MENU_WIDTH = 176; // w-44
       <div class="group relative bg-slate-800/60 backdrop-blur-md rounded-xl overflow-hidden border border-slate-700/50 manga-card-hover transition-all duration-300 hover:-translate-y-1 cursor-pointer flex flex-col h-full">
         <div class="relative aspect-[2/3] w-full overflow-hidden bg-slate-900 cover-3d-host" [style.view-transition-name]="sharedTransition.getCoverName(manga.id, 'manga', instanceId)">
           @if (manga.coverPath) {
-            <img [src]="'local-cover:///' + manga.coverPath" [alt]="manga.title" class="cover-3d-face w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+            <img [src]="'local-cover:///' + manga.coverPath" [alt]="manga.title" loading="lazy" class="cover-3d-face w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
           } @else {
             <div class="w-full h-full flex flex-col items-center justify-center p-4 text-slate-500 bg-gradient-to-br from-slate-900 to-slate-800">
               <svg xmlns="http://www.w3.org/2000/svg" class="w-12 h-12 mb-2 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -102,7 +102,7 @@ const MENU_WIDTH = 176; // w-44
     @if (cardStyle === 'OVERLAY') {
       <div class="group relative aspect-[2/3] w-full rounded-xl overflow-hidden border border-slate-700/50 manga-card-hover transition-all duration-300 hover:-translate-y-1 cursor-pointer flex flex-col justify-between bg-slate-900" [style.view-transition-name]="sharedTransition.getCoverName(manga.id, 'manga', instanceId)">
         @if (manga.coverPath) {
-          <img [src]="'local-cover:///' + manga.coverPath" [alt]="manga.title" class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+          <img [src]="'local-cover:///' + manga.coverPath" [alt]="manga.title" loading="lazy" class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
         } @else {
           <div class="absolute inset-0 w-full h-full flex flex-col items-center justify-center p-4 text-slate-500 bg-gradient-to-br from-slate-900 to-slate-800">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-12 h-12 mb-2 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">

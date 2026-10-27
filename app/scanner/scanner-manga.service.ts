@@ -25,6 +25,7 @@ export class ScannerMangaService {
   public async stopScanning(window?: BrowserWindow | null): Promise<void> {
     if (!this.isScanning && !this.currentWorker) return;
     this.isStopping = true;
+    this.isScanning = false;
     const stoppedFolder = this.currentFolderPath;
     if (this.currentWorker) {
       try {
@@ -35,19 +36,20 @@ export class ScannerMangaService {
       }
       this.currentWorker = null;
     }
-    this.isScanning = false;
     this.isStopping = false;
     if (window) {
       window.webContents.send('manga:scan-status', { status: 'CANCELLED', folderPath: stoppedFolder });
     }
   }
 
-  public async scanFolder(folderPath: string, window: BrowserWindow | null, externalHd?: boolean): Promise<void> {
+  public async scanFolder(folderPath: string, window: BrowserWindow | null, externalHd?: boolean): Promise<{ success: boolean; cancelled: boolean }> {
     if (this.isScanning) {
       await this.stopScanning(window);
     }
     this.isScanning = true;
+    this.isStopping = false;
     this.currentFolderPath = folderPath;
+    let isCancelled = false;
 
     if (window) {
       window.webContents.send('manga:scan-status', { status: 'STARTED', folderPath });
@@ -55,21 +57,29 @@ export class ScannerMangaService {
 
     let libraryId = 0;
     try {
+      if (this.isStopping || !this.isScanning) {
+        return { success: false, cancelled: true };
+      }
+
       if (!fs.existsSync(folderPath)) {
         if (externalHd) {
           if (window) {
             window.webContents.send('manga:scan-status', { status: 'SKIPPED_EXTERNAL_HD', folderPath });
           }
           this.isScanning = false;
-          return;
+          return { success: false, cancelled: false };
         }
         try {
           fs.mkdirSync(folderPath, { recursive: true });
         } catch (e) {
           console.warn(`Could not create directory ${folderPath}:`, e);
           this.isScanning = false;
-          return;
+          return { success: false, cancelled: false };
         }
+      }
+
+      if (this.isStopping || !this.isScanning) {
+        return { success: false, cancelled: true };
       }
 
       libraryId = this.storageService.getOrCreateLibrary(folderPath, 'MANGA');
@@ -99,6 +109,10 @@ export class ScannerMangaService {
         }
       });
 
+      if (this.isStopping || !this.isScanning) {
+        return { success: false, cancelled: true };
+      }
+
       const workerPath = path.join(__dirname, 'manga-scanner.worker.js');
 
       await new Promise<void>((resolve, reject) => {
@@ -115,10 +129,13 @@ export class ScannerMangaService {
 
         worker.on('message', (msg: { type: string; items?: Partial<Manga>[]; foundPaths?: string[]; message?: string; processedCount?: number; totalFound?: number }) => {
           try {
-            if (this.isStopping) return;
+            if (this.isStopping || !this.isScanning) {
+              isCancelled = true;
+              return;
+            }
             if (msg.type === 'BATCH' && msg.items && msg.items.length > 0) {
               const savedList = this.storageService.saveMangasBatch(msg.items);
-              if (window && savedList.length > 0) {
+              if (window && savedList.length > 0 && !this.isStopping && this.isScanning) {
                 window.webContents.send('manga:updated-batch', {
                   folderPath,
                   libraryId,
@@ -126,7 +143,7 @@ export class ScannerMangaService {
                 });
               }
             } else if (msg.type === 'PROGRESS') {
-              if (window) {
+              if (window && !this.isStopping && this.isScanning) {
                 window.webContents.send('manga:scan-status', {
                   status: 'PROGRESS',
                   folderPath,
@@ -136,12 +153,17 @@ export class ScannerMangaService {
                 });
               }
             } else if (msg.type === 'DONE') {
+              if (this.isStopping || !this.isScanning) {
+                isCancelled = true;
+                resolve();
+                return;
+              }
               const foundSet = new Set<string>((msg.foundPaths || []).map((p: string) => path.normalize(p).toLowerCase()));
               // Remove missing mangas
               for (const [missingPath, missingManga] of existingMap.entries()) {
                 if (!foundSet.has(missingPath) && missingManga.id) {
                   this.storageService.deleteManga(missingManga.id);
-                  if (window) {
+                  if (window && !this.isStopping && this.isScanning) {
                     window.webContents.send('manga:updated-remove', { id: missingManga.id, path: missingPath, folderPath, libraryId });
                   }
                 }
@@ -157,7 +179,8 @@ export class ScannerMangaService {
         });
 
         worker.on('error', (err) => {
-          if (this.isStopping) {
+          if (this.isStopping || !this.isScanning) {
+            isCancelled = true;
             resolve();
             return;
           }
@@ -168,7 +191,7 @@ export class ScannerMangaService {
 
         worker.on('exit', (code) => {
           this.currentWorker = null;
-          if (code !== 0 && !this.isStopping) {
+          if (code !== 0 && !this.isStopping && this.isScanning) {
             console.warn(`[ScannerMangaService] Worker stopped with exit code ${code}`);
           }
           resolve();
@@ -176,7 +199,7 @@ export class ScannerMangaService {
       });
 
     } catch (err) {
-      if (!this.isStopping) {
+      if (!this.isStopping && this.isScanning) {
         console.error('Error scanning manga folder:', err);
         Telemetry.recordException(err, 'Error scanning manga folder');
       }
@@ -189,10 +212,12 @@ export class ScannerMangaService {
       }
       const wasScanning = this.isScanning;
       this.isScanning = false;
-      if (window && wasScanning && !this.isStopping) {
+      if (window && wasScanning && !this.isStopping && !isCancelled) {
         window.webContents.send('manga:scan-status', { status: 'FINISHED', folderPath, libraryId });
       }
     }
+
+    return { success: !isCancelled && !this.isStopping, cancelled: isCancelled || this.isStopping };
   }
 
   public async processSingleFile(filePath: string, window: BrowserWindow | null): Promise<Manga | null> {

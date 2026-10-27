@@ -25,6 +25,7 @@ export class ScannerBookService {
   public async stopScanning(window?: BrowserWindow | null): Promise<void> {
     if (!this.isScanning && !this.currentWorker) return;
     this.isStopping = true;
+    this.isScanning = false;
     const stoppedFolder = this.currentFolderPath;
     if (this.currentWorker) {
       try {
@@ -35,19 +36,20 @@ export class ScannerBookService {
       }
       this.currentWorker = null;
     }
-    this.isScanning = false;
     this.isStopping = false;
     if (window) {
       window.webContents.send('book:scan-status', { status: 'CANCELLED', folderPath: stoppedFolder });
     }
   }
 
-  public async scanFolder(folderPath: string, window: BrowserWindow | null, externalHd?: boolean): Promise<void> {
+  public async scanFolder(folderPath: string, window: BrowserWindow | null, externalHd?: boolean): Promise<{ success: boolean; cancelled: boolean }> {
     if (this.isScanning) {
       await this.stopScanning(window);
     }
     this.isScanning = true;
+    this.isStopping = false;
     this.currentFolderPath = folderPath;
+    let isCancelled = false;
 
     if (window) {
       window.webContents.send('book:scan-status', { status: 'STARTED', folderPath });
@@ -55,21 +57,29 @@ export class ScannerBookService {
 
     let libraryId = 0;
     try {
+      if (this.isStopping || !this.isScanning) {
+        return { success: false, cancelled: true };
+      }
+
       if (!fs.existsSync(folderPath)) {
         if (externalHd) {
           if (window) {
             window.webContents.send('book:scan-status', { status: 'SKIPPED_EXTERNAL_HD', folderPath });
           }
           this.isScanning = false;
-          return;
+          return { success: false, cancelled: false };
         }
         try {
           fs.mkdirSync(folderPath, { recursive: true });
         } catch (e) {
           console.warn(`Could not create directory ${folderPath}:`, e);
           this.isScanning = false;
-          return;
+          return { success: false, cancelled: false };
         }
+      }
+
+      if (this.isStopping || !this.isScanning) {
+        return { success: false, cancelled: true };
       }
 
       libraryId = this.storageService.getOrCreateLibrary(folderPath, 'BOOK');
@@ -102,6 +112,10 @@ export class ScannerBookService {
         }
       });
 
+      if (this.isStopping || !this.isScanning) {
+        return { success: false, cancelled: true };
+      }
+
       const workerPath = path.join(__dirname, 'book-scanner.worker.js');
 
       await new Promise<void>((resolve, reject) => {
@@ -118,10 +132,13 @@ export class ScannerBookService {
 
         worker.on('message', (msg: { type: string; items?: Partial<Book>[]; foundPaths?: string[]; message?: string; processedCount?: number; totalFound?: number }) => {
           try {
-            if (this.isStopping) return;
+            if (this.isStopping || !this.isScanning) {
+              isCancelled = true;
+              return;
+            }
             if (msg.type === 'BATCH' && msg.items && msg.items.length > 0) {
               const savedList = this.storageService.saveBooksBatch(msg.items);
-              if (window && savedList.length > 0) {
+              if (window && savedList.length > 0 && !this.isStopping && this.isScanning) {
                 window.webContents.send('book:updated-batch', {
                   folderPath,
                   libraryId,
@@ -129,7 +146,7 @@ export class ScannerBookService {
                 });
               }
             } else if (msg.type === 'PROGRESS') {
-              if (window) {
+              if (window && !this.isStopping && this.isScanning) {
                 window.webContents.send('book:scan-status', {
                   status: 'PROGRESS',
                   folderPath,
@@ -139,12 +156,17 @@ export class ScannerBookService {
                 });
               }
             } else if (msg.type === 'DONE') {
+              if (this.isStopping || !this.isScanning) {
+                isCancelled = true;
+                resolve();
+                return;
+              }
               const foundSet = new Set<string>((msg.foundPaths || []).map((p: string) => path.normalize(p).toLowerCase()));
               // Remove missing books
               for (const [missingPath, missingBook] of existingMap.entries()) {
                 if (!foundSet.has(missingPath) && missingBook.id) {
                   this.storageService.deleteBook(missingBook.id);
-                  if (window) {
+                  if (window && !this.isStopping && this.isScanning) {
                     window.webContents.send('book:updated-remove', { id: missingBook.id, path: missingPath, folderPath, libraryId });
                   }
                 }
@@ -160,7 +182,8 @@ export class ScannerBookService {
         });
 
         worker.on('error', (err) => {
-          if (this.isStopping) {
+          if (this.isStopping || !this.isScanning) {
+            isCancelled = true;
             resolve();
             return;
           }
@@ -171,7 +194,7 @@ export class ScannerBookService {
 
         worker.on('exit', (code) => {
           this.currentWorker = null;
-          if (code !== 0 && !this.isStopping) {
+          if (code !== 0 && !this.isStopping && this.isScanning) {
             console.warn(`[ScannerBookService] Worker stopped with exit code ${code}`);
           }
           resolve();
@@ -179,7 +202,7 @@ export class ScannerBookService {
       });
 
     } catch (err) {
-      if (!this.isStopping) {
+      if (!this.isStopping && this.isScanning) {
         console.error('Error scanning book folder:', err);
         Telemetry.recordException(err, 'Error scanning book folder');
       }
@@ -192,10 +215,12 @@ export class ScannerBookService {
       }
       const wasScanning = this.isScanning;
       this.isScanning = false;
-      if (window && wasScanning && !this.isStopping) {
+      if (window && wasScanning && !this.isStopping && !isCancelled) {
         window.webContents.send('book:scan-status', { status: 'FINISHED', folderPath, libraryId });
       }
     }
+
+    return { success: !isCancelled && !this.isStopping, cancelled: isCancelled || this.isStopping };
   }
 
   public async processSingleFile(filePath: string, window: BrowserWindow | null): Promise<Book | null> {

@@ -29,7 +29,7 @@ const MENU_WIDTH = 176; // w-44
       <div class="flex items-center gap-2.5 min-w-0 flex-1">
         <div class="w-16 self-stretch min-h-[4.5rem] bg-slate-900 rounded-l-lg overflow-hidden shrink-0 relative border-r border-slate-700/50 flex items-center justify-center" [style.view-transition-name]="sharedTransition.getCoverName(manga.id, 'manga', instanceId)">
           @if (manga.coverPath) {
-            <img [src]="'local-cover:///' + manga.coverPath" [alt]="manga.title" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+            <img [src]="'local-cover:///' + manga.coverPath" [alt]="manga.title" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
           } @else {
             <div class="w-full h-full flex flex-col items-center justify-center text-slate-500 text-[10px] uppercase font-bold p-1">
               {{ manga.fileType }}

@@ -349,7 +349,7 @@ import { sortLibraryItems } from '../../core/utils/library-sort.util';
             </div>
           }
 
-          @if (filteredItems().length === 0 && !isCurrentlyScanning()) {
+          @if (filteredItems().length === 0 && !isCurrentlyScanning() && !isChangingLibrary()) {
             <div class="flex flex-col items-center justify-center py-20 text-center flex-1">
               <div class="w-16 h-16 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-500 mb-4">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -365,7 +365,7 @@ import { sortLibraryItems } from '../../core/utils/library-sort.util';
             <app-shared-list 
               [items]="filteredItems()" 
               [type]="activeLibType()"
-              [isLoading]="isCurrentlyScanning() && filteredItems().length === 0"
+              [isLoading]="isChangingLibrary() || (isCurrentlyScanning() && filteredItems().length === 0)"
               (reordered)="onReordered($event)"
               (open)="onOpenItem($event)"
               (openDetail)="onOpenDetail($event)"
@@ -435,6 +435,8 @@ export class LibraryComponent implements OnInit {
   tagsTarget = signal<Manga | Book | null>(null);
   isExternalHd = signal<boolean>(false);
   isPathOnline = signal<boolean>(true);
+  isChangingLibrary = signal<boolean>(false);
+  private currentNavSession = 0;
 
   isCurrentlyScanning = computed(() => {
     return this.mangaLibraryService.isScanning() || this.bookLibraryService.isScanning();
@@ -668,10 +670,19 @@ export class LibraryComponent implements OnInit {
   ngOnInit(): void {
     void this.shareMark.refreshStatus();
     this.route.queryParams.subscribe(async params => {
-      void this.mangaLibraryService.cancelScan();
-      void this.bookLibraryService.cancelScan();
-      this.resetScrollToTop();
+      const navSession = ++this.currentNavSession;
       const libId = params['lib'] || 'home';
+
+      // 1. Sinalizar carregamento e parar scans em andamento
+      this.isChangingLibrary.set(true);
+      await Promise.all([
+        this.mangaLibraryService.cancelScan(),
+        this.bookLibraryService.cancelScan()
+      ]);
+
+      if (navSession !== this.currentNavSession) return;
+
+      this.resetScrollToTop();
       if (this.activeLibId() !== libId) {
         this.libraryStateService.clearSearch();
       }
@@ -679,7 +690,13 @@ export class LibraryComponent implements OnInit {
       this.customOrderItems.set(null);
       this.nav.rememberLibrary(libId);
 
+      // 2. Limpar os itens antigos imediatamente (desmonta cards e cancela imagens)
+      this.mangaLibraryService.clear();
+      this.bookLibraryService.clear();
+
       let pathToScan = '';
+      let isExternal = false;
+      let targetType: 'manga' | 'book' = 'manga';
 
       if (libId === 'home') {
         this.isExternalHd.set(false);
@@ -691,45 +708,49 @@ export class LibraryComponent implements OnInit {
           type: 'manga',
           count: 0
         });
-        this.mangaLibraryService.loadMangas();
-        this.bookLibraryService.loadBooks();
-        void this.loadDbLibraries();
-        void this.home.refresh();
+        await Promise.all([
+          this.mangaLibraryService.loadMangas(),
+          this.bookLibraryService.loadBooks(),
+          this.loadDbLibraries(),
+          this.home.refresh()
+        ]);
+        if (navSession !== this.currentNavSession) return;
+        this.isChangingLibrary.set(false);
+        return;
       } else if (libId === 'manga-default') {
+        targetType = 'manga';
         this.activeLibType.set('manga');
         this.libraryStateService.activeContext.set('manga');
         pathToScan = this.settingsService.mangaBasePath();
-        const extHd = !!this.settingsService.mangaBasePathExternalHd();
+        isExternal = !!this.settingsService.mangaBasePathExternalHd();
         this.libraryStateService.activeLibrary.set({
           id: 'manga-default',
           name: 'Biblioteca de Mangás',
           type: 'manga',
-          count: this.mangaLibraryService.mangas().length
+          count: 0
         });
         await this.mangaLibraryService.loadMangas(pathToScan);
-        this.libraryStateService.activeLibrary.update(cur => ({ ...cur, count: this.mangaLibraryService.mangas().length }));
-        await this.checkPathAndAutoScan(pathToScan, extHd);
       } else if (libId === 'book-default') {
+        targetType = 'book';
         this.activeLibType.set('book');
         this.libraryStateService.activeContext.set('book');
         pathToScan = this.settingsService.bookBasePath();
-        const extHd = !!this.settingsService.bookBasePathExternalHd();
+        isExternal = !!this.settingsService.bookBasePathExternalHd();
         this.libraryStateService.activeLibrary.set({
           id: 'book-default',
           name: 'Biblioteca de Livros',
           type: 'book',
-          count: this.bookLibraryService.books().length
+          count: 0
         });
         await this.bookLibraryService.loadBooks(pathToScan);
-        this.libraryStateService.activeLibrary.update(cur => ({ ...cur, count: this.bookLibraryService.books().length }));
-        await this.checkPathAndAutoScan(pathToScan, extHd);
       } else {
         const found = this.settingsService.libraries().find(l => l.id === libId);
         if (found) {
+          targetType = found.type;
           this.activeLibType.set(found.type);
           this.libraryStateService.activeContext.set(found.type);
           pathToScan = found.path;
-          const extHd = !!found.externalHd;
+          isExternal = !!found.externalHd;
           this.libraryStateService.activeLibrary.set({
             id: found.id,
             name: found.title,
@@ -738,13 +759,22 @@ export class LibraryComponent implements OnInit {
           });
           if (found.type === 'manga') {
             await this.mangaLibraryService.loadMangas(pathToScan);
-            this.libraryStateService.activeLibrary.update(cur => ({ ...cur, count: this.mangaLibraryService.mangas().length }));
           } else {
             await this.bookLibraryService.loadBooks(pathToScan);
-            this.libraryStateService.activeLibrary.update(cur => ({ ...cur, count: this.bookLibraryService.books().length }));
           }
-          await this.checkPathAndAutoScan(pathToScan, extHd);
         }
+      }
+
+      if (navSession !== this.currentNavSession) return;
+
+      const currentCount = targetType === 'manga'
+        ? this.mangaLibraryService.mangas().length
+        : this.bookLibraryService.books().length;
+      this.libraryStateService.activeLibrary.update(cur => ({ ...cur, count: currentCount }));
+      this.isChangingLibrary.set(false);
+
+      if (pathToScan) {
+        await this.checkPathAndAutoScan(pathToScan, isExternal);
       }
     });
   }

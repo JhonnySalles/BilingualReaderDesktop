@@ -27,6 +27,7 @@ import { progressPageLabel } from '../../../../core/utils/reading-progress.util'
           <img
             [src]="'local-cover:///' + item.coverPath"
             [alt]="item.title"
+            loading="lazy"
             class="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500" />
         } @else {
           <div class="w-full h-full bg-gradient-to-br from-slate-900 to-slate-800"></div>

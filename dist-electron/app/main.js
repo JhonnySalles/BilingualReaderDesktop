@@ -301,6 +301,9 @@ electron_1.app.on('ready', () => {
         // Keep the original cover handler — renderer uses local-cover:///{absoluteWindowsPath}
         electron_1.protocol.handle('local-cover', async (request) => {
             try {
+                if (request.signal?.aborted) {
+                    return new Response(null, { status: 499 });
+                }
                 const rawPath = request.url.replace(/^local-cover:\/*/, '');
                 let decodedPath = decodeURIComponent(rawPath.split('?')[0]);
                 if (decodedPath.startsWith('/') && /^\/[A-Za-z]:/.test(decodedPath)) {
@@ -308,6 +311,9 @@ electron_1.app.on('ready', () => {
                 }
                 decodedPath = path.normalize(decodedPath);
                 if (!fs.existsSync(decodedPath)) {
+                    if (request.signal?.aborted) {
+                        return new Response(null, { status: 499 });
+                    }
                     // Try on-demand regeneration if it belongs to manga or book cover cache
                     const normalizedLower = decodedPath.toLowerCase();
                     if (normalizedLower.includes('covers\\manga') || normalizedLower.includes('covers/manga') || normalizedLower.includes('covers\\book') || normalizedLower.includes('covers/book')) {
@@ -316,13 +322,13 @@ electron_1.app.on('ready', () => {
                                 // 1. Check if it's a Manga cover
                                 const manga = storageService.findMangaByCoverPath(decodedPath);
                                 if (manga) {
-                                    await manga_image_cover_controller_1.MangaImageCoverController.instance.getMangaCoverFile(manga);
+                                    await manga_image_cover_controller_1.MangaImageCoverController.instance.getMangaCoverFile(manga, request.signal);
                                 }
                                 else {
                                     // 2. Check if it's a Book cover
                                     const book = storageService.findBookByCoverPath(decodedPath);
                                     if (book) {
-                                        book_image_cover_controller_1.BookImageCoverController.instance.getBookCoverFile(book);
+                                        book_image_cover_controller_1.BookImageCoverController.instance.getBookCoverFile(book, request.signal);
                                     }
                                 }
                             }
@@ -331,6 +337,9 @@ electron_1.app.on('ready', () => {
                             console.warn('[local-cover] On-demand cover regeneration failed for', decodedPath, reconErr);
                         }
                     }
+                }
+                if (request.signal?.aborted) {
+                    return new Response(null, { status: 499 });
                 }
                 if (!fs.existsSync(decodedPath)) {
                     return new Response('Not Found', { status: 404 });
@@ -348,6 +357,9 @@ electron_1.app.on('ready', () => {
                 });
             }
             catch (err) {
+                if (request.signal?.aborted) {
+                    return new Response(null, { status: 499 });
+                }
                 telemetry_1.Telemetry.recordException(err, `[local-cover] failed to serve ${request.url}`);
                 return new Response('Not Found', { status: 404 });
             }
@@ -558,8 +570,8 @@ electron_1.app.on('ready', () => {
             return storageService.listMangas(libraryId);
         });
         electron_1.ipcMain.handle('manga:scan', async (_event, folderPath, externalHd) => {
-            await scannerMangaService.scanFolder(folderPath, mainWindow, externalHd);
-            return true;
+            const result = await scannerMangaService.scanFolder(folderPath, mainWindow, externalHd);
+            return result?.success ?? false;
         });
         electron_1.ipcMain.handle('manga:cancel-scan', async () => {
             await scannerMangaService.stopScanning(mainWindow);
@@ -620,8 +632,8 @@ electron_1.app.on('ready', () => {
             return storageService.listBooks(libraryId);
         });
         electron_1.ipcMain.handle('book:scan', async (_event, folderPath, externalHd) => {
-            await scannerBookService.scanFolder(folderPath, mainWindow, externalHd);
-            return true;
+            const result = await scannerBookService.scanFolder(folderPath, mainWindow, externalHd);
+            return result?.success ?? false;
         });
         electron_1.ipcMain.handle('book:cancel-scan', async () => {
             await scannerBookService.stopScanning(mainWindow);
