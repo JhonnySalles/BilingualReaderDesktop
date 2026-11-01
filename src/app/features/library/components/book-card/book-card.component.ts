@@ -13,6 +13,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { Book } from '../../../../core/models';
 import { BookLibraryService } from '../../../../core/services/book-library.service';
+import { LibraryStateService } from '../../../../core/services/library-state.service';
 import { SharedTransitionService } from '../../../../core/services/shared-transition.service';
 import { progressPercent } from '../../../../core/utils/reading-progress.util';
 
@@ -25,88 +26,29 @@ const MENU_WIDTH = 176; // w-44
     CommonModule
   ],
   template: `
-    <!-- STANDARD CARD STYLE -->
-    @if (cardStyle === 'STANDARD') {
-      <div class="group relative bg-slate-800/60 backdrop-blur-md rounded-xl overflow-hidden border border-slate-700/50 hover:border-amber-500/50 transition-all duration-300 hover:shadow-xl hover:shadow-amber-500/10 hover:-translate-y-1 cursor-pointer flex flex-col h-full">
-        <!-- Cover Image Container -->
-        <div class="relative aspect-[2/3] w-full overflow-hidden bg-slate-900 cover-3d-host" [style.view-transition-name]="sharedTransition.getCoverName(book.id, 'book', instanceId)">
-          @if (book.coverPath) {
-            <img [src]="'local-cover:///' + book.coverPath" [alt]="book.title" loading="lazy" class="cover-3d-face w-full h-full object-cover" />
-          } @else {
-            <div class="w-full h-full flex flex-col items-center justify-center p-4 text-amber-500/70 bg-gradient-to-br from-slate-900 via-slate-900 to-amber-950/30">
-              <svg xmlns="http://www.w3.org/2000/svg" class="w-12 h-12 mb-2 opacity-75" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-              </svg>
-              <span class="text-xs text-center font-medium opacity-75 uppercase tracking-wider">{{ book.fileType || 'EPUB' }}</span>
-            </div>
-          }
+    <!-- UNIFIED CARD TEMPLATE (Smooth morphing between STANDARD and OVERLAY with blur collapse) -->
+    <div
+      class="group relative w-full rounded-xl overflow-hidden border border-slate-700/50 hover:border-amber-500/50 transition-all duration-300 ease-out hover:shadow-xl hover:shadow-amber-500/10 hover:-translate-y-1 cursor-pointer flex flex-col select-none"
+      [ngClass]="cardStyle === 'OVERLAY'
+        ? 'aspect-[2/3] justify-between bg-slate-900'
+        : 'h-full bg-slate-800/60 backdrop-blur-md'">
 
-          <!-- Top Badges & Actions -->
-          <div class="absolute top-2 left-2 right-2 flex justify-between items-center z-10 pointer-events-auto">
-            <span class="px-2 py-0.5 text-[10px] font-bold rounded-md bg-slate-950/80 backdrop-blur-md text-amber-300 border border-amber-500/30 uppercase tracking-wider shadow">
-              {{ book.fileType || 'EPUB' }}
-            </span>
-
-            <div class="flex items-center gap-1.5">
-              <button
-                (click)="onFavoriteClick($event)"
-                [class.opacity-100]="book.favorite"
-                [class.opacity-0]="!book.favorite"
-                class="group-hover:opacity-100 transition-all duration-300 p-1.5 rounded-full text-amber-400 hover:scale-110 border bg-transparent border-transparent shadow-none group-hover:bg-slate-950/80 group-hover:backdrop-blur-md group-hover:border-amber-500/20 group-hover:shadow-md translate-x-7 group-hover:translate-x-0"
-                [title]="book.favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" [class.fill-current]="book.favorite" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-                </svg>
-              </button>
-
-              <button
-                (click)="toggleMenu($event)"
-                class="opacity-0 group-hover:opacity-100 transition-all duration-300 p-1.5 rounded-full bg-slate-950/80 backdrop-blur-md text-slate-300 hover:text-white hover:scale-110 shadow-md border border-slate-700/50"
-                title="Opções">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                </svg>
-              </button>
-            </div>
-          </div>
-
-          @if (book.completed) {
-            <div class="absolute bottom-2 right-2 px-2 py-0.5 text-[10px] font-semibold rounded bg-emerald-500/90 text-slate-950 shadow">
-              Concluído
-            </div>
-          }
-        </div>
-
-        <div class="p-3 flex flex-col flex-1 justify-between">
-          <div>
-            <h3 class="text-sm font-semibold text-slate-100 line-clamp-2 sm:line-clamp-3 md:line-clamp-4 lg:line-clamp-5 group-hover:text-amber-400 transition-colors" [title]="book.title" [style.view-transition-name]="sharedTransition.getTitleName(book.id, 'book', instanceId)">
-              {{ book.title }}
-            </h3>
-            <p class="text-xs text-slate-400 line-clamp-1 mt-0.5">
-              {{ book.author || book.publisher || 'Autor Desconhecido' }}
-            </p>
-          </div>
-
-          <div class="mt-3">
-            <div class="flex justify-between items-center text-[10px] text-slate-400 mb-1">
-              <span>Pág. {{ book.bookMark || 0 }} / {{ book.pages || 0 }}</span>
-              <span>{{ getProgressPercentage() }}%</span>
-            </div>
-            <div class="w-full h-1 bg-slate-700/60 rounded-full overflow-hidden" [style.view-transition-name]="sharedTransition.getProgressName(book.id, 'book', instanceId)">
-              <div class="h-full bg-gradient-to-r from-amber-500 to-orange-500 rounded-full transition-all duration-300" [style.width.%]="getProgressPercentage()"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    }
-
-    <!-- OVERLAY CARD STYLE -->
-    @if (cardStyle === 'OVERLAY') {
-      <div class="group relative aspect-[2/3] w-full rounded-xl overflow-hidden border border-slate-700/50 hover:border-amber-500/50 transition-all duration-300 hover:shadow-xl hover:shadow-amber-500/10 hover:-translate-y-1 cursor-pointer flex flex-col justify-between bg-slate-900" [style.view-transition-name]="sharedTransition.getCoverName(book.id, 'book', instanceId)">
+      <!-- Cover Image Container -->
+      <div
+        class="overflow-hidden bg-slate-900 transition-all duration-300 ease-out"
+        [ngClass]="cardStyle === 'OVERLAY'
+          ? 'absolute inset-0 w-full h-full z-0'
+          : 'relative aspect-[2/3] w-full cover-3d-host z-0'"
+        [style.view-transition-name]="sharedTransition.getCoverName(book.id, 'book', instanceId)">
         @if (book.coverPath) {
-          <img [src]="'local-cover:///' + book.coverPath" [alt]="book.title" loading="lazy" class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+          <img
+            [src]="'local-cover:///' + book.coverPath"
+            [alt]="book.title"
+            loading="lazy"
+            class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            [ngClass]="cardStyle === 'STANDARD' ? 'cover-3d-face' : ''" />
         } @else {
-          <div class="absolute inset-0 w-full h-full flex flex-col items-center justify-center p-4 text-amber-500/70 bg-gradient-to-br from-slate-900 via-slate-900 to-amber-950/30">
+          <div class="w-full h-full flex flex-col items-center justify-center p-4 text-amber-500/70 bg-gradient-to-br from-slate-900 via-slate-900 to-amber-950/30">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-12 h-12 mb-2 opacity-75" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
             </svg>
@@ -114,56 +56,96 @@ const MENU_WIDTH = 176; // w-44
           </div>
         }
 
-        <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent opacity-80 group-hover:opacity-90 transition-opacity"></div>
-
-        <div class="relative z-10 p-2.5 flex justify-between items-center pointer-events-auto">
-          <span class="px-2 py-0.5 text-[10px] font-bold rounded-md bg-slate-950/80 backdrop-blur-md text-amber-300 border border-amber-500/30 uppercase tracking-wider shadow">
-            {{ book.fileType || 'EPUB' }}
-          </span>
-
-          <div class="flex items-center gap-1.5">
-            <button
-              (click)="onFavoriteClick($event)"
-              [class.opacity-100]="book.favorite"
-              [class.opacity-0]="!book.favorite"
-              class="group-hover:opacity-100 transition-all duration-300 p-1.5 rounded-full text-amber-400 hover:scale-110 border bg-transparent border-transparent shadow-none group-hover:bg-slate-950/80 group-hover:backdrop-blur-md group-hover:border-amber-500/20 group-hover:shadow-md translate-x-7 group-hover:translate-x-0"
-              [title]="book.favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'">
-              <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" [class.fill-current]="book.favorite" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-              </svg>
-            </button>
-
-            <button
-              (click)="toggleMenu($event)"
-              class="opacity-0 group-hover:opacity-100 transition-all duration-300 p-1.5 rounded-full bg-slate-950/80 backdrop-blur-md text-slate-300 hover:text-white hover:scale-110 shadow-md border border-slate-700/50"
-              title="Opções">
-              <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-              </svg>
-            </button>
+        @if (book.completed && cardStyle === 'STANDARD') {
+          <div class="absolute bottom-2 right-2 px-2 py-0.5 text-[10px] font-semibold rounded bg-emerald-500/90 text-slate-950 shadow z-10">
+            Concluído
           </div>
-        </div>
+        }
+      </div>
 
-        <div class="relative z-10 p-3 bg-slate-950/70 backdrop-blur-md border-t border-slate-700/40 rounded-b-xl">
-          <h3 class="text-sm font-semibold text-slate-100 line-clamp-2 sm:line-clamp-3 md:line-clamp-4 lg:line-clamp-5 group-hover:text-amber-400 transition-colors" [title]="book.title" [style.view-transition-name]="sharedTransition.getTitleName(book.id, 'book', instanceId)">
+      <!-- Gradient and Blur overlay (active in OVERLAY mode) -->
+      <div
+        class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent transition-opacity duration-300 ease-out z-[1] pointer-events-none"
+        [ngClass]="cardStyle === 'OVERLAY' ? 'opacity-80 group-hover:opacity-90' : 'opacity-0'"
+        [class.animate-blur-in]="libraryStateService.cardMorphState() === 'to-blur'">
+      </div>
+
+      <!-- Top Badges & Actions -->
+      <div class="absolute top-2 left-2 right-2 flex justify-between items-center z-10 pointer-events-auto">
+        <span class="px-2 py-0.5 text-[10px] font-bold rounded-md bg-slate-950/80 backdrop-blur-md text-amber-300 border border-amber-500/30 uppercase tracking-wider shadow">
+          {{ book.fileType || 'EPUB' }}
+        </span>
+
+        <div class="flex items-center gap-1.5">
+          <button
+            (click)="onFavoriteClick($event)"
+            [class.opacity-100]="book.favorite"
+            [class.opacity-0]="!book.favorite"
+            class="group-hover:opacity-100 transition-all duration-300 p-1.5 rounded-full text-amber-400 hover:scale-110 border bg-transparent border-transparent shadow-none group-hover:bg-slate-950/80 group-hover:backdrop-blur-md group-hover:border-amber-500/20 group-hover:shadow-md translate-x-7 group-hover:translate-x-0"
+            [title]="book.favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" [class.fill-current]="book.favorite" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+            </svg>
+          </button>
+
+          <button
+            (click)="toggleMenu($event)"
+            class="opacity-0 group-hover:opacity-100 transition-all duration-300 p-1.5 rounded-full bg-slate-950/80 backdrop-blur-md text-slate-300 hover:text-white hover:scale-110 shadow-md border border-slate-700/50"
+            title="Opções">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Details Panel (Collapses into card with blur in OVERLAY mode) -->
+      <div
+        [ngClass]="[
+          cardSize === 'small' ? 'p-2' : 'p-3',
+          cardStyle === 'OVERLAY'
+            ? 'absolute bottom-0 inset-x-0 z-10 bg-slate-950/75 backdrop-blur-md border-t border-slate-700/40 rounded-b-xl shadow-lg'
+            : 'relative z-10 flex-1 bg-transparent flex flex-col justify-between'
+        ]"
+        [class.animate-item-collapse]="libraryStateService.cardMorphState() === 'to-blur'"
+        class="transition-all duration-300 ease-out">
+        <div>
+          <h3
+            [ngClass]="cardSize === 'small' ? 'text-xs' : 'text-sm'"
+            class="font-semibold text-slate-100 line-clamp-2 sm:line-clamp-3 md:line-clamp-4 lg:line-clamp-5 group-hover:text-amber-400 transition-colors"
+            [title]="book.title"
+            [style.view-transition-name]="sharedTransition.getTitleName(book.id, 'book', instanceId)">
             {{ book.title }}
           </h3>
-          <p class="text-xs text-slate-300 line-clamp-1 mt-0.5 opacity-80">
+          <p
+            [ngClass]="[
+              cardSize === 'small' ? 'text-[11px]' : 'text-xs',
+              cardStyle === 'OVERLAY' ? 'text-slate-300 opacity-80' : 'text-slate-400'
+            ]"
+            class="line-clamp-1 mt-0.5">
             {{ book.author || book.publisher || 'Autor Desconhecido' }}
           </p>
+        </div>
 
-          <div class="mt-2.5">
-            <div class="flex justify-between items-center text-[10px] text-slate-300 mb-1 font-mono opacity-90">
-              <span>{{ book.bookMark || 0 }}/{{ book.pages || 0 }}p</span>
-              <span>{{ getProgressPercentage() }}%</span>
-            </div>
-            <div class="w-full h-1 bg-slate-800/80 rounded-full overflow-hidden" [style.view-transition-name]="sharedTransition.getProgressName(book.id, 'book', instanceId)">
-              <div class="h-full bg-gradient-to-r from-amber-500 to-orange-500 rounded-full transition-all duration-300" [style.width.%]="getProgressPercentage()"></div>
-            </div>
+        <div [ngClass]="cardSize === 'small' ? 'mt-1.5' : (cardStyle === 'OVERLAY' ? 'mt-2.5' : 'mt-3')">
+          <div
+            [ngClass]="[
+              cardSize === 'small' ? 'text-[9px] mb-0.5' : 'text-[10px] mb-1',
+              cardStyle === 'OVERLAY' ? 'text-slate-300 font-mono opacity-90' : 'text-slate-400'
+            ]"
+            class="flex justify-between items-center">
+            <span>{{ cardStyle === 'OVERLAY' ? (book.bookMark || 0) + '/' + (book.pages || 0) + 'p' : 'Pág. ' + (book.bookMark || 0) + ' / ' + (book.pages || 0) }}</span>
+            <span>{{ getProgressPercentage() }}%</span>
+          </div>
+          <div
+            class="w-full h-1 rounded-full overflow-hidden"
+            [ngClass]="cardStyle === 'OVERLAY' ? 'bg-slate-800/80' : 'bg-slate-700/60'"
+            [style.view-transition-name]="sharedTransition.getProgressName(book.id, 'book', instanceId)">
+            <div class="h-full bg-gradient-to-r from-amber-500 to-orange-500 rounded-full transition-all duration-300" [style.width.%]="getProgressPercentage()"></div>
           </div>
         </div>
       </div>
-    }
+    </div>
 
     <!-- Teleported dropdown (body) so card overflow/transform cannot clip it -->
     @if (isMenuOpen()) {
@@ -255,12 +237,14 @@ const MENU_WIDTH = 176; // w-44
 export class BookCardComponent implements OnDestroy {
   @Input({ required: true }) book!: Book;
   @Input() cardStyle: 'STANDARD' | 'OVERLAY' = 'STANDARD';
+  @Input() cardSize: 'big' | 'medium' | 'small' = 'medium';
   @Input() instanceId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2);
   @Output() setBookmark = new EventEmitter<Book>();
   @Output() openTracker = new EventEmitter<Book>();
   @Output() openTags = new EventEmitter<Book>();
 
   public sharedTransition = inject(SharedTransitionService);
+  public libraryStateService = inject(LibraryStateService);
   private bookService = inject(BookLibraryService);
   private host = inject(ElementRef<HTMLElement>);
 

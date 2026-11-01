@@ -1,5 +1,6 @@
-import { Injectable, signal, computed, effect } from '@angular/core';
+import { Injectable, signal, computed, effect, inject, ApplicationRef } from '@angular/core';
 import { LibraryViewType, OrderType } from '../models';
+import { LayoutAnimationService } from './layout-animation.service';
 
 export interface ActiveLibraryInfo {
   id: string;
@@ -189,10 +190,14 @@ export class LibraryStateService {
         return LibraryViewType.SEPARATOR_BIG;
       case LibraryViewType.GRID_MEDIUM:
         return LibraryViewType.SEPARATOR_MEDIUM;
+      case LibraryViewType.GRID_SMALL:
+        return LibraryViewType.SEPARATOR_SMALL;
       case LibraryViewType.GRID_OVERLAY:
         return LibraryViewType.SEPARATOR_OVERLAY;
       case LibraryViewType.CAROUSEL:
         return LibraryViewType.SEPARATOR_CAROUSEL;
+      case LibraryViewType.CAROUSEL_SMALL:
+        return LibraryViewType.SEPARATOR_CAROUSEL_SMALL;
       case LibraryViewType.LINE:
         return LibraryViewType.SEPARATOR_LINE;
       default:
@@ -237,9 +242,48 @@ export class LibraryStateService {
     }
   }
 
+  private layoutAnimation = inject(LayoutAnimationService);
+  private appRef = inject(ApplicationRef);
+
+  // Card resize state for backward compatibility
+  cardResizeState = signal<'shrink' | 'grow' | null>(null);
+  // Card morph state for grid <-> blur transition ('to-blur' | 'to-standard' | null)
+  cardMorphState = signal<'to-blur' | 'to-standard' | null>(null);
+
+  private morphTimeout: any = null;
+
+  private isBlurView(view: LibraryViewType): boolean {
+    return view === LibraryViewType.GRID_OVERLAY || view === LibraryViewType.SEPARATOR_OVERLAY;
+  }
+
+  private triggerMorphAnimation(dir: 'to-blur' | 'to-standard'): void {
+    if (this.morphTimeout) clearTimeout(this.morphTimeout);
+    this.cardMorphState.set(dir);
+    this.morphTimeout = setTimeout(() => {
+      this.cardMorphState.set(null);
+      this.morphTimeout = null;
+    }, 500);
+  }
+
   // Setters
   setCurrentView(view: LibraryViewType, context?: LibraryContext) {
     const ctx = context || this.activeContext();
+    const prevView = this.getView(ctx);
+    if (prevView === view) return;
+
+    // 1. Capture screen positions of visible cards prior to DOM mutation (FIRST)
+    this.layoutAnimation.capture();
+
+    const prevWasBlur = this.isBlurView(prevView);
+    const newIsBlur = this.isBlurView(view);
+
+    // Detect blur change for inner card collapse and gradient activation
+    if (!prevWasBlur && newIsBlur) {
+      this.triggerMorphAnimation('to-blur');
+    } else if (prevWasBlur && !newIsBlur) {
+      this.triggerMorphAnimation('to-standard');
+    }
+
     switch (ctx) {
       case 'book':
         this.bookView.set(view);
@@ -255,6 +299,16 @@ export class LibraryStateService {
         this.mangaView.set(view);
         break;
     }
+
+    // 2. Synchronously flush DOM mutations before Chromium can paint an intermediate frame
+    try {
+      this.appRef.tick();
+    } catch (e) {
+      // In case tick is already running or handled
+    }
+
+    // 3. Execute FLIP layout animation (LAST, INVERT, PLAY) synchronously
+    this.layoutAnimation.playSync();
   }
 
   setCurrentOrder(order: OrderType, context?: LibraryContext) {
@@ -305,20 +359,26 @@ export class LibraryStateService {
       ? [
           LibraryViewType.SEPARATOR_BIG,
           LibraryViewType.SEPARATOR_MEDIUM,
+          LibraryViewType.SEPARATOR_SMALL,
           LibraryViewType.SEPARATOR_OVERLAY,
           LibraryViewType.SEPARATOR_CAROUSEL,
+          LibraryViewType.SEPARATOR_CAROUSEL_SMALL,
           LibraryViewType.SEPARATOR_LINE
         ]
       : [
           LibraryViewType.GRID_BIG,
           LibraryViewType.GRID_MEDIUM,
+          LibraryViewType.GRID_SMALL,
           LibraryViewType.GRID_OVERLAY,
           LibraryViewType.CAROUSEL,
+          LibraryViewType.CAROUSEL_SMALL,
           LibraryViewType.LINE,
           LibraryViewType.SEPARATOR_BIG,
           LibraryViewType.SEPARATOR_MEDIUM,
+          LibraryViewType.SEPARATOR_SMALL,
           LibraryViewType.SEPARATOR_OVERLAY,
           LibraryViewType.SEPARATOR_CAROUSEL,
+          LibraryViewType.SEPARATOR_CAROUSEL_SMALL,
           LibraryViewType.SEPARATOR_LINE
         ];
 

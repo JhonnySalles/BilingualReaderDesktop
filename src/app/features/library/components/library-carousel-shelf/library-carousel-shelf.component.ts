@@ -8,11 +8,13 @@ import {
   signal,
   AfterViewInit,
   OnDestroy,
-  computed
+  computed,
+  inject
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Manga, Book, OrderType } from '../../../../core/models';
 import { LibraryCarouselCardComponent } from '../library-carousel-card/library-carousel-card.component';
+import { LayoutAnimationService } from '../../../../core/services/layout-animation.service';
 import { isBigScroll, smoothScrollHorizontalTo } from '../../../../shared/scroll-edges-button/scroll-edges.util';
 
 @Component({
@@ -133,13 +135,16 @@ import { isBigScroll, smoothScrollHorizontalTo } from '../../../../shared/scroll
           (pointerup)="onPointerUp()"
           (pointercancel)="onPointerUp()"
           (scroll)="onTrackScroll()"
-          class="flex items-stretch gap-3.5 overflow-x-auto pb-3 pt-1 px-1 custom-horizontal-scrollbar scroll-smooth cursor-grab select-none">
+          [class.overflow-visible]="layoutAnimation.isAnimating()"
+          [class.overflow-x-auto]="!layoutAnimation.isAnimating()"
+          class="flex items-stretch gap-3.5 pb-3 pt-1 px-1 custom-horizontal-scrollbar scroll-smooth cursor-grab select-none">
           
           @for (item of items; track getItemKey(item); let idx = $index) {
             <app-library-carousel-card
               [item]="item"
               [type]="type"
               [order]="order"
+              [cardSize]="cardSize"
               [instanceId]="'shelf-' + (shelfId || 'default') + '-' + getItemKey(item)"
               (open)="open.emit($event)"
               (openDetail)="openDetail.emit($event)"
@@ -175,10 +180,12 @@ import { isBigScroll, smoothScrollHorizontalTo } from '../../../../shared/scroll
   `]
 })
 export class LibraryCarouselShelfComponent implements AfterViewInit, OnDestroy {
+  public layoutAnimation = inject(LayoutAnimationService);
   @Input() title?: string;
   @Input({ required: true }) items: (Manga | Book)[] = [];
   @Input() type: 'manga' | 'book' = 'manga';
   @Input() order: OrderType = OrderType.Name;
+  @Input() cardSize: 'normal' | 'small' = 'normal';
   @Input() shelfId?: string;
 
   @Output() open = new EventEmitter<Manga | Book>();

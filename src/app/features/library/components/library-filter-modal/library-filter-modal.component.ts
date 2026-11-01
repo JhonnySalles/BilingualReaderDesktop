@@ -10,7 +10,7 @@ import { OrderType, LibraryViewType } from '../../../../core/models';
   template: `
     <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in" (click)="close.emit()">
       
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 w-full max-w-md shadow-2xl shadow-indigo-950/20 text-slate-200"
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl shadow-indigo-950/20 text-slate-200"
         (click)="$event.stopPropagation()">
         
         <!-- Header -->
@@ -119,10 +119,14 @@ export class LibraryFilterModalComponent {
     { label: 'Grande c/ Separador', value: LibraryViewType.SEPARATOR_BIG },
     { label: 'Grid Médio', value: LibraryViewType.GRID_MEDIUM },
     { label: 'Médio c/ Separador', value: LibraryViewType.SEPARATOR_MEDIUM },
+    { label: 'Grid Pequeno', value: LibraryViewType.GRID_SMALL },
+    { label: 'Pequeno c/ Separador', value: LibraryViewType.SEPARATOR_SMALL },
     { label: 'Grid Blur', value: LibraryViewType.GRID_OVERLAY },
     { label: 'Grid Blur c/ Sep.', value: LibraryViewType.SEPARATOR_OVERLAY },
     { label: 'Carrossel', value: LibraryViewType.CAROUSEL },
     { label: 'Carrossel c/ Sep.', value: LibraryViewType.SEPARATOR_CAROUSEL },
+    { label: 'Carrossel Pequeno', value: LibraryViewType.CAROUSEL_SMALL },
+    { label: 'Carrossel Peq. c/ Sep.', value: LibraryViewType.SEPARATOR_CAROUSEL_SMALL },
     { label: 'Linha Detalhada', value: LibraryViewType.LINE },
     { label: 'Linha c/ Separador', value: LibraryViewType.SEPARATOR_LINE }
   ];

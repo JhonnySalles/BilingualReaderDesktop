@@ -95,6 +95,7 @@ export interface VirtualHistoryGroup {
                       [title]="(hasSeparator() && group.date) ? formatDateLabel(group.date) : ''"
                       [items]="row.items"
                       [cardStyle]="effectiveCardStyle()"
+                      [cardSize]="isCarouselSmallView() ? 'small' : 'normal'"
                       [shelfId]="row.id"
                       [mediaType]="historyUi.activeType()"
                       (open)="openItem($event)"
@@ -121,8 +122,10 @@ export interface VirtualHistoryGroup {
                     @for (row of group.visibleRows; track row.id) {
                       @for (item of row.items; track item.id + '-' + item.sessionDate + '-' + item.fkReference) {
                         <app-history-stats-card
+                          [attr.data-flip-id]="'hist-' + item.fkReference + '-' + item.sessionDate"
                           [item]="item"
                           [cardStyle]="effectiveCardStyle()"
+                          [cardSize]="cardSize()"
                           (open)="openItem($event)"
                           (favoriteChange)="onItemFavoriteChanged($event)"
                           (historyCleared)="onItemRemoved($event)"
@@ -181,14 +184,46 @@ export class HistoryComponent implements OnInit, OnDestroy {
   });
 
   readonly isCarouselView = computed(() => {
-    return this.libraryState.currentView() === LibraryViewType.SEPARATOR_CAROUSEL;
+    const view = this.libraryState.currentView();
+    return view === LibraryViewType.SEPARATOR_CAROUSEL || view === LibraryViewType.SEPARATOR_CAROUSEL_SMALL;
+  });
+
+  readonly isCarouselSmallView = computed(() => {
+    return this.libraryState.currentView() === LibraryViewType.SEPARATOR_CAROUSEL_SMALL;
   });
 
   readonly isSeparatorCarouselView = computed(() => {
-    return this.libraryState.currentView() === LibraryViewType.SEPARATOR_CAROUSEL;
+    const view = this.libraryState.currentView();
+    return view === LibraryViewType.SEPARATOR_CAROUSEL || view === LibraryViewType.SEPARATOR_CAROUSEL_SMALL;
   });
 
   readonly hasSeparator = computed(() => true);
+
+  readonly cardSize = computed<'big' | 'medium' | 'small'>(() => {
+    const view = this.libraryState.currentView();
+    if (view === LibraryViewType.SEPARATOR_SMALL || view === LibraryViewType.SEPARATOR_CAROUSEL_SMALL || view === LibraryViewType.GRID_SMALL) {
+      return 'small';
+    }
+    if (view === LibraryViewType.SEPARATOR_BIG || view === LibraryViewType.GRID_BIG) {
+      return 'big';
+    }
+    return 'medium';
+  });
+
+  readonly gridClasses = computed(() => {
+    const view = this.libraryState.currentView();
+    if (view === LibraryViewType.GRID_SMALL || view === LibraryViewType.SEPARATOR_SMALL) {
+      return 'grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 xl:grid-cols-8 2xl:grid-cols-10 gap-3 sm:gap-4';
+    }
+    if (view === LibraryViewType.GRID_BIG || view === LibraryViewType.SEPARATOR_BIG) {
+      return 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6';
+    }
+    if (view === LibraryViewType.GRID_OVERLAY || view === LibraryViewType.SEPARATOR_OVERLAY) {
+      return 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4';
+    }
+    // GRID_MEDIUM / SEPARATOR_MEDIUM
+    return 'grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-3 sm:gap-4';
+  });
 
   readonly effectiveCardStyle = computed<'STANDARD' | 'OVERLAY'>(() => {
     const view = this.libraryState.currentView();
@@ -241,6 +276,14 @@ export class HistoryComponent implements OnInit, OnDestroy {
     const width = this.containerWidth();
     const view = this.libraryState.currentView();
 
+    if (view === LibraryViewType.GRID_SMALL || view === LibraryViewType.SEPARATOR_SMALL) {
+      if (width < 640) return 3;
+      if (width < 768) return 4;
+      if (width < 1024) return 5;
+      if (width < 1280) return 7;
+      if (width < 1536) return 8;
+      return 10;
+    }
     if (view === LibraryViewType.GRID_BIG || view === LibraryViewType.SEPARATOR_BIG) {
       if (width < 640) return 2;
       if (width < 768) return 3;
@@ -267,10 +310,13 @@ export class HistoryComponent implements OnInit, OnDestroy {
       return 84;
     }
     if (this.isCarouselView()) {
-      return 390;
+      return this.isCarouselSmallView() ? 280 : 390;
     }
     const view = this.libraryState.currentView();
     switch (view) {
+      case LibraryViewType.GRID_SMALL:
+      case LibraryViewType.SEPARATOR_SMALL:
+        return 290;
       case LibraryViewType.GRID_BIG:
       case LibraryViewType.SEPARATOR_BIG:
         return 430;
@@ -524,22 +570,6 @@ export class HistoryComponent implements OnInit, OnDestroy {
 
   formatTime(seconds: number): string {
     return formatShortDuration(seconds);
-  }
-
-  gridClasses(): string {
-    const view = this.libraryState.currentView();
-    switch (view) {
-      case LibraryViewType.GRID_BIG:
-      case LibraryViewType.SEPARATOR_BIG:
-        return 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5';
-      case LibraryViewType.GRID_OVERLAY:
-      case LibraryViewType.SEPARATOR_OVERLAY:
-        return 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5';
-      case LibraryViewType.GRID_MEDIUM:
-      case LibraryViewType.SEPARATOR_MEDIUM:
-      default:
-        return 'grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-5';
-    }
   }
 
   private async onFiltersChanged(): Promise<void> {

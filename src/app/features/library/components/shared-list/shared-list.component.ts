@@ -399,6 +399,7 @@ function buildSimpleCarouselRows(
                 [items]="row.items"
                 [type]="type"
                 [order]="currentOrder"
+                [cardSize]="isCarouselSmall ? 'small' : 'normal'"
                 [shelfId]="row.id"
                 (open)="open.emit($event)"
                 (openDetail)="openDetail.emit($event)"
@@ -417,7 +418,7 @@ function buildSimpleCarouselRows(
               }
 
               @if (!row.isLine) {
-                <div [class]="gridClasses + ' transition-all duration-300 pb-5'">
+                <div [class]="gridClasses + ' pb-5'">
                   @for (item of row.items; track getItemKey(item); let colIndex = $index) {
                   <div
                     draggable="true"
@@ -431,15 +432,17 @@ function buildSimpleCarouselRows(
                     (pointercancel)="onPointerCancel()"
                     (click)="onClick($event, item)"
                     (contextmenu)="onContextMenu($event, item)"
+                    [attr.data-flip-id]="'lib-' + getItemKey(item)"
                     [class.opacity-40]="draggedItemKey() === getItemKey(item)"
                     [class.border-2]="dragOverItemKey() === getItemKey(item)"
                     [class.border-indigo-500]="dragOverItemKey() === getItemKey(item)"
-                    class="cursor-pointer active:cursor-grabbing transition-all duration-200 rounded-xl overflow-hidden animate-fade-in-up">
+                    class="cursor-pointer active:cursor-grabbing rounded-xl overflow-hidden">
 
                     @if (type === 'manga') {
                       <app-manga-card
                         [manga]="$any(item)"
                         [cardStyle]="effectiveCardStyle"
+                        [cardSize]="cardSize"
                         [instanceId]="'shared-grid-manga-' + getItemKey(item)"
                         (setBookmark)="setBookmark.emit($event)"
                         (openTracker)="openTracker.emit($event)"
@@ -449,6 +452,7 @@ function buildSimpleCarouselRows(
                       <app-book-card
                         [book]="$any(item)"
                         [cardStyle]="effectiveCardStyle"
+                        [cardSize]="cardSize"
                         [instanceId]="'shared-grid-book-' + getItemKey(item)"
                         (setBookmark)="setBookmark.emit($event)"
                         (openTracker)="openTracker.emit($event)"
@@ -631,12 +635,28 @@ export class SharedListComponent implements OnInit, OnDestroy {
 
   get isCarouselView(): boolean {
     const view = this.libraryStateService.getView(this._type());
-    return view === LibraryViewType.CAROUSEL || view === LibraryViewType.SEPARATOR_CAROUSEL;
+    return (
+      view === LibraryViewType.CAROUSEL ||
+      view === LibraryViewType.CAROUSEL_SMALL ||
+      view === LibraryViewType.SEPARATOR_CAROUSEL ||
+      view === LibraryViewType.SEPARATOR_CAROUSEL_SMALL
+    );
+  }
+
+  get isCarouselSmall(): boolean {
+    const view = this.libraryStateService.getView(this._type());
+    return (
+      view === LibraryViewType.CAROUSEL_SMALL ||
+      view === LibraryViewType.SEPARATOR_CAROUSEL_SMALL
+    );
   }
 
   get isSeparatorCarouselView(): boolean {
     const view = this.libraryStateService.getView(this._type());
-    return view === LibraryViewType.SEPARATOR_CAROUSEL;
+    return (
+      view === LibraryViewType.SEPARATOR_CAROUSEL ||
+      view === LibraryViewType.SEPARATOR_CAROUSEL_SMALL
+    );
   }
 
   get isLineView(): boolean {
@@ -646,11 +666,26 @@ export class SharedListComponent implements OnInit, OnDestroy {
 
   get hasSeparator(): boolean {
     const view = this.libraryStateService.getView(this._type());
-    return view === LibraryViewType.SEPARATOR_BIG ||
+    return (
+      view === LibraryViewType.SEPARATOR_BIG ||
       view === LibraryViewType.SEPARATOR_MEDIUM ||
+      view === LibraryViewType.SEPARATOR_SMALL ||
       view === LibraryViewType.SEPARATOR_OVERLAY ||
       view === LibraryViewType.SEPARATOR_CAROUSEL ||
-      view === LibraryViewType.SEPARATOR_LINE;
+      view === LibraryViewType.SEPARATOR_CAROUSEL_SMALL ||
+      view === LibraryViewType.SEPARATOR_LINE
+    );
+  }
+
+  get cardSize(): 'big' | 'medium' | 'small' {
+    const view = this.libraryStateService.getView(this._type());
+    if (view === LibraryViewType.GRID_SMALL || view === LibraryViewType.SEPARATOR_SMALL) {
+      return 'small';
+    }
+    if (view === LibraryViewType.GRID_BIG || view === LibraryViewType.SEPARATOR_BIG) {
+      return 'big';
+    }
+    return 'medium';
   }
 
   get effectiveCardStyle(): 'STANDARD' | 'OVERLAY' {
@@ -670,6 +705,9 @@ export class SharedListComponent implements OnInit, OnDestroy {
       case LibraryViewType.GRID_OVERLAY:
       case LibraryViewType.SEPARATOR_OVERLAY:
         return 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5';
+      case LibraryViewType.GRID_SMALL:
+      case LibraryViewType.SEPARATOR_SMALL:
+        return 'grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 xl:grid-cols-8 2xl:grid-cols-10 gap-3 sm:gap-4';
       case LibraryViewType.GRID_MEDIUM:
       case LibraryViewType.SEPARATOR_MEDIUM:
       default:
@@ -695,6 +733,14 @@ export class SharedListComponent implements OnInit, OnDestroy {
       if (width < 1280) return 5;
       return 6;
     }
+    if (view === LibraryViewType.GRID_SMALL || view === LibraryViewType.SEPARATOR_SMALL) {
+      if (width < 640) return 3;
+      if (width < 768) return 4;
+      if (width < 1024) return 5;
+      if (width < 1280) return 7;
+      if (width < 1536) return 8;
+      return 10;
+    }
     // GRID_MEDIUM / SEPARATOR_MEDIUM
     if (width < 640) return 2;
     if (width < 768) return 4;
@@ -708,7 +754,7 @@ export class SharedListComponent implements OnInit, OnDestroy {
       return 84;
     }
     if (this.isCarouselView) {
-      return 350;
+      return this.isCarouselSmall ? 280 : 350;
     }
     const view = this.libraryStateService.getView(this._type());
     switch (view) {
@@ -718,6 +764,9 @@ export class SharedListComponent implements OnInit, OnDestroy {
       case LibraryViewType.GRID_OVERLAY:
       case LibraryViewType.SEPARATOR_OVERLAY:
         return 330;
+      case LibraryViewType.GRID_SMALL:
+      case LibraryViewType.SEPARATOR_SMALL:
+        return 290;
       case LibraryViewType.GRID_MEDIUM:
       case LibraryViewType.SEPARATOR_MEDIUM:
       default:

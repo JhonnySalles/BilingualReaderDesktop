@@ -8,11 +8,13 @@ import {
   signal,
   AfterViewInit,
   OnDestroy,
-  computed
+  computed,
+  inject
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HistoryStatisticsItem } from '../../../core/models';
 import { HistoryStatsCardComponent } from './history-stats-card.component';
+import { LayoutAnimationService } from '../../../core/services/layout-animation.service';
 import { isBigScroll } from '../../../shared/scroll-edges-button/scroll-edges.util';
 
 @Component({
@@ -131,13 +133,19 @@ import { isBigScroll } from '../../../shared/scroll-edges-button/scroll-edges.ut
           (pointerup)="onPointerUp()"
           (pointercancel)="onPointerUp()"
           (scroll)="onTrackScroll()"
-          class="flex items-stretch gap-3.5 overflow-x-auto pb-3 pt-1 px-1 custom-horizontal-scrollbar scroll-smooth cursor-grab select-none">
+          [class.overflow-visible]="layoutAnimation.isAnimating()"
+          [class.overflow-x-auto]="!layoutAnimation.isAnimating()"
+          class="flex items-stretch gap-3.5 pb-3 pt-1 px-1 custom-horizontal-scrollbar scroll-smooth cursor-grab select-none">
 
           @for (item of items; track getItemKey(item); let idx = $index) {
-            <div class="flex-none w-36 sm:w-44 xl:w-48 flex flex-col">
+            <div
+              [attr.data-flip-id]="'hist-' + item.fkReference + '-' + item.sessionDate"
+              class="flex-none flex flex-col"
+              [ngClass]="cardSize === 'small' ? 'w-28 sm:w-32 xl:w-36' : 'w-36 sm:w-44 xl:w-48'">
               <app-history-stats-card
                 [item]="item"
                 [cardStyle]="cardStyle"
+                [cardSize]="cardSize === 'small' ? 'small' : 'medium'"
                 [instanceId]="'shelf-' + (shelfId || 'hist') + '-' + getItemKey(item)"
                 (open)="onCardClick(item)"
                 (favoriteChange)="favoriteChange.emit($event)"
@@ -154,9 +162,11 @@ import { isBigScroll } from '../../../shared/scroll-edges-button/scroll-edges.ut
   `
 })
 export class HistoryStatsCarouselShelfComponent implements AfterViewInit, OnDestroy {
+  public layoutAnimation = inject(LayoutAnimationService);
   @Input() title?: string;
   @Input({ required: true }) items: HistoryStatisticsItem[] = [];
   @Input() cardStyle: 'STANDARD' | 'OVERLAY' = 'STANDARD';
+  @Input() cardSize: 'normal' | 'small' = 'normal';
   @Input() shelfId?: string;
   @Input() mediaType?: 'ALL' | 'MANGA' | 'BOOK' = 'ALL';
 

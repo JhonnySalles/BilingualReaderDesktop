@@ -97,19 +97,34 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
 
           <button
             (click)="selectLibrary(defaultMangaLibrary())"
+            [title]="defaultMangaLibrary().name + ' (' + defaultMangaLibrary().count + ' itens)'"
             [ngClass]="getNavMangaButtonClass(defaultMangaLibrary().id)"
-            class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-all cursor-pointer">
+            class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-all duration-300 cursor-pointer">
             <div class="flex items-center overflow-hidden">
-              <span class="text-base min-w-[1.25rem] text-center shrink-0">🎨</span>
-              <span class="overflow-hidden whitespace-nowrap truncate font-medium transition-all"
-                    [ngClass]="isExpanded() ? 'opacity-100 max-w-[150px] translate-x-0 ml-3 duration-300 delay-100 ease-out' : 'opacity-0 max-w-0 -translate-x-2 ml-0 duration-150 delay-0 ease-in'">
+              <div class="flex flex-col items-center justify-center shrink-0 min-w-[1.5rem]">
+                <span class="text-base text-center leading-none select-none">🎨</span>
+                <span
+                  class="text-[9px] font-bold leading-none tracking-tight text-center truncate max-w-[36px] transition-all select-none"
+                  [ngClass]="!isExpanded()
+                    ? 'opacity-100 max-h-4 mt-1 scale-100 duration-300 delay-100 ease-out'
+                    : 'opacity-0 max-h-0 mt-0 scale-75 duration-150 delay-0 ease-in pointer-events-none overflow-hidden'"
+                  [class.text-indigo-400]="isLibActive(defaultMangaLibrary().id)"
+                  [class.text-slate-400]="!isLibActive(defaultMangaLibrary().id)">
+                  {{ defaultMangaLibrary().count }}
+                </span>
+              </div>
+              <span
+                class="overflow-hidden whitespace-nowrap truncate font-medium transition-all"
+                [ngClass]="isExpanded() ? 'opacity-100 max-w-[150px] translate-x-0 ml-3 duration-300 delay-100 ease-out' : 'opacity-0 max-w-0 -translate-x-2 ml-0 duration-150 delay-0 ease-in'">
                 {{ defaultMangaLibrary().name }}
               </span>
             </div>
             <span
-              class="text-[10px] rounded overflow-hidden whitespace-nowrap flex items-center justify-center transition-all"
-              [ngClass]="getNavMangaBadgeClass(defaultMangaLibrary().id)"
-              [ngClass]="isExpanded() ? 'opacity-100 max-w-[40px] translate-x-0 px-1.5 py-0.5 duration-300 delay-100 ease-out' : 'opacity-0 max-w-0 -translate-x-1 px-0 py-0 duration-150 delay-0 ease-in'">
+              class="text-[10px] rounded overflow-hidden whitespace-nowrap flex items-center justify-center transition-all duration-300"
+              [ngClass]="[
+                getNavMangaBadgeClass(defaultMangaLibrary().id),
+                isExpanded() ? 'opacity-100 max-w-[40px] translate-x-0 px-1.5 py-0.5 delay-100 ease-out' : 'opacity-0 max-w-0 -translate-x-1 px-0 py-0 delay-0 ease-in pointer-events-none'
+              ]">
               {{ defaultMangaLibrary().count }}
             </span>
           </button>
@@ -117,19 +132,34 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
           @for (lib of customMangaLibraries(); track lib.id) {
             <button
               (click)="selectLibrary(lib)"
+              [title]="lib.name + ' (' + lib.count + ' itens)'"
               [ngClass]="getNavMangaButtonClass(lib.id)"
-              class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-all cursor-pointer">
+              class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-all duration-300 cursor-pointer">
               <div class="flex items-center overflow-hidden">
-                <span class="text-base min-w-[1.25rem] text-center shrink-0">🎨</span>
-                <span class="overflow-hidden whitespace-nowrap truncate transition-all"
-                      [ngClass]="isExpanded() ? 'opacity-100 max-w-[150px] translate-x-0 ml-3 duration-300 delay-100 ease-out' : 'opacity-0 max-w-0 -translate-x-2 ml-0 duration-150 delay-0 ease-in'">
+                <div class="flex flex-col items-center justify-center shrink-0 min-w-[1.5rem]">
+                  <span class="text-base text-center leading-none select-none">🎨</span>
+                  <span
+                    class="text-[9px] font-bold leading-none tracking-tight text-center truncate max-w-[36px] transition-all select-none"
+                    [ngClass]="!isExpanded()
+                      ? 'opacity-100 max-h-4 mt-1 scale-100 duration-300 delay-100 ease-out'
+                      : 'opacity-0 max-h-0 mt-0 scale-75 duration-150 delay-0 ease-in pointer-events-none overflow-hidden'"
+                    [class.text-indigo-400]="isLibActive(lib.id)"
+                    [class.text-slate-400]="!isLibActive(lib.id)">
+                    {{ lib.count }}
+                  </span>
+                </div>
+                <span
+                  class="overflow-hidden whitespace-nowrap truncate transition-all"
+                  [ngClass]="isExpanded() ? 'opacity-100 max-w-[150px] translate-x-0 ml-3 duration-300 delay-100 ease-out' : 'opacity-0 max-w-0 -translate-x-2 ml-0 duration-150 delay-0 ease-in'">
                   {{ lib.name }}
                 </span>
               </div>
               <span
-                class="text-[10px] rounded overflow-hidden whitespace-nowrap flex items-center justify-center transition-all"
-                [ngClass]="getNavMangaBadgeClass(lib.id)"
-                [ngClass]="isExpanded() ? 'opacity-100 max-w-[40px] translate-x-0 px-1.5 py-0.5 duration-300 delay-100 ease-out' : 'opacity-0 max-w-0 -translate-x-1 px-0 py-0 duration-150 delay-0 ease-in'">
+                class="text-[10px] rounded overflow-hidden whitespace-nowrap flex items-center justify-center transition-all duration-300"
+                [ngClass]="[
+                  getNavMangaBadgeClass(lib.id),
+                  isExpanded() ? 'opacity-100 max-w-[40px] translate-x-0 px-1.5 py-0.5 delay-100 ease-out' : 'opacity-0 max-w-0 -translate-x-1 px-0 py-0 delay-0 ease-in pointer-events-none'
+                ]">
                 {{ lib.count }}
               </span>
             </button>
@@ -143,19 +173,34 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
 
           <button
             (click)="selectLibrary(defaultBookLibrary())"
+            [title]="defaultBookLibrary().name + ' (' + defaultBookLibrary().count + ' itens)'"
             [ngClass]="getNavBookButtonClass(defaultBookLibrary().id)"
-            class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-all cursor-pointer">
+            class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-all duration-300 cursor-pointer">
             <div class="flex items-center overflow-hidden">
-              <span class="text-base min-w-[1.25rem] text-center shrink-0">📚</span>
-              <span class="overflow-hidden whitespace-nowrap truncate font-medium transition-all"
-                    [ngClass]="isExpanded() ? 'opacity-100 max-w-[150px] translate-x-0 ml-3 duration-300 delay-100 ease-out' : 'opacity-0 max-w-0 -translate-x-2 ml-0 duration-150 delay-0 ease-in'">
+              <div class="flex flex-col items-center justify-center shrink-0 min-w-[1.5rem]">
+                <span class="text-base text-center leading-none select-none">📚</span>
+                <span
+                  class="text-[9px] font-bold leading-none tracking-tight text-center truncate max-w-[36px] transition-all select-none"
+                  [ngClass]="!isExpanded()
+                    ? 'opacity-100 max-h-4 mt-1 scale-100 duration-300 delay-100 ease-out'
+                    : 'opacity-0 max-h-0 mt-0 scale-75 duration-150 delay-0 ease-in pointer-events-none overflow-hidden'"
+                  [class.text-amber-400]="isLibActive(defaultBookLibrary().id)"
+                  [class.text-slate-400]="!isLibActive(defaultBookLibrary().id)">
+                  {{ defaultBookLibrary().count }}
+                </span>
+              </div>
+              <span
+                class="overflow-hidden whitespace-nowrap truncate font-medium transition-all"
+                [ngClass]="isExpanded() ? 'opacity-100 max-w-[150px] translate-x-0 ml-3 duration-300 delay-100 ease-out' : 'opacity-0 max-w-0 -translate-x-2 ml-0 duration-150 delay-0 ease-in'">
                 {{ defaultBookLibrary().name }}
               </span>
             </div>
             <span
-              class="text-[10px] rounded overflow-hidden whitespace-nowrap flex items-center justify-center transition-all"
-              [ngClass]="getNavBookBadgeClass(defaultBookLibrary().id)"
-              [ngClass]="isExpanded() ? 'opacity-100 max-w-[40px] translate-x-0 px-1.5 py-0.5 duration-300 delay-100 ease-out' : 'opacity-0 max-w-0 -translate-x-1 px-0 py-0 duration-150 delay-0 ease-in'">
+              class="text-[10px] rounded overflow-hidden whitespace-nowrap flex items-center justify-center transition-all duration-300"
+              [ngClass]="[
+                getNavBookBadgeClass(defaultBookLibrary().id),
+                isExpanded() ? 'opacity-100 max-w-[40px] translate-x-0 px-1.5 py-0.5 delay-100 ease-out' : 'opacity-0 max-w-0 -translate-x-1 px-0 py-0 delay-0 ease-in pointer-events-none'
+              ]">
               {{ defaultBookLibrary().count }}
             </span>
           </button>
@@ -163,19 +208,34 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
           @for (lib of customBookLibraries(); track lib.id) {
             <button
               (click)="selectLibrary(lib)"
+              [title]="lib.name + ' (' + lib.count + ' itens)'"
               [ngClass]="getNavBookButtonClass(lib.id)"
-              class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-all cursor-pointer">
+              class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-all duration-300 cursor-pointer">
               <div class="flex items-center overflow-hidden">
-                <span class="text-base min-w-[1.25rem] text-center shrink-0">📚</span>
-                <span class="overflow-hidden whitespace-nowrap truncate transition-all"
-                      [ngClass]="isExpanded() ? 'opacity-100 max-w-[150px] translate-x-0 ml-3 duration-300 delay-100 ease-out' : 'opacity-0 max-w-0 -translate-x-2 ml-0 duration-150 delay-0 ease-in'">
+                <div class="flex flex-col items-center justify-center shrink-0 min-w-[1.5rem]">
+                  <span class="text-base text-center leading-none select-none">📚</span>
+                  <span
+                    class="text-[9px] font-bold leading-none tracking-tight text-center truncate max-w-[36px] transition-all select-none"
+                    [ngClass]="!isExpanded()
+                      ? 'opacity-100 max-h-4 mt-1 scale-100 duration-300 delay-100 ease-out'
+                      : 'opacity-0 max-h-0 mt-0 scale-75 duration-150 delay-0 ease-in pointer-events-none overflow-hidden'"
+                    [class.text-amber-400]="isLibActive(lib.id)"
+                    [class.text-slate-400]="!isLibActive(lib.id)">
+                    {{ lib.count }}
+                  </span>
+                </div>
+                <span
+                  class="overflow-hidden whitespace-nowrap truncate transition-all"
+                  [ngClass]="isExpanded() ? 'opacity-100 max-w-[150px] translate-x-0 ml-3 duration-300 delay-100 ease-out' : 'opacity-0 max-w-0 -translate-x-2 ml-0 duration-150 delay-0 ease-in'">
                   {{ lib.name }}
                 </span>
               </div>
               <span
-                class="text-[10px] rounded overflow-hidden whitespace-nowrap flex items-center justify-center transition-all"
-                [ngClass]="getNavBookBadgeClass(lib.id)"
-                [ngClass]="isExpanded() ? 'opacity-100 max-w-[40px] translate-x-0 px-1.5 py-0.5 duration-300 delay-100 ease-out' : 'opacity-0 max-w-0 -translate-x-1 px-0 py-0 duration-150 delay-0 ease-in'">
+                class="text-[10px] rounded overflow-hidden whitespace-nowrap flex items-center justify-center transition-all duration-300"
+                [ngClass]="[
+                  getNavBookBadgeClass(lib.id),
+                  isExpanded() ? 'opacity-100 max-w-[40px] translate-x-0 px-1.5 py-0.5 delay-100 ease-out' : 'opacity-0 max-w-0 -translate-x-1 px-0 py-0 delay-0 ease-in pointer-events-none'
+                ]">
                 {{ lib.count }}
               </span>
             </button>
@@ -390,6 +450,12 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
                     </svg>
                   }
+                  @case (LibraryViewType.GRID_SMALL) {
+                    <!-- Grid Small: 9 small grid blocks -->
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" [ngClass]="currentLibraryType() === 'book' ? 'text-amber-400' : 'text-indigo-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4h3v3H4zm6 0h3v3h-3zm6 0h3v3h-3zM4 10h3v3H4zm6 0h3v3h-3zm6 0h3v3h-3zM4 16h3v3H4zm6 0h3v3h-3zm6 0h3v3h-3z" />
+                    </svg>
+                  }
                   @case (LibraryViewType.GRID_OVERLAY) {
                     <!-- Grid Blur / Overlay: Card with blur layer / image icon -->
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" [ngClass]="currentLibraryType() === 'book' ? 'text-amber-400' : 'text-indigo-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -400,6 +466,12 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
                     <!-- Carousel: 3 horizontal cards side-by-side -->
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" [ngClass]="currentLibraryType() === 'book' ? 'text-amber-400' : 'text-indigo-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h4v14H3zm7 0h4v14h-4zm7 0h4v14h-4z" />
+                    </svg>
+                  }
+                  @case (LibraryViewType.CAROUSEL_SMALL) {
+                    <!-- Carousel Small: 4 narrower horizontal cards -->
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" [ngClass]="currentLibraryType() === 'book' ? 'text-amber-400' : 'text-indigo-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2 6h3v12H2zm5 0h3v12H7zm5 0h3v12h-3zm5 0h3v12h-3z" />
                     </svg>
                   }
                   @case (LibraryViewType.SEPARATOR_BIG) {
@@ -414,6 +486,12 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h18M4 8h5v5H4zm11 0h5v5h-5zM4 15h5v5H4zm11 0h5v5h-5z" />
                     </svg>
                   }
+                  @case (LibraryViewType.SEPARATOR_SMALL) {
+                    <!-- Small with Separator: Header bar on top + small grid blocks -->
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" [ngClass]="currentLibraryType() === 'book' ? 'text-amber-400' : 'text-indigo-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h18M4 7h3v3H4zm6 0h3v3h-3zm6 0h3v3h-3zM4 12h3v3H4zm6 0h3v3h-3zm6 0h3v3h-3zM4 17h3v3H4zm6 0h3v3h-3zm6 0h3v3h-3z" />
+                    </svg>
+                  }
                   @case (LibraryViewType.SEPARATOR_OVERLAY) {
                     <!-- Blur with Separator: Header bar + image overlay card -->
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" [ngClass]="currentLibraryType() === 'book' ? 'text-amber-400' : 'text-indigo-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -424,6 +502,12 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
                     <!-- Separator Carousel: Header line on top + horizontal cards -->
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" [ngClass]="currentLibraryType() === 'book' ? 'text-amber-400' : 'text-indigo-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h18M3 8h4v12H3zm7 0h4v12h-4zm7 0h4v12h-4z" />
+                    </svg>
+                  }
+                  @case (LibraryViewType.SEPARATOR_CAROUSEL_SMALL) {
+                    <!-- Separator Carousel Small: Header line + 4 narrower cards -->
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" [ngClass]="currentLibraryType() === 'book' ? 'text-amber-400' : 'text-indigo-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2 3h20M2 7h3v13H2zm5 0h3v13H7zm5 0h3v13h-3zm5 0h3v13h-3z" />
                     </svg>
                   }
                   @case (LibraryViewType.SEPARATOR_LINE) {
@@ -540,6 +624,11 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
                     </svg>
                   }
+                  @case (LibraryViewType.GRID_SMALL) {
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4h3v3H4zm6 0h3v3h-3zm6 0h3v3h-3zM4 10h3v3H4zm6 0h3v3h-3zm6 0h3v3h-3zM4 16h3v3H4zm6 0h3v3h-3zm6 0h3v3h-3z" />
+                    </svg>
+                  }
                   @case (LibraryViewType.GRID_OVERLAY) {
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -548,6 +637,11 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
                   @case (LibraryViewType.CAROUSEL) {
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h4v14H3zm7 0h4v14h-4zm7 0h4v14h-4z" />
+                    </svg>
+                  }
+                  @case (LibraryViewType.CAROUSEL_SMALL) {
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2 6h3v12H2zm5 0h3v12H7zm5 0h3v12h-3zm5 0h3v12h-3z" />
                     </svg>
                   }
                   @case (LibraryViewType.SEPARATOR_BIG) {
@@ -560,6 +654,11 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h18M4 8h5v5H4zm11 0h5v5h-5zM4 15h5v5H4zm11 0h5v5h-5z" />
                     </svg>
                   }
+                  @case (LibraryViewType.SEPARATOR_SMALL) {
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h18M4 7h3v3H4zm6 0h3v3h-3zm6 0h3v3h-3zM4 12h3v3H4zm6 0h3v3h-3zm6 0h3v3h-3zM4 17h3v3H4zm6 0h3v3h-3zm6 0h3v3h-3z" />
+                    </svg>
+                  }
                   @case (LibraryViewType.SEPARATOR_OVERLAY) {
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h18M4 8h16v12H4zM4 16h16" />
@@ -568,6 +667,11 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
                   @case (LibraryViewType.SEPARATOR_CAROUSEL) {
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h18M3 8h4v12H3zm7 0h4v12h-4zm7 0h4v12h-4z" />
+                    </svg>
+                  }
+                  @case (LibraryViewType.SEPARATOR_CAROUSEL_SMALL) {
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2 3h20M2 7h3v13H2zm5 0h3v13H7zm5 0h3v13h-3zm5 0h3v13h-3z" />
                     </svg>
                   }
                   @case (LibraryViewType.SEPARATOR_LINE) {
@@ -1135,8 +1239,10 @@ export class MainLayoutComponent implements OnInit, AfterViewInit {
       switch (view) {
         case LibraryViewType.SEPARATOR_BIG: return 'Grid Grande';
         case LibraryViewType.SEPARATOR_MEDIUM: return 'Grid Médio';
+        case LibraryViewType.SEPARATOR_SMALL: return 'Grid Pequeno';
         case LibraryViewType.SEPARATOR_OVERLAY: return 'Grid Blur';
         case LibraryViewType.SEPARATOR_CAROUSEL: return 'Carrossel';
+        case LibraryViewType.SEPARATOR_CAROUSEL_SMALL: return 'Carrossel Pequeno';
         case LibraryViewType.SEPARATOR_LINE: return 'Linha Detalhada';
         default: return 'Grade';
       }
@@ -1145,12 +1251,16 @@ export class MainLayoutComponent implements OnInit, AfterViewInit {
     switch (view) {
       case LibraryViewType.GRID_BIG: return 'Grid Grande';
       case LibraryViewType.GRID_MEDIUM: return 'Grid Médio';
+      case LibraryViewType.GRID_SMALL: return 'Grid Pequeno';
       case LibraryViewType.GRID_OVERLAY: return 'Grid Blur';
       case LibraryViewType.CAROUSEL: return 'Carrossel';
+      case LibraryViewType.CAROUSEL_SMALL: return 'Carrossel Pequeno';
       case LibraryViewType.SEPARATOR_BIG: return 'Grande c/ Separador';
       case LibraryViewType.SEPARATOR_MEDIUM: return 'Médio c/ Separador';
+      case LibraryViewType.SEPARATOR_SMALL: return 'Pequeno c/ Separador';
       case LibraryViewType.SEPARATOR_OVERLAY: return 'Grid Blur c/ Separador';
       case LibraryViewType.SEPARATOR_CAROUSEL: return 'Carrossel c/ Separador';
+      case LibraryViewType.SEPARATOR_CAROUSEL_SMALL: return 'Carrossel Pequeno c/ Separador';
       case LibraryViewType.SEPARATOR_LINE: return 'Linha c/ Separador';
       case LibraryViewType.LINE: return 'Linha Detalhada';
       default: return 'Grade';

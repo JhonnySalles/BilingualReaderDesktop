@@ -627,5 +627,47 @@ html[data-covers-3d='1'] .cover-3d-host:hover .cover-3d-face {
   }
 }
 
+/* ==========================================================================
+   CARD TRANSITIONS: GRID RESIZING & BLUR COLLAPSE
+   ========================================================================== */
+
+/* 2. Animação de colapso do item para dentro do card e início do efeito blur */
+@keyframes item-collapse-into-card {
+  0% {
+    transform: translateY(26px);
+    opacity: 0.2;
+    backdrop-filter: blur(0px);
+    background-color: transparent;
+  }
+  40% {
+    backdrop-filter: blur(4px);
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+    backdrop-filter: blur(12px);
+    background-color: rgba(2, 6, 23, 0.75);
+  }
+}
+
+@keyframes blur-fade-in {
+  0% {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+  }
+  100% {
+    opacity: 0.85;
+    backdrop-filter: blur(8px);
+  }
+}
+
+.animate-item-collapse {
+  animation: item-collapse-into-card 0.38s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-blur-in {
+  animation: blur-fade-in 0.38s ease-out forwards;
+}
+
 
 

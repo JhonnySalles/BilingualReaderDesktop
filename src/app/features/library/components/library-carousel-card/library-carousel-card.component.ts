@@ -25,10 +25,14 @@ const MENU_WIDTH = 180;
   imports: [CommonModule],
   template: `
     <div
-      class="group relative flex-none w-36 sm:w-40 bg-slate-900/90 rounded-xl overflow-hidden border transition-all duration-300 flex flex-col select-none cursor-pointer"
-      [ngClass]="type === 'manga'
-        ? 'border-slate-800/80 manga-card-hover hover:shadow-xl hover:-translate-y-1.5'
-        : 'border-slate-800/80 hover:border-amber-500/60 hover:shadow-xl hover:shadow-amber-500/10 hover:-translate-y-1.5'"
+      [attr.data-flip-id]="'lib-' + (item.id || $any(item).path)"
+      class="group relative flex-none bg-slate-900/90 rounded-xl overflow-hidden border transition-all duration-300 flex flex-col select-none cursor-pointer"
+      [ngClass]="[
+        cardSize === 'small' ? 'w-28 sm:w-32' : 'w-36 sm:w-40',
+        type === 'manga'
+          ? 'border-slate-800/80 manga-card-hover hover:shadow-xl hover:-translate-y-1.5'
+          : 'border-slate-800/80 hover:border-amber-500/60 hover:shadow-xl hover:shadow-amber-500/10 hover:-translate-y-1.5'
+      ]"
       (pointerdown)="onPointerDown($event)"
       (pointerup)="onPointerUp($event)"
       (pointercancel)="onPointerCancel()"
@@ -122,7 +126,7 @@ const MENU_WIDTH = 180;
       </div>
 
       <!-- Card Footer / Title -->
-      <div class="p-2.5 flex flex-col justify-between flex-1 min-h-[3.75rem] bg-slate-900/60">
+      <div [ngClass]="cardSize === 'small' ? 'p-2 min-h-[3.25rem]' : 'p-2.5 min-h-[3.75rem]'" class="flex flex-col justify-between flex-1 bg-slate-900/60">
         <div>
           <!-- If in Series Mode, highlight volume nicely -->
           @if (isSeriesOrder && hasVolume) {
@@ -252,6 +256,7 @@ export class LibraryCarouselCardComponent implements OnDestroy {
   @Input({ required: true }) item!: Manga | Book;
   @Input() type: 'manga' | 'book' = 'manga';
   @Input() order: OrderType = OrderType.Name;
+  @Input() cardSize: 'normal' | 'small' = 'normal';
   @Input() instanceId: string = 'carousel';
 
   @Output() open = new EventEmitter<Manga | Book>();
