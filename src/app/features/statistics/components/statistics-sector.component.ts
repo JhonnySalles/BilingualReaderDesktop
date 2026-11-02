@@ -32,9 +32,7 @@ import { StatisticsChartComponent } from './statistics-chart.component';
           <app-statistics-kpi-card
             label="Lendo"
             [value]="stats.reading"
-            [accent]="accent"
-            [clickable]="true"
-            (pressed)="openHistory.emit({ year: selectedYear, libraryId: selectedLibraryId })" />
+            [accent]="accent" />
           <app-statistics-kpi-card
             label="Pendentes"
             [value]="stats.toRead"
@@ -51,7 +49,11 @@ import { StatisticsChartComponent } from './statistics-chart.component';
 
         <div class="rounded-xl bg-slate-800 border border-slate-700 p-4 space-y-3">
           <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Concluído</h3>
-          <div class="grid grid-cols-2 gap-3">
+          <div class="grid grid-cols-3 gap-3">
+            <div class="text-center">
+              <p class="text-[10px] text-slate-500 mb-1">{{ type === 'MANGA' ? 'Mangás/Comics' : 'Livros' }}</p>
+              <p class="text-sm font-semibold text-slate-200 tabular-nums">{{ stats.read }}</p>
+            </div>
             <div class="text-center">
               <p class="text-[10px] text-slate-500 mb-1">Páginas</p>
               <p class="text-sm font-semibold text-slate-200 tabular-nums">{{ stats.completeReadingPages }}</p>
@@ -65,7 +67,11 @@ import { StatisticsChartComponent } from './statistics-chart.component';
 
         <div class="rounded-xl bg-slate-800 border border-slate-700 p-4 space-y-3">
           <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Em andamento</h3>
-          <div class="grid grid-cols-2 gap-3">
+          <div class="grid grid-cols-3 gap-3">
+            <div class="text-center">
+              <p class="text-[10px] text-slate-500 mb-1">{{ type === 'MANGA' ? 'Mangás/Comics' : 'Livros' }}</p>
+              <p class="text-sm font-semibold text-slate-200 tabular-nums">{{ stats.reading }}</p>
+            </div>
             <div class="text-center">
               <p class="text-[10px] text-slate-500 mb-1">Páginas</p>
               <p class="text-sm font-semibold text-slate-200 tabular-nums">{{ stats.currentReadingPages }}</p>
@@ -79,7 +85,11 @@ import { StatisticsChartComponent } from './statistics-chart.component';
 
         <div class="rounded-xl bg-slate-800 border border-slate-700 p-4 space-y-3">
           <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Mês atual</h3>
-          <div class="grid grid-cols-2 gap-3">
+          <div class="grid grid-cols-3 gap-3">
+            <div class="text-center">
+              <p class="text-[10px] text-slate-500 mb-1">{{ type === 'MANGA' ? 'Mangás/Comics' : 'Livros' }}</p>
+              <p class="text-sm font-semibold text-slate-200 tabular-nums">{{ stats.readThisMonth }}</p>
+            </div>
             <div class="text-center">
               <p class="text-[10px] text-slate-500 mb-1">Páginas</p>
               <p class="text-sm font-semibold text-slate-200 tabular-nums">{{ stats.currentMonthPages }}</p>

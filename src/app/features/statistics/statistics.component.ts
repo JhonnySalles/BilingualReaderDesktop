@@ -4,11 +4,12 @@ import { Router } from '@angular/router';
 import { StatisticsService } from '../../core/services/statistics.service';
 import { StatisticsSectorComponent } from './components/statistics-sector.component';
 import { StatisticsHeatmapComponent } from './components/statistics-heatmap.component';
+import { StatisticsLibrariesCardComponent } from './components/statistics-libraries-card.component';
 
 @Component({
   selector: 'app-statistics',
   standalone: true,
-  imports: [CommonModule, StatisticsSectorComponent, StatisticsHeatmapComponent],
+  imports: [CommonModule, StatisticsSectorComponent, StatisticsHeatmapComponent, StatisticsLibrariesCardComponent],
   template: `
     <div class="h-full flex flex-col bg-slate-950 text-slate-100 overflow-hidden select-none">
       @if (stats.loading()) {
@@ -46,6 +47,9 @@ import { StatisticsHeatmapComponent } from './components/statistics-heatmap.comp
             (filtersChange)="onBookFilters($event)"
             (openHistory)="goHistory('book', $event.year, $event.libraryId)" />
         </div>
+
+        <!-- Estatísticas por Biblioteca -->
+        <app-statistics-libraries-card [stats]="stats.librariesStats()" />
       </div>
     </div>
   `

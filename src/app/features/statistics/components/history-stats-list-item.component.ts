@@ -32,7 +32,7 @@ const MENU_WIDTH = 176; // w-44
       [ngClass]="item.type === 'MANGA' ? 'manga-card-hover' : 'hover:border-amber-500/40'">
 
       <!-- Thumbnail & Info -->
-      <div class="flex items-stretch gap-3 min-w-0 flex-initial max-w-[calc(100%-5.5rem)] sm:max-w-[55%]">
+      <div class="flex items-stretch gap-3 min-w-0 flex-1">
         <div
           class="relative self-stretch aspect-[2/3] min-h-[4.5rem] bg-slate-900 rounded overflow-hidden shrink-0 border border-slate-700/50"
           [style.view-transition-name]="sharedTransition.getCoverName(item.fkReference, item.type === 'MANGA' ? 'manga' : 'book', instanceId)">
@@ -103,8 +103,8 @@ const MENU_WIDTH = 176; // w-44
         </div>
       </div>
 
-      <!-- Reading Progress (Ocupa o espaço livre disponível) -->
-      <div class="flex-1 min-w-[120px] hidden sm:flex flex-col justify-center px-2">
+      <!-- Reading Progress -->
+      <div class="w-[24%] min-w-[150px] max-w-[280px] shrink-0 hidden sm:flex flex-col justify-center px-2">
         <div class="flex justify-between text-[10px] text-slate-400 mb-1">
           <span>{{ item.bookMark }}/{{ item.pages }} págs</span>
           <span>{{ progressPercent() }}%</span>

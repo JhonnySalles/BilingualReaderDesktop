@@ -669,5 +669,49 @@ html[data-covers-3d='1'] .cover-3d-host:hover .cover-3d-face {
   animation: blur-fade-in 0.38s ease-out forwards;
 }
 
+/* 3. Animação de transformação/troca de ícones (View mode & actions) */
+@keyframes icon-swap {
+  0% {
+    transform: scale(0.55) rotate(-35deg);
+    opacity: 0.2;
+  }
+  60% {
+    transform: scale(1.12) rotate(6deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+.animate-icon-swap {
+  animation: icon-swap 0.32s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* 4. Animação mecânica de giro de engrenagem (Configurações) */
+@keyframes gear-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  30% {
+    transform: rotate(120deg);
+  }
+  65% {
+    transform: rotate(280deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-gear-spin {
+  animation: gear-spin 0.6s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+.sort-arrow-transition {
+  transition: transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
 
 

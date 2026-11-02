@@ -32,9 +32,28 @@ export interface SectorStats {
   averageMinutesPerPage: number;
 }
 
+export interface LibraryStatsItem {
+  id: number;
+  title: string;
+  type: HistoryContentType;
+  path: string;
+  totalFiles: number;
+  completed: number;
+  reading: number;
+  readThisMonth: number;
+  totalPagesRead: number;
+  totalTimeSeconds: number;
+  monthPagesRead: number;
+  monthTimeSeconds: number;
+}
+
 export interface StatisticsOverview {
   manga: SectorStats;
   book: SectorStats;
+  libraries?: {
+    manga: LibraryStatsItem[];
+    book: LibraryStatsItem[];
+  };
 }
 
 export interface ChartPoint {

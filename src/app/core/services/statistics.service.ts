@@ -4,6 +4,7 @@ import {
   SectorStats,
   ChartPoint,
   LibraryOption,
+  LibraryStatsItem,
   HistoryStatisticsItem,
   HistoryContentType,
   StatisticsOverview,
@@ -61,6 +62,7 @@ export class StatisticsService {
   readonly loading = signal(false);
   readonly mangaStats = signal<SectorStats>(emptySector('MANGA'));
   readonly bookStats = signal<SectorStats>(emptySector('BOOK'));
+  readonly librariesStats = signal<{ manga: LibraryStatsItem[]; book: LibraryStatsItem[] }>({ manga: [], book: [] });
   readonly mangaChart = signal<ChartPoint[]>([]);
   readonly bookChart = signal<ChartPoint[]>([]);
   readonly mangaYears = signal<number[]>([new Date().getFullYear()]);
@@ -78,6 +80,9 @@ export class StatisticsService {
       if (overview) {
         this.mangaStats.set(overview.manga);
         this.bookStats.set(overview.book);
+        if (overview.libraries) {
+          this.librariesStats.set(overview.libraries);
+        }
       }
 
       const [mangaYears, bookYears, mangaLibs, bookLibs, heatmap] = await Promise.all([

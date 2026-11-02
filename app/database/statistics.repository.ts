@@ -43,13 +43,39 @@ export interface LibraryOption {
   path: string;
 }
 
+export interface LibraryStatsItem {
+  id: number;
+  title: string;
+  type: HistoryContentType;
+  path: string;
+  totalFiles: number;
+  completed: number;
+  reading: number;
+  readThisMonth: number;
+  totalPagesRead: number;
+  totalTimeSeconds: number;
+  monthPagesRead: number;
+  monthTimeSeconds: number;
+}
+
 export class StatisticsRepository {
   constructor(private db: Database.Database) {}
 
-  public getOverview(): { manga: SectorStats; book: SectorStats } {
+  public getOverview(): {
+    manga: SectorStats;
+    book: SectorStats;
+    libraries: {
+      manga: LibraryStatsItem[];
+      book: LibraryStatsItem[];
+    };
+  } {
     return {
       manga: this.getSectorStats('MANGA'),
-      book: this.getSectorStats('BOOK')
+      book: this.getSectorStats('BOOK'),
+      libraries: {
+        manga: this.getLibrariesStats('MANGA'),
+        book: this.getLibrariesStats('BOOK')
+      }
     };
   }
 
@@ -269,6 +295,65 @@ export class StatisticsRepository {
     // A biblioteca padrão vem primeiro
     if (defaultLibOption) {
       result.unshift(defaultLibOption);
+    }
+
+    return result;
+  }
+
+  public getLibrariesStats(type: HistoryContentType): LibraryStatsItem[] {
+    const libraries = this.listLibrariesByType(type);
+    const table = type === 'MANGA' ? 'Manga' : 'Book';
+    const currentMonthPrefix = this.toLocalDateKey(new Date()).slice(0, 7);
+
+    const result: LibraryStatsItem[] = [];
+
+    for (const lib of libraries) {
+      const isDefault = this.isDefaultLibraryId(lib.id, type);
+
+      const libCondition = isDefault
+        ? `(id_library = ? OR id_library = 0 OR id_library IS NULL)`
+        : `id_library = ?`;
+
+      const counts = this.db.prepare(`
+        SELECT
+          COUNT(*) AS totalFiles,
+          COALESCE(SUM(CASE WHEN completed = 1 OR book_mark >= pages THEN 1 ELSE 0 END), 0) AS completed,
+          COALESCE(SUM(CASE WHEN IFNULL(completed, 0) = 0 AND book_mark > 0 AND book_mark < pages THEN 1 ELSE 0 END), 0) AS reading
+        FROM ${table}
+        WHERE ${libCondition} AND excluded = 0
+      `).get(lib.id) as any;
+
+      const history = this.db.prepare(`
+        SELECT
+          COALESCE(SUM(CASE WHEN page_end > page_start THEN page_end - page_start ELSE 0 END), 0) AS totalPagesRead,
+          COALESCE(SUM(seconds_read), 0) AS totalTimeSeconds
+        FROM History
+        WHERE type = ? AND ${libCondition}
+      `).get(type, lib.id) as any;
+
+      const monthHistory = this.db.prepare(`
+        SELECT
+          COALESCE(COUNT(DISTINCT CASE WHEN completed = 1 THEN id_reference END), 0) AS readThisMonth,
+          COALESCE(SUM(CASE WHEN page_end > page_start THEN page_end - page_start ELSE 0 END), 0) AS monthPagesRead,
+          COALESCE(SUM(seconds_read), 0) AS monthTimeSeconds
+        FROM History
+        WHERE type = ? AND ${libCondition} AND SUBSTR(date_time_start, 1, 7) = ?
+      `).get(type, lib.id, currentMonthPrefix) as any;
+
+      result.push({
+        id: lib.id,
+        title: lib.title,
+        type,
+        path: lib.path,
+        totalFiles: Number(counts?.totalFiles ?? 0),
+        completed: Number(counts?.completed ?? 0),
+        reading: Number(counts?.reading ?? 0),
+        readThisMonth: Number(monthHistory?.readThisMonth ?? 0),
+        totalPagesRead: Number(history?.totalPagesRead ?? 0),
+        totalTimeSeconds: Number(history?.totalTimeSeconds ?? 0),
+        monthPagesRead: Number(monthHistory?.monthPagesRead ?? 0),
+        monthTimeSeconds: Number(monthHistory?.monthTimeSeconds ?? 0)
+      });
     }
 
     return result;

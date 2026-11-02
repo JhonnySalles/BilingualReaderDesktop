@@ -86,21 +86,20 @@ const MENU_WIDTH = 176; // w-44
         </div>
       </div>
 
-      <!-- Right: Reading Progress & Pages -->
-      <div class="flex items-center gap-4 shrink-0 py-2">
-        <div class="w-32 hidden sm:block">
-          <div class="flex justify-between text-[10px] text-slate-400 mb-1">
-            <span>{{ book.bookMark || 0 }}/{{ book.pages || 0 }} págs</span>
-            <span>{{ getProgressPercentage() }}%</span>
-          </div>
-          <div class="w-full h-1.5 bg-slate-700/60 rounded-full overflow-hidden" [style.view-transition-name]="sharedTransition.getProgressName(book.id, 'book', instanceId)">
-            <div class="h-full bg-gradient-to-r from-amber-500 to-orange-500 rounded-full transition-all duration-300" [style.width.%]="getProgressPercentage()"></div>
-          </div>
+      <!-- Reading Progress -->
+      <div class="w-[24%] min-w-[150px] max-w-[280px] shrink-0 hidden sm:flex flex-col justify-center px-2 py-2">
+        <div class="flex justify-between text-[10px] text-slate-400 mb-1">
+          <span>{{ book.bookMark || 0 }}/{{ book.pages || 0 }} págs</span>
+          <span>{{ getProgressPercentage() }}%</span>
         </div>
+        <div class="w-full h-1.5 bg-slate-700/60 rounded-full overflow-hidden" [style.view-transition-name]="sharedTransition.getProgressName(book.id, 'book', instanceId)">
+          <div class="h-full bg-gradient-to-r from-amber-500 to-orange-500 rounded-full transition-all duration-300" [style.width.%]="getProgressPercentage()"></div>
+        </div>
+      </div>
 
-        <div class="text-right text-xs text-slate-400 w-16 font-mono">
-          {{ book.pages || 0 }} págs
-        </div>
+      <!-- Right: Pages -->
+      <div class="text-right text-xs text-slate-400 w-16 shrink-0 font-mono py-2 flex items-center justify-end">
+        {{ book.pages || 0 }} págs
       </div>
 
     </div>
