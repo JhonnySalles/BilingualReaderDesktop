@@ -64,6 +64,7 @@ const tracker_controller_1 = require("./controllers/tracker.controller");
 const book_image_cover_controller_1 = require("./controllers/book-image-cover.controller");
 const manga_image_cover_controller_1 = require("./controllers/manga-image-cover.controller");
 const book_page_bitmap_capture_service_1 = require("./services/book-page-bitmap-capture.service");
+const epub_book_extractor_1 = require("./parser/book/epub-book-extractor");
 const telemetry_1 = require("./utils/telemetry");
 const app_paths_1 = require("./utils/app-paths");
 // Ensure data/cache directory structures and migrate legacy files
@@ -581,15 +582,38 @@ electron_1.app.on('ready', () => {
             const manga = storageService.findMangaById(id) || null;
             if (!manga)
                 return null;
+            let updatedManga = { ...manga };
+            let hasChanges = false;
             try {
                 const coverPath = await manga_image_cover_controller_1.MangaImageCoverController.instance.ensureCover(manga);
                 if (coverPath && coverPath !== manga.coverPath) {
-                    storageService.saveManga({ ...manga, coverPath });
-                    return storageService.findMangaById(id) || { ...manga, coverPath };
+                    updatedManga.coverPath = coverPath;
+                    hasChanges = true;
                 }
             }
             catch (e) {
                 console.warn('[manga:get] ensureCover failed', id, e);
+            }
+            if (!updatedManga.chapters || updatedManga.chapters.length === 0) {
+                try {
+                    const sessionService = mangaReaderController.getSessionService();
+                    const chaptersPages = await sessionService.loadChaptersPages(updatedManga.path);
+                    if (Object.keys(chaptersPages).length > 0) {
+                        const chapters = sessionService.resolveChapters([], chaptersPages);
+                        if (chapters.length > 0) {
+                            updatedManga.chapters = chapters;
+                            updatedManga.chaptersPages = chaptersPages;
+                            hasChanges = true;
+                        }
+                    }
+                }
+                catch (e) {
+                    console.warn('[manga:get] load chapters failed', id, e);
+                }
+            }
+            if (hasChanges) {
+                storageService.saveManga(updatedManga);
+                return storageService.findMangaById(id) || updatedManga;
             }
             return manga;
         });
@@ -614,6 +638,18 @@ electron_1.app.on('ready', () => {
         });
         electron_1.ipcMain.handle('book:set-password', async (_event, id, password) => {
             return storageService.setBookPassword(id, password ?? '') || null;
+        });
+        electron_1.ipcMain.handle('book:get-chapters', async (_event, id) => {
+            const book = storageService.findBookById(id);
+            if (!book?.path)
+                return [];
+            try {
+                return epub_book_extractor_1.EpubBookExtractor.extractChapters(book.path);
+            }
+            catch (e) {
+                console.warn('[book:get-chapters] failed for book', id, e);
+                return [];
+            }
         });
         electron_1.ipcMain.handle('book:adjacent', async (_event, id) => {
             return storageService.getAdjacentBooks(id);

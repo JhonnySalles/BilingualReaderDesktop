@@ -3544,6 +3544,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
   private async mountEpub(epubUrl: string, bookMark: number, bookMarkCfi: string): Promise<void> {
     const qp = this.route.snapshot.queryParamMap;
     const jumpCfi = qp.get('cfi') || '';
+    const jumpHref = qp.get('href') || '';
     const jumpPageRaw = qp.get('page');
     const jumpPage = jumpPageRaw != null ? Number(jumpPageRaw) : NaN;
     const startCfi = jumpCfi || bookMarkCfi;
@@ -3611,7 +3612,7 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
     this.loadingMessage.set('Renderizando conteúdo…');
 
     // Query `page` is a 0-based reader index; stored bookMark is 1-based.
-    const openAtCover = !jumpCfi && (jumpPageRaw == null || Number.isNaN(jumpPage)) && bookMark <= 1;
+    const openAtCover = !jumpCfi && !jumpHref && (jumpPageRaw == null || Number.isNaN(jumpPage)) && bookMark <= 1;
     let startMark =
       !Number.isNaN(jumpPage) && jumpPage >= 0
         ? Math.min(Math.floor(jumpPage), locationCount - 1)
@@ -3619,6 +3620,9 @@ export class ReaderTextComponent implements OnInit, AfterViewInit, OnDestroy {
 
     if (jumpCfi) {
       const loc = this.locationFromCfiSafe(jumpCfi);
+      if (loc >= 0) startMark = loc;
+    } else if (jumpHref) {
+      const loc = this.locationFromTocHref(book, jumpHref);
       if (loc >= 0) startMark = loc;
     }
 

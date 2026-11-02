@@ -23,6 +23,7 @@ import { ConfirmDialogService } from '../../core/services/confirm-dialog.service
 import { SettingsService } from '../../core/services/settings.service';
 import { BookCover3dComponent } from '../../shared/book-cover-3d/book-cover-3d.component';
 import { CoverViewerDialogComponent } from '../../shared/cover-viewer-dialog/cover-viewer-dialog.component';
+import { extractMangaSearchTitle } from '../../core/utils/media-title-cleaner.util';
 
 @Component({
   selector: 'app-manga-detail',
@@ -160,32 +161,40 @@ import { CoverViewerDialogComponent } from '../../shared/cover-viewer-dialog/cov
               (deleteItem)="onDelete()" />
 
             <!-- Local Metadata Section -->
-            <app-detail-meta-section
-              title="Detalhe do Mangá"
-              [fields]="metaFields()"
-              [tags]="tagList()" />
+            <div class="pt-6">
+              <app-detail-meta-section
+                title="Detalhe do Mangá"
+                [fields]="metaFields()"
+                [tags]="tagList()" />
+            </div>
 
             <!-- Web Sync Section (MyAnimeList / AniList) -->
-            <app-detail-web-section
-              [mediaDetails]="webDetails()"
-              [loading]="loadingWeb()"
-              (openLink)="onOpenExternalLink($event)"
-              (searchManual)="onOpenTracker()"
-              (openRelated)="onOpenRelated($event)" />
+            <div class="pt-6">
+              <app-detail-web-section
+                [mediaDetails]="webDetails()"
+                [loading]="loadingWeb()"
+                (openLink)="onOpenExternalLink($event)"
+                (searchManual)="onOpenTracker()"
+                (openRelated)="onOpenRelated($event)" />
+            </div>
 
             <!-- Bookmarks / Annotations List -->
             @if (bookmarks().length > 0) {
-              <app-detail-bookmarks-list
-                [bookmarks]="bookmarks()"
-                (select)="onBookmarkSelect($event)"
-                (delete)="onBookmarkDelete($event)"
-                (addBookmark)="showBookmark.set(true)" />
+              <div class="pt-6">
+                <app-detail-bookmarks-list
+                  [bookmarks]="bookmarks()"
+                  (select)="onBookmarkSelect($event)"
+                  (delete)="onBookmarkDelete($event)"
+                  (addBookmark)="showBookmark.set(true)" />
+              </div>
             }
 
             <!-- Chapters List -->
-            <app-detail-chapters-list
-              [chapters]="chapters()"
-              (select)="onChapter($event)" />
+            <div class="pt-6">
+              <app-detail-chapters-list
+                [chapters]="chapters()"
+                (select)="onChapter($event)" />
+            </div>
           </div>
         </div>
       }
@@ -206,7 +215,7 @@ import { CoverViewerDialogComponent } from '../../shared/cover-viewer-dialog/cov
       <app-tracker-simple-dialog
         [open]="showTrackerSimple()"
         [libraryId]="manga()?.fkLibrary || 0"
-        [mediaTitle]="manga()?.title || ''"
+        [mediaTitle]="trackerSearchTitle()"
         [mediaFilename]="manga()?.name || ''"
         (confirmed)="onTrackerSaved($event)"
         (cancel)="showTrackerSimple.set(false)"
@@ -216,7 +225,7 @@ import { CoverViewerDialogComponent } from '../../shared/cover-viewer-dialog/cov
         [open]="showTrackerConfig()"
         [track]="matchedTrack()"
         [fkLibrary]="manga()?.fkLibrary || 0"
-        [initialTitle]="manga()?.title || manga()?.series || ''"
+        [initialTitle]="trackerSearchTitle()"
         [initialFilename]="manga()?.name || ''"
         (saved)="onTrackerConfigSaved($event)"
         (deleted)="onTrackerDeleted()"
@@ -271,6 +280,8 @@ export class MangaDetailComponent implements OnInit {
     if (!path) return null;
     return 'local-cover:///' + path.replace(/\\/g, '/');
   });
+
+  trackerSearchTitle = computed(() => extractMangaSearchTitle(this.manga()));
 
   progress = computed(() => {
     const m = this.manga();
@@ -429,7 +440,7 @@ export class MangaDetailComponent implements OnInit {
         }
       }
 
-      const searchTitle = manga.series || manga.title || manga.name;
+      const searchTitle = extractMangaSearchTitle(manga);
       const details = await this.trackerService.getMediaDetails({
         malId,
         aniId,
@@ -566,7 +577,8 @@ export class MangaDetailComponent implements OnInit {
   async onChapter(ch: DetailChapterItem): Promise<void> {
     const m = this.manga();
     if (!m?.id) return;
-    const bookMark = fromReaderIndex(ch.page, m.pages || 1);
+    const pageIndex = ch.page != null ? ch.page : 0;
+    const bookMark = fromReaderIndex(pageIndex, m.pages || 1);
     const updated = await this.detail.setMangaBookMark(m, bookMark);
     if (updated) this.manga.set(updated);
     this.nav.openReader(this.router, 'image', m.id);

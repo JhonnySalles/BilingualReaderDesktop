@@ -11,6 +11,9 @@ export interface DetailMetaField {
   selector: 'app-detail-meta-section',
   standalone: true,
   imports: [CommonModule],
+  host: {
+    class: 'block'
+  },
   template: `
     <section class="space-y-4">
       <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 border-b border-slate-800 pb-2">

@@ -16,6 +16,9 @@ export interface DetailBookmarkItem {
   selector: 'app-detail-bookmarks-list',
   standalone: true,
   imports: [CommonModule],
+  host: {
+    class: 'block'
+  },
   template: `
     <section class="space-y-3">
       <div class="flex items-center justify-between border-b border-slate-800 pb-2">

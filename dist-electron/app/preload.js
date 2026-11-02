@@ -19,6 +19,7 @@ electron_1.contextBridge.exposeInMainWorld('electronAPI', {
     getLibraryCount: (libraryId, type) => electron_1.ipcRenderer.invoke('library:get-count', libraryId, type),
     getManga: (id) => electron_1.ipcRenderer.invoke('manga:get', id),
     getBook: (id) => electron_1.ipcRenderer.invoke('book:get', id),
+    getBookChapters: (id) => electron_1.ipcRenderer.invoke('book:get-chapters', id),
     setBookPassword: (id, password) => electron_1.ipcRenderer.invoke('book:set-password', id, password),
     getAdjacentBooks: (id) => electron_1.ipcRenderer.invoke('book:adjacent', id),
     getAdjacentMangas: (id) => electron_1.ipcRenderer.invoke('manga:adjacent', id),

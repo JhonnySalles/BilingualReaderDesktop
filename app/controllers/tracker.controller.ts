@@ -197,24 +197,35 @@ export class TrackerController {
           }
         }
 
-        // 3. Fallback search by title on MAL
-        if (payload.title && payload.title.trim()) {
-          try {
-            const searchResults = await this.malService.search(payload.title.trim(), 1);
-            if (searchResults && searchResults.length > 0 && searchResults[0].id) {
-              const malDetails = await this.malService.getMangaDetails(searchResults[0].id);
-              if (malDetails) return malDetails;
-            }
-          } catch (e) {
-            console.warn('[TrackerController] MAL search fallback failed for title:', payload.title, e);
-          }
+        // 3. Fallback search by title on MAL / AniList
+        const rawTitle = payload.title?.trim() || '';
+        if (rawTitle) {
+          // Higienização de volume: remove ", vol 01.5", " - Volume 01 (Eng)", extensões, etc.
+          let cleanTitle = rawTitle.replace(/\.(epub|pdf|mobi|azw\d?|cbz|cbr|zip)$/i, '').trim();
+          cleanTitle = cleanTitle.replace(/,\s*(?:vol(?:ume)?\.?|v)\s*[\d.]+.*$/i, '').trim();
+          cleanTitle = cleanTitle.replace(/\s*-\s*(?:Volume|Vol\.?|v)\s*\d+.*$/i, '').trim();
 
-          // 4. Fallback search by title on AniList
-          try {
-            const aniDetails = await this.anilistService.getMediaDetails(undefined, payload.title.trim());
-            if (aniDetails) return aniDetails;
-          } catch (e) {
-            console.warn('[TrackerController] AniList search fallback failed for title:', payload.title, e);
+          const candidates = Array.from(new Set([cleanTitle, rawTitle])).filter(c => !!c && c.length > 0);
+
+          for (const titleCandidate of candidates) {
+            // 3.1 Try MAL
+            try {
+              const searchResults = await this.malService.search(titleCandidate, 1);
+              if (searchResults && searchResults.length > 0 && searchResults[0].id) {
+                const malDetails = await this.malService.getMangaDetails(searchResults[0].id);
+                if (malDetails) return malDetails;
+              }
+            } catch (e) {
+              console.warn('[TrackerController] MAL search fallback failed for title:', titleCandidate, e);
+            }
+
+            // 3.2 Try AniList
+            try {
+              const aniDetails = await this.anilistService.getMediaDetails(undefined, titleCandidate);
+              if (aniDetails) return aniDetails;
+            } catch (e) {
+              console.warn('[TrackerController] AniList search fallback failed for title:', titleCandidate, e);
+            }
           }
         }
 

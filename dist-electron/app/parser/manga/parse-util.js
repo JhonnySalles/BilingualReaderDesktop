@@ -71,9 +71,14 @@ class ParseUtil {
         if (!pages?.length)
             return out;
         for (let index = 0; index < pages.length; index++) {
-            const bookmark = pages[index]?.bookmark?.trim();
-            if (bookmark)
-                out[index] = bookmark;
+            const p = pages[index];
+            const bookmark = p?.bookmark?.trim();
+            if (bookmark) {
+                const pageIdx = typeof p?.imageIndex === 'number' && Number.isFinite(p.imageIndex)
+                    ? p.imageIndex
+                    : index;
+                out[pageIdx] = bookmark;
+            }
         }
         return out;
     }

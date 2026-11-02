@@ -228,17 +228,35 @@ export class MangaReaderSessionService {
   }
 
   /**
-   * Lightweight ComicInfo read when cache/meta lacks chaptersPages (old caches).
+   * Lightweight ComicInfo read, fallback to folders when ComicInfo lacks chaptersPages.
    */
   async loadChaptersPages(mangaPath: string): Promise<Record<number, string>> {
     const parser = await ParseFactory.create(mangaPath);
     if (!parser) return {};
     try {
-      if (!parser.isComicInfo?.()) return {};
-      const info = parser.getComicInfo?.() ?? null;
-      return ParseUtil.buildChaptersPagesFromComicInfo(info);
+      if (parser.isComicInfo?.()) {
+        const info = parser.getComicInfo?.() ?? null;
+        const fromComicInfo = ParseUtil.buildChaptersPagesFromComicInfo(info);
+        if (Object.keys(fromComicInfo).length > 0) {
+          return fromComicInfo;
+        }
+      }
+      // Fallback: pastas caso não possua ComicInfo
+      const pagePaths = parser.getPagePaths?.() ?? {};
+      const folderNames = Object.keys(pagePaths);
+      if (folderNames.length > 1) {
+        const out: Record<number, string> = {};
+        for (const f of folderNames) {
+          const pageIndex = pagePaths[f];
+          if (pageIndex != null) {
+            out[pageIndex] = path.basename(f) || f;
+          }
+        }
+        return out;
+      }
+      return {};
     } catch (e) {
-      console.warn('[MangaReaderSession] Failed to load ComicInfo chapters', e);
+      console.warn('[MangaReaderSession] Failed to load chapters', e);
       return {};
     } finally {
       try {
@@ -247,13 +265,15 @@ export class MangaReaderSessionService {
     }
   }
 
-  /** Folders win; else bookmark keys sorted. */
+  /** ComicInfo tags win; else folder chapters sorted. */
   resolveChapters(folderChapters: number[], chaptersPages: Record<number, string>): number[] {
-    if (folderChapters.length > 0) return folderChapters;
-    return Object.keys(chaptersPages)
+    const comicInfoChapters = Object.keys(chaptersPages)
       .map(Number)
       .filter(n => Number.isFinite(n))
       .sort((a, b) => a - b);
+    if (comicInfoChapters.length > 0) return comicInfoChapters;
+    if (folderChapters.length > 0) return folderChapters.slice().sort((a, b) => a - b);
+    return [];
   }
 
   close(sessionId: string): boolean {
@@ -358,6 +378,22 @@ export class MangaReaderSessionService {
       } catch (e) {
         console.warn('[MangaReaderSession] ComicInfo chapters failed', e);
       }
+
+      // Se não possui capítulos no ComicInfo, gera através das pastas
+      if (Object.keys(chaptersPages).length === 0) {
+        const pagePaths = parser.getPagePaths?.() ?? {};
+        const folderNames = Object.keys(pagePaths);
+        if (folderNames.length > 1) {
+          for (const f of folderNames) {
+            const pageIndex = pagePaths[f];
+            if (pageIndex != null) {
+              const cleanName = path.basename(f) || f;
+              chaptersPages[pageIndex] = cleanName;
+            }
+          }
+        }
+      }
+
       const chapters = this.resolveChapters(folderChapters, chaptersPages);
       const files: string[] = [];
       const pageNames: string[] = [];

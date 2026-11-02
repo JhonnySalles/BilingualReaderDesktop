@@ -28,6 +28,7 @@ import { TrackerController } from './controllers/tracker.controller';
 import { BookImageCoverController } from './controllers/book-image-cover.controller';
 import { MangaImageCoverController } from './controllers/manga-image-cover.controller';
 import { BookPageBitmapCaptureService } from './services/book-page-bitmap-capture.service';
+import { EpubBookExtractor } from './parser/book/epub-book-extractor';
 import { Telemetry } from './utils/telemetry';
 import { getAppBaseDir, getAppDataDir, ensureAppDirs } from './utils/app-paths';
 
@@ -601,14 +602,39 @@ app.on('ready', () => {
     ipcMain.handle('manga:get', async (_event, id: number) => {
       const manga = storageService.findMangaById(id) || null;
       if (!manga) return null;
+      let updatedManga = { ...manga };
+      let hasChanges = false;
+
       try {
         const coverPath = await MangaImageCoverController.instance.ensureCover(manga);
         if (coverPath && coverPath !== manga.coverPath) {
-          storageService.saveManga({ ...manga, coverPath });
-          return storageService.findMangaById(id) || { ...manga, coverPath };
+          updatedManga.coverPath = coverPath;
+          hasChanges = true;
         }
       } catch (e) {
         console.warn('[manga:get] ensureCover failed', id, e);
+      }
+
+      if (!updatedManga.chapters || updatedManga.chapters.length === 0) {
+        try {
+          const sessionService = mangaReaderController.getSessionService();
+          const chaptersPages = await sessionService.loadChaptersPages(updatedManga.path);
+          if (Object.keys(chaptersPages).length > 0) {
+            const chapters = sessionService.resolveChapters([], chaptersPages);
+            if (chapters.length > 0) {
+              updatedManga.chapters = chapters;
+              updatedManga.chaptersPages = chaptersPages;
+              hasChanges = true;
+            }
+          }
+        } catch (e) {
+          console.warn('[manga:get] load chapters failed', id, e);
+        }
+      }
+
+      if (hasChanges) {
+        storageService.saveManga(updatedManga);
+        return storageService.findMangaById(id) || updatedManga;
       }
       return manga;
     });
@@ -634,6 +660,17 @@ app.on('ready', () => {
 
     ipcMain.handle('book:set-password', async (_event, id: number, password: string) => {
       return storageService.setBookPassword(id, password ?? '') || null;
+    });
+
+    ipcMain.handle('book:get-chapters', async (_event, id: number) => {
+      const book = storageService.findBookById(id);
+      if (!book?.path) return [];
+      try {
+        return EpubBookExtractor.extractChapters(book.path);
+      } catch (e) {
+        console.warn('[book:get-chapters] failed for book', id, e);
+        return [];
+      }
     });
 
     ipcMain.handle('book:adjacent', async (_event, id: number) => {

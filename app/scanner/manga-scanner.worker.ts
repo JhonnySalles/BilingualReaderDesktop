@@ -4,6 +4,7 @@ import * as path from 'path';
 import { Manga } from '../../src/app/core/models/entities/manga.model';
 import { FileType, getMangaFileType } from '../../src/app/core/models/enums/app-enums';
 import { ParseFactory } from '../parser/manga/parse-factory';
+import { ParseUtil } from '../parser/manga/parse-util';
 import { MangaImageCoverController } from '../controllers/manga-image-cover.controller';
 import { setAppBaseDir, setAppCoversDir } from '../utils/app-paths';
 
@@ -167,6 +168,9 @@ async function run(): Promise<void> {
       let tags = '';
       let hasSubtitle = false;
 
+      let chapters: number[] = [];
+      let chaptersPages: Record<number, string> = {};
+
       const parser = await ParseFactory.create(itemPath);
       if (parser) {
         try {
@@ -184,6 +188,31 @@ async function run(): Promise<void> {
             if (comicInfo.storyArc) storyArch = comicInfo.storyArc;
             if (comicInfo.characters) characters = comicInfo.characters;
             if (comicInfo.tags) tags = comicInfo.tags;
+
+            chaptersPages = ParseUtil.buildChaptersPagesFromComicInfo(comicInfo);
+            if (Object.keys(chaptersPages).length > 0) {
+              chapters = Object.keys(chaptersPages)
+                .map(Number)
+                .filter(n => Number.isFinite(n))
+                .sort((a, b) => a - b);
+            }
+          }
+
+          // Se não possui capítulos no ComicInfo, gera através das pastas
+          if (chapters.length === 0) {
+            const pagePaths = parser.getPagePaths?.() ?? {};
+            const folderNames = Object.keys(pagePaths);
+            if (folderNames.length > 1) {
+              for (const f of folderNames) {
+                const pageIndex = pagePaths[f];
+                if (pageIndex != null) {
+                  const cleanName = path.basename(f) || f;
+                  chaptersPages[pageIndex] = cleanName;
+                  chapters.push(pageIndex);
+                }
+              }
+              chapters.sort((a, b) => a - b);
+            }
           }
 
           const coverStreams = parser.getCover();
@@ -205,8 +234,8 @@ async function run(): Promise<void> {
         fileSize: stat.size,
         fileType: isDirectory ? FileType.DIRECTORY : getMangaFileType(itemPath),
         pages,
-        chapters: [],
-        chaptersPages: {},
+        chapters,
+        chaptersPages,
         bookMark: 0,
         completed: false,
         favorite: false,

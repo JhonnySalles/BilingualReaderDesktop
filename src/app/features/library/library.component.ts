@@ -240,30 +240,30 @@ import { sortLibraryItems } from '../../core/utils/library-sort.util';
               <h4 class="text-xs font-semibold text-amber-400/90 uppercase tracking-wider">Livros &amp; EPUBs</h4>
               <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <a [routerLink]="['/']" [queryParams]="{ lib: 'book-default' }"
-                  class="group p-5 rounded-2xl bg-slate-900/80 border border-slate-800 hover:border-amber-500/50 hover:bg-slate-800/80 transition-all cursor-pointer flex items-center justify-between">
+                  class="group p-5 rounded-2xl bg-slate-900/80 border border-slate-800 hover:border-indigo-500/50 hover:bg-slate-800/80 transition-all cursor-pointer flex items-center justify-between">
                   <div class="flex items-center gap-4 min-w-0">
-                    <div class="w-12 h-12 shrink-0 rounded-xl bg-amber-600/20 text-amber-400 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">📚</div>
+                    <div class="w-12 h-12 shrink-0 rounded-xl bg-indigo-600/20 text-indigo-400 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">📚</div>
                     <div class="min-w-0">
-                      <h4 class="text-base font-bold text-slate-100 group-hover:text-amber-400 transition-colors truncate">Biblioteca de Livros</h4>
+                      <h4 class="text-base font-bold text-slate-100 group-hover:text-indigo-400 transition-colors truncate">Biblioteca de Livros</h4>
                       <p class="text-xs text-slate-400 mt-0.5">{{ bookLibraryService.books().length }} itens · padrão</p>
                     </div>
                   </div>
-                  <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 shrink-0 text-slate-500 group-hover:text-amber-400 group-hover:translate-x-1 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 shrink-0 text-slate-500 group-hover:text-indigo-400 group-hover:translate-x-1 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                   </svg>
                 </a>
 
                 @for (lib of bookCustomLibraries(); track lib.id) {
                   <a [routerLink]="['/']" [queryParams]="{ lib: lib.id }"
-                    class="group p-5 rounded-2xl bg-slate-900/80 border border-slate-800 hover:border-amber-500/50 hover:bg-slate-800/80 transition-all cursor-pointer flex items-center justify-between">
+                    class="group p-5 rounded-2xl bg-slate-900/80 border border-slate-800 hover:border-indigo-500/50 hover:bg-slate-800/80 transition-all cursor-pointer flex items-center justify-between">
                     <div class="flex items-center gap-4 min-w-0">
                       <div class="w-12 h-12 shrink-0 rounded-xl bg-slate-800 text-slate-300 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">📚</div>
                       <div class="min-w-0">
-                        <h4 class="text-base font-bold text-slate-100 group-hover:text-amber-400 transition-colors truncate">{{ lib.title }}</h4>
+                        <h4 class="text-base font-bold text-slate-100 group-hover:text-indigo-400 transition-colors truncate">{{ lib.title }}</h4>
                         <p class="text-xs text-slate-400 mt-0.5 truncate">{{ lib.language || 'Personalizada' }}</p>
                       </div>
                     </div>
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 shrink-0 text-slate-500 group-hover:text-amber-400 group-hover:translate-x-1 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 shrink-0 text-slate-500 group-hover:text-indigo-400 group-hover:translate-x-1 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                     </svg>
                   </a>

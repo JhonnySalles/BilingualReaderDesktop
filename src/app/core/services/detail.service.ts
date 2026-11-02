@@ -24,6 +24,10 @@ export class DetailService {
     return this.electron.getBook(id);
   }
 
+  loadBookChapters(id: number) {
+    return this.electron.getBookChapters(id);
+  }
+
   loadBookCover3D(id: number) {
     return this.electron.getBookCover3D(id);
   }

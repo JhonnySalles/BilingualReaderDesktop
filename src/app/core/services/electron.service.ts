@@ -110,6 +110,7 @@ declare global {
       getLibraryCount: (libraryId: number, type: 'MANGA' | 'BOOK') => Promise<number>;
       getManga: (id: number) => Promise<Manga | null>;
       getBook: (id: number) => Promise<Book | null>;
+      getBookChapters?: (id: number) => Promise<any[]>;
       setBookPassword: (id: number, password: string) => Promise<Book | null>;
       getAdjacentBooks: (id: number) => Promise<{ prev: Book | null; next: Book | null }>;
       getAdjacentMangas: (id: number) => Promise<{ prev: Manga | null; next: Manga | null }>;
@@ -591,6 +592,7 @@ export class ElectronService {
         getManga: async () => mockManga,
         listBooks: async () => [mockBook],
         getBook: async () => mockBook,
+        getBookChapters: async () => [],
         getLibraryCount: async () => 1,
         getSetting: async (key: string, def: any) => def,
         setSetting: async (key: string, val: any) => val,
@@ -797,6 +799,13 @@ export class ElectronService {
       return await window.electronAPI.getBook(id);
     }
     return null;
+  }
+
+  async getBookChapters(id: number): Promise<any[]> {
+    if (this.isElectron && window.electronAPI?.getBookChapters) {
+      return await window.electronAPI.getBookChapters(id);
+    }
+    return [];
   }
 
   async setBookPassword(id: number, password: string): Promise<Book | null> {

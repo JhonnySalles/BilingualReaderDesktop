@@ -377,5 +377,149 @@ class EpubBookExtractor {
             return 0;
         }
     }
+    /**
+     * Extract chapters/table of contents from an EPUB file (NCX, EPUB 3 Nav, or Spine fallback).
+     */
+    static extractChapters(filePath) {
+        try {
+            if (!filePath || !fs.existsSync(filePath))
+                return [];
+            const zip = new adm_zip_1.default(filePath);
+            let opfPath = '';
+            const containerEntry = zip.getEntry('META-INF/container.xml');
+            if (containerEntry) {
+                const containerXml = zip.readAsText(containerEntry);
+                const rootfileMatch = containerXml.match(/full-path=["']([^"']+)["']/i);
+                if (rootfileMatch) {
+                    opfPath = rootfileMatch[1];
+                }
+            }
+            if (!opfPath) {
+                const opfEntries = zip.getEntries().filter(e => e.entryName.endsWith('.opf'));
+                if (opfEntries.length > 0)
+                    opfPath = opfEntries[0].entryName;
+            }
+            if (!opfPath)
+                return [];
+            const opfEntry = zip.getEntry(opfPath);
+            if (!opfEntry)
+                return [];
+            const opfXml = zip.readAsText(opfEntry);
+            const opfDir = path.dirname(opfPath).replace(/\\/g, '/');
+            const resolveZipEntry = (relPath) => {
+                const clean = relPath.split('#')[0].split('?')[0];
+                const normalized = opfDir && opfDir !== '.' ? path.posix.join(opfDir, clean) : clean;
+                return path.posix.normalize(normalized);
+            };
+            const chapters = [];
+            // 1. Try EPUB 2 NCX file
+            let ncxHref = '';
+            const ncxMatch = opfXml.match(/<item\s+[^>]*media-type=["']application\/x-dtbncx\+xml["'][^>]*href=["']([^"']+)["']/i) ||
+                opfXml.match(/<item\s+[^>]*href=["']([^"']+)["'][^>]*media-type=["']application\/x-dtbncx\+xml["']/i);
+            if (ncxMatch) {
+                ncxHref = ncxMatch[1];
+            }
+            else {
+                const spineTocMatch = opfXml.match(/<spine\s+[^>]*toc=["']([^"']+)["']/i);
+                if (spineTocMatch) {
+                    const tocId = spineTocMatch[1];
+                    const itemMatch = opfXml.match(new RegExp(`<item\\s+[^>]*id=["']${this.escapeRegExp(tocId)}["'][^>]*href=["']([^"']+)["']`, 'i'));
+                    if (itemMatch)
+                        ncxHref = itemMatch[1];
+                }
+            }
+            if (ncxHref) {
+                const ncxPath = resolveZipEntry(ncxHref);
+                const ncxEntry = zip.getEntry(ncxPath) || zip.getEntry(decodeURIComponent(ncxPath));
+                if (ncxEntry) {
+                    const ncxXml = zip.readAsText(ncxEntry);
+                    const navPointRegex = /<navPoint\b[\s\S]*?<\/navPoint>/gi;
+                    let npMatch;
+                    while ((npMatch = navPointRegex.exec(ncxXml)) !== null) {
+                        const block = npMatch[0];
+                        const textMatch = block.match(/<navLabel>[\s\S]*?<text[^>]*>([\s\S]*?)<\/text>[\s\S]*?<\/navLabel>/i);
+                        const srcMatch = block.match(/<content\s+[^>]*src=["']([^"']+)["']/i);
+                        const label = textMatch ? this.cleanXmlText(textMatch[1]) : '';
+                        const href = srcMatch ? srcMatch[1].trim() : '';
+                        if (label) {
+                            chapters.push({
+                                index: chapters.length,
+                                label,
+                                href
+                            });
+                        }
+                    }
+                }
+            }
+            // 2. Try EPUB 3 Navigation Document if NCX produced no chapters
+            if (chapters.length === 0) {
+                const navMatch = opfXml.match(/<item\s+[^>]*properties=["'][^"']*\bnav\b[^"']*["'][^>]*href=["']([^"']+)["']/i) ||
+                    opfXml.match(/<item\s+[^>]*href=["']([^"']+)["'][^>]*properties=["'][^"']*\bnav\b[^"']*["']/i);
+                if (navMatch) {
+                    const navPath = resolveZipEntry(navMatch[1]);
+                    const navEntry = zip.getEntry(navPath) || zip.getEntry(decodeURIComponent(navPath));
+                    if (navEntry) {
+                        const navXml = zip.readAsText(navEntry);
+                        const tocNavMatch = navXml.match(/<nav\b[^>]*(?:epub:type=["']toc["']|id=["']toc["'])[\s\S]*?<\/nav>/i) ||
+                            navXml.match(/<nav\b[^>]*>[\s\S]*?<\/nav>/i);
+                        const navBlock = tocNavMatch ? tocNavMatch[0] : navXml;
+                        const aRegex = /<a\s+[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+                        let aMatch;
+                        while ((aMatch = aRegex.exec(navBlock)) !== null) {
+                            const href = aMatch[1].trim();
+                            const label = this.cleanXmlText(aMatch[2]);
+                            if (label) {
+                                chapters.push({
+                                    index: chapters.length,
+                                    label,
+                                    href
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            // 3. Fallback: Spine items if still 0 chapters
+            if (chapters.length === 0) {
+                const itemMap = new Map();
+                const itemRegex = /<item\s+[^>]*id=["']([^"']+)["'][^>]*href=["']([^"']+)["']/gi;
+                let itMatch;
+                while ((itMatch = itemRegex.exec(opfXml)) !== null) {
+                    itemMap.set(itMatch[1], itMatch[2]);
+                }
+                const spineRegex = /<itemref\s+[^>]*idref=["']([^"']+)["'][^>]*>/gi;
+                let spMatch;
+                let spineIdx = 0;
+                while ((spMatch = spineRegex.exec(opfXml)) !== null) {
+                    const idref = spMatch[1];
+                    const href = itemMap.get(idref) || '';
+                    chapters.push({
+                        index: spineIdx,
+                        label: `Capítulo ${spineIdx + 1}`,
+                        href,
+                        page: spineIdx
+                    });
+                    spineIdx++;
+                }
+            }
+            // Deduplicate consecutive identical entries
+            const deduped = [];
+            for (const ch of chapters) {
+                const prev = deduped[deduped.length - 1];
+                if (prev && prev.label === ch.label && prev.href === ch.href) {
+                    continue;
+                }
+                deduped.push({
+                    ...ch,
+                    index: deduped.length
+                });
+            }
+            return deduped;
+        }
+        catch (e) {
+            console.warn(`Error extracting chapters from EPUB ${filePath}:`, e);
+            return [];
+        }
+    }
 }
 exports.EpubBookExtractor = EpubBookExtractor;

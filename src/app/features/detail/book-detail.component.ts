@@ -12,6 +12,7 @@ import { bookNeedsUnlock, bookPasswordMatches } from '../../core/utils/book-pass
 import { DetailActionBarComponent } from './components/detail-action-bar.component';
 import { DetailMetaSectionComponent, DetailMetaField } from './components/detail-meta-section.component';
 import { DetailBookmarksListComponent, DetailBookmarkItem } from './components/detail-bookmarks-list.component';
+import { DetailChaptersListComponent, DetailChapterItem } from './components/detail-chapters-list.component';
 import { DetailWebSectionComponent } from './components/detail-web-section.component';
 import {
   LibraryBookmarkDialogComponent,
@@ -25,6 +26,7 @@ import { SettingsService } from '../../core/services/settings.service';
 import { BookCover3dComponent } from '../../shared/book-cover-3d/book-cover-3d.component';
 import { CoverViewerDialogComponent } from '../../shared/cover-viewer-dialog/cover-viewer-dialog.component';
 import { TagsDialogComponent } from '../../shared/tags-dialog/tags-dialog.component';
+import { extractBookSearchTitle } from '../../core/utils/media-title-cleaner.util';
 
 @Component({
   selector: 'app-book-detail',
@@ -36,6 +38,7 @@ import { TagsDialogComponent } from '../../shared/tags-dialog/tags-dialog.compon
     DetailActionBarComponent,
     DetailMetaSectionComponent,
     DetailBookmarksListComponent,
+    DetailChaptersListComponent,
     DetailWebSectionComponent,
     LibraryBookmarkDialogComponent,
     TrackerConfigDialogComponent,
@@ -127,7 +130,9 @@ import { TagsDialogComponent } from '../../shared/tags-dialog/tags-dialog.compon
                     <span class="px-2 py-0.5 text-[10px] font-bold rounded bg-amber-500 text-slate-950">Favorito</span>
                   }
                 </div>
-                <p class="text-sm text-slate-300">{{ book()!.author || 'Autor desconhecido' }}</p>
+                <p class="text-sm text-slate-300">
+                  {{ book()!.series ? book()!.series + ' · ' + (book()!.author || '') : (book()!.author || 'Autor desconhecido') }}
+                </p>
 
                 <div class="max-w-md space-y-1">
                   <div class="flex justify-between text-[11px] text-slate-400">
@@ -211,53 +216,69 @@ import { TagsDialogComponent } from '../../shared/tags-dialog/tags-dialog.compon
             </section>
 
             <!-- Metadata Section with Horizontal Tags -->
-            <app-detail-meta-section
-              title="Detalhe do Livro"
-              [fields]="metaFields()"
-              [tags]="tagList()"
-              (tagClick)="onTagClicked($event)">
-              <div class="mt-3 flex items-center justify-between">
-                <button type="button" (click)="showTagsModal.set(true)"
-                  class="text-[11px] font-semibold text-amber-400 hover:text-amber-300 hover:underline flex items-center gap-1 cursor-pointer">
-                  🏷️ Gerenciar Todas as Tags
-                </button>
-              </div>
-
-              @if (showTagInput()) {
-                <div class="flex gap-2 max-w-md mt-3">
-                  <input
-                    type="text"
-                    class="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-amber-500"
-                    placeholder="Nova tag"
-                    [(ngModel)]="newTag"
-                    (keydown.enter)="addTag()" />
-                  <button type="button" (click)="addTag()"
-                    class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-amber-600 hover:bg-amber-500 text-white transition-colors cursor-pointer">
-                    Adicionar
-                  </button>
-                  <button type="button" (click)="showTagInput.set(false)"
-                    class="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-400 hover:bg-slate-800 transition-colors cursor-pointer">
-                    Fechar
+            <div class="pt-6">
+              <app-detail-meta-section
+                title="Detalhe do Livro"
+                [fields]="metaFields()"
+                [tags]="tagList()"
+                (tagClick)="onTagClicked($event)">
+                <div class="mt-3 flex items-center justify-between">
+                  <button type="button" (click)="showTagsModal.set(true)"
+                    class="text-[11px] font-semibold text-amber-400 hover:text-amber-300 hover:underline flex items-center gap-1 cursor-pointer">
+                    🏷️ Gerenciar Todas as Tags
                   </button>
                 </div>
-              }
-            </app-detail-meta-section>
+
+                @if (showTagInput()) {
+                  <div class="flex gap-2 max-w-md mt-3">
+                    <input
+                      type="text"
+                      class="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-amber-500"
+                      placeholder="Nova tag"
+                      [(ngModel)]="newTag"
+                      (keydown.enter)="addTag()" />
+                    <button type="button" (click)="addTag()"
+                      class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-amber-600 hover:bg-amber-500 text-white transition-colors cursor-pointer">
+                      Adicionar
+                    </button>
+                    <button type="button" (click)="showTagInput.set(false)"
+                      class="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-400 hover:bg-slate-800 transition-colors cursor-pointer">
+                      Fechar
+                    </button>
+                  </div>
+                }
+              </app-detail-meta-section>
+            </div>
 
             <!-- Web Sync Section (Light Novel / Manga / Web search) -->
-            <app-detail-web-section
-              [mediaDetails]="webDetails()"
-              [loading]="loadingWeb()"
-              (openLink)="onOpenExternalLink($event)"
-              (searchManual)="onOpenTracker()"
-              (openRelated)="onOpenRelated($event)" />
+            <div class="pt-6">
+              <app-detail-web-section
+                [mediaDetails]="webDetails()"
+                [loading]="loadingWeb()"
+                (openLink)="onOpenExternalLink($event)"
+                (searchManual)="onOpenTracker()"
+                (openRelated)="onOpenRelated($event)" />
+            </div>
 
             <!-- Bookmarks & Highlights List -->
             @if (bookmarks().length > 0) {
-              <app-detail-bookmarks-list
-                [bookmarks]="bookmarks()"
-                (select)="onBookmarkSelect($event)"
-                (delete)="onBookmarkDelete($event)"
-                (addBookmark)="onOpenBookmark()" />
+              <div class="pt-6">
+                <app-detail-bookmarks-list
+                  [bookmarks]="bookmarks()"
+                  (select)="onBookmarkSelect($event)"
+                  (delete)="onBookmarkDelete($event)"
+                  (addBookmark)="onOpenBookmark()" />
+              </div>
+            }
+
+            <!-- Chapters List -->
+            @if (chapters().length > 0) {
+              <div class="pt-6">
+                <app-detail-chapters-list
+                  accent="amber"
+                  [chapters]="chapters()"
+                  (select)="onChapter($event)" />
+              </div>
             }
           </div>
         </div>
@@ -279,7 +300,7 @@ import { TagsDialogComponent } from '../../shared/tags-dialog/tags-dialog.compon
       <app-tracker-simple-dialog
         [open]="showTrackerSimple()"
         [libraryId]="book()?.fkLibrary || 0"
-        [mediaTitle]="book()?.title || ''"
+        [mediaTitle]="trackerSearchTitle()"
         [mediaFilename]="book()?.name || ''"
         (confirmed)="onTrackerSaved($event)"
         (cancel)="showTrackerSimple.set(false)"
@@ -289,7 +310,7 @@ import { TagsDialogComponent } from '../../shared/tags-dialog/tags-dialog.compon
         [open]="showTrackerConfig()"
         [track]="matchedTrack()"
         [fkLibrary]="book()?.fkLibrary || 0"
-        [initialTitle]="book()?.title || ''"
+        [initialTitle]="trackerSearchTitle()"
         [initialFilename]="book()?.name || ''"
         (saved)="onTrackerConfigSaved($event)"
         (deleted)="onTrackerDeleted()"
@@ -395,6 +416,7 @@ export class BookDetailComponent implements OnInit {
   loadingWeb = signal(false);
   webDetails = signal<ExternalTrackerMediaDetails | null>(null);
   bookmarks = signal<DetailBookmarkItem[]>([]);
+  chapters = signal<DetailChapterItem[]>([]);
   showBookmark = signal(false);
   showTrackerSimple = signal(false);
   showTrackerConfig = signal(false);
@@ -421,6 +443,8 @@ export class BookDetailComponent implements OnInit {
     return 'local-cover:///' + path.replace(/\\/g, '/');
   });
 
+  trackerSearchTitle = computed(() => extractBookSearchTitle(this.book()));
+
   hasPassword = computed(() => {
     const b = this.book();
     if (!b) return false;
@@ -441,6 +465,7 @@ export class BookDetailComponent implements OnInit {
     const b = this.book();
     if (!b) return [];
     const fields: DetailMetaField[] = [];
+    if (b.series) fields.push({ label: 'Série', value: b.series });
     if (b.title) fields.push({ label: 'Título', value: b.title });
     if (b.author) fields.push({ label: 'Autores', value: b.author });
     if (b.genre) fields.push({ label: 'Gênero', value: b.genre });
@@ -496,7 +521,8 @@ export class BookDetailComponent implements OnInit {
           await Promise.all([
             this.loadBookmarks(book.id),
             this.loadWebTrackerDetails(book),
-            this.loadCover3D(book.id)
+            this.loadCover3D(book.id),
+            this.loadChapters(book.id)
           ]);
         }
       }
@@ -563,7 +589,7 @@ export class BookDetailComponent implements OnInit {
         }
       }
 
-      const searchTitle = book.series || book.title || book.name;
+      const searchTitle = extractBookSearchTitle(book);
       const details = await this.trackerService.getMediaDetails({
         malId,
         aniId,
@@ -806,6 +832,29 @@ export class BookDetailComponent implements OnInit {
     this.openReader();
   }
 
+  onChapter(item: DetailChapterItem): void {
+    const b = this.book();
+    if (!b?.id) return;
+    this.nav.pushReturnUrl(this.router.url);
+    this.sharedTransition.setActiveItem('book', b.id);
+    this.router.navigate(['/reader-text', b.id], {
+      queryParams: {
+        ...(item.page != null && item.page >= 0 ? { page: item.page } : {}),
+        ...(item.href ? { href: item.href } : {})
+      }
+    });
+  }
+
+  private async loadChapters(bookId: number): Promise<void> {
+    try {
+      const chs = await this.detail.loadBookChapters(bookId);
+      this.chapters.set(chs || []);
+    } catch (e) {
+      console.warn('[BookDetailComponent] Erro ao carregar capítulos:', e);
+      this.chapters.set([]);
+    }
+  }
+
   async onBookmarkDelete(bm: DetailBookmarkItem): Promise<void> {
     if (!bm.id) return;
     const ok = await this.confirmDialog.confirm({
@@ -864,7 +913,7 @@ export class BookDetailComponent implements OnInit {
 
   async onOpenTracker(): Promise<void> {
     const b = this.book();
-    if (!b?.fkLibrary) return;
+    if (!b) return;
     this.showTrackerSimple.set(true);
   }
 
