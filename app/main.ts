@@ -343,6 +343,8 @@ app.on('ready', () => {
           contentType = 'image/jpeg';
         } else if (decodedPath.toLowerCase().endsWith('.webp')) {
           contentType = 'image/webp';
+        } else if (decodedPath.toLowerCase().endsWith('.svg')) {
+          contentType = 'image/svg+xml';
         }
 
         const data = fs.readFileSync(decodedPath);

@@ -1,4 +1,5 @@
 import * as fs from 'fs';
+import * as path from 'path';
 import { EbookConverterAdapter, EbookConversionError } from '../types';
 import { calibreCandidatePaths, findExecutable, spawnCommand } from '../cli-utils';
 
@@ -15,6 +16,8 @@ const EXTS = new Set([
   '.djvu',
   '.xps',
   '.htmlz',
+  '.txtz',
+  '.rb',
   '.pmlz',
   '.doc',
   '.docx',
@@ -66,7 +69,10 @@ export class CalibreCliAdapter implements EbookConverterAdapter {
         /* ignore */
       }
     }
-    await spawnCommand(bin, [inputPath, outputEpubPath]);
+    const ext = path.extname(inputPath).toLowerCase();
+    const base = path.basename(inputPath, ext);
+    const args = [inputPath, outputEpubPath, '--title', base];
+    await spawnCommand(bin, args);
   }
 
   private resolveBin(): string | null {

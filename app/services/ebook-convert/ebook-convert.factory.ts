@@ -84,7 +84,7 @@ export class EbookConvertFactory {
 
     const ext = normalizeExt(inputPath);
     const eligible = this.adapters.filter(a => a.canHandle(ext) && a.isAvailable());
-    const candidates = this.orderCandidates(eligible, mode);
+    const candidates = this.orderCandidates(eligible, mode, ext);
 
     if (candidates.length === 0) {
       throw this.emptyCandidatesError(ext, mode);
@@ -128,7 +128,8 @@ export class EbookConvertFactory {
   /** Exposed for smoke tests. */
   public orderCandidates(
     eligible: EbookConverterAdapter[],
-    mode: EbookConvertMode
+    mode: EbookConvertMode,
+    ext?: string
   ): EbookConverterAdapter[] {
     const byPriority = (a: EbookConverterAdapter, b: EbookConverterAdapter) =>
       b.priority - a.priority;
@@ -144,6 +145,10 @@ export class EbookConvertFactory {
     }
     if (mode === 'native') {
       return [...passthrough, ...natives];
+    }
+    // In auto mode, prioritize instant native parsing for PalmDOC/TCR/TXTZ to avoid Calibre heuristic hangs
+    if (ext && (ext === '.pdb' || ext === '.tcr' || ext === '.txtz')) {
+      return [...passthrough, ...natives, ...calibre];
     }
     // auto: Calibre first, then native (Pandoc excluded)
     return [...passthrough, ...calibre, ...natives];

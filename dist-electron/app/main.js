@@ -352,6 +352,9 @@ electron_1.app.on('ready', () => {
                 else if (decodedPath.toLowerCase().endsWith('.webp')) {
                     contentType = 'image/webp';
                 }
+                else if (decodedPath.toLowerCase().endsWith('.svg')) {
+                    contentType = 'image/svg+xml';
+                }
                 const data = fs.readFileSync(decodedPath);
                 return new Response(data, {
                     headers: { 'Content-Type': contentType, 'Access-Control-Allow-Origin': '*' }

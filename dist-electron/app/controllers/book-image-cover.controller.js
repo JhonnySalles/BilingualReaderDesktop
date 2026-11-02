@@ -74,9 +74,12 @@ class BookImageCoverController {
         }
         const hash = this.generateHash(book.path);
         const cacheDir = this.getCacheDir();
-        const coverPath = path.join(cacheDir, `${hash}.png`);
-        if (fs.existsSync(coverPath)) {
-            return coverPath;
+        // Verifica se já existe capa em cache com alguma extensão suportada
+        const existing = ['.png', '.jpg', '.jpeg', '.webp', '.svg']
+            .map(ext => path.join(cacheDir, `${hash}${ext}`))
+            .find(p => fs.existsSync(p));
+        if (existing) {
+            return existing;
         }
         if (signal?.aborted)
             return null;
@@ -85,6 +88,18 @@ class BookImageCoverController {
             return null;
         if (meta.coverImage) {
             try {
+                let ext = '.png';
+                const strStart = meta.coverImage.slice(0, 50).toString('utf-8');
+                if (strStart.includes('<svg') || strStart.includes('<?xml')) {
+                    ext = '.svg';
+                }
+                else if (meta.coverImage[0] === 0xff && meta.coverImage[1] === 0xd8) {
+                    ext = '.jpg';
+                }
+                else if (meta.coverImage.slice(0, 4).toString('hex') === '89504e47') {
+                    ext = '.png';
+                }
+                const coverPath = path.join(cacheDir, `${hash}${ext}`);
                 fs.writeFileSync(coverPath, meta.coverImage);
                 return coverPath;
             }
@@ -110,7 +125,15 @@ class BookImageCoverController {
     saveCoverToCache(filePath, buffer) {
         const hash = this.generateHash(filePath);
         const cacheDir = this.getCacheDir();
-        const coverPath = path.join(cacheDir, `${hash}.png`);
+        let ext = '.png';
+        const strStart = buffer.slice(0, 50).toString('utf-8');
+        if (strStart.includes('<svg') || strStart.includes('<?xml')) {
+            ext = '.svg';
+        }
+        else if (buffer[0] === 0xff && buffer[1] === 0xd8) {
+            ext = '.jpg';
+        }
+        const coverPath = path.join(cacheDir, `${hash}${ext}`);
         fs.writeFileSync(coverPath, buffer);
         return coverPath;
     }
