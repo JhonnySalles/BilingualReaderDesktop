@@ -29,6 +29,8 @@ import { BookImageCoverController } from './controllers/book-image-cover.control
 import { MangaImageCoverController } from './controllers/manga-image-cover.controller';
 import { BookPageBitmapCaptureService } from './services/book-page-bitmap-capture.service';
 import { EpubBookExtractor } from './parser/book/epub-book-extractor';
+import { BookExtractorFactory } from './parser/book/book-extractor.factory';
+import { Book } from '../src/app/core/models/entities/book.model';
 import { Telemetry } from './utils/telemetry';
 import { getAppBaseDir, getAppDataDir, ensureAppDirs } from './utils/app-paths';
 
@@ -645,17 +647,64 @@ app.on('ready', () => {
       return storageService.clearMangaProgress(id) || null;
     });
 
-    ipcMain.handle('book:get', async (_event, id: number) => {
+    ipcMain.handle('book:get', async (_event, id: number, force?: boolean) => {
       const book = storageService.findBookById(id) || null;
       if (!book) return null;
+
       try {
-        const coverPath = BookImageCoverController.instance.ensureCover(book);
-        if (coverPath && coverPath !== book.coverPath) {
-          storageService.saveBook({ ...book, coverPath });
-          return storageService.findBookById(id) || { ...book, coverPath };
+        const fileExists = Boolean(book.path && fs.existsSync(book.path));
+        const coverExists = Boolean(book.coverPath && fs.existsSync(book.coverPath));
+        let stat: fs.Stats | null = null;
+        let fileMtime = '';
+        let isAltered = false;
+
+        if (fileExists) {
+          try {
+            stat = fs.statSync(book.path);
+            fileMtime = stat.mtime.toISOString();
+            const existingAlt = book.fileAlteration || '';
+            isAltered = Boolean(fileMtime && (!existingAlt || existingAlt.split('.')[0] !== fileMtime.split('.')[0]));
+          } catch {
+            /* ignore stat error */
+          }
+        }
+
+        const needsSync = Boolean(force || !coverExists || isAltered);
+
+        if (needsSync && fileExists) {
+          const meta = BookExtractorFactory.getMetadata(book.path);
+          const coverPath = BookImageCoverController.instance.ensureCover(book);
+
+          const updated: Partial<Book> = {
+            id: book.id,
+            title: meta.title || book.title || path.basename(book.path),
+            author: meta.author || '',
+            series: meta.series || '',
+            genre: meta.genre || '',
+            publisher: meta.publisher || '',
+            language: meta.language || book.language || '',
+            isbn: meta.isbn || '',
+            annotation: meta.annotation || '',
+            tags: meta.tags || book.tags || '',
+            coverPath: coverPath || book.coverPath,
+            fileAlteration: fileMtime || book.fileAlteration,
+            fileSize: stat ? stat.size : book.fileSize
+          };
+          storageService.saveBook(updated);
+          const fresh = storageService.findBookById(id) || { ...book, ...updated };
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('book:updated-add', fresh);
+          }
+          return fresh;
+        } else if (!coverExists) {
+          const coverPath = BookImageCoverController.instance.ensureCover(book);
+          if (coverPath && coverPath !== book.coverPath) {
+            storageService.saveBook({ ...book, coverPath });
+            return storageService.findBookById(id) || { ...book, coverPath };
+          }
         }
       } catch (e) {
-        console.warn('[book:get] ensureCover failed', id, e);
+        console.warn('[book:get] sync metadata failed', id, e);
       }
       return book;
     });

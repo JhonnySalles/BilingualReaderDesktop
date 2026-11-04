@@ -14,17 +14,26 @@ var FileType;
     FileType["IMAGE"] = "IMAGE";
     // Manga e Livro
     FileType["EPUB"] = "EPUB";
+    FileType["KEPUB"] = "KEPUB";
     FileType["EPUB3"] = "EPUB3";
     // Livro
     FileType["PDF"] = "PDF";
     FileType["MOBI"] = "MOBI";
+    FileType["PDB"] = "PDB";
     FileType["DJVU"] = "DJVU";
     FileType["FB2"] = "FB2";
     FileType["TXT"] = "TXT";
+    FileType["TXTZ"] = "TXTZ";
     FileType["RTF"] = "RTF";
     FileType["AZW"] = "AZW";
     FileType["AZW3"] = "AZW3";
     FileType["HTML"] = "HTML";
+    FileType["HTMLZ"] = "HTMLZ";
+    FileType["LIT"] = "LIT";
+    FileType["LRF"] = "LRF";
+    FileType["RB"] = "RB";
+    FileType["SNB"] = "SNB";
+    FileType["TCR"] = "TCR";
     FileType["DOC"] = "DOC";
     FileType["DOCX"] = "DOCX";
     FileType["OPDS"] = "OPDS";
@@ -153,16 +162,25 @@ function getMangaFileTypes() {
 function getBookFileTypes() {
     return [
         FileType.EPUB,
+        FileType.KEPUB,
         FileType.EPUB3,
         FileType.PDF,
         FileType.MOBI,
+        FileType.PDB,
         FileType.DJVU,
         FileType.FB2,
         FileType.TXT,
+        FileType.TXTZ,
         FileType.RTF,
         FileType.AZW,
         FileType.AZW3,
         FileType.HTML,
+        FileType.HTMLZ,
+        FileType.LIT,
+        FileType.LRF,
+        FileType.RB,
+        FileType.SNB,
+        FileType.TCR,
         FileType.DOC,
         FileType.DOCX,
         FileType.OPDS,
@@ -175,7 +193,7 @@ function getBookFileTypes() {
 /** Extension → FileType for book scanner / open dialog. */
 exports.BOOK_EXTENSION_TYPES = {
     epub: FileType.EPUB,
-    kepub: FileType.EPUB,
+    kepub: FileType.KEPUB,
     epub3: FileType.EPUB3,
     pdf: FileType.PDF,
     xps: FileType.UNKNOWN,
@@ -183,17 +201,18 @@ exports.BOOK_EXTENSION_TYPES = {
     azw: FileType.AZW,
     azw3: FileType.AZW3,
     azw4: FileType.AZW3,
-    pdb: FileType.MOBI,
+    pdb: FileType.PDB,
     prc: FileType.MOBI,
     djvu: FileType.DJVU,
     fb2: FileType.FB2,
     txt: FileType.TXT,
+    txtz: FileType.TXTZ,
     rtf: FileType.RTF,
     html: FileType.HTML,
     htm: FileType.HTML,
     xhtml: FileType.HTML,
     xhtm: FileType.HTML,
-    htmlz: FileType.HTML,
+    htmlz: FileType.HTMLZ,
     pmlz: FileType.UNKNOWN,
     doc: FileType.DOC,
     docx: FileType.DOCX,
@@ -202,7 +221,14 @@ exports.BOOK_EXTENSION_TYPES = {
     markdown: FileType.MD,
     mht: FileType.MHT,
     mhtml: FileType.MHT,
-    shtml: FileType.HTML
+    shtml: FileType.HTML,
+    lit: FileType.LIT,
+    lrf: FileType.LRF,
+    rb: FileType.RB,
+    snb: FileType.SNB,
+    tcr: FileType.TCR,
+    tif: FileType.TIFF,
+    tiff: FileType.TIFF
 };
 function getBookFileType(filePath) {
     const ext = filePath.split('.').pop()?.toLowerCase() || '';

@@ -65,6 +65,7 @@ const book_image_cover_controller_1 = require("./controllers/book-image-cover.co
 const manga_image_cover_controller_1 = require("./controllers/manga-image-cover.controller");
 const book_page_bitmap_capture_service_1 = require("./services/book-page-bitmap-capture.service");
 const epub_book_extractor_1 = require("./parser/book/epub-book-extractor");
+const book_extractor_factory_1 = require("./parser/book/book-extractor.factory");
 const telemetry_1 = require("./utils/telemetry");
 const app_paths_1 = require("./utils/app-paths");
 // Ensure data/cache directory structures and migrate legacy files
@@ -623,19 +624,63 @@ electron_1.app.on('ready', () => {
         electron_1.ipcMain.handle('manga:clear-progress', async (_event, id) => {
             return storageService.clearMangaProgress(id) || null;
         });
-        electron_1.ipcMain.handle('book:get', async (_event, id) => {
+        electron_1.ipcMain.handle('book:get', async (_event, id, force) => {
             const book = storageService.findBookById(id) || null;
             if (!book)
                 return null;
             try {
-                const coverPath = book_image_cover_controller_1.BookImageCoverController.instance.ensureCover(book);
-                if (coverPath && coverPath !== book.coverPath) {
-                    storageService.saveBook({ ...book, coverPath });
-                    return storageService.findBookById(id) || { ...book, coverPath };
+                const fileExists = Boolean(book.path && fs.existsSync(book.path));
+                const coverExists = Boolean(book.coverPath && fs.existsSync(book.coverPath));
+                let stat = null;
+                let fileMtime = '';
+                let isAltered = false;
+                if (fileExists) {
+                    try {
+                        stat = fs.statSync(book.path);
+                        fileMtime = stat.mtime.toISOString();
+                        const existingAlt = book.fileAlteration || '';
+                        isAltered = Boolean(fileMtime && (!existingAlt || existingAlt.split('.')[0] !== fileMtime.split('.')[0]));
+                    }
+                    catch {
+                        /* ignore stat error */
+                    }
+                }
+                const needsSync = Boolean(force || !coverExists || isAltered);
+                if (needsSync && fileExists) {
+                    const meta = book_extractor_factory_1.BookExtractorFactory.getMetadata(book.path);
+                    const coverPath = book_image_cover_controller_1.BookImageCoverController.instance.ensureCover(book);
+                    const updated = {
+                        id: book.id,
+                        title: meta.title || book.title || path.basename(book.path),
+                        author: meta.author || '',
+                        series: meta.series || '',
+                        genre: meta.genre || '',
+                        publisher: meta.publisher || '',
+                        language: meta.language || book.language || '',
+                        isbn: meta.isbn || '',
+                        annotation: meta.annotation || '',
+                        tags: meta.tags || book.tags || '',
+                        coverPath: coverPath || book.coverPath,
+                        fileAlteration: fileMtime || book.fileAlteration,
+                        fileSize: stat ? stat.size : book.fileSize
+                    };
+                    storageService.saveBook(updated);
+                    const fresh = storageService.findBookById(id) || { ...book, ...updated };
+                    if (mainWindow && !mainWindow.isDestroyed()) {
+                        mainWindow.webContents.send('book:updated-add', fresh);
+                    }
+                    return fresh;
+                }
+                else if (!coverExists) {
+                    const coverPath = book_image_cover_controller_1.BookImageCoverController.instance.ensureCover(book);
+                    if (coverPath && coverPath !== book.coverPath) {
+                        storageService.saveBook({ ...book, coverPath });
+                        return storageService.findBookById(id) || { ...book, coverPath };
+                    }
                 }
             }
             catch (e) {
-                console.warn('[book:get] ensureCover failed', id, e);
+                console.warn('[book:get] sync metadata failed', id, e);
             }
             return book;
         });

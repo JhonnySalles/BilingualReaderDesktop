@@ -29,7 +29,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   cancelAllScans: () => ipcRenderer.invoke('app:cancel-all-scans'),
   getLibraryCount: (libraryId: number, type: 'MANGA' | 'BOOK') => ipcRenderer.invoke('library:get-count', libraryId, type),
   getManga: (id: number) => ipcRenderer.invoke('manga:get', id),
-  getBook: (id: number) => ipcRenderer.invoke('book:get', id),
+  getBook: (id: number, force?: boolean) => ipcRenderer.invoke('book:get', id, force),
+  syncBookMetadata: (id: number) => ipcRenderer.invoke('book:get', id, true),
   getBookChapters: (id: number) => ipcRenderer.invoke('book:get-chapters', id),
   setBookPassword: (id: number, password: string) =>
     ipcRenderer.invoke('book:set-password', id, password),

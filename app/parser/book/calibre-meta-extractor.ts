@@ -60,27 +60,37 @@ export class CalibreMetaExtractor {
       try {
         const opf = fs.readFileSync(localOpfPath, 'utf-8');
         const tm = opf.match(/<dc:title[^>]*>([^<]+)<\/dc:title>/i);
-        if (tm?.[1]?.trim()) title = tm[1].trim();
+        const opfTitle = tm?.[1]?.trim() || '';
+        
+        // Só aceita o metadata.opf local se for relevante para este arquivo específico
+        const cleanOpf = opfTitle.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const cleanFile = fallbackTitle.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const cleanDir = path.basename(parentDir).toLowerCase().replace(/[^a-z0-9]/g, '');
+        const matchesBook = cleanOpf && (cleanFile.includes(cleanOpf) || cleanOpf.includes(cleanFile) || cleanDir.includes(cleanOpf));
 
-        const authors: string[] = [];
-        const ams = opf.matchAll(/<dc:creator[^>]*>([^<]+)<\/dc:creator>/gi);
-        for (const m of ams) {
-          const a = m[1].trim();
-          if (a && !authors.includes(a)) authors.push(a);
+        if (matchesBook) {
+          if (opfTitle) title = opfTitle;
+
+          const authors: string[] = [];
+          const ams = opf.matchAll(/<dc:creator[^>]*>([^<]+)<\/dc:creator>/gi);
+          for (const m of ams) {
+            const a = m[1].trim();
+            if (a && !authors.includes(a)) authors.push(a);
+          }
+          if (authors.length > 0) author = authors.join(', ');
+
+          const pm = opf.match(/<dc:publisher[^>]*>([^<]+)<\/dc:publisher>/i);
+          if (pm?.[1]?.trim()) publisher = pm[1].trim();
+
+          const sm = opf.match(/<meta[^>]*name=["']calibre:series["'][^>]*content=["']([^"']+)["']/i);
+          if (sm?.[1]?.trim()) series = sm[1].trim();
+
+          const dm = opf.match(/<dc:description[^>]*>([\s\S]*?)<\/dc:description>/i);
+          if (dm?.[1]?.trim()) annotation = dm[1].replace(/<[^>]+>/g, ' ').trim();
+
+          const im = opf.match(/<dc:identifier[^>]*opf:scheme=["']ISBN["'][^>]*>([^<]+)<\/dc:identifier>/i);
+          if (im?.[1]?.trim()) isbn = im[1].trim();
         }
-        if (authors.length > 0) author = authors.join(', ');
-
-        const pm = opf.match(/<dc:publisher[^>]*>([^<]+)<\/dc:publisher>/i);
-        if (pm?.[1]?.trim()) publisher = pm[1].trim();
-
-        const sm = opf.match(/<meta[^>]*name=["']calibre:series["'][^>]*content=["']([^"']+)["']/i);
-        if (sm?.[1]?.trim()) series = sm[1].trim();
-
-        const dm = opf.match(/<dc:description[^>]*>([\s\S]*?)<\/dc:description>/i);
-        if (dm?.[1]?.trim()) annotation = dm[1].replace(/<[^>]+>/g, ' ').trim();
-
-        const im = opf.match(/<dc:identifier[^>]*opf:scheme=["']ISBN["'][^>]*>([^<]+)<\/dc:identifier>/i);
-        if (im?.[1]?.trim()) isbn = im[1].trim();
       } catch {
         /* ignore */
       }
@@ -137,20 +147,39 @@ export class CalibreMetaExtractor {
 
       // Parse da saída padrão do ebook-meta
       const lines = stdout.split(/\r?\n/);
+      let readingComments = false;
+      const commentsLines: string[] = [];
+
       for (const line of lines) {
+        // Checar se começou outra tag conhecida
+        const isNewHeader = /^[A-Z][a-zA-Z\s\(\)]+\s*:\s*/.test(line);
+        if (isNewHeader) {
+          readingComments = false;
+        }
+
+        if (readingComments) {
+          commentsLines.push(line);
+          continue;
+        }
+
         const titleMatch = line.match(/^Title\s*:\s*(.+)$/i);
         if (titleMatch && !title) title = titleMatch[1].trim();
 
         const authorMatch = line.match(/^Author\(s\)\s*:\s*([^\[]+)/i);
         if (authorMatch && !author) {
-          author = authorMatch[1].replace(/&/g, ',').trim();
+          const rawA = authorMatch[1].replace(/&/g, ',').trim();
+          if (rawA && !/^(?:desconhecido|unknown)$/i.test(rawA)) {
+            author = rawA;
+          }
         }
 
         const pubMatch = line.match(/^Publisher\s*:\s*(.+)$/i);
         if (pubMatch && !publisher) publisher = pubMatch[1].trim();
 
         const seriesMatch = line.match(/^Series\s*:\s*(.+)$/i);
-        if (seriesMatch && !series) series = seriesMatch[1].trim();
+        if (seriesMatch && !series) {
+          series = seriesMatch[1].replace(/\s*#\d+(?:\.\d+)?$/, '').trim();
+        }
 
         const tagsMatch = line.match(/^Tags\s*:\s*(.+)$/i);
         if (tagsMatch && !tags) {
@@ -164,10 +193,17 @@ export class CalibreMetaExtractor {
         const isbnMatch = line.match(/isbn[:=]\s*(\d[\d\-]+)/i);
         if (isbnMatch && !isbn) isbn = isbnMatch[1].trim();
 
-        const commentsMatch = line.match(/^Comments\s*:\s*(.+)$/i);
-        if (commentsMatch && !annotation) {
-          annotation = commentsMatch[1].replace(/<[^>]+>/g, ' ').trim();
+        const commentsMatch = line.match(/^Comments\s*:\s*(.*)$/i);
+        if (commentsMatch) {
+          readingComments = true;
+          if (commentsMatch[1]?.trim()) {
+            commentsLines.push(commentsMatch[1].trim());
+          }
         }
+      }
+
+      if (commentsLines.length > 0 && !annotation) {
+        annotation = commentsLines.join(' ').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
       }
     } catch (e) {
       console.warn('[CalibreMetaExtractor] Execution warning for:', filePath, e);

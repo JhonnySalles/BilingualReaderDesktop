@@ -9,8 +9,13 @@ export class Fb2BookExtractor {
 
     let title = '';
     const authors: string[] = [];
+    let series = '';
     let genre = '';
+    let publisher = '';
+    let language = '';
+    let isbn = '';
     let annotation = '';
+    let tags = '';
     let coverImage: Buffer | null = null;
 
     try {
@@ -40,10 +45,49 @@ export class Fb2BookExtractor {
         }
       }
 
-      // Gênero
-      const genreMatch = xml.match(/<genre\b[^>]*>([\s\S]*?)<\/genre>/i);
-      if (genreMatch) {
-        genre = genreMatch[1].replace(/<[^>]+>/g, '').trim();
+      // Gênero / Tags
+      const genres: string[] = [];
+      const genreMatches = xml.matchAll(/<genre\b[^>]*>([\s\S]*?)<\/genre>/gi);
+      for (const gm of genreMatches) {
+        const g = gm[1].replace(/<[^>]+>/g, '').trim();
+        if (g && !genres.includes(g)) {
+          genres.push(g);
+        }
+      }
+      const keywordsMatch = xml.match(/<keywords\b[^>]*>([\s\S]*?)<\/keywords>/i);
+      if (keywordsMatch) {
+        const kws = keywordsMatch[1].replace(/<[^>]+>/g, '').split(/[,;]/).map(k => k.trim()).filter(Boolean);
+        for (const kw of kws) {
+          if (!genres.includes(kw)) genres.push(kw);
+        }
+      }
+      if (genres.length > 0) {
+        genre = genres[0];
+        tags = genres.join(', ');
+      }
+
+      // Série
+      const seqMatch = xml.match(/<sequence\b[^>]*name=["']([^"']+)["']/i);
+      if (seqMatch?.[1]?.trim()) {
+        series = seqMatch[1].trim();
+      }
+
+      // Editora
+      const pubMatch = xml.match(/<publisher\b[^>]*>([\s\S]*?)<\/publisher>/i);
+      if (pubMatch?.[1]?.trim()) {
+        publisher = pubMatch[1].replace(/<[^>]+>/g, '').trim();
+      }
+
+      // Idioma
+      const langMatch = xml.match(/<lang\b[^>]*>([\s\S]*?)<\/lang>/i);
+      if (langMatch?.[1]?.trim()) {
+        language = langMatch[1].replace(/<[^>]+>/g, '').trim();
+      }
+
+      // ISBN
+      const isbnMatch = xml.match(/<isbn\b[^>]*>([\s\S]*?)<\/isbn>/i);
+      if (isbnMatch?.[1]?.trim()) {
+        isbn = isbnMatch[1].replace(/<[^>]+>/g, '').trim();
       }
 
       // Sinopse
@@ -81,13 +125,13 @@ export class Fb2BookExtractor {
     return {
       title,
       author: authors.join(', '),
-      series: '',
+      series,
       genre,
-      publisher: '',
-      language: '',
-      isbn: '',
+      publisher,
+      language,
+      isbn,
       annotation,
-      tags: genre,
+      tags: tags || genre,
       coverImage
     };
   }

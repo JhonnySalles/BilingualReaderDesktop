@@ -99,6 +99,19 @@ export class BookImageCoverController {
     }
   }
 
+  public regenerateBookCover(book: Book): string | null {
+    if (!book.path) return null;
+    const hash = this.generateHash(book.path);
+    const cacheDir = this.getCacheDir();
+    for (const ext of ['.png', '.jpg', '.jpeg', '.webp', '.svg']) {
+      const p = path.join(cacheDir, `${hash}${ext}`);
+      if (fs.existsSync(p)) {
+        try { fs.unlinkSync(p); } catch { /* ignore */ }
+      }
+    }
+    return this.getBookCoverFile(book);
+  }
+
   public saveCoverToCache(filePath: string, buffer: Buffer): string {
     const hash = this.generateHash(filePath);
     const cacheDir = this.getCacheDir();

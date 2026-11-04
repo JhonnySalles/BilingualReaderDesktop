@@ -20,8 +20,12 @@ export class DetailService {
     return this.electron.getMangaCover3D(id);
   }
 
-  loadBook(id: number): Promise<Book | null> {
-    return this.electron.getBook(id);
+  loadBook(id: number, force?: boolean): Promise<Book | null> {
+    return this.electron.getBook(id, force);
+  }
+
+  syncBookMetadata(id: number): Promise<Book | null> {
+    return this.electron.syncBookMetadata(id);
   }
 
   loadBookChapters(id: number) {

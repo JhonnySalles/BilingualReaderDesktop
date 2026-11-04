@@ -323,12 +323,18 @@ export class ScannerBookService {
       }
     }
 
-    if (!existing.author) {
+    if (!hasAlterationMatch) {
       const meta = BookExtractorFactory.getMetadata(filePath);
-      if (meta.author && !existing.author) { updated.author = meta.author; needsUpdate = true; }
-      if (meta.series && !existing.series) { updated.series = meta.series; needsUpdate = true; }
-      if (meta.genre && !existing.genre) { updated.genre = meta.genre; needsUpdate = true; }
-      if (meta.publisher && !existing.publisher) { updated.publisher = meta.publisher; needsUpdate = true; }
+      updated.title = meta.title || existing.title || path.basename(filePath, path.extname(filePath));
+      updated.author = meta.author || '';
+      updated.series = meta.series || '';
+      updated.genre = meta.genre || '';
+      updated.publisher = meta.publisher || '';
+      updated.language = meta.language || existing.language || '';
+      updated.isbn = meta.isbn || '';
+      updated.annotation = meta.annotation || '';
+      if (meta.tags) updated.tags = meta.tags;
+      needsUpdate = true;
     }
 
     if (needsUpdate || existing.fkLibrary !== libraryId) {

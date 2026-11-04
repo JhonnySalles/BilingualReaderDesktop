@@ -36,7 +36,15 @@ const BOOK_EXTENSIONS = new Set([
   '.markdown',
   '.mht',
   '.mhtml',
-  '.shtml'
+  '.shtml',
+  '.txtz',
+  '.lit',
+  '.lrf',
+  '.rb',
+  '.snb',
+  '.tcr',
+  '.tif',
+  '.tiff'
 ]);
 
 const BATCH_SIZE = 5;
@@ -119,8 +127,9 @@ async function run(): Promise<void> {
       const existingAlt = existing.fileAlteration || '';
       const hasAlterationMatch = existingAlt && existingAlt.split('.')[0] === currentAlteration.split('.')[0];
 
-      // Fast-path: Se a data de alteração do arquivo no windows for igual e a biblioteca correta, não processa nada
-      if (hasAlterationMatch) {
+      // Fast-path: Se a data de alteração for igual, o livro já possuir autor e capa válida, e a biblioteca estiver correta, pula
+      const hasCoreMetadata = Boolean(existing.author && existing.coverPath && fs.existsSync(existing.coverPath));
+      if (hasAlterationMatch && hasCoreMetadata) {
         if (existing.fkLibrary !== libraryId) {
           batch.push({ id: existing.id, fkLibrary: libraryId });
         }
@@ -139,16 +148,18 @@ async function run(): Promise<void> {
         }
       }
 
-      if (!existing.author || !existing.series || !existing.isbn || !existing.annotation || !hasAlterationMatch) {
+      if (!hasAlterationMatch) {
         const meta = BookExtractorFactory.getMetadata(filePath);
-        if (meta.author && (!existing.author || !hasAlterationMatch)) { updated.author = meta.author; needsUpdate = true; }
-        if (meta.series && (!existing.series || !hasAlterationMatch)) { updated.series = meta.series; needsUpdate = true; }
-        if (meta.genre && (!existing.genre || !hasAlterationMatch)) { updated.genre = meta.genre; needsUpdate = true; }
-        if (meta.publisher && (!existing.publisher || !hasAlterationMatch)) { updated.publisher = meta.publisher; needsUpdate = true; }
-        if (meta.language && (!existing.language || !hasAlterationMatch)) { updated.language = meta.language; needsUpdate = true; }
-        if (meta.isbn && (!existing.isbn || !hasAlterationMatch)) { updated.isbn = meta.isbn; needsUpdate = true; }
-        if (meta.annotation && (!existing.annotation || !hasAlterationMatch)) { updated.annotation = meta.annotation; needsUpdate = true; }
-        if (meta.tags && (!existing.tags || !hasAlterationMatch)) { updated.tags = meta.tags; needsUpdate = true; }
+        updated.title = meta.title || existing.title || path.basename(filePath, path.extname(filePath));
+        updated.author = meta.author || '';
+        updated.series = meta.series || '';
+        updated.genre = meta.genre || '';
+        updated.publisher = meta.publisher || '';
+        updated.language = meta.language || existing.language || '';
+        updated.isbn = meta.isbn || '';
+        updated.annotation = meta.annotation || '';
+        if (meta.tags) updated.tags = meta.tags;
+        needsUpdate = true;
       }
 
       if (needsUpdate || !hasAlterationMatch || existing.fkLibrary !== libraryId) {

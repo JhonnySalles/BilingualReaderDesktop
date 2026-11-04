@@ -161,6 +161,7 @@ import { extractBookSearchTitle } from '../../core/utils/media-title-cleaner.uti
               accent="amber"
               [isFavorite]="book()!.favorite"
               [showAddTag]="true"
+              [showSyncFile]="true"
               (favoriteToggle)="onFavorite()"
               (markRead)="onMarkRead()"
               (clearProgress)="onClearProgress()"
@@ -169,6 +170,7 @@ import { extractBookSearchTitle } from '../../core/utils/media-title-cleaner.uti
               (vocabulary)="goVocabulary()"
               (importVocabulary)="onImportVocabulary()"
               (tracker)="onOpenTracker()"
+              (syncFile)="onSyncFile()"
               (deleteItem)="onDelete()" />
 
             <!-- Security / Password section -->
@@ -762,6 +764,25 @@ export class BookDetailComponent implements OnInit {
     if (result.ok) {
       const refreshed = await this.detail.loadBook(b.id);
       if (refreshed) this.book.set(refreshed);
+    }
+  }
+
+  async onSyncFile(): Promise<void> {
+    const b = this.book();
+    if (!b?.id) return;
+    this.importMessage.set('Sincronizando metadados e capa com o arquivo...');
+    try {
+      const refreshed = await this.detail.syncBookMetadata(b.id);
+      if (refreshed) {
+        this.book.set(refreshed);
+        this.bookmarkPage.set(refreshed.bookMark ?? 0);
+        this.flash('Metadados e capa sincronizados com o arquivo!');
+      } else {
+        this.flash('Nenhuma alteração detectada no arquivo.');
+      }
+    } catch (err) {
+      console.error('[BookDetailComponent] Erro ao sincronizar arquivo:', err);
+      this.flash('Falha ao sincronizar com o arquivo.');
     }
   }
 

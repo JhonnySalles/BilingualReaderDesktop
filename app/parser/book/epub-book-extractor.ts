@@ -64,8 +64,14 @@ export class EpubBookExtractor {
           const titleMatch = opfXml.match(/<dc:title[^>]*>([\s\S]*?)<\/dc:title>/i);
           if (titleMatch) title = this.cleanXmlText(titleMatch[1]);
 
-          const creatorMatch = opfXml.match(/<dc:creator[^>]*>([\s\S]*?)<\/dc:creator>/i);
-          if (creatorMatch) author = this.cleanXmlText(creatorMatch[1]);
+          const creators: string[] = [];
+          const creatorRegex = /<dc:creator[^>]*>([\s\S]*?)<\/dc:creator>/gi;
+          let cMatch: RegExpExecArray | null;
+          while ((cMatch = creatorRegex.exec(opfXml)) !== null) {
+            const c = this.cleanXmlText(cMatch[1]);
+            if (c && !creators.includes(c)) creators.push(c);
+          }
+          if (creators.length > 0) author = creators.join(', ');
 
           const publisherMatch = opfXml.match(/<dc:publisher[^>]*>([\s\S]*?)<\/dc:publisher>/i);
           if (publisherMatch) publisher = this.cleanXmlText(publisherMatch[1]);
@@ -76,13 +82,14 @@ export class EpubBookExtractor {
           const descMatch = opfXml.match(/<dc:description[^>]*>([\s\S]*?)<\/dc:description>/i);
           if (descMatch) annotation = this.cleanXmlText(descMatch[1]);
 
-          const isbnMatch = opfXml.match(/<dc:identifier[^>]*(?:scheme=["']ISBN["']|id=["'][^"']*isbn[^"']*["'])[^>]*>([\s\S]*?)<\/dc:identifier>/i) ||
+          const isbnMatch = opfXml.match(/<dc:identifier[^>]*>(?:(?:urn:)?isbn:)\s*([0-9Xx-]{10,17})<\/dc:identifier>/i) ||
+                            opfXml.match(/<dc:identifier[^>]*(?:scheme=["']ISBN["']|id=["'][^"']*isbn[^"']*["'])[^>]*>([\s\S]*?)<\/dc:identifier>/i) ||
                             opfXml.match(/<dc:identifier[^>]*>(?:urn:isbn:)?([0-9Xx-]{10,17})<\/dc:identifier>/i);
-          if (isbnMatch) isbn = this.cleanXmlText(isbnMatch[1]).replace(/^urn:isbn:/i, '');
+          if (isbnMatch) isbn = this.cleanXmlText(isbnMatch[1]).replace(/^(?:urn:)?isbn:\s*/i, '').trim();
 
-          // Series from Calibre metadata or EPUB 3 belongs-to-collection
-          const seriesMatch = opfXml.match(/<meta\s+name=["']calibre:series["']\s+content=["']([^"']+)["']/i) ||
-                              opfXml.match(/<meta\s+property=["']belongs-to-collection["'][^>]*>([\s\S]*?)<\/meta>/i);
+          // Series from Calibre metadata or EPUB 3 belongs-to-collection (including opf:meta prefix)
+          const seriesMatch = opfXml.match(/<(?:opf:)?meta\s+name=["']calibre:series["']\s+content=["']([^"']+)["']/i) ||
+                              opfXml.match(/<(?:opf:)?meta\s+property=["']belongs-to-collection["'][^>]*>([\s\S]*?)<\/(?:opf:)?meta>/i);
           if (seriesMatch) series = this.cleanXmlText(seriesMatch[1]);
 
           // Subjects / Tags

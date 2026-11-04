@@ -109,7 +109,8 @@ declare global {
       cancelAllScans: () => Promise<boolean>;
       getLibraryCount: (libraryId: number, type: 'MANGA' | 'BOOK') => Promise<number>;
       getManga: (id: number) => Promise<Manga | null>;
-      getBook: (id: number) => Promise<Book | null>;
+      getBook: (id: number, force?: boolean) => Promise<Book | null>;
+      syncBookMetadata?: (id: number) => Promise<Book | null>;
       getBookChapters?: (id: number) => Promise<any[]>;
       setBookPassword: (id: number, password: string) => Promise<Book | null>;
       getAdjacentBooks: (id: number) => Promise<{ prev: Book | null; next: Book | null }>;
@@ -794,12 +795,30 @@ export class ElectronService {
     return null;
   }
 
-  async getBook(id: number): Promise<Book | null> {
+  async getBook(id: number, force?: boolean): Promise<Book | null> {
     if (this.isElectron && window.electronAPI?.getBook) {
-      return await window.electronAPI.getBook(id);
+      return await window.electronAPI.getBook(id, force);
     }
     return null;
   }
+
+  async syncBookMetadata(id: number): Promise<Book | null> {
+    if (this.isElectron && window.electronAPI?.syncBookMetadata) {
+      return await window.electronAPI.syncBookMetadata(id);
+    }
+    if (this.isElectron && window.electronAPI?.getBook) {
+      return await window.electronAPI.getBook(id, true);
+    }
+    return null;
+  }
+  /*
+
+    }
+    }
+    return null;
+  }
+
+  */
 
   async getBookChapters(id: number): Promise<any[]> {
     if (this.isElectron && window.electronAPI?.getBookChapters) {

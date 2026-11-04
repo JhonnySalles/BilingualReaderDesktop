@@ -1,3 +1,4 @@
+import * as fs from 'fs';
 import * as path from 'path';
 import { EpubBookExtractor, BookMetadataResult } from './epub-book-extractor';
 import { MobiBookExtractor } from './mobi-book-extractor';
@@ -5,6 +6,7 @@ import { Fb2BookExtractor } from './fb2-book-extractor';
 import { DocxBookExtractor } from './docx-book-extractor';
 import { ArchiveBookExtractor } from './archive-book-extractor';
 import { RocketBookExtractor } from './rocket-book-extractor';
+import { SnbBookExtractor } from './snb-book-extractor';
 import { CalibreMetaExtractor } from './calibre-meta-extractor';
 import { CoverGenerator } from './cover-generator';
 
@@ -17,39 +19,7 @@ export class BookExtractorFactory {
     let meta: BookMetadataResult | null = null;
 
     // 1. Tenta extratores nativos específicos por formato
-    switch (ext) {
-      case '.epub':
-      case '.kepub':
-      case '.epub3':
-        meta = EpubBookExtractor.extractMetadata(filePath);
-        break;
-      case '.mobi':
-      case '.azw':
-      case '.azw3':
-      case '.azw4':
-      case '.prc':
-        meta = MobiBookExtractor.extractMetadata(filePath);
-        break;
-      case '.fb2':
-        meta = Fb2BookExtractor.extractMetadata(filePath);
-        break;
-      case '.docx':
-        meta = DocxBookExtractor.extractMetadata(filePath);
-        break;
-      case '.htmlz':
-      case '.txtz':
-        meta = ArchiveBookExtractor.extractMetadata(filePath);
-        break;
-      case '.rb':
-        meta = RocketBookExtractor.extractMetadata(filePath);
-        break;
-      case '.pdf':
-      case '.lit':
-      case '.lrf':
-      case '.snb':
-        meta = CalibreMetaExtractor.extractMetadata(filePath);
-        break;
-    }
+    meta = this.extractByExt(filePath, ext);
 
     // 2. Se não extraiu ou faltou capa, tenta o CalibreMetaExtractor (pasta do Calibre ou CLI)
     // Para formatos comprovadamente de texto puro (.txt, .pdb, .tcr), não executa CLI demorado se não houver capa local
@@ -68,6 +38,9 @@ export class BookExtractorFactory {
           if (!meta.annotation && calibreMeta.annotation) meta.annotation = calibreMeta.annotation;
           if (!meta.genre && calibreMeta.genre) meta.genre = calibreMeta.genre;
           if (!meta.isbn && calibreMeta.isbn) meta.isbn = calibreMeta.isbn;
+          if (!meta.publisher && calibreMeta.publisher) meta.publisher = calibreMeta.publisher;
+          if (!meta.language && calibreMeta.language) meta.language = calibreMeta.language;
+          if (!meta.tags && calibreMeta.tags) meta.tags = calibreMeta.tags;
         }
       }
     }
@@ -99,5 +72,37 @@ export class BookExtractorFactory {
       tags: meta?.tags || '',
       coverImage
     };
+  }
+
+  public static extractByExt(filePath: string, ext: string): BookMetadataResult | null {
+    switch (ext) {
+      case '.epub':
+      case '.kepub':
+      case '.epub3':
+        return EpubBookExtractor.extractMetadata(filePath);
+      case '.mobi':
+      case '.azw':
+      case '.azw3':
+      case '.azw4':
+      case '.prc':
+        return MobiBookExtractor.extractMetadata(filePath);
+      case '.fb2':
+        return Fb2BookExtractor.extractMetadata(filePath);
+      case '.docx':
+        return DocxBookExtractor.extractMetadata(filePath);
+      case '.htmlz':
+      case '.txtz':
+        return ArchiveBookExtractor.extractMetadata(filePath);
+      case '.rb':
+        return RocketBookExtractor.extractMetadata(filePath);
+      case '.snb':
+        return SnbBookExtractor.extractMetadata(filePath);
+      case '.pdf':
+      case '.lit':
+      case '.lrf':
+        return CalibreMetaExtractor.extractMetadata(filePath);
+      default:
+        return null;
+    }
   }
 }

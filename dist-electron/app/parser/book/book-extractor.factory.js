@@ -41,6 +41,7 @@ const fb2_book_extractor_1 = require("./fb2-book-extractor");
 const docx_book_extractor_1 = require("./docx-book-extractor");
 const archive_book_extractor_1 = require("./archive-book-extractor");
 const rocket_book_extractor_1 = require("./rocket-book-extractor");
+const snb_book_extractor_1 = require("./snb-book-extractor");
 const calibre_meta_extractor_1 = require("./calibre-meta-extractor");
 const cover_generator_1 = require("./cover-generator");
 class BookExtractorFactory {
@@ -49,39 +50,7 @@ class BookExtractorFactory {
         const fileName = path.basename(filePath, ext);
         let meta = null;
         // 1. Tenta extratores nativos específicos por formato
-        switch (ext) {
-            case '.epub':
-            case '.kepub':
-            case '.epub3':
-                meta = epub_book_extractor_1.EpubBookExtractor.extractMetadata(filePath);
-                break;
-            case '.mobi':
-            case '.azw':
-            case '.azw3':
-            case '.azw4':
-            case '.prc':
-                meta = mobi_book_extractor_1.MobiBookExtractor.extractMetadata(filePath);
-                break;
-            case '.fb2':
-                meta = fb2_book_extractor_1.Fb2BookExtractor.extractMetadata(filePath);
-                break;
-            case '.docx':
-                meta = docx_book_extractor_1.DocxBookExtractor.extractMetadata(filePath);
-                break;
-            case '.htmlz':
-            case '.txtz':
-                meta = archive_book_extractor_1.ArchiveBookExtractor.extractMetadata(filePath);
-                break;
-            case '.rb':
-                meta = rocket_book_extractor_1.RocketBookExtractor.extractMetadata(filePath);
-                break;
-            case '.pdf':
-            case '.lit':
-            case '.lrf':
-            case '.snb':
-                meta = calibre_meta_extractor_1.CalibreMetaExtractor.extractMetadata(filePath);
-                break;
-        }
+        meta = this.extractByExt(filePath, ext);
         // 2. Se não extraiu ou faltou capa, tenta o CalibreMetaExtractor (pasta do Calibre ou CLI)
         // Para formatos comprovadamente de texto puro (.txt, .pdb, .tcr), não executa CLI demorado se não houver capa local
         const isTextOnly = ext === '.txt' || ext === '.pdb' || ext === '.tcr';
@@ -105,6 +74,12 @@ class BookExtractorFactory {
                         meta.genre = calibreMeta.genre;
                     if (!meta.isbn && calibreMeta.isbn)
                         meta.isbn = calibreMeta.isbn;
+                    if (!meta.publisher && calibreMeta.publisher)
+                        meta.publisher = calibreMeta.publisher;
+                    if (!meta.language && calibreMeta.language)
+                        meta.language = calibreMeta.language;
+                    if (!meta.tags && calibreMeta.tags)
+                        meta.tags = calibreMeta.tags;
                 }
             }
         }
@@ -133,6 +108,37 @@ class BookExtractorFactory {
             tags: meta?.tags || '',
             coverImage
         };
+    }
+    static extractByExt(filePath, ext) {
+        switch (ext) {
+            case '.epub':
+            case '.kepub':
+            case '.epub3':
+                return epub_book_extractor_1.EpubBookExtractor.extractMetadata(filePath);
+            case '.mobi':
+            case '.azw':
+            case '.azw3':
+            case '.azw4':
+            case '.prc':
+                return mobi_book_extractor_1.MobiBookExtractor.extractMetadata(filePath);
+            case '.fb2':
+                return fb2_book_extractor_1.Fb2BookExtractor.extractMetadata(filePath);
+            case '.docx':
+                return docx_book_extractor_1.DocxBookExtractor.extractMetadata(filePath);
+            case '.htmlz':
+            case '.txtz':
+                return archive_book_extractor_1.ArchiveBookExtractor.extractMetadata(filePath);
+            case '.rb':
+                return rocket_book_extractor_1.RocketBookExtractor.extractMetadata(filePath);
+            case '.snb':
+                return snb_book_extractor_1.SnbBookExtractor.extractMetadata(filePath);
+            case '.pdf':
+            case '.lit':
+            case '.lrf':
+                return calibre_meta_extractor_1.CalibreMetaExtractor.extractMetadata(filePath);
+            default:
+                return null;
+        }
     }
 }
 exports.BookExtractorFactory = BookExtractorFactory;

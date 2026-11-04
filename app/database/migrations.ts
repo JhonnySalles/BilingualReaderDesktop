@@ -58,6 +58,20 @@ export class MigrationsManager {
     } catch (e) {
       console.warn('[MigrationsManager] Error updating History columns:', e);
     }
+
+    // Reconcile book types and clean up borrowed cross-format metadata
+    try {
+      this.db.exec(`
+        UPDATE Book SET type = 'KEPUB' WHERE type = 'EPUB' AND LOWER(path) LIKE '%.kepub';
+        UPDATE Book SET type = 'PDB' WHERE type = 'MOBI' AND LOWER(path) LIKE '%.pdb';
+        UPDATE Book SET series = '' WHERE type IN ('MOBI', 'AZW3', 'AZW', 'DOCX', 'SNB', 'LIT', 'LRF', 'RB', 'PDB', 'TCR') AND series != '';
+        UPDATE Book SET isbn = '' WHERE type IN ('DOCX', 'SNB', 'LIT', 'LRF', 'RB', 'PDB', 'TCR') AND isbn != '';
+        UPDATE Book SET publisher = '' WHERE type IN ('RB', 'PDB', 'TCR') AND publisher != '';
+        UPDATE Book SET author = '' WHERE type IN ('PDB', 'TCR') AND author != '';
+      `);
+    } catch (e) {
+      console.warn('[MigrationsManager] Error reconciling book types and metadata:', e);
+    }
   }
 
   private createInitialSchema(): void {

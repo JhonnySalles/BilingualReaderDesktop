@@ -53,8 +53,8 @@ export class MenuController {
           extensions: [
             'cbz', 'cbr', 'cb7', 'cbt', 'zip', 'rar', '7z', 'tar',
             'epub', 'kepub', 'epub3', 'pdf', 'xps', 'mobi', 'azw', 'azw3', 'azw4',
-            'pdb', 'prc', 'djvu', 'fb2', 'txt', 'rtf', 'html', 'htm', 'doc', 'docx',
-            'odt', 'md', 'markdown', 'mht', 'mhtml'
+            'pdb', 'prc', 'djvu', 'fb2', 'txt', 'txtz', 'rtf', 'html', 'htm', 'htmlz', 'doc', 'docx',
+            'odt', 'md', 'markdown', 'mht', 'mhtml', 'lit', 'lrf', 'rb', 'snb', 'tcr', 'tif', 'tiff'
           ]
         },
         {
@@ -78,9 +78,11 @@ export class MenuController {
             'djvu',
             'fb2',
             'txt',
+            'txtz',
             'rtf',
             'html',
             'htm',
+            'htmlz',
             'xhtml',
             'doc',
             'docx',
@@ -88,7 +90,14 @@ export class MenuController {
             'md',
             'markdown',
             'mht',
-            'mhtml'
+            'mhtml',
+            'lit',
+            'lrf',
+            'rb',
+            'snb',
+            'tcr',
+            'tif',
+            'tiff'
           ]
         },
         {

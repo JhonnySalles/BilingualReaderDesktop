@@ -28,37 +28,37 @@ export class ArchiveBookExtractor {
         // Título
         const titleMatch = opf.match(/<dc:title[^>]*>([^<]+)<\/dc:title>/i);
         if (titleMatch?.[1]?.trim()) {
-          title = titleMatch[1].trim();
+          title = this.decodeXml(titleMatch[1].trim());
         }
 
         // Autor
         const authors: string[] = [];
         const authorMatches = opf.matchAll(/<dc:creator[^>]*>([^<]+)<\/dc:creator>/gi);
         for (const am of authorMatches) {
-          const a = am[1].trim();
+          const a = this.decodeXml(am[1].trim());
           if (a && !authors.includes(a)) authors.push(a);
         }
         if (authors.length > 0) author = authors.join(', ');
 
         // Editora
         const pubMatch = opf.match(/<dc:publisher[^>]*>([^<]+)<\/dc:publisher>/i);
-        if (pubMatch?.[1]?.trim()) publisher = pubMatch[1].trim();
+        if (pubMatch?.[1]?.trim()) publisher = this.decodeXml(pubMatch[1].trim());
 
         // Sinopse
         const descMatch = opf.match(/<dc:description[^>]*>([\s\S]*?)<\/dc:description>/i);
         if (descMatch?.[1]?.trim()) {
-          annotation = descMatch[1].replace(/<[^>]+>/g, ' ').trim();
+          annotation = this.decodeXml(descMatch[1].replace(/<[^>]+>/g, ' ').trim());
         }
 
         // Série
         const seriesMatch = opf.match(/<meta[^>]*name=["']calibre:series["'][^>]*content=["']([^"']+)["']/i);
-        if (seriesMatch?.[1]?.trim()) series = seriesMatch[1].trim();
+        if (seriesMatch?.[1]?.trim()) series = this.decodeXml(seriesMatch[1].trim());
 
         // Gênero / Tags
         const subjects: string[] = [];
         const subjectMatches = opf.matchAll(/<dc:subject[^>]*>([^<]+)<\/dc:subject>/gi);
         for (const sm of subjectMatches) {
-          const s = sm[1].trim();
+          const s = this.decodeXml(sm[1].trim());
           if (s && !subjects.includes(s)) subjects.push(s);
         }
         if (subjects.length > 0) {
@@ -67,13 +67,13 @@ export class ArchiveBookExtractor {
         }
 
         // ISBN
-        const isbnMatch = opf.match(/<dc:identifier[^>]*opf:scheme=["']ISBN["'][^>]*>([^<]+)<\/dc:identifier>/i) ||
-                          opf.match(/<dc:identifier[^>]*>urn:isbn:([^<]+)<\/dc:identifier>/i);
+        const isbnMatch = opf.match(/<dc:identifier[^>]*(?:opf:)?scheme=["']ISBN["'][^>]*>([^<]+)<\/dc:identifier>/i) ||
+                          opf.match(/<dc:identifier[^>]*>(?:(?:urn:)?isbn:)\s*([0-9Xx-]{10,17})<\/dc:identifier>/i);
         if (isbnMatch?.[1]?.trim()) isbn = isbnMatch[1].trim();
 
         // Idioma
         const langMatch = opf.match(/<dc:language[^>]*>([^<]+)<\/dc:language>/i);
-        if (langMatch?.[1]?.trim()) language = langMatch[1].trim();
+        if (langMatch?.[1]?.trim()) language = this.decodeXml(langMatch[1].trim());
       }
 
       // Extração da Capa
@@ -112,5 +112,15 @@ export class ArchiveBookExtractor {
       tags,
       coverImage
     };
+  }
+
+  private static decodeXml(text: string): string {
+    return text
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&apos;/g, "'")
+      .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(Number(dec)));
   }
 }
