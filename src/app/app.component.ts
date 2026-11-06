@@ -5,15 +5,17 @@ import { ElectronService } from './core/services/electron.service';
 
 import { ConfirmDialogComponent } from './shared/confirm-dialog/confirm-dialog.component';
 import { CoverViewerDialogComponent } from './shared/cover-viewer-dialog/cover-viewer-dialog.component';
+import { SocialShareDialogComponent } from './shared/social-share-dialog/social-share-dialog.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, ConfirmDialogComponent, CoverViewerDialogComponent],
+  imports: [RouterOutlet, ConfirmDialogComponent, CoverViewerDialogComponent, SocialShareDialogComponent],
   template: `
     <router-outlet />
     <app-confirm-dialog />
     <app-cover-viewer-dialog />
+    <app-social-share-dialog />
   `
 })
 export class AppComponent implements OnInit {
@@ -49,9 +51,8 @@ export class AppComponent implements OnInit {
   }
 
   private isEditableTarget(target: EventTarget | null): boolean {
-    if (!(target instanceof HTMLElement)) return false;
-    const tag = target.tagName;
-    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
-    return target.isContentEditable;
+    if (!target || !(target instanceof HTMLElement)) return false;
+    const tag = target.tagName.toLowerCase();
+    return tag === 'input' || tag === 'textarea' || target.isContentEditable;
   }
 }

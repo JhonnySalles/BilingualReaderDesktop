@@ -17,7 +17,7 @@ import { MangaLibraryService } from '../services/manga-library.service';
 import { BookLibraryService } from '../services/book-library.service';
 import { LibraryViewType } from '../models';
 import { SearchSuggestFieldComponent } from '../../shared/search-suggest-field/search-suggest-field.component';
-import { SocialShareDialogComponent } from '../../shared/social-share-dialog/social-share-dialog.component';
+import { SocialShareService } from '../services/social-share.service';
 import { LibrarySearchScope } from '../models/library-search.model';
 
 interface NavLibrary {
@@ -33,7 +33,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
 @Component({
   selector: 'app-main-layout',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, SearchSuggestFieldComponent, SocialShareDialogComponent],
+  imports: [CommonModule, FormsModule, RouterModule, SearchSuggestFieldComponent],
   template: `
     <div class="h-screen w-screen flex bg-slate-950 text-slate-100 overflow-hidden font-sans">
       <aside
@@ -547,7 +547,17 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
                 </svg>
               </button>
 
-              <button
+                            <button
+                type="button"
+                (click)="openLibrarySocialShare()"
+                class="p-2 bg-slate-900 border border-slate-800 hover:border-indigo-500/50 hover:bg-indigo-950/30 rounded-xl text-indigo-400 hover:text-indigo-300 transition-all flex items-center justify-center cursor-pointer shadow-sm hover:shadow-indigo-500/10"
+                title="Compartilhar Leituras desta Biblioteca">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                </svg>
+              </button>
+
+<button
                 (click)="libraryStateService.showFilterModal.set(true)"
                 class="p-2 bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl text-slate-300 hover:text-white transition-all flex items-center justify-center cursor-pointer"
                 title="Filtros e Opções">
@@ -709,7 +719,17 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
                 </svg>
               </button>
 
-              <button
+                            <button
+                type="button"
+                (click)="socialShare.open({ initialMediaType: historyUi.activeType(), initialYear: historyUi.year(), initialLibraryId: historyUi.libraryId() })"
+                class="p-2 bg-slate-900 border border-slate-800 hover:border-indigo-500/50 hover:bg-indigo-950/30 rounded-xl text-indigo-400 hover:text-indigo-300 transition-all flex items-center justify-center cursor-pointer shadow-sm hover:shadow-indigo-500/10"
+                title="Compartilhar Leituras (Social Studio)">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                </svg>
+              </button>
+
+<button
                 (click)="libraryStateService.showFilterModal.set(true)"
                 class="p-2 bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl text-slate-300 hover:text-white transition-all flex items-center justify-center cursor-pointer"
                 title="Filtros e Opções">
@@ -834,13 +854,6 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
         <main class="flex-1 overflow-hidden relative" style="view-transition-name: main-content;">
           
         <router-outlet />
-        @if (showSocialShareDialog()) {
-          <app-social-share-dialog
-            [initialMediaType]="historyUi.activeType()"
-            [initialYear]="historyUi.year()"
-            [initialLibraryId]="historyUi.libraryId()"
-            (close)="showSocialShareDialog.set(false)" />
-        }
         </main>
       </div>
     </div>
@@ -848,6 +861,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
 })
 export class MainLayoutComponent implements OnInit, AfterViewInit {
   private router = inject(Router);
+  public socialShare = inject(SocialShareService);
   private destroyRef = inject(DestroyRef);
   private settingsService = inject(SettingsService);
   private electronService = inject(ElectronService);
@@ -875,7 +889,7 @@ export class MainLayoutComponent implements OnInit, AfterViewInit {
   currentPath = signal<string>('/');
   currentLibId = signal<string>('home');
   isSettingsSpinning = signal<boolean>(false);
-  showSocialShareDialog = signal<boolean>(false);
+
 
   defaultMangaLibrary = signal<NavLibrary>({ id: 'manga-default', name: 'Biblioteca de Mangás', type: 'manga', icon: 'ico_manga', count: 0 });
   defaultBookLibrary = signal<NavLibrary>({ id: 'book-default', name: 'Biblioteca de Livros', type: 'book', icon: 'ico_book', count: 0 });
@@ -1244,6 +1258,20 @@ export class MainLayoutComponent implements OnInit, AfterViewInit {
     } finally {
       this.isUpdatingCounts = false;
     }
+  }
+
+  openLibrarySocialShare(): void {
+    const type = this.currentLibraryType() === 'book' ? 'BOOK' : 'MANGA';
+    const libIdStr = this.currentLibId();
+    let numericId: number | null = null;
+    if (libIdStr && libIdStr !== 'home' && libIdStr !== 'manga-default' && libIdStr !== 'book-default') {
+      const parsed = parseInt(libIdStr, 10);
+      if (!isNaN(parsed)) numericId = parsed;
+    }
+    this.socialShare.open({
+      initialMediaType: type,
+      initialLibraryId: numericId
+    });
   }
 
   selectLibrary(lib: NavLibrary) {
