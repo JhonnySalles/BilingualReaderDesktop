@@ -166,10 +166,22 @@ export class MangaReaderController {
       return this.sessionService.importExternalSubtitles(sessionId, result.filePaths[0]);
     });
 
-    ipcMain.handle('manga:get-cover-3d', async (_event, mangaId: number) => {
+    ipcMain.handle('manga:get-cover-3d', async (_event, mangaId: number, force?: boolean) => {
       const manga = this.storage.findMangaById(mangaId);
       if (!manga) return null;
-      return MangaImageCoverController.instance.getMangaCover3D(manga);
+      return MangaImageCoverController.instance.getMangaCover3D(manga, force);
+    });
+
+    ipcMain.handle('manga:refresh-cover', async (_event, mangaId: number) => {
+      const manga = this.storage.findMangaById(mangaId);
+      if (!manga) return null;
+      const coverPath = await MangaImageCoverController.instance.regenerateMangaCover(manga);
+      const cover3D = await MangaImageCoverController.instance.getMangaCover3D(manga, true);
+      if (coverPath && coverPath !== manga.coverPath) {
+        manga.coverPath = coverPath;
+        this.storage.saveManga(manga);
+      }
+      return { coverPath: coverPath || manga.coverPath || null, cover3D };
     });
   }
 }

@@ -429,11 +429,13 @@ export class BookDetailComponent implements OnInit {
   cover3dUrl = signal<string | null>(null);
   backCover3dUrl = signal<string | null>(null);
   isFullCover3d = signal<boolean>(false);
+  coverTimestamp = signal<number>(Date.now());
 
   coverUrl = computed(() => {
     const path = this.book()?.coverPath;
     if (!path) return null;
-    return 'local-cover:///' + path.replace(/\\/g, '/');
+    const ts = this.coverTimestamp();
+    return 'local-cover:///' + path.replace(/\\/g, '/') + (ts ? `?t=${ts}` : '');
   });
 
   trackerSearchTitle = computed(() => extractBookSearchTitle(this.book()));
@@ -527,13 +529,39 @@ export class BookDetailComponent implements OnInit {
           await Promise.all([
             this.loadBookmarks(book.id),
             this.loadWebTrackerDetails(book),
-            this.loadCover3D(book.id),
+            this.refreshCover(book.id),
             this.loadChapters(book.id)
           ]);
         }
       }
     } finally {
       this.loading.set(false);
+    }
+  }
+
+  private async refreshCover(bookId: number): Promise<void> {
+    try {
+      const res = await this.detail.refreshBookCover(bookId);
+      if (res) {
+        if (res.coverPath) {
+          this.book.update(b => b ? { ...b, coverPath: res.coverPath! } : b);
+        }
+        const ts = Date.now();
+        this.coverTimestamp.set(ts);
+        if (res.cover3D) {
+          this.isFullCover3d.set(!!res.cover3D.isFullCover);
+          if (res.cover3D.fullCoverPath) {
+            this.cover3dUrl.set('local-cover:///' + res.cover3D.fullCoverPath.replace(/\\/g, '/') + `?t=${ts}`);
+          } else if (res.cover3D.frontCoverPath) {
+            this.cover3dUrl.set('local-cover:///' + res.cover3D.frontCoverPath.replace(/\\/g, '/') + `?t=${ts}`);
+          }
+          if (res.cover3D.backCoverPath) {
+            this.backCover3dUrl.set('local-cover:///' + res.cover3D.backCoverPath.replace(/\\/g, '/') + `?t=${ts}`);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[BookDetailComponent] Erro ao regenerar capa:', e);
     }
   }
 

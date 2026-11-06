@@ -186,11 +186,23 @@ class BookReaderController {
                 return false;
             return this.storage.deleteAllBookSearchHistory(bookId);
         });
-        electron_1.ipcMain.handle('book:get-cover-3d', async (_event, bookId) => {
+        electron_1.ipcMain.handle('book:get-cover-3d', async (_event, bookId, force) => {
             const book = this.storage.findBookById(bookId);
             if (!book)
                 return null;
-            return book_image_cover_controller_1.BookImageCoverController.instance.getBookCover3D(book);
+            return book_image_cover_controller_1.BookImageCoverController.instance.getBookCover3D(book, force);
+        });
+        electron_1.ipcMain.handle('book:refresh-cover', async (_event, bookId) => {
+            const book = this.storage.findBookById(bookId);
+            if (!book)
+                return null;
+            const coverPath = book_image_cover_controller_1.BookImageCoverController.instance.regenerateBookCover(book);
+            if (coverPath && coverPath !== book.coverPath) {
+                book.coverPath = coverPath;
+                this.storage.saveBook(book);
+            }
+            const cover3D = book_image_cover_controller_1.BookImageCoverController.instance.getBookCover3D(book, false);
+            return { coverPath: coverPath || book.coverPath || null, cover3D };
         });
     }
 }

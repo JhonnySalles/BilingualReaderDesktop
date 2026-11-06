@@ -12,11 +12,12 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Manga } from '../../../../../core/models';
+import { ElectronService } from '../../../../../core/services/electron.service';
 import { MangaLibraryService } from '../../../../../core/services/manga-library.service';
 import { SharedTransitionService } from '../../../../../core/services/shared-transition.service';
 import { progressPercent } from '../../../../../core/utils/reading-progress.util';
 
-const MENU_WIDTH = 176; // w-44
+const MENU_WIDTH = 208; // w-52
 
 @Component({
   selector: 'app-manga-list-item',
@@ -109,9 +110,17 @@ const MENU_WIDTH = 176; // w-44
       <div
         #menuEl
         (click)="$event.stopPropagation()"
-        class="fixed z-[200] w-44 bg-slate-900 border border-slate-700/80 rounded-xl shadow-2xl py-1 overflow-hidden animate-fade-in text-xs font-medium backdrop-blur-xl"
+        class="fixed z-[200] w-52 bg-slate-900 border border-slate-700/80 rounded-xl shadow-2xl py-1 overflow-hidden animate-fade-in text-xs font-medium backdrop-blur-xl"
         [style.top.px]="menuPos().top"
         [style.left.px]="menuPos().left">
+        <button
+          (click)="onOpenLocation($event)"
+          class="w-full px-3 py-2 text-left text-slate-300 hover:text-[#818cf8] hover:bg-slate-800/80 flex items-center gap-2 transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-[#818cf8]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+          </svg>
+          Abrir local do arquivo
+        </button>
         <button
           (click)="onOpenTracker($event)"
           class="w-full px-3 py-2 text-left text-slate-300 hover:text-[#818cf8] hover:bg-slate-800/80 flex items-center gap-2 transition-colors">
@@ -199,6 +208,7 @@ export class MangaListItemComponent implements OnDestroy {
 
   public sharedTransition = inject(SharedTransitionService);
   private mangaService = inject(MangaLibraryService);
+  private electronService = inject(ElectronService);
   private host = inject(ElementRef<HTMLElement>);
 
   public isMenuOpen = signal(false);
@@ -289,6 +299,15 @@ export class MangaListItemComponent implements OnDestroy {
       queueMicrotask(() => this.updateMenuPosition());
     } else {
       this.isMenuOpen.set(false);
+    }
+  }
+
+  onOpenLocation(event: MouseEvent): void {
+    event.stopPropagation();
+    this.isMenuOpen.set(false);
+    const target = this.manga?.path || (this.manga as any)?.file || this.manga?.folder;
+    if (target) {
+      this.electronService.showItemInFolder(target);
     }
   }
 

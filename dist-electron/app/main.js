@@ -648,7 +648,9 @@ electron_1.app.on('ready', () => {
                 const needsSync = Boolean(force || !coverExists || isAltered);
                 if (needsSync && fileExists) {
                     const meta = book_extractor_factory_1.BookExtractorFactory.getMetadata(book.path);
-                    const coverPath = book_image_cover_controller_1.BookImageCoverController.instance.ensureCover(book);
+                    const coverPath = force
+                        ? book_image_cover_controller_1.BookImageCoverController.instance.regenerateBookCover(book)
+                        : book_image_cover_controller_1.BookImageCoverController.instance.ensureCover(book);
                     const updated = {
                         id: book.id,
                         title: meta.title || book.title || path.basename(book.path),

@@ -57,7 +57,7 @@ class MangaImageCoverController {
     generateHash(filePath) {
         return crypto.createHash('md5').update(filePath).digest('hex');
     }
-    async getMangaCover3D(manga) {
+    async getMangaCover3D(manga, force) {
         const filePath = manga.path || manga.file;
         if (!filePath || !fs.existsSync(filePath)) {
             return { fullCoverPath: null, frontCoverPath: null, backCoverPath: null, isFullCover: false };
@@ -67,6 +67,16 @@ class MangaImageCoverController {
         const fullPath = path.join(cacheDir, `${hash}_full.png`);
         const frontPath = path.join(cacheDir, `${hash}_front.png`);
         const backPath = path.join(cacheDir, `${hash}_back.png`);
+        if (force) {
+            for (const p of [fullPath, frontPath, backPath]) {
+                if (fs.existsSync(p)) {
+                    try {
+                        fs.unlinkSync(p);
+                    }
+                    catch { /* ignore */ }
+                }
+            }
+        }
         if (fs.existsSync(fullPath)) {
             return {
                 fullCoverPath: fullPath,
@@ -191,6 +201,31 @@ class MangaImageCoverController {
             console.warn('[MangaImageCover] ensureCover failed', manga.name, e);
             return null;
         }
+    }
+    async regenerateMangaCover(manga) {
+        const filePath = manga.path || manga.file;
+        if (!filePath || !fs.existsSync(filePath))
+            return null;
+        const hash = this.generateHash(filePath);
+        const cacheDir = this.getCacheDir();
+        const coverPath = path.join(cacheDir, `${hash}.png`);
+        if (fs.existsSync(coverPath)) {
+            try {
+                fs.unlinkSync(coverPath);
+            }
+            catch { /* ignore */ }
+        }
+        if (manga.coverPath && fs.existsSync(manga.coverPath)) {
+            try {
+                const normalizedCache = path.resolve(cacheDir);
+                const normalizedCover = path.resolve(manga.coverPath);
+                if (normalizedCover.startsWith(normalizedCache)) {
+                    fs.unlinkSync(normalizedCover);
+                }
+            }
+            catch { /* ignore */ }
+        }
+        return this.getMangaCoverFile(manga);
     }
     saveCoverToCache(filePath, buffer) {
         const hash = this.generateHash(filePath);

@@ -265,11 +265,13 @@ export class MangaDetailComponent implements OnInit {
   cover3dUrl = signal<string | null>(null);
   backCover3dUrl = signal<string | null>(null);
   isFullCover3d = signal<boolean>(false);
+  coverTimestamp = signal<number>(Date.now());
 
   coverUrl = computed(() => {
     const path = this.manga()?.coverPath;
     if (!path) return null;
-    return 'local-cover:///' + path.replace(/\\/g, '/');
+    const ts = this.coverTimestamp();
+    return 'local-cover:///' + path.replace(/\\/g, '/') + (ts ? `?t=${ts}` : '');
   });
 
   trackerSearchTitle = computed(() => extractMangaSearchTitle(this.manga()));
@@ -364,12 +366,38 @@ export class MangaDetailComponent implements OnInit {
           await Promise.all([
             this.loadBookmarks(manga.id),
             this.loadWebTrackerDetails(manga),
-            this.loadCover3D(manga.id)
+            this.refreshCover(manga.id)
           ]);
         }
       }
     } finally {
       this.loading.set(false);
+    }
+  }
+
+  private async refreshCover(mangaId: number): Promise<void> {
+    try {
+      const res = await this.detail.refreshMangaCover(mangaId);
+      if (res) {
+        if (res.coverPath) {
+          this.manga.update(m => m ? { ...m, coverPath: res.coverPath! } : m);
+        }
+        const ts = Date.now();
+        this.coverTimestamp.set(ts);
+        if (res.cover3D) {
+          this.isFullCover3d.set(!!res.cover3D.isFullCover);
+          if (res.cover3D.fullCoverPath) {
+            this.cover3dUrl.set('local-cover:///' + res.cover3D.fullCoverPath.replace(/\\/g, '/') + `?t=${ts}`);
+          } else if (res.cover3D.frontCoverPath) {
+            this.cover3dUrl.set('local-cover:///' + res.cover3D.frontCoverPath.replace(/\\/g, '/') + `?t=${ts}`);
+          }
+          if (res.cover3D.backCoverPath) {
+            this.backCover3dUrl.set('local-cover:///' + res.cover3D.backCoverPath.replace(/\\/g, '/') + `?t=${ts}`);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[MangaDetailComponent] Erro ao regenerar capa:', e);
     }
   }
 

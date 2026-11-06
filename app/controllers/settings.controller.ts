@@ -1,4 +1,7 @@
 import { ipcMain, shell } from 'electron';
+import * as fs from 'fs';
+import * as path from 'path';
+import { spawn } from 'child_process';
 import { SettingsService } from '../services/settings.service';
 import { Secrets } from '../utils/secrets';
 import { Telemetry } from '../utils/telemetry';
@@ -84,6 +87,60 @@ export class SettingsController {
       }
       await shell.openExternal(parsed.toString());
       return true;
+    });
+
+    ipcMain.handle('shell:showItemInFolder', async (_event, fullPath: string) => {
+      let raw = String(fullPath || '').trim();
+      if (!raw) return false;
+      if (raw.startsWith('file:///')) {
+        raw = decodeURIComponent(raw.replace('file:///', ''));
+      } else if (raw.startsWith('file://')) {
+        raw = decodeURIComponent(raw.replace('file://', ''));
+      }
+      try {
+        const resolved = path.resolve(raw);
+        const normalized = path.normalize(resolved);
+        console.log('[shell:showItemInFolder] Request path:', fullPath, 'Normalized:', normalized);
+
+        if (fs.existsSync(normalized)) {
+          if (process.platform === 'win32') {
+            try {
+              const child = spawn('explorer.exe', ['/select,', normalized], { detached: true, stdio: 'ignore' });
+              child.unref();
+              return true;
+            } catch (winErr) {
+              console.warn('[shell:showItemInFolder] Win explorer spawn failed, calling shell:', winErr);
+            }
+          }
+          shell.showItemInFolder(normalized);
+          return true;
+        }
+
+        const dir = path.dirname(normalized);
+        if (fs.existsSync(dir)) {
+          if (process.platform === 'win32') {
+            try {
+              const child = spawn('explorer.exe', [dir], { detached: true, stdio: 'ignore' });
+              child.unref();
+              return true;
+            } catch {
+              /* ignore */
+            }
+          }
+          await shell.openPath(dir);
+          return true;
+        }
+
+        const fallbackNorm = path.normalize(raw);
+        if (fs.existsSync(fallbackNorm)) {
+          shell.showItemInFolder(fallbackNorm);
+          return true;
+        }
+        return false;
+      } catch (err) {
+        console.error('[shell:showItemInFolder] Error:', err);
+        return false;
+      }
     });
 
     ipcMain.handle('converter:tools-status', async () => {

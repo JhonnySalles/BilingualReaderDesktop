@@ -57,8 +57,8 @@ class BookImageCoverController {
     generateHash(filePath) {
         return crypto.createHash('md5').update(filePath).digest('hex');
     }
-    getBookCover3D(book) {
-        const coverPath = this.ensureCover(book);
+    getBookCover3D(book, force) {
+        const coverPath = force ? this.regenerateBookCover(book) : this.ensureCover(book);
         return {
             fullCoverPath: null,
             frontCoverPath: coverPath,
@@ -135,6 +135,16 @@ class BookImageCoverController {
                 }
                 catch { /* ignore */ }
             }
+        }
+        if (book.coverPath && fs.existsSync(book.coverPath)) {
+            try {
+                const normalizedCache = path.resolve(cacheDir);
+                const normalizedCover = path.resolve(book.coverPath);
+                if (normalizedCover.startsWith(normalizedCache)) {
+                    fs.unlinkSync(normalizedCover);
+                }
+            }
+            catch { /* ignore */ }
         }
         return this.getBookCoverFile(book);
     }

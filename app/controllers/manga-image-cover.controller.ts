@@ -27,7 +27,7 @@ export class MangaImageCoverController {
     return crypto.createHash('md5').update(filePath).digest('hex');
   }
 
-  public async getMangaCover3D(manga: Manga): Promise<{
+  public async getMangaCover3D(manga: Manga, force?: boolean): Promise<{
     fullCoverPath: string | null;
     frontCoverPath: string | null;
     backCoverPath: string | null;
@@ -43,6 +43,14 @@ export class MangaImageCoverController {
     const fullPath = path.join(cacheDir, `${hash}_full.png`);
     const frontPath = path.join(cacheDir, `${hash}_front.png`);
     const backPath = path.join(cacheDir, `${hash}_back.png`);
+
+    if (force) {
+      for (const p of [fullPath, frontPath, backPath]) {
+        if (fs.existsSync(p)) {
+          try { fs.unlinkSync(p); } catch { /* ignore */ }
+        }
+      }
+    }
 
     if (fs.existsSync(fullPath)) {
       return {
@@ -172,6 +180,30 @@ export class MangaImageCoverController {
       console.warn('[MangaImageCover] ensureCover failed', manga.name, e);
       return null;
     }
+  }
+
+  public async regenerateMangaCover(manga: Manga): Promise<string | null> {
+    const filePath = manga.path || (manga as any).file;
+    if (!filePath || !fs.existsSync(filePath)) return null;
+
+    const hash = this.generateHash(filePath);
+    const cacheDir = this.getCacheDir();
+    const coverPath = path.join(cacheDir, `${hash}.png`);
+
+    if (fs.existsSync(coverPath)) {
+      try { fs.unlinkSync(coverPath); } catch { /* ignore */ }
+    }
+    if (manga.coverPath && fs.existsSync(manga.coverPath)) {
+      try {
+        const normalizedCache = path.resolve(cacheDir);
+        const normalizedCover = path.resolve(manga.coverPath);
+        if (normalizedCover.startsWith(normalizedCache)) {
+          fs.unlinkSync(normalizedCover);
+        }
+      } catch { /* ignore */ }
+    }
+
+    return this.getMangaCoverFile(manga);
   }
 
   public saveCoverToCache(filePath: string, buffer: Buffer): string {

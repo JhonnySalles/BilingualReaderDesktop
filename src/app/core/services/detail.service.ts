@@ -16,8 +16,12 @@ export class DetailService {
     return this.electron.getManga(id);
   }
 
-  loadMangaCover3D(id: number) {
-    return this.electron.getMangaCover3D(id);
+  loadMangaCover3D(id: number, force?: boolean) {
+    return this.electron.getMangaCover3D(id, force);
+  }
+
+  refreshMangaCover(id: number) {
+    return this.electron.refreshMangaCover(id);
   }
 
   loadBook(id: number, force?: boolean): Promise<Book | null> {
@@ -32,8 +36,12 @@ export class DetailService {
     return this.electron.getBookChapters(id);
   }
 
-  loadBookCover3D(id: number) {
-    return this.electron.getBookCover3D(id);
+  loadBookCover3D(id: number, force?: boolean) {
+    return this.electron.getBookCover3D(id, force);
+  }
+
+  refreshBookCover(id: number) {
+    return this.electron.refreshBookCover(id);
   }
 
   async toggleFavoriteManga(manga: Manga): Promise<Manga | null> {

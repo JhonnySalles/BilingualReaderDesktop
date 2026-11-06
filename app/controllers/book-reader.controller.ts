@@ -226,10 +226,22 @@ export class BookReaderController {
       return this.storage.deleteAllBookSearchHistory(bookId);
     });
 
-    ipcMain.handle('book:get-cover-3d', async (_event, bookId: number) => {
+    ipcMain.handle('book:get-cover-3d', async (_event, bookId: number, force?: boolean) => {
       const book = this.storage.findBookById(bookId);
       if (!book) return null;
-      return BookImageCoverController.instance.getBookCover3D(book);
+      return BookImageCoverController.instance.getBookCover3D(book, force);
+    });
+
+    ipcMain.handle('book:refresh-cover', async (_event, bookId: number) => {
+      const book = this.storage.findBookById(bookId);
+      if (!book) return null;
+      const coverPath = BookImageCoverController.instance.regenerateBookCover(book);
+      if (coverPath && coverPath !== book.coverPath) {
+        book.coverPath = coverPath;
+        this.storage.saveBook(book);
+      }
+      const cover3D = BookImageCoverController.instance.getBookCover3D(book, false);
+      return { coverPath: coverPath || book.coverPath || null, cover3D };
     });
   }
 }

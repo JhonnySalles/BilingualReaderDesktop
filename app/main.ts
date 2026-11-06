@@ -673,7 +673,9 @@ app.on('ready', () => {
 
         if (needsSync && fileExists) {
           const meta = BookExtractorFactory.getMetadata(book.path);
-          const coverPath = BookImageCoverController.instance.ensureCover(book);
+          const coverPath = force
+            ? BookImageCoverController.instance.regenerateBookCover(book)
+            : BookImageCoverController.instance.ensureCover(book);
 
           const updated: Partial<Book> = {
             id: book.id,

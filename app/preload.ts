@@ -200,7 +200,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   setMangaBookmark: (mangaId: number, page: number) => ipcRenderer.invoke('manga:set-bookmark', mangaId, page),
   toggleMangaFavorite: (mangaId: number) => ipcRenderer.invoke('manga:toggle-favorite', mangaId),
-  getMangaCover3D: (mangaId: number) => ipcRenderer.invoke('manga:get-cover-3d', mangaId),
+  getMangaCover3D: (mangaId: number, force?: boolean) => ipcRenderer.invoke('manga:get-cover-3d', mangaId, force),
+  refreshMangaCover: (mangaId: number) => ipcRenderer.invoke('manga:refresh-cover', mangaId),
   listMangaAnnotations: (mangaId: number) => ipcRenderer.invoke('manga:list-annotations', mangaId),
   listAllMangaAnnotations: () => ipcRenderer.invoke('manga:list-all-annotations'),
   saveMangaAnnotation: (annotation: any) => ipcRenderer.invoke('manga:save-annotation', annotation),
@@ -217,7 +218,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   openBookReader: (bookId: number) => ipcRenderer.invoke('book-reader:open', bookId),
   closeBookReader: (sessionId: string) => ipcRenderer.invoke('book-reader:close', sessionId),
-  getBookCover3D: (bookId: number) => ipcRenderer.invoke('book:get-cover-3d', bookId),
+  getBookCover3D: (bookId: number, force?: boolean) => ipcRenderer.invoke('book:get-cover-3d', bookId, force),
+  refreshBookCover: (bookId: number) => ipcRenderer.invoke('book:refresh-cover', bookId),
   setBookBookmark: (payload: {
     id: number;
     bookMark: number;
@@ -270,6 +272,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   japaneseEngine: () => ipcRenderer.invoke('japanese:engine'),
 
   openExternal: (url: string) => ipcRenderer.invoke('shell:openExternal', url),
+  showItemInFolder: (fullPath: string) => ipcRenderer.invoke('shell:showItemInFolder', fullPath),
   lookupVocabulary: (options: { text: string; mangaId?: number | null; bookId?: number | null }) =>
     ipcRenderer.invoke('vocabulary:lookup', options),
 

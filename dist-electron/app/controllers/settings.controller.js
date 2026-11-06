@@ -35,6 +35,9 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SettingsController = void 0;
 const electron_1 = require("electron");
+const fs = __importStar(require("fs"));
+const path = __importStar(require("path"));
+const child_process_1 = require("child_process");
 const settings_service_1 = require("../services/settings.service");
 const secrets_1 = require("../utils/secrets");
 const telemetry_1 = require("../utils/telemetry");
@@ -105,6 +108,61 @@ class SettingsController {
             }
             await electron_1.shell.openExternal(parsed.toString());
             return true;
+        });
+        electron_1.ipcMain.handle('shell:showItemInFolder', async (_event, fullPath) => {
+            let raw = String(fullPath || '').trim();
+            if (!raw)
+                return false;
+            if (raw.startsWith('file:///')) {
+                raw = decodeURIComponent(raw.replace('file:///', ''));
+            }
+            else if (raw.startsWith('file://')) {
+                raw = decodeURIComponent(raw.replace('file://', ''));
+            }
+            try {
+                const resolved = path.resolve(raw);
+                const normalized = path.normalize(resolved);
+                console.log('[shell:showItemInFolder] Request path:', fullPath, 'Normalized:', normalized);
+                if (fs.existsSync(normalized)) {
+                    if (process.platform === 'win32') {
+                        try {
+                            const child = (0, child_process_1.spawn)('explorer.exe', ['/select,', normalized], { detached: true, stdio: 'ignore' });
+                            child.unref();
+                            return true;
+                        }
+                        catch (winErr) {
+                            console.warn('[shell:showItemInFolder] Win explorer spawn failed, calling shell:', winErr);
+                        }
+                    }
+                    electron_1.shell.showItemInFolder(normalized);
+                    return true;
+                }
+                const dir = path.dirname(normalized);
+                if (fs.existsSync(dir)) {
+                    if (process.platform === 'win32') {
+                        try {
+                            const child = (0, child_process_1.spawn)('explorer.exe', [dir], { detached: true, stdio: 'ignore' });
+                            child.unref();
+                            return true;
+                        }
+                        catch {
+                            /* ignore */
+                        }
+                    }
+                    await electron_1.shell.openPath(dir);
+                    return true;
+                }
+                const fallbackNorm = path.normalize(raw);
+                if (fs.existsSync(fallbackNorm)) {
+                    electron_1.shell.showItemInFolder(fallbackNorm);
+                    return true;
+                }
+                return false;
+            }
+            catch (err) {
+                console.error('[shell:showItemInFolder] Error:', err);
+                return false;
+            }
         });
         electron_1.ipcMain.handle('converter:tools-status', async () => {
             const { EBookConverterService } = await Promise.resolve().then(() => __importStar(require('../services/ebook-converter.service')));

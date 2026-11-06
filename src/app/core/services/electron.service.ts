@@ -408,11 +408,20 @@ declare global {
       }>;
       setMangaBookmark: (mangaId: number, page: number) => Promise<Manga | null>;
       toggleMangaFavorite: (mangaId: number) => Promise<Manga | null>;
-      getMangaCover3D: (mangaId: number) => Promise<{
+      getMangaCover3D: (mangaId: number, force?: boolean) => Promise<{
         fullCoverPath: string | null;
         frontCoverPath: string | null;
         backCoverPath: string | null;
         isFullCover: boolean;
+      } | null>;
+      refreshMangaCover: (mangaId: number) => Promise<{
+        coverPath: string | null;
+        cover3D: {
+          fullCoverPath: string | null;
+          frontCoverPath: string | null;
+          backCoverPath: string | null;
+          isFullCover: boolean;
+        } | null;
       } | null>;
       listMangaAnnotations: (mangaId: number) => Promise<MangaAnnotation[]>;
       listAllMangaAnnotations: () => Promise<
@@ -439,11 +448,20 @@ declare global {
         configuration: BookConfiguration | null;
       }>;
       closeBookReader: (sessionId: string) => Promise<boolean>;
-      getBookCover3D: (bookId: number) => Promise<{
+      getBookCover3D: (bookId: number, force?: boolean) => Promise<{
         fullCoverPath: string | null;
         frontCoverPath: string | null;
         backCoverPath: string | null;
         isFullCover: boolean;
+      } | null>;
+      refreshBookCover: (bookId: number) => Promise<{
+        coverPath: string | null;
+        cover3D: {
+          fullCoverPath: string | null;
+          frontCoverPath: string | null;
+          backCoverPath: string | null;
+          isFullCover: boolean;
+        } | null;
       } | null>;
       setBookBookmark: (payload: {
         id: number;
@@ -492,6 +510,7 @@ declare global {
       }>>;
       japaneseEngine: () => Promise<string>;
       openExternal: (url: string) => Promise<boolean>;
+      showItemInFolder: (fullPath: string) => Promise<boolean>;
       lookupVocabulary: (options: {
         text: string;
         mangaId?: number | null;
@@ -1518,14 +1537,29 @@ export class ElectronService {
     return null;
   }
 
-  async getMangaCover3D(mangaId: number): Promise<{
+  async getMangaCover3D(mangaId: number, force?: boolean): Promise<{
     fullCoverPath: string | null;
     frontCoverPath: string | null;
     backCoverPath: string | null;
     isFullCover: boolean;
   } | null> {
     if (this.isElectron && window.electronAPI?.getMangaCover3D) {
-      return await window.electronAPI.getMangaCover3D(mangaId);
+      return await window.electronAPI.getMangaCover3D(mangaId, force);
+    }
+    return null;
+  }
+
+  async refreshMangaCover(mangaId: number): Promise<{
+    coverPath: string | null;
+    cover3D: {
+      fullCoverPath: string | null;
+      frontCoverPath: string | null;
+      backCoverPath: string | null;
+      isFullCover: boolean;
+    } | null;
+  } | null> {
+    if (this.isElectron && window.electronAPI?.refreshMangaCover) {
+      return await window.electronAPI.refreshMangaCover(mangaId);
     }
     return null;
   }
@@ -1615,14 +1649,29 @@ export class ElectronService {
     return false;
   }
 
-  async getBookCover3D(bookId: number): Promise<{
+  async getBookCover3D(bookId: number, force?: boolean): Promise<{
     fullCoverPath: string | null;
     frontCoverPath: string | null;
     backCoverPath: string | null;
     isFullCover: boolean;
   } | null> {
     if (this.isElectron && window.electronAPI?.getBookCover3D) {
-      return await window.electronAPI.getBookCover3D(bookId);
+      return await window.electronAPI.getBookCover3D(bookId, force);
+    }
+    return null;
+  }
+
+  async refreshBookCover(bookId: number): Promise<{
+    coverPath: string | null;
+    cover3D: {
+      fullCoverPath: string | null;
+      frontCoverPath: string | null;
+      backCoverPath: string | null;
+      isFullCover: boolean;
+    } | null;
+  } | null> {
+    if (this.isElectron && window.electronAPI?.refreshBookCover) {
+      return await window.electronAPI.refreshBookCover(bookId);
     }
     return null;
   }
@@ -1870,6 +1919,13 @@ export class ElectronService {
     } catch {
       return false;
     }
+  }
+
+  async showItemInFolder(fullPath: string): Promise<boolean> {
+    if (this.isElectron && window.electronAPI?.showItemInFolder) {
+      return await window.electronAPI.showItemInFolder(fullPath);
+    }
+    return false;
   }
 
   async lookupVocabulary(options: {
