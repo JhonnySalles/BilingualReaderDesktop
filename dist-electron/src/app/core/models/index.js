@@ -43,6 +43,8 @@ __exportStar(require("./entities/track.model"), exports);
 __exportStar(require("./entities/tag.model"), exports);
 // Library @ search
 __exportStar(require("./library-search.model"), exports);
+// Social Share
+__exportStar(require("./social-share.model"), exports);
 // Aliases
 var app_enums_1 = require("./enums/app-enums");
 Object.defineProperty(exports, "OrderType", { enumerable: true, get: function () { return app_enums_1.Order; } });

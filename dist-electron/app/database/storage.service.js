@@ -297,6 +297,9 @@ class StorageService {
     listRecentReads(limit = 3) {
         return this.historyRepository.listRecent(limit);
     }
+    listHistoryForSocialShare(options) {
+        return this.historyRepository.listForSocialShare(options);
+    }
     getReadingActivityHeatmap(_weeks) {
         return this.statisticsRepository.getReadingActivityHeatmap();
     }

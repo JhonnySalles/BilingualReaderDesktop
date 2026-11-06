@@ -24,7 +24,7 @@ import { TrackerService } from '../../core/services/tracker.service';
 import { ConfirmDialogService } from '../../core/services/confirm-dialog.service';
 import { SettingsService } from '../../core/services/settings.service';
 import { BookCover3dComponent } from '../../shared/book-cover-3d/book-cover-3d.component';
-import { CoverViewerDialogComponent } from '../../shared/cover-viewer-dialog/cover-viewer-dialog.component';
+import { CoverViewerService } from '../../core/services/cover-viewer.service';
 import { TagsDialogComponent } from '../../shared/tags-dialog/tags-dialog.component';
 import { extractBookSearchTitle } from '../../core/utils/media-title-cleaner.util';
 
@@ -44,7 +44,6 @@ import { extractBookSearchTitle } from '../../core/utils/media-title-cleaner.uti
     TrackerConfigDialogComponent,
     TrackerSimpleDialogComponent,
     BookCover3dComponent,
-    CoverViewerDialogComponent,
     TagsDialogComponent
   ],
   template: `
@@ -62,7 +61,7 @@ import { extractBookSearchTitle } from '../../core/utils/media-title-cleaner.uti
           </div>
         </div>
         <button type="button" (click)="openReader()"
-          class="px-4 py-2 rounded-xl text-xs font-semibold bg-amber-600 hover:bg-amber-500 text-white transition-colors cursor-pointer"
+          class="px-4 py-2 rounded-xl text-xs font-semibold bg-primary-600 hover:bg-primary-500 text-white transition-colors cursor-pointer"
           [disabled]="!book()">
           Abrir
         </button>
@@ -115,7 +114,7 @@ import { extractBookSearchTitle } from '../../core/utils/media-title-cleaner.uti
                       </div>
                     }
                   } @else {
-                    <div class="w-full h-full flex items-center justify-center text-amber-500 text-xs">{{ book()!.fileType || 'EPUB' }}</div>
+                    <div class="w-full h-full flex items-center justify-center text-slate-500 text-xs">{{ book()!.fileType || 'EPUB' }}</div>
                   }
                 </div>
               </div>
@@ -148,7 +147,7 @@ import { extractBookSearchTitle } from '../../core/utils/media-title-cleaner.uti
                   <p>Último acesso: {{ lastAccess() }}</p>
                   <p>Tipo: {{ book()!.fileType || 'EPUB' }}</p>
                   @if (hasPassword()) {
-                    <p class="text-amber-300/90 font-medium">🔒 Protegido por senha</p>
+                    <p class="text-primary-300 font-medium">🔒 Protegido por senha</p>
                   }
                 </div>
               </div>
@@ -158,7 +157,7 @@ import { extractBookSearchTitle } from '../../core/utils/media-title-cleaner.uti
           <div class="p-6 space-y-8">
             <!-- Action Bar -->
             <app-detail-action-bar
-              accent="amber"
+              accent="primary"
               [isFavorite]="book()!.favorite"
               [showAddTag]="true"
               [showSyncFile]="true"
@@ -207,8 +206,8 @@ import { extractBookSearchTitle } from '../../core/utils/media-title-cleaner.uti
                 <p class="text-[11px] text-slate-400">Define o idioma para o sintetizador de voz (TTS) e OCR.</p>
               </div>
               <select
-                class="bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-amber-500 cursor-pointer min-w-[160px]"
-                [ngModel]="book()!.language || ''"
+                class="bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-primary-500 cursor-pointer min-w-[160px]"
+                [ngModel]="currentLanguageSelect()"
                 (ngModelChange)="onLanguage($event)">
                 <option value="">Não definido</option>
                 <option value="PORTUGUESE">Português</option>
@@ -226,7 +225,7 @@ import { extractBookSearchTitle } from '../../core/utils/media-title-cleaner.uti
                 (tagClick)="onTagClicked($event)">
                 <div class="mt-3 flex items-center justify-between">
                   <button type="button" (click)="showTagsModal.set(true)"
-                    class="text-[11px] font-semibold text-amber-400 hover:text-amber-300 hover:underline flex items-center gap-1 cursor-pointer">
+                    class="text-[11px] font-semibold text-primary-400 hover:text-primary-300 hover:underline flex items-center gap-1 cursor-pointer">
                     🏷️ Gerenciar Todas as Tags
                   </button>
                 </div>
@@ -235,12 +234,12 @@ import { extractBookSearchTitle } from '../../core/utils/media-title-cleaner.uti
                   <div class="flex gap-2 max-w-md mt-3">
                     <input
                       type="text"
-                      class="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-amber-500"
+                      class="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-primary-500"
                       placeholder="Nova tag"
                       [(ngModel)]="newTag"
                       (keydown.enter)="addTag()" />
                     <button type="button" (click)="addTag()"
-                      class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-amber-600 hover:bg-amber-500 text-white transition-colors cursor-pointer">
+                      class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-primary-600 hover:bg-primary-500 text-white transition-colors cursor-pointer">
                       Adicionar
                     </button>
                     <button type="button" (click)="showTagInput.set(false)"
@@ -277,7 +276,7 @@ import { extractBookSearchTitle } from '../../core/utils/media-title-cleaner.uti
             @if (chapters().length > 0) {
               <div class="pt-6">
                 <app-detail-chapters-list
-                  accent="amber"
+                  accent="primary"
                   [chapters]="chapters()"
                   (select)="onChapter($event)" />
               </div>
@@ -287,7 +286,7 @@ import { extractBookSearchTitle } from '../../core/utils/media-title-cleaner.uti
       }
 
       <app-library-bookmark-dialog
-        accent="amber"
+        accent="primary"
         type="book"
         [filePath]="book()?.path"
         [open]="showBookmark()"
@@ -317,20 +316,12 @@ import { extractBookSearchTitle } from '../../core/utils/media-title-cleaner.uti
         (saved)="onTrackerConfigSaved($event)"
         (deleted)="onTrackerDeleted()"
         (cancel)="showTrackerConfig.set(false)" />
-
-      <app-cover-viewer-dialog
-        [open]="showCoverViewer()"
-        [coverUrl]="cover3dUrl() || coverUrl()"
-        [backCoverUrl]="backCover3dUrl()"
-        [title]="book()?.title || ''"
-        [isFullCover]="isFullCover3d()"
-        (cancel)="showCoverViewer.set(false)" />
  
        <app-tags-dialog
         [open]="showTagsModal()"
         [title]="book()?.title || ''"
         [initialTags]="book()?.tags || ''"
-        accent="amber"
+        accent="primary"
         (confirm)="onTagsSave($event)"
         (cancel)="showTagsModal.set(false)" />
 
@@ -352,7 +343,7 @@ import { extractBookSearchTitle } from '../../core/utils/media-title-cleaner.uti
                 </label>
                 <input
                   type="password"
-                  class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-amber-500"
+                  class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-primary-500"
                   [(ngModel)]="passwordCurrent"
                   (keydown.enter)="submitPasswordModal()" />
               </div>
@@ -364,14 +355,14 @@ import { extractBookSearchTitle } from '../../core/utils/media-title-cleaner.uti
                 </label>
                 <input
                   type="password"
-                  class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-amber-500"
+                  class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-primary-500"
                   [(ngModel)]="passwordNext" />
               </div>
               <div>
                 <label class="block text-[10px] text-slate-400 mb-1">Confirmar senha</label>
                 <input
                   type="password"
-                  class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-amber-500"
+                  class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-primary-500"
                   [(ngModel)]="passwordConfirm"
                   (keydown.enter)="submitPasswordModal()" />
               </div>
@@ -385,7 +376,7 @@ import { extractBookSearchTitle } from '../../core/utils/media-title-cleaner.uti
                 Cancelar
               </button>
               <button type="button" (click)="submitPasswordModal()"
-                class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-600 hover:bg-amber-500 text-white cursor-pointer">
+                class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary-600 hover:bg-primary-500 text-white cursor-pointer">
                 Confirmar
               </button>
             </div>
@@ -411,6 +402,7 @@ export class BookDetailComponent implements OnInit {
   private bookUnlock = inject(BookUnlockService);
   private trackerService = inject(TrackerService);
   private confirmDialog = inject(ConfirmDialogService);
+  private coverViewerService = inject(CoverViewerService);
   settings = inject(SettingsService);
 
   book = signal<Book | null>(null);
@@ -422,7 +414,6 @@ export class BookDetailComponent implements OnInit {
   showBookmark = signal(false);
   showTrackerSimple = signal(false);
   showTrackerConfig = signal(false);
-  showCoverViewer = signal(false);
   showTagsModal = signal(false);
   matchedTrack = signal<Track | null>(null);
   showTagInput = signal(false);
@@ -463,6 +454,14 @@ export class BookDetailComponent implements OnInit {
 
   tagList = computed(() => this.detail.parseTags(this.book()?.tags));
 
+  currentLanguageSelect = computed(() => {
+    const lang = (this.book()?.language || '').toLowerCase().trim();
+    if (lang.startsWith('pt') || lang === 'portuguese' || lang === 'português') return 'PORTUGUESE';
+    if (lang.startsWith('en') || lang === 'english' || lang === 'inglês') return 'ENGLISH';
+    if (lang.startsWith('ja') || lang.startsWith('jp') || lang === 'japanese' || lang === 'japonês') return 'JAPANESE';
+    return this.book()?.language || '';
+  });
+
   metaFields = computed<DetailMetaField[]>(() => {
     const b = this.book();
     if (!b) return [];
@@ -472,11 +471,16 @@ export class BookDetailComponent implements OnInit {
     if (b.author) fields.push({ label: 'Autores', value: b.author });
     if (b.genre) fields.push({ label: 'Gênero', value: b.genre });
     if (b.isbn) fields.push({ label: 'ISBN', value: b.isbn });
-    if (b.language) fields.push({ label: 'Idioma', value: b.language });
+    if (b.language) fields.push({ label: 'Idioma', value: this.detail.formatLanguage(b.language) });
     if (b.volume) fields.push({ label: 'Volume', value: b.volume });
     if (b.release) fields.push({ label: 'Lançamento', value: b.release });
     if (b.publisher) fields.push({ label: 'Editora', value: b.publisher });
-    if (b.annotation) fields.push({ label: 'Anotação / Descrição', value: b.annotation, fullWidth: true });
+    if (b.annotation) {
+      const cleanAnnotation = this.detail.stripHtml(b.annotation);
+      if (cleanAnnotation) {
+        fields.push({ label: 'Anotação / Descrição', value: cleanAnnotation, fullWidth: true });
+      }
+    }
     return fields;
   });
 
@@ -1001,9 +1005,18 @@ export class BookDetailComponent implements OnInit {
   private pressStartX = 0;
   private pressStartY = 0;
 
+  private openCoverViewer(): void {
+    this.coverViewerService.open({
+      coverUrl: this.cover3dUrl() || this.coverUrl(),
+      backCoverUrl: this.backCover3dUrl(),
+      title: this.book()?.title || '',
+      isFullCover: this.isFullCover3d()
+    });
+  }
+
   onCoverRightClick(event: MouseEvent): void {
     event.preventDefault();
-    this.showCoverViewer.set(true);
+    this.openCoverViewer();
   }
 
   onCoverMouseDown(event: MouseEvent): void {
@@ -1017,7 +1030,7 @@ export class BookDetailComponent implements OnInit {
 
     this.longPressTimer = setTimeout(() => {
       this.longPressTimer = null;
-      this.showCoverViewer.set(true);
+      this.openCoverViewer();
     }, 500);
   }
 
@@ -1046,7 +1059,7 @@ export class BookDetailComponent implements OnInit {
 
   onCoverClick(): void {
     if (!this.settings.theme3dCoverInDetail()) {
-      this.showCoverViewer.set(true);
+      this.openCoverViewer();
     }
   }
 }

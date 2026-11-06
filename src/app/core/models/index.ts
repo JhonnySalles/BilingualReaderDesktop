@@ -30,6 +30,9 @@ export * from './entities/tag.model';
 // Library @ search
 export * from './library-search.model';
 
+// Social Share
+export * from './social-share.model';
+
 // Aliases
 export { Order as OrderType } from './enums/app-enums';
 export { LibraryMangaType as LibraryViewType } from './enums/reader-enums';

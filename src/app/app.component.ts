@@ -4,14 +4,16 @@ import { NavigationStackService } from './core/services/navigation-stack.service
 import { ElectronService } from './core/services/electron.service';
 
 import { ConfirmDialogComponent } from './shared/confirm-dialog/confirm-dialog.component';
+import { CoverViewerDialogComponent } from './shared/cover-viewer-dialog/cover-viewer-dialog.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, ConfirmDialogComponent],
+  imports: [RouterOutlet, ConfirmDialogComponent, CoverViewerDialogComponent],
   template: `
     <router-outlet />
     <app-confirm-dialog />
+    <app-cover-viewer-dialog />
   `
 })
 export class AppComponent implements OnInit {

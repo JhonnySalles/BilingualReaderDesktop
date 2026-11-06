@@ -1,4 +1,5 @@
-import { ipcMain } from 'electron';
+import { ipcMain, dialog, clipboard, ClipboardItem, BrowserWindow } from 'electron';
+import * as fs from 'fs';
 import { StorageService } from '../database/storage.service';
 import { HistoryContentType, HistoryBookmarkEditInput } from '../database/history.repository';
 import { ReadingTimeCalculatorService, RecalculateBatchOptions } from '../services/reading-time.service';
@@ -49,6 +50,59 @@ export class StatisticsController {
 
     ipcMain.handle('history:listRecent', async (_event, limit?: number) => {
       return this.storage.listRecentReads(limit ?? 3);
+    });
+
+    ipcMain.handle(
+      'history:listForSocialShare',
+      async (
+        _event,
+        options: {
+          startDate: string;
+          endDate: string;
+          type?: HistoryContentType | 'ALL';
+          onlyCompleted?: boolean;
+          libraryId?: number | null;
+        }
+      ) => {
+        return this.storage.listHistoryForSocialShare(options);
+      }
+    );
+
+    ipcMain.handle('social:save-image', async (event, payload: { dataUrl: string; defaultName?: string }) => {
+      try {
+        const { dataUrl, defaultName = 'leitura-resumo.png' } = payload;
+        const win = BrowserWindow.fromWebContents(event.sender);
+        const dialogOpts = {
+          title: 'Salvar Imagem de Compartilhamento',
+          defaultPath: defaultName,
+          filters: [{ name: 'Imagens PNG', extensions: ['png'] }]
+        };
+        const saveDialog = win ? await dialog.showSaveDialog(win, dialogOpts) : await dialog.showSaveDialog(dialogOpts);
+
+        if (saveDialog.canceled || !saveDialog.filePath) {
+          return { success: false, canceled: true };
+        }
+
+        const base64Data = dataUrl.replace(/^data:image\/\w+;base64,/, '');
+        const buffer = Buffer.from(base64Data, 'base64');
+        await fs.promises.writeFile(saveDialog.filePath, buffer);
+        return { success: true, filePath: saveDialog.filePath };
+      } catch (err: any) {
+        return { success: false, error: err?.message || String(err) };
+      }
+    });
+
+    ipcMain.handle('social:copy-image', async (_event, payload: { dataUrl: string }) => {
+      try {
+        const base64Data = payload.dataUrl.replace(/^data:image\/\w+;base64,/, '');
+        const buffer = Buffer.from(base64Data, 'base64');
+        const blob = new Blob([buffer], { type: 'image/png' });
+        const item = new ClipboardItem({ 'image/png': blob });
+        await clipboard.write([item]);
+        return { success: true };
+      } catch (err: any) {
+        return { success: false, error: err?.message || String(err) };
+      }
     });
 
     ipcMain.handle(

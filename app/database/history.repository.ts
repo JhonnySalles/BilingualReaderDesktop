@@ -112,6 +112,24 @@ export interface HomeRecentItem {
   lastAccess: string;
 }
 
+export interface SocialShareItem {
+  type: HistoryContentType;
+  fkReference: number;
+  fkLibrary: number;
+  title: string;
+  author: string;
+  series: string;
+  volume: string;
+  fileType: string;
+  coverPath: string | null;
+  bookMark: number;
+  pages: number;
+  completed: boolean;
+  pagesReadInPeriod: number;
+  secondsReadInPeriod: number;
+  lastAccessInPeriod: string;
+}
+
 export class HistoryRepository extends BaseRepository<HistoryRow, number> {
   constructor(db: Database.Database) {
     super(db, 'History');
@@ -708,5 +726,98 @@ export class HistoryRepository extends BaseRepository<HistoryRow, number> {
   deleteByReference(fkReference: number, type: HistoryContentType): number {
     const result = this.db.prepare('DELETE FROM History WHERE id_reference = ? AND type = ?').run(fkReference, type);
     return Number(result.changes || 0);
+  }
+
+  public listForSocialShare(options: {
+    startDate: string;
+    endDate: string;
+    type?: HistoryContentType | 'ALL';
+    onlyCompleted?: boolean;
+    libraryId?: number | null;
+  }): SocialShareItem[] {
+    const { startDate, endDate, type = 'ALL', onlyCompleted = false, libraryId = null } = options;
+
+    const queries: { type: HistoryContentType; table: string }[] = [];
+    if (type === 'ALL' || type === 'MANGA') {
+      queries.push({ type: 'MANGA', table: 'Manga' });
+    }
+    if (type === 'ALL' || type === 'BOOK') {
+      queries.push({ type: 'BOOK', table: 'Book' });
+    }
+
+    const unionParts: string[] = [];
+    const allParams: any[] = [];
+
+    for (const q of queries) {
+      let sql = `
+        SELECT
+          '${q.type}' AS type,
+          H.id_reference AS fkReference,
+          H.id_library AS fkLibrary,
+          I.title AS title,
+          COALESCE(I.author, '') AS author,
+          COALESCE(I.series, '') AS series,
+          COALESCE(I.volume, '') AS volume,
+          COALESCE(I.type, '') AS fileType,
+          I.cover_path AS coverPath,
+          COALESCE(I.book_mark, 0) AS bookMark,
+          COALESCE(I.pages, 1) AS pages,
+          COALESCE(I.completed, 0) AS completed,
+          SUM(CASE WHEN H.page_end > H.page_start THEN H.page_end - H.page_start ELSE 0 END) AS pagesReadInPeriod,
+          SUM(COALESCE(H.seconds_read, 0)) AS secondsReadInPeriod,
+          MAX(H.date_time_start) AS lastAccessInPeriod
+        FROM History H
+        INNER JOIN ${q.table} I ON I.id = H.id_reference AND I.excluded = 0
+        WHERE H.type = ?
+          AND SUBSTR(H.date_time_start, 1, 10) >= ?
+          AND SUBSTR(H.date_time_start, 1, 10) <= ?
+      `;
+      const params: any[] = [q.type, startDate, endDate];
+
+      if (libraryId != null && libraryId > 0) {
+        if (this.isDefaultLibraryId(libraryId, q.type)) {
+          sql += ` AND (H.id_library = ? OR H.id_library = 0 OR H.id_library IS NULL)`;
+        } else {
+          sql += ` AND H.id_library = ?`;
+        }
+        params.push(libraryId);
+      }
+
+      if (onlyCompleted) {
+        sql += ` AND (I.completed = 1 OR I.book_mark >= I.pages)`;
+      }
+
+      sql += ` GROUP BY H.id_reference`;
+      unionParts.push(sql);
+      allParams.push(...params);
+    }
+
+    if (unionParts.length === 0) return [];
+
+    const finalSql = `
+      SELECT * FROM (
+        ${unionParts.join(' UNION ALL ')}
+      )
+      ORDER BY lastAccessInPeriod DESC, secondsReadInPeriod DESC
+    `;
+
+    const rows = this.db.prepare(finalSql).all(...allParams) as any[];
+    return rows.map(row => ({
+      type: row.type as HistoryContentType,
+      fkReference: row.fkReference,
+      fkLibrary: row.fkLibrary ?? 0,
+      title: row.title ?? '',
+      author: row.author ?? '',
+      series: row.series ?? '',
+      volume: row.volume ?? '',
+      fileType: String(row.fileType || '').toUpperCase() || 'UNKNOWN',
+      coverPath: row.coverPath ?? null,
+      bookMark: row.bookMark ?? 0,
+      pages: row.pages ?? 1,
+      completed: Boolean(row.completed),
+      pagesReadInPeriod: Number(row.pagesReadInPeriod ?? 0),
+      secondsReadInPeriod: Number(row.secondsReadInPeriod ?? 0),
+      lastAccessInPeriod: row.lastAccessInPeriod ?? ''
+    }));
   }
 }

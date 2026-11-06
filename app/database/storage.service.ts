@@ -344,6 +344,16 @@ export class StorageService {
     return this.historyRepository.listRecent(limit);
   }
 
+  public listHistoryForSocialShare(options: {
+    startDate: string;
+    endDate: string;
+    type?: HistoryContentType | 'ALL';
+    onlyCompleted?: boolean;
+    libraryId?: number | null;
+  }) {
+    return this.historyRepository.listForSocialShare(options);
+  }
+
   public getReadingActivityHeatmap(_weeks?: number) {
     return this.statisticsRepository.getReadingActivityHeatmap();
   }

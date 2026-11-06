@@ -159,13 +159,25 @@ import { StatisticsChartComponent } from './statistics-chart.component';
           </div>
         </div>
 
-        <button
-          type="button"
-          (click)="openHistory.emit({ year: selectedYear, libraryId: selectedLibraryId })"
-          class="w-full py-2.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer text-white"
-          [ngClass]="ctaClass">
-          Histórico
-        </button>
+        <div class="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            (click)="openHistory.emit({ year: selectedYear, libraryId: selectedLibraryId })"
+            class="py-2.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer text-white text-center"
+            [ngClass]="ctaClass">
+            Histórico
+          </button>
+          <button
+            type="button"
+            (click)="openShare.emit({ year: selectedYear, libraryId: selectedLibraryId })"
+            class="py-2.5 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 border border-slate-700 transition-all cursor-pointer flex items-center justify-center gap-1.5"
+            title="Gerar imagem para Redes Sociais">
+            <svg class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+            </svg>
+            Compartilhar
+          </button>
+        </div>
       </div>
     </section>
   `
@@ -182,6 +194,7 @@ export class StatisticsSectorComponent implements OnChanges {
   @Input() accent: 'indigo' | 'amber' = 'indigo';
 
   @Output() openHistory = new EventEmitter<{ year: number; libraryId: number | null }>();
+  @Output() openShare = new EventEmitter<{ year: number; libraryId: number | null }>();
   @Output() filtersChange = new EventEmitter<{ year: number; libraryId: number | null }>();
 
   get chartTitle(): string {

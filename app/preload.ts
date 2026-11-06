@@ -71,6 +71,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
     filters?: Array<{ kind: string; value: string }> | null;
   }) => ipcRenderer.invoke('history:listAggregated', options),
   listRecentReads: (limit?: number) => ipcRenderer.invoke('history:listRecent', limit),
+  listHistoryForSocialShare: (options: {
+    startDate: string;
+    endDate: string;
+    type?: 'MANGA' | 'BOOK' | 'ALL';
+    onlyCompleted?: boolean;
+    libraryId?: number | null;
+  }) => ipcRenderer.invoke('history:listForSocialShare', options),
+  saveSocialImage: (payload: { dataUrl: string; defaultName?: string }) =>
+    ipcRenderer.invoke('social:save-image', payload),
+  copySocialImage: (payload: { dataUrl: string }) =>
+    ipcRenderer.invoke('social:copy-image', payload),
   deleteHistoryByReference: (fkReference: number, type: 'MANGA' | 'BOOK') =>
     ipcRenderer.invoke('history:delete-by-reference', fkReference, type),
   updateJumpList: () => ipcRenderer.invoke('app:update-jump-list'),

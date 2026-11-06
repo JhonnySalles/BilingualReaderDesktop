@@ -239,4 +239,82 @@ export class DetailService {
   serializeTags(tags: string[]): string {
     return tags.map(t => t.trim()).filter(Boolean).join(', ');
   }
+
+  stripHtml(input?: string | null): string {
+    if (!input) return '';
+
+    // Substitui quebras e fechamentos de bloco por quebras de linha
+    let text = input
+      .replace(/<\s*br\s*\/?\s*>/gi, '\n')
+      .replace(/<\/\s*(p|div|h[1-6]|li|blockquote|tr)\s*>/gi, '\n')
+      .replace(/<\s*(p|div|h[1-6]|li|blockquote|tr)[^>]*>/gi, '');
+
+    // Remove qualquer outra tag HTML
+    text = text.replace(/<[^>]+>/g, '');
+
+    // Decodifica entidades HTML via DOMParser se disponível
+    if (typeof DOMParser !== 'undefined') {
+      try {
+        const doc = new DOMParser().parseFromString(text, 'text/html');
+        text = doc.body.textContent || doc.body.innerText || text;
+      } catch {
+        // Fallback básico caso DOMParser falhe
+        text = text
+          .replace(/&nbsp;/g, ' ')
+          .replace(/&amp;/g, '&')
+          .replace(/&quot;/g, '"')
+          .replace(/&#39;/g, "'")
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&hellip;/g, '...')
+          .replace(/&mdash;/g, '—')
+          .replace(/&ndash;/g, '–');
+      }
+    }
+
+    // Normaliza quebras de linha e espaçamentos
+    return text
+      .replace(/\r\n/g, '\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  }
+
+  formatLanguage(codeOrName?: string | null): string {
+    if (!codeOrName || !codeOrName.trim()) return '';
+    const raw = codeOrName.trim();
+    const lower = raw.toLowerCase();
+
+    if (lower.startsWith('pt') || lower === 'portuguese' || lower === 'português') {
+      return 'Português';
+    }
+    if (lower.startsWith('ja') || lower.startsWith('jp') || lower === 'japanese' || lower === 'japonês') {
+      return 'Japonês';
+    }
+    if (lower.startsWith('en') || lower === 'english' || lower === 'inglês') {
+      return 'Inglês';
+    }
+    if (lower.startsWith('es') || lower === 'spanish' || lower === 'espanhol') {
+      return 'Espanhol';
+    }
+    if (lower.startsWith('fr') || lower === 'french' || lower === 'francês') {
+      return 'Francês';
+    }
+    if (lower.startsWith('de') || lower === 'german' || lower === 'alemão') {
+      return 'Alemão';
+    }
+    if (lower.startsWith('it') || lower === 'italian' || lower === 'italiano') {
+      return 'Italiano';
+    }
+    if (lower.startsWith('ko') || lower === 'korean' || lower === 'coreano') {
+      return 'Coreano';
+    }
+    if (lower.startsWith('zh') || lower === 'chinese' || lower === 'chinês') {
+      return 'Chinês';
+    }
+    if (lower.startsWith('ru') || lower === 'russian' || lower === 'russo') {
+      return 'Russo';
+    }
+
+    return raw.charAt(0).toUpperCase() + raw.slice(1);
+  }
 }

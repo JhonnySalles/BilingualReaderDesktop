@@ -1,24 +1,25 @@
-import { Component, EventEmitter, Input, Output, signal } from '@angular/core';
+import { Component, EventEmitter, Input, Output, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { BookCover3dComponent } from '../book-cover-3d/book-cover-3d.component';
+import { CoverViewerService } from '../../core/services/cover-viewer.service';
 
 @Component({
   selector: 'app-cover-viewer-dialog',
   standalone: true,
   imports: [CommonModule, BookCover3dComponent],
   template: `
-    @if (open) {
+    @if (isOpen()) {
       <div
-        class="fixed inset-0 z-[75] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md animate-fade-in select-none"
+        class="fixed inset-0 z-[150] flex items-center justify-center p-4 sm:p-6 md:p-8 bg-slate-950/85 backdrop-blur-md animate-fade-in select-none"
         (click)="onBackdropClick()">
         <div
-          class="w-full max-w-5xl h-[85vh] rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl overflow-hidden flex flex-col"
+          class="w-full max-w-5xl h-[85vh] rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl overflow-hidden flex flex-col relative"
           (click)="$event.stopPropagation()">
           
           <!-- Header -->
           <div class="px-5 py-3.5 border-b border-slate-800 flex items-center justify-between shrink-0 bg-slate-900/80">
             <h2 class="text-base font-bold text-slate-100 flex items-center gap-2 truncate max-w-md">
-              <span class="text-indigo-400">🖼️</span> {{ title || 'Visualizador de Capa' }}
+              <span class="text-primary-400">🖼️</span> {{ activeTitle() || 'Visualizador de Capa' }}
             </h2>
 
             <div class="flex items-center gap-3">
@@ -30,7 +31,7 @@ import { BookCover3dComponent } from '../book-cover-3d/book-cover-3d.component';
                     (click)="zoomOut()"
                     [disabled]="zoom() <= minZoom"
                     title="Diminuir Zoom"
-                    class="w-7 h-7 flex items-center justify-center rounded hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-transparent transition-colors">
+                    class="w-7 h-7 flex items-center justify-center rounded hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M20 12H4"/>
                     </svg>
@@ -40,7 +41,7 @@ import { BookCover3dComponent } from '../book-cover-3d/book-cover-3d.component';
                     type="button"
                     (click)="resetZoom()"
                     title="Redefinir Zoom"
-                    class="px-2 h-7 flex items-center justify-center hover:bg-slate-800 rounded transition-colors text-[11px] font-semibold text-slate-300 min-w-[48px]">
+                    class="px-2 h-7 flex items-center justify-center hover:bg-slate-800 rounded transition-colors text-[11px] font-semibold text-slate-300 min-w-[48px] cursor-pointer">
                     {{ Math.round(zoom() * 100) }}%
                   </button>
 
@@ -49,7 +50,7 @@ import { BookCover3dComponent } from '../book-cover-3d/book-cover-3d.component';
                     (click)="zoomIn()"
                     [disabled]="zoom() >= maxZoom"
                     title="Aumentar Zoom"
-                    class="w-7 h-7 flex items-center justify-center rounded hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-transparent transition-colors">
+                    class="w-7 h-7 flex items-center justify-center rounded hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
                     </svg>
@@ -62,27 +63,28 @@ import { BookCover3dComponent } from '../book-cover-3d/book-cover-3d.component';
                 <button 
                   type="button"
                   (click)="switchMode('image')"
-                  [class.bg-indigo-600]="viewMode() === 'image'"
+                  [class.bg-primary-600]="viewMode() === 'image'"
                   [class.text-white]="viewMode() === 'image'"
                   [class.text-slate-400]="viewMode() !== 'image'"
-                  class="px-3 py-1 text-xs font-semibold rounded-md transition-colors hover:text-slate-200">
+                  class="px-3 py-1 text-xs font-semibold rounded-md transition-colors hover:text-slate-200 cursor-pointer">
                   Imagem
                 </button>
                 <button 
                   type="button"
                   (click)="switchMode('3d')"
-                  [class.bg-indigo-600]="viewMode() === '3d'"
+                  [class.bg-primary-600]="viewMode() === '3d'"
                   [class.text-white]="viewMode() === '3d'"
                   [class.text-slate-400]="viewMode() !== '3d'"
-                  class="px-3 py-1 text-xs font-semibold rounded-md transition-colors hover:text-slate-200">
+                  class="px-3 py-1 text-xs font-semibold rounded-md transition-colors hover:text-slate-200 cursor-pointer">
                   3D
                 </button>
               </div>
 
               <button
                 type="button"
-                (click)="cancel.emit()"
-                class="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-800/50 text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors">
+                (click)="onClose()"
+                class="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-800/50 text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+                title="Fechar">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                   <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
                 </svg>
@@ -117,7 +119,7 @@ import { BookCover3dComponent } from '../book-cover-3d/book-cover-3d.component';
                   [coverUrl]="safeCoverUrl"
                   [backCoverUrl]="safeBackCoverUrl"
                   [isPopup]="true"
-                  [isFullCover]="isFullCover">
+                  [isFullCover]="activeIsFullCover()">
                 </app-book-cover-3d>
               </div>
             }
@@ -137,6 +139,8 @@ import { BookCover3dComponent } from '../book-cover-3d/book-cover-3d.component';
   `]
 })
 export class CoverViewerDialogComponent {
+  readonly coverViewerService = inject(CoverViewerService);
+
   @Input() open = false;
   @Input() coverUrl: string | null = null;
   @Input() backCoverUrl: string | null = null;
@@ -144,6 +148,12 @@ export class CoverViewerDialogComponent {
   @Input() isFullCover = false;
 
   @Output() cancel = new EventEmitter<void>();
+
+  readonly isOpen = computed(() => this.open || !!this.coverViewerService.activeViewer());
+  readonly activeCoverUrl = computed(() => this.coverViewerService.activeViewer()?.coverUrl ?? this.coverUrl);
+  readonly activeBackCoverUrl = computed(() => this.coverViewerService.activeViewer()?.backCoverUrl ?? this.backCoverUrl);
+  readonly activeTitle = computed(() => this.coverViewerService.activeViewer()?.title ?? this.title);
+  readonly activeIsFullCover = computed(() => this.coverViewerService.activeViewer()?.isFullCover ?? this.isFullCover);
 
   viewMode = signal<'image' | '3d'>('3d');
 
@@ -164,13 +174,15 @@ export class CoverViewerDialogComponent {
   private initialPanY = 0;
 
   get safeCoverUrl(): string | null {
-    if (!this.coverUrl) return null;
-    return this.coverUrl.replace(/\\/g, '/');
+    const url = this.activeCoverUrl();
+    if (!url) return null;
+    return url.replace(/\\/g, '/');
   }
 
   get safeBackCoverUrl(): string | null {
-    if (!this.backCoverUrl) return null;
-    return this.backCoverUrl.replace(/\\/g, '/');
+    const url = this.activeBackCoverUrl();
+    if (!url) return null;
+    return url.replace(/\\/g, '/');
   }
 
   switchMode(mode: 'image' | '3d') {
@@ -179,8 +191,13 @@ export class CoverViewerDialogComponent {
   }
 
   onBackdropClick(): void {
+    this.onClose();
+  }
+
+  onClose(): void {
     this.resetZoom();
     this.cancel.emit();
+    this.coverViewerService.close();
   }
 
   zoomIn(): void {

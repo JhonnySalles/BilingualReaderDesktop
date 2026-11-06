@@ -27,7 +27,7 @@ export interface DetailMetaField {
           @for (field of fields; track field.label) {
             <div [class.col-span-full]="field.fullWidth">
               <p class="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-0.5">{{ field.label }}</p>
-              <p class="text-sm text-slate-200 break-words leading-snug">{{ field.value }}</p>
+              <p class="text-sm text-slate-200 break-words leading-snug" [class.whitespace-pre-line]="field.fullWidth">{{ field.value }}</p>
             </div>
           }
         </div>

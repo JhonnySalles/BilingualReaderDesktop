@@ -17,6 +17,7 @@ import { MangaLibraryService } from '../services/manga-library.service';
 import { BookLibraryService } from '../services/book-library.service';
 import { LibraryViewType } from '../models';
 import { SearchSuggestFieldComponent } from '../../shared/search-suggest-field/search-suggest-field.component';
+import { SocialShareDialogComponent } from '../../shared/social-share-dialog/social-share-dialog.component';
 import { LibrarySearchScope } from '../models/library-search.model';
 
 interface NavLibrary {
@@ -32,7 +33,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
 @Component({
   selector: 'app-main-layout',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, SearchSuggestFieldComponent],
+  imports: [CommonModule, FormsModule, RouterModule, SearchSuggestFieldComponent, SocialShareDialogComponent],
   template: `
     <div class="h-screen w-screen flex bg-slate-950 text-slate-100 overflow-hidden font-sans">
       <aside
@@ -831,7 +832,15 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
         </header>
 
         <main class="flex-1 overflow-hidden relative" style="view-transition-name: main-content;">
-          <router-outlet />
+          
+        <router-outlet />
+        @if (showSocialShareDialog()) {
+          <app-social-share-dialog
+            [initialMediaType]="historyUi.activeType()"
+            [initialYear]="historyUi.year()"
+            [initialLibraryId]="historyUi.libraryId()"
+            (close)="showSocialShareDialog.set(false)" />
+        }
         </main>
       </div>
     </div>
@@ -866,6 +875,7 @@ export class MainLayoutComponent implements OnInit, AfterViewInit {
   currentPath = signal<string>('/');
   currentLibId = signal<string>('home');
   isSettingsSpinning = signal<boolean>(false);
+  showSocialShareDialog = signal<boolean>(false);
 
   defaultMangaLibrary = signal<NavLibrary>({ id: 'manga-default', name: 'Biblioteca de Mangás', type: 'manga', icon: 'ico_manga', count: 0 });
   defaultBookLibrary = signal<NavLibrary>({ id: 'book-default', name: 'Biblioteca de Livros', type: 'book', icon: 'ico_book', count: 0 });

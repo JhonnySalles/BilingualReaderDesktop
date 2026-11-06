@@ -29,7 +29,7 @@ export interface DetailChapterItem {
               type="button"
               (click)="select.emit(ch)"
               class="w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl text-left text-xs border border-slate-800 bg-slate-900 transition-colors cursor-pointer"
-              [ngClass]="accent === 'amber' ? 'hover:border-amber-500' : 'hover:border-indigo-500'">
+              [ngClass]="chapterBorderClass">
               <span class="text-slate-200 truncate">{{ ch.label }}</span>
               @if (ch.page != null && ch.page >= 0) {
                 <span class="text-slate-500 tabular-nums shrink-0">pág. {{ ch.page + 1 }}</span>
@@ -43,6 +43,12 @@ export interface DetailChapterItem {
 })
 export class DetailChaptersListComponent {
   @Input() chapters: DetailChapterItem[] = [];
-  @Input() accent: 'indigo' | 'amber' = 'indigo';
+  @Input() accent: 'primary' | 'indigo' | 'amber' = 'primary';
   @Output() select = new EventEmitter<DetailChapterItem>();
+
+  get chapterBorderClass(): string {
+    if (this.accent === 'amber') return 'hover:border-amber-500';
+    if (this.accent === 'indigo') return 'hover:border-indigo-500';
+    return 'hover:border-primary-500';
+  }
 }

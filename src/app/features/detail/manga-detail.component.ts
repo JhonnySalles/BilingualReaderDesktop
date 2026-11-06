@@ -22,7 +22,7 @@ import { fromReaderIndex } from '../../core/utils/reading-progress.util';
 import { ConfirmDialogService } from '../../core/services/confirm-dialog.service';
 import { SettingsService } from '../../core/services/settings.service';
 import { BookCover3dComponent } from '../../shared/book-cover-3d/book-cover-3d.component';
-import { CoverViewerDialogComponent } from '../../shared/cover-viewer-dialog/cover-viewer-dialog.component';
+import { CoverViewerService } from '../../core/services/cover-viewer.service';
 import { extractMangaSearchTitle } from '../../core/utils/media-title-cleaner.util';
 
 @Component({
@@ -39,8 +39,7 @@ import { extractMangaSearchTitle } from '../../core/utils/media-title-cleaner.ut
     LibraryBookmarkDialogComponent,
     TrackerConfigDialogComponent,
     TrackerSimpleDialogComponent,
-    BookCover3dComponent,
-    CoverViewerDialogComponent
+    BookCover3dComponent
   ],
   template: `
     <div class="h-full flex flex-col bg-slate-950 text-slate-100 overflow-hidden select-none relative pt-20">
@@ -57,7 +56,7 @@ import { extractMangaSearchTitle } from '../../core/utils/media-title-cleaner.ut
           </div>
         </div>
         <button type="button" (click)="openReader()"
-          class="px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white transition-colors cursor-pointer"
+          class="px-4 py-2 rounded-xl text-xs font-semibold bg-primary-600 hover:bg-primary-500 text-white transition-colors cursor-pointer"
           [disabled]="!manga()">
           Abrir
         </button>
@@ -149,7 +148,7 @@ import { extractMangaSearchTitle } from '../../core/utils/media-title-cleaner.ut
           <div class="p-6 space-y-8">
             <!-- Action Bar -->
             <app-detail-action-bar
-              accent="indigo"
+              accent="primary"
               [isFavorite]="manga()!.favorite"
               (favoriteToggle)="onFavorite()"
               (markRead)="onMarkRead()"
@@ -200,7 +199,7 @@ import { extractMangaSearchTitle } from '../../core/utils/media-title-cleaner.ut
       }
 
       <app-library-bookmark-dialog
-        accent="indigo"
+        accent="primary"
         type="manga"
         [filePath]="manga()?.path"
         [open]="showBookmark()"
@@ -236,14 +235,6 @@ import { extractMangaSearchTitle } from '../../core/utils/media-title-cleaner.ut
           {{ importMessage() }}
         </div>
       }
-
-      <app-cover-viewer-dialog
-        [open]="showCoverViewer()"
-        [coverUrl]="cover3dUrl() || coverUrl()"
-        [backCoverUrl]="backCover3dUrl()"
-        [title]="manga()?.title || ''"
-        [isFullCover]="isFullCover3d()"
-        (cancel)="showCoverViewer.set(false)" />
     </div>
   `
 })
@@ -256,6 +247,7 @@ export class MangaDetailComponent implements OnInit {
   private electron = inject(ElectronService);
   private trackerService = inject(TrackerService);
   private confirmDialog = inject(ConfirmDialogService);
+  private coverViewerService = inject(CoverViewerService);
   settings = inject(SettingsService);
 
   manga = signal<Manga | null>(null);
@@ -266,7 +258,6 @@ export class MangaDetailComponent implements OnInit {
   showBookmark = signal(false);
   showTrackerSimple = signal(false);
   showTrackerConfig = signal(false);
-  showCoverViewer = signal(false);
   matchedTrack = signal<Track | null>(null);
   bookmarkPage = signal(0);
   importMessage = signal<string | null>(null);
@@ -302,7 +293,7 @@ export class MangaDetailComponent implements OnInit {
     if (m.volume) fields.push({ label: 'Volume', value: m.volume });
     if (m.release) fields.push({ label: 'Lançamento', value: m.release });
     if (m.dateCreate) fields.push({ label: 'Publicado', value: this.formatDate(m.dateCreate) });
-    if (m.language) fields.push({ label: 'Idioma', value: m.language });
+    if (m.language) fields.push({ label: 'Idioma', value: this.detail.formatLanguage(m.language) });
     if (m.title) fields.push({ label: 'Título', value: m.title });
     if (m.storyArch) fields.push({ label: 'Arco da História', value: m.storyArch });
     if (m.genre) fields.push({ label: 'Gênero', value: m.genre });
@@ -644,9 +635,18 @@ export class MangaDetailComponent implements OnInit {
   private pressStartX = 0;
   private pressStartY = 0;
 
+  private openCoverViewer(): void {
+    this.coverViewerService.open({
+      coverUrl: this.cover3dUrl() || this.coverUrl(),
+      backCoverUrl: this.backCover3dUrl(),
+      title: this.manga()?.title || '',
+      isFullCover: this.isFullCover3d()
+    });
+  }
+
   onCoverRightClick(event: MouseEvent): void {
     event.preventDefault();
-    this.showCoverViewer.set(true);
+    this.openCoverViewer();
   }
 
   onCoverMouseDown(event: MouseEvent): void {
@@ -660,7 +660,7 @@ export class MangaDetailComponent implements OnInit {
 
     this.longPressTimer = setTimeout(() => {
       this.longPressTimer = null;
-      this.showCoverViewer.set(true);
+      this.openCoverViewer();
     }, 500);
   }
 
@@ -689,7 +689,7 @@ export class MangaDetailComponent implements OnInit {
 
   onCoverClick(): void {
     if (!this.settings.theme3dCoverInDetail()) {
-      this.showCoverViewer.set(true);
+      this.openCoverViewer();
     }
   }
 }

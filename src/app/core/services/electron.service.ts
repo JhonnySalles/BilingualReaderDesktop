@@ -147,6 +147,15 @@ declare global {
         filters?: HistorySearchFilter[] | null;
       }) => Promise<HistoryStatisticsItem[]>;
       listRecentReads: (limit?: number) => Promise<HomeRecentItem[]>;
+      listHistoryForSocialShare: (options: {
+        startDate: string;
+        endDate: string;
+        type?: 'MANGA' | 'BOOK' | 'ALL';
+        onlyCompleted?: boolean;
+        libraryId?: number | null;
+      }) => Promise<any[]>;
+      saveSocialImage: (payload: { dataUrl: string; defaultName?: string }) => Promise<{ success: boolean; filePath?: string; canceled?: boolean; error?: string }>;
+      copySocialImage: (payload: { dataUrl: string }) => Promise<{ success: boolean; error?: string }>;
       deleteHistoryByReference: (fkReference: number, type: HistoryContentType) => Promise<number>;
       updateJumpList: () => Promise<boolean>;
       getReadingActivityHeatmap: (weeks?: number) => Promise<HeatmapDay[]>;
@@ -968,6 +977,33 @@ export class ElectronService {
       return await window.electronAPI.listHistoryAggregated(options);
     }
     return [];
+  }
+
+  async listHistoryForSocialShare(options: {
+    startDate: string;
+    endDate: string;
+    type?: 'MANGA' | 'BOOK' | 'ALL';
+    onlyCompleted?: boolean;
+    libraryId?: number | null;
+  }): Promise<any[]> {
+    if (this.isElectron && window.electronAPI?.listHistoryForSocialShare) {
+      return await window.electronAPI.listHistoryForSocialShare(options);
+    }
+    return [];
+  }
+
+  async saveSocialImage(payload: { dataUrl: string; defaultName?: string }): Promise<{ success: boolean; filePath?: string; canceled?: boolean; error?: string }> {
+    if (this.isElectron && window.electronAPI?.saveSocialImage) {
+      return await window.electronAPI.saveSocialImage(payload);
+    }
+    return { success: false, error: 'Electron API unavailable' };
+  }
+
+  async copySocialImage(payload: { dataUrl: string }): Promise<{ success: boolean; error?: string }> {
+    if (this.isElectron && window.electronAPI?.copySocialImage) {
+      return await window.electronAPI.copySocialImage(payload);
+    }
+    return { success: false, error: 'Electron API unavailable' };
   }
 
   async listRecentReads(limit = 3): Promise<HomeRecentItem[]> {

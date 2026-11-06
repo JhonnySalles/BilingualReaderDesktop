@@ -32,7 +32,7 @@ import { Tag } from '../../core/models';
             <div class="flex items-center gap-3">
               <div 
                 class="w-9 h-9 rounded-xl flex items-center justify-center text-lg border shadow-inner"
-                [ngClass]="accent === 'amber' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'">
+                [ngClass]="headerBadgeClass">
                 🏷️
               </div>
               <div>
@@ -72,6 +72,8 @@ import { Tag } from '../../core/models';
                     placeholder="Nome da tag..."
                     maxlength="50"
                     class="w-full bg-slate-950 border border-slate-700/80 rounded-xl pl-7 pr-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1"
+                    [class.focus:ring-primary-500]="accent === 'primary'"
+                    [class.focus:border-primary-500]="accent === 'primary'"
                     [class.focus:ring-amber-500]="accent === 'amber'"
                     [class.focus:border-amber-500]="accent === 'amber'"
                     [class.focus:ring-indigo-500]="accent === 'indigo'"
@@ -81,7 +83,7 @@ import { Tag } from '../../core/models';
                   type="submit"
                   [disabled]="!newTagName().trim()"
                   class="px-3.5 py-2 rounded-xl text-xs font-semibold text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-md cursor-pointer flex items-center gap-1 shrink-0"
-                  [ngClass]="accent === 'amber' ? 'bg-amber-600 hover:bg-amber-500 shadow-amber-600/20' : 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/20'">
+                  [ngClass]="addBtnClass">
                   <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
                   </svg>
@@ -111,7 +113,7 @@ import { Tag } from '../../core/models';
                   @for (tag of selectedTagsList(); track tag) {
                     <span 
                       class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[11px] font-semibold border shadow-sm transition-all"
-                      [ngClass]="accent === 'amber' ? 'bg-amber-950/70 text-amber-300 border-amber-800/60' : 'bg-indigo-950/70 text-indigo-300 border-indigo-800/60'">
+                      [ngClass]="tagBadgeClass">
                       <span>{{ tag }}</span>
                       <button 
                         type="button" 
@@ -161,9 +163,7 @@ import { Tag } from '../../core/models';
                     <div class="flex items-center gap-2.5 min-w-0 flex-1">
                       <div 
                         class="w-4 h-4 rounded flex items-center justify-center border transition-all shrink-0"
-                        [ngClass]="isTagSelected(tag.name) 
-                          ? (accent === 'amber' ? 'bg-amber-500 border-amber-500 text-slate-950' : 'bg-indigo-600 border-indigo-600 text-white') 
-                          : 'border-slate-700 bg-slate-900 group-hover:border-slate-500'">
+                        [ngClass]="tagSelectedCheckboxClass(tag.name)">
                         @if (isTagSelected(tag.name)) {
                           <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
@@ -172,9 +172,7 @@ import { Tag } from '../../core/models';
                       </div>
                       <span 
                         class="text-xs font-medium truncate transition-colors"
-                        [class.text-amber-300]="isTagSelected(tag.name) && accent === 'amber'"
-                        [class.text-indigo-300]="isTagSelected(tag.name) && accent === 'indigo'"
-                        [class.text-slate-200]="!isTagSelected(tag.name)">
+                        [ngClass]="tagSelectedTextClass(tag.name)">
                         {{ tag.name }}
                       </span>
                     </div>
@@ -208,7 +206,7 @@ import { Tag } from '../../core/models';
               type="button"
               (click)="onConfirm()"
               class="px-4 py-2 rounded-xl text-xs font-semibold text-white transition-all shadow-md cursor-pointer flex items-center gap-1.5"
-              [ngClass]="accent === 'amber' ? 'bg-amber-600 hover:bg-amber-500 shadow-amber-600/25' : 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/25'">
+              [ngClass]="confirmBtnClass">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
               </svg>
@@ -226,7 +224,7 @@ export class TagsDialogComponent implements OnChanges {
   @Input() open = false;
   @Input() title = '';
   @Input() initialTags: string[] | string | null | undefined = [];
-  @Input() accent: 'amber' | 'indigo' = 'amber';
+  @Input() accent: 'primary' | 'amber' | 'indigo' = 'primary';
 
   @Output() confirm = new EventEmitter<string[]>();
   @Output() cancel = new EventEmitter<void>();
@@ -238,6 +236,44 @@ export class TagsDialogComponent implements OnChanges {
   error = signal<string>('');
 
   selectedTagsList = computed(() => Array.from(this.selectedTags()));
+
+  get headerBadgeClass(): string {
+    if (this.accent === 'amber') return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+    if (this.accent === 'indigo') return 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20';
+    return 'bg-primary-500/10 text-primary-400 border-primary-500/20';
+  }
+
+  get addBtnClass(): string {
+    if (this.accent === 'amber') return 'bg-amber-600 hover:bg-amber-500 shadow-amber-600/20';
+    if (this.accent === 'indigo') return 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/20';
+    return 'bg-primary-600 hover:bg-primary-500 shadow-primary-600/20';
+  }
+
+  get tagBadgeClass(): string {
+    if (this.accent === 'amber') return 'bg-amber-950/70 text-amber-300 border-amber-800/60';
+    if (this.accent === 'indigo') return 'bg-indigo-950/70 text-indigo-300 border-indigo-800/60';
+    return 'bg-primary-950/70 text-primary-300 border-primary-800/60';
+  }
+
+  tagSelectedCheckboxClass(tagName: string): string {
+    if (!this.isTagSelected(tagName)) return 'border-slate-700 bg-slate-900 group-hover:border-slate-500';
+    if (this.accent === 'amber') return 'bg-amber-500 border-amber-500 text-slate-950';
+    if (this.accent === 'indigo') return 'bg-indigo-600 border-indigo-600 text-white';
+    return 'bg-primary-600 border-primary-600 text-white';
+  }
+
+  tagSelectedTextClass(tagName: string): string {
+    if (!this.isTagSelected(tagName)) return 'text-slate-200';
+    if (this.accent === 'amber') return 'text-amber-300';
+    if (this.accent === 'indigo') return 'text-indigo-300';
+    return 'text-primary-300';
+  }
+
+  get confirmBtnClass(): string {
+    if (this.accent === 'amber') return 'bg-amber-600 hover:bg-amber-500 shadow-amber-600/25';
+    if (this.accent === 'indigo') return 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/25';
+    return 'bg-primary-600 hover:bg-primary-500 shadow-primary-600/25';
+  }
 
   filteredTags = computed(() => {
     const filter = this.searchFilter().trim().toLowerCase();

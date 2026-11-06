@@ -5,11 +5,12 @@ import { StatisticsService } from '../../core/services/statistics.service';
 import { StatisticsSectorComponent } from './components/statistics-sector.component';
 import { StatisticsHeatmapComponent } from './components/statistics-heatmap.component';
 import { StatisticsLibrariesCardComponent } from './components/statistics-libraries-card.component';
+import { SocialShareDialogComponent } from '../../shared/social-share-dialog/social-share-dialog.component';
 
 @Component({
   selector: 'app-statistics',
   standalone: true,
-  imports: [CommonModule, StatisticsSectorComponent, StatisticsHeatmapComponent, StatisticsLibrariesCardComponent],
+  imports: [CommonModule, StatisticsSectorComponent, StatisticsHeatmapComponent, StatisticsLibrariesCardComponent, SocialShareDialogComponent],
   template: `
     <div class="h-full flex flex-col bg-slate-950 text-slate-100 overflow-hidden select-none">
       @if (stats.loading()) {
@@ -48,7 +49,15 @@ import { StatisticsLibrariesCardComponent } from './components/statistics-librar
             (openHistory)="goHistory('book', $event.year, $event.libraryId)" />
         </div>
 
-        <!-- Estatísticas por Biblioteca -->
+        @if (showShareDialog()) {
+          <app-social-share-dialog
+            [initialMediaType]="shareDialogType()"
+            [initialYear]="shareDialogYear()"
+            [initialLibraryId]="shareDialogLibraryId()"
+            (close)="showShareDialog.set(false)" />
+        }
+
+                <!-- Estatísticas por Biblioteca -->
         <app-statistics-libraries-card [stats]="stats.librariesStats()" />
       </div>
     </div>
@@ -62,6 +71,17 @@ export class StatisticsComponent implements OnInit {
   bookYear = signal(new Date().getFullYear());
   mangaLibraryId = signal<number | null>(null);
   bookLibraryId = signal<number | null>(null);
+  showShareDialog = signal(false);
+  shareDialogType = signal<'MANGA' | 'BOOK' | 'ALL'>('ALL');
+  shareDialogYear = signal<number | null>(null);
+  shareDialogLibraryId = signal<number | null>(null);
+
+  openShareDialog(type: 'MANGA' | 'BOOK' | 'ALL', year: number, libraryId: number | null): void {
+    this.shareDialogType.set(type);
+    this.shareDialogYear.set(year);
+    this.shareDialogLibraryId.set(libraryId);
+    this.showShareDialog.set(true);
+  }
 
   async ngOnInit(): Promise<void> {
     await this.stats.loadOverview();
