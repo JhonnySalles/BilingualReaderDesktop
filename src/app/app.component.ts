@@ -2,6 +2,8 @@ import { Component, HostListener, inject, OnInit, NgZone } from '@angular/core';
 import { Router, RouterOutlet } from '@angular/router';
 import { NavigationStackService } from './core/services/navigation-stack.service';
 import { ElectronService } from './core/services/electron.service';
+import { CoverViewerService } from './core/services/cover-viewer.service';
+import { SocialShareService } from './core/services/social-share.service';
 
 import { ConfirmDialogComponent } from './shared/confirm-dialog/confirm-dialog.component';
 import { CoverViewerDialogComponent } from './shared/cover-viewer-dialog/cover-viewer-dialog.component';
@@ -14,8 +16,14 @@ import { SocialShareDialogComponent } from './shared/social-share-dialog/social-
   template: `
     <router-outlet />
     <app-confirm-dialog />
-    <app-cover-viewer-dialog />
-    <app-social-share-dialog />
+
+    @defer (when coverViewerService.activeViewer()) {
+      <app-cover-viewer-dialog />
+    }
+
+    @defer (when socialShareService.isOpen()) {
+      <app-social-share-dialog />
+    }
   `
 })
 export class AppComponent implements OnInit {
@@ -25,6 +33,8 @@ export class AppComponent implements OnInit {
   private nav = inject(NavigationStackService);
   private electronService = inject(ElectronService);
   private ngZone = inject(NgZone);
+  readonly coverViewerService = inject(CoverViewerService);
+  readonly socialShareService = inject(SocialShareService);
 
   ngOnInit(): void {
     this.electronService.onNavigate((routePath: string) => {
