@@ -5,14 +5,16 @@ import {
   ANNOTATION_MARK_OPTIONS,
   AnnotationMarkFilter
 } from '../../../core/models';
+import { TeleportToBodyDirective } from '../../../shared/directives/teleport-to-body.directive';
 
 @Component({
   selector: 'app-annotation-filter-popup',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, TeleportToBodyDirective],
   template: `
     <div
-      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in"
+      appTeleportToBody
+      class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in"
       (click)="close.emit()">
       <div
         class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[min(90vh,32rem)]"

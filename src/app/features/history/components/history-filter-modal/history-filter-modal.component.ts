@@ -3,14 +3,16 @@ import { CommonModule } from '@angular/common';
 import { LibraryStateService } from '../../../../core/services/library-state.service';
 import { HistoryUiStateService } from '../../../../core/services/history-ui-state.service';
 import { OrderType, LibraryViewType } from '../../../../core/models';
+import { TeleportToBodyDirective } from '../../../../shared/directives/teleport-to-body.directive';
 
 @Component({
   selector: 'app-history-filter-modal',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, TeleportToBodyDirective],
   template: `
     <div
-      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in"
+      appTeleportToBody
+      class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in"
       (click)="close.emit()">
 
       <div

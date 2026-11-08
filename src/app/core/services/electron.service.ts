@@ -154,7 +154,7 @@ declare global {
         onlyCompleted?: boolean;
         libraryId?: number | null;
       }) => Promise<any[]>;
-      saveSocialImage: (payload: { dataUrl: string; defaultName?: string }) => Promise<{ success: boolean; filePath?: string; canceled?: boolean; error?: string }>;
+      saveSocialImage: (payload: { dataUrl?: string; dataUrls?: string[]; defaultName?: string }) => Promise<{ success: boolean; filePath?: string; filePaths?: string[]; canceled?: boolean; error?: string }>;
       copySocialImage: (payload: { dataUrl: string }) => Promise<{ success: boolean; error?: string }>;
       deleteHistoryByReference: (fkReference: number, type: HistoryContentType) => Promise<number>;
       updateJumpList: () => Promise<boolean>;
@@ -1011,7 +1011,7 @@ export class ElectronService {
     return [];
   }
 
-  async saveSocialImage(payload: { dataUrl: string; defaultName?: string }): Promise<{ success: boolean; filePath?: string; canceled?: boolean; error?: string }> {
+  async saveSocialImage(payload: { dataUrl?: string; dataUrls?: string[]; defaultName?: string }): Promise<{ success: boolean; filePath?: string; filePaths?: string[]; canceled?: boolean; error?: string }> {
     if (this.isElectron && window.electronAPI?.saveSocialImage) {
       return await window.electronAPI.saveSocialImage(payload);
     }

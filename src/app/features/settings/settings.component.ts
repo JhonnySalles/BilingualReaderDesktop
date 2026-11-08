@@ -18,6 +18,7 @@ import { ReaderTouchConfigComponent } from '../reader-shared/reader-touch-config
 import { japaneseFontOptions, westernFontOptions } from '../reader-text/book-fonts';
 import { LibraryStateService } from '../../core/services/library-state.service';
 import { ConfirmDialogService } from '../../core/services/confirm-dialog.service';
+import { TeleportToBodyDirective } from '../../shared/directives/teleport-to-body.directive';
 export type { CustomLibrary };
 
 const TTS_VOICE_NORMAL_KEY = 'BOOK_READER_TTS_VOICE_NORMAL';
@@ -30,7 +31,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
 @Component({
   selector: 'app-settings',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReaderTouchConfigComponent],
+  imports: [CommonModule, FormsModule, ReaderTouchConfigComponent, TeleportToBodyDirective],
   template: `
     <div class="h-full flex flex-col bg-slate-950 text-slate-100 overflow-hidden select-none relative">
       <!-- Settings Layout (Left Navigation, Right Scrollable Content) -->
@@ -1765,7 +1766,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
 
       <!-- ================= MODAL: ADD/EDIT LIBRARY ================= -->
       @if (showLibraryModal()) {
-        <div class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div appTeleportToBody class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
           <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl">
             <div class="flex items-center justify-between border-b border-slate-800 pb-3">
               <h3 class="text-sm font-bold text-slate-100">
@@ -1848,7 +1849,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
 
       <!-- Progress Modal for Reading Time Batch Recalculation -->
       @if (recalculating()) {
-        <div class="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
+        <div appTeleportToBody class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
           <div class="w-full max-w-sm rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl p-6 flex flex-col items-center text-center space-y-4">
             <div class="w-12 h-12 rounded-full bg-indigo-600/20 text-indigo-400 flex items-center justify-center">
               <svg class="w-6 h-6 animate-spin" fill="none" viewBox="0 0 24 24">

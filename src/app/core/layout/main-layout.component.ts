@@ -19,6 +19,8 @@ import { LibraryViewType } from '../models';
 import { SearchSuggestFieldComponent } from '../../shared/search-suggest-field/search-suggest-field.component';
 import { SocialShareService } from '../services/social-share.service';
 import { LibrarySearchScope } from '../models/library-search.model';
+import { LibraryFilterModalComponent } from '../../features/library/components/library-filter-modal/library-filter-modal.component';
+import { HistoryFilterModalComponent } from '../../features/history/components/history-filter-modal/history-filter-modal.component';
 
 interface NavLibrary {
   id: string;
@@ -33,7 +35,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
 @Component({
   selector: 'app-main-layout',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, SearchSuggestFieldComponent],
+  imports: [CommonModule, FormsModule, RouterModule, SearchSuggestFieldComponent, LibraryFilterModalComponent, HistoryFilterModalComponent],
   template: `
     <div class="h-screen w-screen flex bg-slate-950 text-slate-100 overflow-hidden font-sans">
       <aside
@@ -719,9 +721,9 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
                 </svg>
               </button>
 
-                            <button
+              <button
                 type="button"
-                (click)="socialShare.open({ initialMediaType: historyUi.activeType(), initialYear: historyUi.year(), initialLibraryId: historyUi.libraryId() })"
+                (click)="socialShare.open({ initialMediaType: historyUi.activeType(), initialYear: historyUi.year(), initialLibraryId: null })"
                 class="p-2 bg-slate-900 border border-slate-800 hover:border-indigo-500/50 hover:bg-indigo-950/30 rounded-xl text-indigo-400 hover:text-indigo-300 transition-all flex items-center justify-center cursor-pointer shadow-sm hover:shadow-indigo-500/10"
                 title="Compartilhar Leituras (Social Studio)">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -854,6 +856,16 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
         <main class="flex-1 overflow-hidden relative" style="view-transition-name: main-content;">
           
         <router-outlet />
+
+        @if (libraryStateService.showFilterModal()) {
+          @if (headerMode() === 'history') {
+            <app-history-filter-modal (close)="libraryStateService.showFilterModal.set(false)" />
+          } @else {
+            <app-library-filter-modal
+              [context]="currentLibraryType()"
+              (close)="libraryStateService.showFilterModal.set(false)" />
+          }
+        }
         </main>
       </div>
     </div>
@@ -1260,14 +1272,40 @@ export class MainLayoutComponent implements OnInit, AfterViewInit {
     }
   }
 
-  openLibrarySocialShare(): void {
+  async openLibrarySocialShare(): Promise<void> {
     const type = this.currentLibraryType() === 'book' ? 'BOOK' : 'MANGA';
     const libIdStr = this.currentLibId();
     let numericId: number | null = null;
-    if (libIdStr && libIdStr !== 'home' && libIdStr !== 'manga-default' && libIdStr !== 'book-default') {
-      const parsed = parseInt(libIdStr, 10);
-      if (!isNaN(parsed)) numericId = parsed;
+
+    try {
+      const dbLibs = await this.electronService.listLibrariesByType(type);
+      if (dbLibs && dbLibs.length > 0) {
+        if (libIdStr === 'manga-default' || libIdStr === 'book-default') {
+          // Biblioteca padrão: procura a biblioteca com título 'Padrão' ou a primeira daquele tipo
+          const defaultLib = dbLibs.find(l => l.title === 'Padrão') || dbLibs[0];
+          if (defaultLib) numericId = defaultLib.id;
+        } else if (libIdStr && libIdStr !== 'home') {
+          // Biblioteca customizada: procura nas settings pelo ID para obter o path e cruzar com dbLibs
+          const customLib = this.settingsService.libraries().find(l => l.id === libIdStr);
+          if (customLib) {
+            const matched = dbLibs.find(
+              l => (l.path && customLib.path && l.path.toLowerCase().replace(/[\\/]/g, '/') === customLib.path.toLowerCase().replace(/[\\/]/g, '/')) ||
+                   l.title === customLib.title
+            );
+            if (matched) numericId = matched.id;
+          }
+          if (numericId == null) {
+            const parsed = parseInt(libIdStr, 10);
+            if (!isNaN(parsed) && dbLibs.some(l => l.id === parsed)) {
+              numericId = parsed;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Erro ao resolver ID da biblioteca para compartilhamento:', e);
     }
+
     this.socialShare.open({
       initialMediaType: type,
       initialLibraryId: numericId

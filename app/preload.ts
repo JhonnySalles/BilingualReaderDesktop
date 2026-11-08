@@ -78,7 +78,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     onlyCompleted?: boolean;
     libraryId?: number | null;
   }) => ipcRenderer.invoke('history:listForSocialShare', options),
-  saveSocialImage: (payload: { dataUrl: string; defaultName?: string }) =>
+  saveSocialImage: (payload: { dataUrl?: string; dataUrls?: string[]; defaultName?: string }) =>
     ipcRenderer.invoke('social:save-image', payload),
   copySocialImage: (payload: { dataUrl: string }) =>
     ipcRenderer.invoke('social:copy-image', payload),

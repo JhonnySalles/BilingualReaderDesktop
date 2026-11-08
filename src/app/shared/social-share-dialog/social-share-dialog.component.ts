@@ -4,8 +4,6 @@ import {
   Input,
   Output,
   EventEmitter,
-  ElementRef,
-  ViewChild,
   inject,
   signal,
   computed
@@ -18,21 +16,27 @@ import {
   SocialImageGeneratorService
 } from '../../core/services/social-image-generator.service';
 import {
+  SocialBackgroundPattern,
+  SocialCustomThemeConfig,
   SocialLayoutTemplate,
   SocialPlatformPreset,
+  SocialRenderedPage,
   SocialRenderOptions,
   SocialShareItem,
   SocialTheme
 } from '../../core/models/social-share.model';
 import { SocialShareService } from '../../core/services/social-share.service';
+import { LibraryOption } from '../../core/models';
+import { TeleportToBodyDirective } from '../directives/teleport-to-body.directive';
 
 @Component({
   selector: 'app-social-share-dialog',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, TeleportToBodyDirective],
   template: `
     @if (isVisible()) {
       <div
+        appTeleportToBody
         class="fixed inset-0 z-[150] flex items-center justify-center p-4 sm:p-6 bg-slate-950/85 backdrop-blur-md animate-fade-in select-none"
         (click)="onBackdropClick($event)">
         <div
@@ -138,23 +142,59 @@ import { SocialShareService } from '../../core/services/social-share.service';
                     type="button"
                     (click)="setMediaType('ALL')"
                     class="py-1.5 rounded-lg font-semibold transition-all cursor-pointer"
-                    [ngClass]="mediaType() === 'ALL' ? 'bg-slate-800 text-white shadow' : 'text-slate-400 hover:text-slate-200'">
+                    [class.bg-primary-600]="mediaType() === 'ALL'"
+                    [class.text-white]="mediaType() === 'ALL'"
+                    [class.shadow]="mediaType() === 'ALL'"
+                    [class.text-slate-400]="mediaType() !== 'ALL'"
+                    [class.hover:text-slate-200]="mediaType() !== 'ALL'">
                     Tudo
                   </button>
                   <button
                     type="button"
                     (click)="setMediaType('MANGA')"
                     class="py-1.5 rounded-lg font-semibold transition-all cursor-pointer"
-                    [ngClass]="mediaType() === 'MANGA' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'">
+                    [class.manga-pill-active]="mediaType() === 'MANGA'"
+                    [class.shadow]="mediaType() === 'MANGA'"
+                    [class.text-slate-400]="mediaType() !== 'MANGA'"
+                    [class.hover:text-slate-200]="mediaType() !== 'MANGA'">
                     Mangás
                   </button>
                   <button
                     type="button"
                     (click)="setMediaType('BOOK')"
                     class="py-1.5 rounded-lg font-semibold transition-all cursor-pointer"
-                    [ngClass]="mediaType() === 'BOOK' ? 'bg-amber-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'">
+                    [class.bg-amber-600]="mediaType() === 'BOOK'"
+                    [class.text-white]="mediaType() === 'BOOK'"
+                    [class.shadow]="mediaType() === 'BOOK'"
+                    [class.text-slate-400]="mediaType() !== 'BOOK'"
+                    [class.hover:text-slate-200]="mediaType() !== 'BOOK'">
                     Livros
                   </button>
+                </div>
+
+                <!-- Filtro de Bibliotecas -->
+                <div class="space-y-1">
+                  <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                    Biblioteca
+                  </label>
+                  <div class="relative">
+                    <select
+                      [ngModel]="selectedLibraryId()"
+                      (ngModelChange)="onLibraryChange($event)"
+                      class="w-full bg-slate-950 border border-slate-800 hover:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500/80 transition-colors cursor-pointer appearance-none pr-8">
+                      <option [ngValue]="null">📚 Todas as bibliotecas</option>
+                      @for (lib of filteredLibraries(); track lib.id) {
+                        <option [ngValue]="lib.id">
+                          {{ lib.type === 'MANGA' ? '📖' : '📚' }} {{ lib.title }}
+                        </option>
+                      }
+                    </select>
+                    <div class="absolute inset-y-0 right-0 flex items-center pr-2.5 pointer-events-none text-slate-500">
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                      </svg>
+                    </div>
+                  </div>
                 </div>
 
                 <label class="flex items-center gap-2 pt-1 text-xs text-slate-300 cursor-pointer">
@@ -188,7 +228,9 @@ import { SocialShareService } from '../../core/services/social-share.service';
                         </div>
                         <div class="text-[11px] text-slate-400">{{ p.sublabel }}</div>
                       </div>
-                      <span class="text-xs font-mono text-slate-500">{{ p.width }}x{{ p.height }}</span>
+                      <span class="text-xs font-mono text-slate-500">
+                        {{ p.id === 'SINGLE_FULL_IMAGE' ? 'Auto' : (p.width + 'x' + p.height) }}
+                      </span>
                     </button>
                   }
                 </div>
@@ -228,23 +270,207 @@ import { SocialShareService } from '../../core/services/social-share.service';
                     [ngClass]="selectedTemplate() === 'MINIMALIST_LIST' ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-800'">
                     📝 Lista Editorial
                   </button>
+                  <button
+                    type="button"
+                    (click)="setLayoutTemplate('MAGAZINE_HERO')"
+                    class="p-2 rounded-xl border text-center text-xs font-medium transition-all cursor-pointer"
+                    [ngClass]="selectedTemplate() === 'MAGAZINE_HERO' ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-800'">
+                    📰 Destaque Magazine
+                  </button>
+                  <button
+                    type="button"
+                    (click)="setLayoutTemplate('POLAROID_GALLERY')"
+                    class="p-2 rounded-xl border text-center text-xs font-medium transition-all cursor-pointer"
+                    [ngClass]="selectedTemplate() === 'POLAROID_GALLERY' ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-800'">
+                    🎞️ Mural Polaroid
+                  </button>
+                  <button
+                    type="button"
+                    (click)="setLayoutTemplate('PODIUM_RANKING')"
+                    class="p-2 rounded-xl border text-center text-xs font-medium transition-all cursor-pointer"
+                    [ngClass]="selectedTemplate() === 'PODIUM_RANKING' ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-800'">
+                    🏆 Pódio Top 3
+                  </button>
+                  <button
+                    type="button"
+                    (click)="setLayoutTemplate('GLASS_CARDS')"
+                    class="p-2 rounded-xl border text-center text-xs font-medium transition-all cursor-pointer"
+                    [ngClass]="selectedTemplate() === 'GLASS_CARDS' ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-800'">
+                    💎 Vitrine Glass
+                  </button>
                 </div>
 
+                <!-- Capas por Página -->
+                @if (selectedPreset() !== 'SINGLE_FULL_IMAGE') {
+                  <div class="pt-2 space-y-2 animate-fade-in">
+                    <div class="flex items-center justify-between">
+                      <label class="text-[10px] text-slate-400 uppercase font-bold tracking-wider">
+                        Capas por Página
+                      </label>
+                      <span class="text-[11px] font-mono text-indigo-400">
+                        {{ itemsPerPage() }} capas/pág.
+                      </span>
+                    </div>
+                    <div class="flex items-center gap-1.5 flex-wrap">
+                      @for (count of pageSizePresets; track count) {
+                        <button
+                          type="button"
+                          (click)="setItemsPerPage(count)"
+                          class="px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all cursor-pointer"
+                          [ngClass]="itemsPerPage() === count ? 'bg-indigo-600 border-indigo-500 text-white shadow' : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'">
+                          {{ count }}
+                        </button>
+                      }
+                      <input
+                        type="number"
+                        min="1"
+                        max="100"
+                        [ngModel]="itemsPerPage()"
+                        (ngModelChange)="onItemsPerPageInput($event)"
+                        title="Quantidade personalizada de capas por página"
+                        class="w-16 bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-lg px-2 py-1 text-xs text-center font-mono text-slate-200 focus:outline-none" />
+                    </div>
+                  </div>
+                } @else {
+                  <div class="pt-2">
+                    <div class="px-3 py-2 rounded-xl bg-indigo-950/30 border border-indigo-500/30 text-[11px] text-indigo-300 flex items-center gap-2">
+                      <span>🖼️</span>
+                      <span>Modo Imagem Única ativo: todas as {{ selectedItemsCount() }} capas serão renderizadas em uma só imagem.</span>
+                    </div>
+                  </div>
+                }
+
                 <!-- Tema de Cores / Background -->
-                <div class="pt-2">
-                  <label class="text-[10px] text-slate-400 block mb-1 uppercase font-bold tracking-wider">
-                    Tema de Fundo
-                  </label>
+                <div class="pt-2 space-y-2">
+                  <div class="flex items-center justify-between">
+                    <label class="text-[10px] text-slate-400 uppercase font-bold tracking-wider">
+                      Tema de Fundo
+                    </label>
+                    <span class="text-[10px] text-slate-500">
+                      {{ selectedTheme === 'CUSTOM' ? 'Personalizado' : 'Paleta Pronta' }}
+                    </span>
+                  </div>
+
                   <select
                     [(ngModel)]="selectedTheme"
                     (ngModelChange)="triggerRender()"
                     class="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-2 text-xs text-slate-200">
                     <option value="AMBIENT_DYNAMIC">✨ Ambient Dinâmico (Cores das Capas)</option>
+                    <option value="COVER_BLUR_MOSAIC">🖼️ Cover Blur Atmosférico</option>
                     <option value="DARK_SLATE">🌑 Dark Slate Oficial</option>
                     <option value="OLED_BLACK">🖤 OLED Pure Black</option>
-                    <option value="WARM_PAPER">📜 Warm Paper (Claro / Tumblr)</option>
+                    <option value="AURORA_BOREALIS">🌌 Aurora Boreal</option>
+                    <option value="SUNSET_SYNTH">🌅 Sunset Horizon</option>
+                    <option value="ROYAL_GOLD">👑 Royal Gold & Onyx</option>
+                    <option value="MATCHA_BOTANICAL">🍵 Matcha & Sage</option>
                     <option value="CYBER_NEON">🔮 Cyber Neon Pop</option>
+                    <option value="WARM_PAPER">📜 Warm Paper (Claro / Tumblr)</option>
+                    <option value="SAKURA_DREAM">🌸 Sakura Pastel (Claro)</option>
+                    <option value="NORDIC_FROST">❄️ Nordic Frost (Claro)</option>
+                    <option value="CUSTOM">🎨 Personalizado (Custom)</option>
                   </select>
+
+                  <!-- Painel de Customização de Cores (Aparece se tema for CUSTOM) -->
+                  @if (selectedTheme === 'CUSTOM') {
+                    <div class="p-3 bg-slate-950/80 border border-indigo-500/30 rounded-xl space-y-3 animate-fade-in">
+                      <div class="text-[11px] font-bold text-indigo-300 flex items-center gap-1.5">
+                        <span>🎨</span>
+                        <span>Configuração de Cores Personalizadas</span>
+                      </div>
+
+                      <div class="grid grid-cols-3 gap-2">
+                        <div class="flex flex-col items-center gap-1">
+                          <label class="text-[9px] text-slate-400">Cor Início</label>
+                          <input
+                            type="color"
+                            [(ngModel)]="customPrimaryColor"
+                            (ngModelChange)="triggerRender()"
+                            class="w-9 h-7 rounded border border-slate-700 bg-transparent cursor-pointer" />
+                        </div>
+                        <div class="flex flex-col items-center gap-1">
+                          <label class="text-[9px] text-slate-400">Cor Fim</label>
+                          <input
+                            type="color"
+                            [(ngModel)]="customSecondaryColor"
+                            (ngModelChange)="triggerRender()"
+                            class="w-9 h-7 rounded border border-slate-700 bg-transparent cursor-pointer" />
+                        </div>
+                        <div class="flex flex-col items-center gap-1">
+                          <label class="text-[9px] text-slate-400">Acento</label>
+                          <input
+                            type="color"
+                            [(ngModel)]="customAccentColor"
+                            (ngModelChange)="triggerRender()"
+                            class="w-9 h-7 rounded border border-slate-700 bg-transparent cursor-pointer" />
+                        </div>
+                      </div>
+
+                      <!-- Modo de Contraste do Texto -->
+                      <div class="flex items-center justify-between pt-1">
+                        <span class="text-[10px] text-slate-400">Contraste de Texto:</span>
+                        <div class="flex items-center gap-1">
+                          <button
+                            type="button"
+                            (click)="setCustomTextMode('AUTO')"
+                            class="px-2 py-0.5 rounded text-[10px] font-semibold border cursor-pointer"
+                            [ngClass]="customTextMode === 'AUTO' ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-900 border-slate-800 text-slate-400'">
+                            Auto
+                          </button>
+                          <button
+                            type="button"
+                            (click)="setCustomTextMode('LIGHT')"
+                            class="px-2 py-0.5 rounded text-[10px] font-semibold border cursor-pointer"
+                            [ngClass]="customTextMode === 'LIGHT' ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-900 border-slate-800 text-slate-400'">
+                            Claro
+                          </button>
+                          <button
+                            type="button"
+                            (click)="setCustomTextMode('DARK')"
+                            class="px-2 py-0.5 rounded text-[10px] font-semibold border cursor-pointer"
+                            [ngClass]="customTextMode === 'DARK' ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-900 border-slate-800 text-slate-400'">
+                            Escuro
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  }
+
+                  <!-- Padrão Decorativo do Fundo -->
+                  <div class="pt-1 flex items-center justify-between">
+                    <label class="text-[10px] text-slate-400 uppercase font-bold tracking-wider">
+                      Textura / Padrão
+                    </label>
+                    <div class="flex items-center gap-1">
+                      <button
+                        type="button"
+                        (click)="setBackgroundPattern('GRID')"
+                        class="px-2 py-1 rounded-lg text-[10px] font-semibold border cursor-pointer"
+                        [ngClass]="selectedPattern === 'GRID' ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'">
+                        Grade
+                      </button>
+                      <button
+                        type="button"
+                        (click)="setBackgroundPattern('DOTS')"
+                        class="px-2 py-1 rounded-lg text-[10px] font-semibold border cursor-pointer"
+                        [ngClass]="selectedPattern === 'DOTS' ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'">
+                        Pontos
+                      </button>
+                      <button
+                        type="button"
+                        (click)="setBackgroundPattern('ORBS')"
+                        class="px-2 py-1 rounded-lg text-[10px] font-semibold border cursor-pointer"
+                        [ngClass]="selectedPattern === 'ORBS' ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'">
+                        Orbs
+                      </button>
+                      <button
+                        type="button"
+                        (click)="setBackgroundPattern('NONE')"
+                        class="px-2 py-1 rounded-lg text-[10px] font-semibold border cursor-pointer"
+                        [ngClass]="selectedPattern === 'NONE' ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'">
+                        Liso
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </section>
 
@@ -291,8 +517,18 @@ import { SocialShareService } from '../../core/services/social-share.service';
                       [(ngModel)]="showCoverTitles"
                       (ngModelChange)="triggerRender()"
                       class="rounded bg-slate-950 border-slate-700 text-indigo-600 focus:ring-0" />
-                    Exibir títulos e autores nas capas
+                    Exibir nome do arquivo e tempo nas capas
                   </label>
+                  @if (showCoverTitles) {
+                    <label class="flex items-center gap-2 pl-5 text-slate-300 cursor-pointer animate-fade-in">
+                      <input
+                        type="checkbox"
+                        [(ngModel)]="useCardBlur"
+                        (ngModelChange)="triggerRender()"
+                        class="rounded bg-slate-950 border-slate-700 text-indigo-600 focus:ring-0" />
+                      Usar efeito Blur no campo de texto
+                    </label>
+                  }
                   <label class="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
@@ -323,21 +559,70 @@ import { SocialShareService } from '../../core/services/social-share.service';
                     Nenhuma leitura encontrada para o período selecionado.
                   </div>
                 } @else {
-                  <div class="max-h-48 overflow-y-auto space-y-1.5 pr-1">
+                  <div
+                    (wheel)="onCurationWheel($event)"
+                    class="flex items-stretch gap-3 overflow-x-auto pb-2.5 pt-1 px-0.5 scroll-smooth">
                     @for (it of rawItems(); track it.fkReference + '-' + it.type) {
-                      <label class="flex items-center justify-between p-2 rounded-xl bg-slate-950/50 border border-slate-800/80 hover:border-slate-700 text-xs text-slate-200 cursor-pointer">
-                        <div class="flex items-center gap-2 min-w-0">
-                          <input
-                            type="checkbox"
-                            [checked]="isItemSelected(it)"
-                            (change)="toggleItem(it)"
-                            class="rounded bg-slate-950 border-slate-700 text-indigo-600 focus:ring-0" />
-                          <span class="truncate font-medium">{{ it.title }}</span>
+                      <div
+                        (click)="toggleItem(it)"
+                        [title]="it.title"
+                        class="group relative w-28 shrink-0 rounded-xl overflow-hidden border transition-all duration-200 flex flex-col select-none cursor-pointer"
+                        [ngClass]="isItemSelected(it)
+                          ? (it.type === 'MANGA'
+                              ? 'bg-slate-900 manga-card-selected hover:-translate-y-0.5'
+                              : 'bg-slate-900 border-amber-500/70 shadow-md shadow-amber-500/10 hover:-translate-y-0.5')
+                          : 'bg-slate-950/60 border-slate-800/80 opacity-55 grayscale-[35%] hover:opacity-85 hover:border-slate-700'">
+
+                        <!-- Capa da Obra (Proporção 2:3) -->
+                        <div class="relative aspect-[2/3] w-full overflow-hidden bg-slate-950">
+                          @if (it.coverPath) {
+                            <img
+                              [src]="getCoverUrl(it.coverPath)"
+                              [alt]="it.title"
+                              loading="lazy"
+                              class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 pointer-events-none" />
+                          } @else {
+                            <div
+                              class="w-full h-full flex flex-col items-center justify-center p-2 text-center"
+                              [ngClass]="it.type === 'MANGA'
+                                ? 'manga-card-fallback-bg'
+                                : 'bg-gradient-to-br from-slate-900 via-slate-950 to-amber-950/40 text-amber-400'">
+                              <span class="text-2xl mb-1">{{ it.type === 'MANGA' ? '📖' : '📚' }}</span>
+                              <span class="text-[9px] uppercase font-bold tracking-wider opacity-80">
+                                {{ it.fileType || (it.type === 'MANGA' ? 'MANGA' : 'LIVRO') }}
+                              </span>
+                            </div>
+                          }
+
+                          <!-- Check no Canto Superior Direito (Sempre na cor primária verde selecionada) -->
+                          <div
+                            class="absolute top-1.5 right-1.5 z-10 w-6 h-6 rounded-lg flex items-center justify-center border transition-all shadow-md backdrop-blur-md"
+                            [ngClass]="isItemSelected(it)
+                              ? 'bg-primary-600 border-primary-500 text-white shadow-primary-600/30'
+                              : 'bg-slate-950/80 border-slate-600/80 text-transparent group-hover:border-slate-400'">
+                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                              <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                          </div>
                         </div>
-                        <span class="text-[10px] text-slate-500 font-mono shrink-0 ml-2">
-                          {{ it.pagesReadInPeriod }}p
-                        </span>
-                      </label>
+
+                        <!-- Nome abaixo e Quantidade de Páginas -->
+                        <div class="p-2 flex-1 flex flex-col justify-between bg-slate-900/95 border-t border-slate-800/70">
+                          <p class="text-[11px] font-semibold text-slate-100 line-clamp-2 leading-tight">
+                            {{ it.title }}
+                          </p>
+                          <div class="mt-1.5 flex items-center justify-between text-[10px] font-mono">
+                            <span
+                              class="font-semibold"
+                              [ngClass]="it.type === 'MANGA' ? 'manga-text-accent' : 'text-amber-400'">
+                              {{ it.pagesReadInPeriod }} pág.
+                            </span>
+                            @if (it.completed) {
+                              <span class="text-primary-500 font-bold" title="Concluído">✓</span>
+                            }
+                          </div>
+                        </div>
+                      </div>
                     }
                   </div>
                 }
@@ -347,25 +632,65 @@ import { SocialShareService } from '../../core/services/social-share.service';
             <!-- Coluna Direita: Preview em Tempo Real e Ações -->
             <div class="lg:col-span-7 flex flex-col bg-slate-950/70 p-6 overflow-hidden">
               <div class="flex items-center justify-between mb-4">
-                <span class="text-xs font-bold uppercase tracking-wider text-slate-400">
-                  Visualização em Tempo Real (WYSIWYG)
-                </span>
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    Visualização em Tempo Real (WYSIWYG)
+                  </span>
+                  @if (renderedPages().length > 1) {
+                    <span class="px-2 py-0.5 rounded-full bg-indigo-500/20 border border-indigo-500/30 text-[10px] font-bold text-indigo-300">
+                      {{ renderedPages().length }} páginas geradas (role para ver)
+                    </span>
+                  }
+                </div>
                 <span class="text-xs text-slate-500 font-mono">
-                  {{ activePresetConfig().width }} × {{ activePresetConfig().height }} px
+                  {{ activeDimensionsLabel() }}
                 </span>
               </div>
 
-              <!-- Canvas Container com Scroll / Fit -->
-              <div class="flex-1 min-h-0 flex items-center justify-center p-2 rounded-2xl bg-slate-950 border border-slate-800/80 overflow-hidden relative shadow-inner">
+              <!-- Galeria de Páginas com Scroll -->
+              <div class="flex-1 min-h-0 overflow-y-auto space-y-6 p-4 rounded-2xl bg-slate-950 border border-slate-800/80 relative shadow-inner">
                 @if (isRendering()) {
-                  <div class="absolute inset-0 z-10 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs">
-                    <span class="text-xs font-semibold text-indigo-400 animate-pulse">Renderizando imagem…</span>
+                  <div class="sticky top-2 z-20 flex items-center justify-center pointer-events-none">
+                    <span class="px-3 py-1.5 rounded-full bg-slate-900/90 border border-indigo-500/40 text-xs font-semibold text-indigo-300 shadow-lg animate-pulse">
+                      Renderizando {{ renderedPages().length > 1 ? 'páginas' : 'imagem' }}…
+                    </span>
                   </div>
                 }
-                <canvas
-                  #renderCanvas
-                  class="max-h-full max-w-full object-contain rounded-lg shadow-2xl transition-all">
-                </canvas>
+
+                @for (page of renderedPages(); track page.pageNumber) {
+                  <div class="flex flex-col items-center space-y-2.5 bg-slate-900/50 border border-slate-800/70 rounded-2xl p-3">
+                    @if (page.totalPages > 1) {
+                      <div class="w-full flex items-center justify-between px-2 py-1 border-b border-slate-800/80 text-xs">
+                        <div class="flex items-center gap-2">
+                          <span class="font-bold text-indigo-300">
+                            Página {{ page.pageNumber }} de {{ page.totalPages }}
+                          </span>
+                          <span class="text-[11px] text-slate-400">
+                            ({{ page.itemsCount }} {{ page.itemsCount === 1 ? 'capa' : 'capas' }})
+                          </span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                          <button
+                            type="button"
+                            (click)="copyPageDataUrl(page.dataUrl)"
+                            class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-[11px] font-medium transition-colors cursor-pointer">
+                            Copiar Pág. {{ page.pageNumber }}
+                          </button>
+                          <button
+                            type="button"
+                            (click)="saveSinglePage(page)"
+                            class="px-2.5 py-1 rounded-lg bg-indigo-600/80 hover:bg-indigo-600 text-white text-[11px] font-semibold transition-colors cursor-pointer">
+                            Salvar Pág. {{ page.pageNumber }}
+                          </button>
+                        </div>
+                      </div>
+                    }
+                    <img
+                      [src]="page.dataUrl"
+                      [alt]="'Preview página ' + page.pageNumber"
+                      class="max-h-[65vh] max-w-full w-auto object-contain rounded-lg shadow-2xl transition-all" />
+                  </div>
+                }
               </div>
 
               <!-- Botões de Ação na Base -->
@@ -382,23 +707,23 @@ import { SocialShareService } from '../../core/services/social-share.service';
                   <button
                     type="button"
                     (click)="copyToClipboard()"
-                    [disabled]="isRendering() || selectedItems().length === 0"
+                    [disabled]="isRendering() || selectedItems().length === 0 || renderedPages().length === 0"
                     class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 border border-slate-700 text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50">
                     <svg class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
                     </svg>
-                    Copiar Imagem
+                    {{ renderedPages().length > 1 ? 'Copiar 1ª Página' : 'Copiar Imagem' }}
                   </button>
 
                   <button
                     type="button"
                     (click)="saveImage()"
-                    [disabled]="isRendering() || selectedItems().length === 0"
+                    [disabled]="isRendering() || selectedItems().length === 0 || renderedPages().length === 0"
                     class="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shadow-lg shadow-indigo-600/20 disabled:opacity-50">
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                     </svg>
-                    Salvar PNG…
+                    {{ renderedPages().length > 1 ? ('Salvar Todas (' + renderedPages().length + ' PNGs)…') : 'Salvar PNG…' }}
                   </button>
                 </div>
               </footer>
@@ -416,13 +741,12 @@ export class SocialShareDialogComponent implements OnInit {
 
   @Output() close = new EventEmitter<void>();
 
-  @ViewChild('renderCanvas', { static: false }) canvasRef!: ElementRef<HTMLCanvasElement>;
-
   private electron = inject(ElectronService);
   private generator = inject(SocialImageGeneratorService);
   readonly socialShareService = inject(SocialShareService);
 
   readonly presets = PLATFORM_PRESETS;
+  readonly pageSizePresets = [4, 6, 9, 12, 16, 20, 24];
 
   // Visibilidade controlada tanto por service quanto por inputs
   isVisible = computed(() => {
@@ -432,13 +756,35 @@ export class SocialShareDialogComponent implements OnInit {
   // Estado
   activePeriod = signal<'week' | 'month' | 'year' | 'custom'>('month');
   mediaType = signal<'MANGA' | 'BOOK' | 'ALL'>('ALL');
+  availableLibraries = signal<LibraryOption[]>([]);
+  selectedLibraryId = signal<number | null>(null);
   startDate = '';
   endDate = '';
   onlyCompleted = false;
 
+  filteredLibraries = computed(() => {
+    const type = this.mediaType();
+    const libs = this.availableLibraries();
+    if (type === 'MANGA') {
+      return libs.filter(l => l.type === 'MANGA');
+    }
+    if (type === 'BOOK') {
+      return libs.filter(l => l.type === 'BOOK');
+    }
+    return libs;
+  });
+
   selectedPreset = signal<SocialPlatformPreset>('INSTAGRAM_POST');
   selectedTemplate = signal<SocialLayoutTemplate>('BENTO_GRID');
   selectedTheme: SocialTheme = 'AMBIENT_DYNAMIC';
+  selectedPattern: SocialBackgroundPattern = 'GRID';
+  itemsPerPage = signal<number>(9);
+
+  // Cores customizadas
+  customPrimaryColor = '#0f172a';
+  customSecondaryColor = '#1e1b4b';
+  customAccentColor = '#6366f1';
+  customTextMode: 'AUTO' | 'LIGHT' | 'DARK' = 'AUTO';
 
   cardTitle = 'Minhas Leituras do Mês';
   cardSubtitle = '';
@@ -446,15 +792,26 @@ export class SocialShareDialogComponent implements OnInit {
 
   showStatsBanner = true;
   showCoverTitles = true;
+  useCardBlur = false;
   showProgressBadge = true;
 
   rawItems = signal<SocialShareItem[]>([]);
   excludedIds = signal<Set<string>>(new Set());
+  renderedPages = signal<SocialRenderedPage[]>([]);
 
   isRendering = signal(false);
   copySuccess = signal(false);
 
   activePresetConfig = computed(() => this.generator.getPresetConfig(this.selectedPreset()));
+
+  activeDimensionsLabel = computed(() => {
+    const pages = this.renderedPages();
+    if (pages.length > 0) {
+      return `${pages[0].width} × ${pages[0].height} px`;
+    }
+    const conf = this.activePresetConfig();
+    return `${conf.width} × ${conf.height} px`;
+  });
 
   selectedItems = computed(() => {
     const excluded = this.excludedIds();
@@ -478,11 +835,36 @@ export class SocialShareDialogComponent implements OnInit {
     if (serviceOpts?.initialYear) {
       this.initialYear = serviceOpts.initialYear;
     }
-    if (serviceOpts?.initialLibraryId) {
-      this.initialLibraryId = serviceOpts.initialLibraryId;
-    }
+    const initLib = serviceOpts?.initialLibraryId ?? this.initialLibraryId ?? null;
+    this.selectedLibraryId.set(initLib);
 
+    void this.loadLibraries();
     this.setPeriodPreset('month');
+  }
+
+  async loadLibraries(): Promise<void> {
+    try {
+      const [mangaLibs, bookLibs] = await Promise.all([
+        this.electron.listLibrariesByType('MANGA'),
+        this.electron.listLibrariesByType('BOOK')
+      ]);
+      const combined = [...(mangaLibs || []), ...(bookLibs || [])];
+      this.availableLibraries.set(combined);
+
+      // Se temos uma biblioteca inicial mas ela ainda não foi confirmada
+      const currentSelected = this.selectedLibraryId();
+      if (currentSelected != null && !combined.some(l => l.id === currentSelected)) {
+        // Se a biblioteca inicial não existir na lista combinada, reseta para null
+        this.selectedLibraryId.set(null);
+      }
+    } catch (err) {
+      console.error('Erro ao carregar bibliotecas para social share:', err);
+    }
+  }
+
+  onLibraryChange(id: number | null): void {
+    this.selectedLibraryId.set(id);
+    void this.loadItems();
   }
 
   setPeriodPreset(period: 'week' | 'month' | 'year' | 'custom'): void {
@@ -521,6 +903,15 @@ export class SocialShareDialogComponent implements OnInit {
 
   setMediaType(type: 'MANGA' | 'BOOK' | 'ALL'): void {
     this.mediaType.set(type);
+
+    const currentLibId = this.selectedLibraryId();
+    if (currentLibId != null && type !== 'ALL') {
+      const currentLib = this.availableLibraries().find(l => l.id === currentLibId);
+      if (currentLib && currentLib.type !== type) {
+        this.selectedLibraryId.set(null);
+      }
+    }
+
     this.loadItems();
   }
 
@@ -529,8 +920,7 @@ export class SocialShareDialogComponent implements OnInit {
 
     this.isRendering.set(true);
     try {
-      const serviceOpts = this.socialShareService.activeOptions();
-      const libId = serviceOpts?.initialLibraryId ?? this.initialLibraryId;
+      const libId = this.selectedLibraryId();
 
       const items = await this.electron.listHistoryForSocialShare({
         startDate: this.startDate,
@@ -557,6 +947,42 @@ export class SocialShareDialogComponent implements OnInit {
   setLayoutTemplate(template: SocialLayoutTemplate): void {
     this.selectedTemplate.set(template);
     this.triggerRender();
+  }
+
+  setItemsPerPage(count: number): void {
+    const safe = Math.max(1, Math.min(100, Math.floor(count || 9)));
+    this.itemsPerPage.set(safe);
+    void this.triggerRender();
+  }
+
+  onItemsPerPageInput(value: number | string): void {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed < 1) return;
+    this.setItemsPerPage(parsed);
+  }
+
+  setBackgroundPattern(pattern: SocialBackgroundPattern): void {
+    this.selectedPattern = pattern;
+    this.triggerRender();
+  }
+
+  setCustomTextMode(mode: 'AUTO' | 'LIGHT' | 'DARK'): void {
+    this.customTextMode = mode;
+    this.triggerRender();
+  }
+
+  getCoverUrl(coverPath: string | null): string {
+    if (!coverPath) return '';
+    return 'local-cover:///' + coverPath.replace(/\\/g, '/');
+  }
+
+  onCurationWheel(event: WheelEvent): void {
+    const container = event.currentTarget as HTMLElement | null;
+    if (!container) return;
+    if (Math.abs(event.deltaY) > Math.abs(event.deltaX)) {
+      event.preventDefault();
+      container.scrollLeft += event.deltaY;
+    }
   }
 
   isItemSelected(item: SocialShareItem): boolean {
@@ -587,13 +1013,15 @@ export class SocialShareDialogComponent implements OnInit {
   }
 
   async triggerRender(): Promise<void> {
-    if (!this.canvasRef?.nativeElement) {
-      setTimeout(() => this.triggerRender(), 50);
-      return;
-    }
-
     this.isRendering.set(true);
     try {
+      const customTheme: SocialCustomThemeConfig = {
+        primaryColor: this.customPrimaryColor,
+        secondaryColor: this.customSecondaryColor,
+        accentColor: this.customAccentColor,
+        textMode: this.customTextMode
+      };
+
       const options: SocialRenderOptions = {
         preset: this.selectedPreset(),
         template: this.selectedTemplate(),
@@ -603,23 +1031,26 @@ export class SocialShareDialogComponent implements OnInit {
         userHandle: this.userHandle,
         showStatsBanner: this.showStatsBanner,
         showCoverTitles: this.showCoverTitles,
+        useCardBlur: this.useCardBlur,
         showProgressBadge: this.showProgressBadge,
-        showBranding: true
+        showBranding: true,
+        itemsPerPage: this.itemsPerPage(),
+        backgroundPattern: this.selectedPattern,
+        customTheme: this.selectedTheme === 'CUSTOM' ? customTheme : undefined
       };
 
-      await this.generator.renderToCanvas(
-        this.canvasRef.nativeElement,
+      const pages = await this.generator.renderPages(
         this.selectedItems(),
         options
       );
+      this.renderedPages.set(pages);
     } finally {
       this.isRendering.set(false);
     }
   }
 
-  async copyToClipboard(): Promise<void> {
-    if (!this.canvasRef?.nativeElement) return;
-    const dataUrl = this.canvasRef.nativeElement.toDataURL('image/png');
+  async copyPageDataUrl(dataUrl: string): Promise<void> {
+    if (!dataUrl) return;
     const res = await this.electron.copySocialImage({ dataUrl });
     if (res?.success) {
       this.copySuccess.set(true);
@@ -627,13 +1058,34 @@ export class SocialShareDialogComponent implements OnInit {
     }
   }
 
+  async copyToClipboard(): Promise<void> {
+    const firstPage = this.renderedPages()[0];
+    if (!firstPage?.dataUrl) return;
+    await this.copyPageDataUrl(firstPage.dataUrl);
+  }
+
+  async saveSinglePage(page: SocialRenderedPage): Promise<void> {
+    if (!page?.dataUrl) return;
+    const sanitize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
+    const suffix = page.totalPages > 1 ? `-pag-${page.pageNumber}` : '';
+    const defaultName = `${sanitize(this.cardTitle || 'leituras')}-${sanitize(this.selectedPreset())}${suffix}.png`;
+    await this.electron.saveSocialImage({ dataUrl: page.dataUrl, defaultName });
+  }
+
   async saveImage(): Promise<void> {
-    if (!this.canvasRef?.nativeElement) return;
-    const dataUrl = this.canvasRef.nativeElement.toDataURL('image/png');
+    const pages = this.renderedPages();
+    if (!pages.length) return;
     const sanitize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
     const defaultName = `${sanitize(this.cardTitle || 'leituras')}-${sanitize(this.selectedPreset())}.png`;
 
-    await this.electron.saveSocialImage({ dataUrl, defaultName });
+    if (pages.length === 1) {
+      await this.electron.saveSocialImage({ dataUrl: pages[0].dataUrl, defaultName });
+    } else {
+      await this.electron.saveSocialImage({
+        dataUrls: pages.map(p => p.dataUrl),
+        defaultName
+      });
+    }
   }
 
   handleClose(): void {

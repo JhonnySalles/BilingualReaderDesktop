@@ -23,7 +23,8 @@ export type SocialPlatformPreset =
   | 'INSTAGRAM_POST'
   | 'INSTAGRAM_SQUARE'
   | 'TWITTER_POST'
-  | 'TUMBLR_POST';
+  | 'TUMBLR_POST'
+  | 'SINGLE_FULL_IMAGE';
 
 export interface PlatformPresetConfig {
   id: SocialPlatformPreset;
@@ -39,14 +40,35 @@ export type SocialLayoutTemplate =
   | 'BENTO_GRID'
   | 'PERSPECTIVE_SHOWCASE'
   | 'WRAPPED_STATS'
-  | 'MINIMALIST_LIST';
+  | 'MINIMALIST_LIST'
+  | 'MAGAZINE_HERO'
+  | 'POLAROID_GALLERY'
+  | 'PODIUM_RANKING'
+  | 'GLASS_CARDS';
 
 export type SocialTheme =
   | 'AMBIENT_DYNAMIC'
+  | 'COVER_BLUR_MOSAIC'
   | 'DARK_SLATE'
   | 'OLED_BLACK'
+  | 'AURORA_BOREALIS'
+  | 'SUNSET_SYNTH'
+  | 'ROYAL_GOLD'
+  | 'MATCHA_BOTANICAL'
+  | 'CYBER_NEON'
   | 'WARM_PAPER'
-  | 'CYBER_NEON';
+  | 'SAKURA_DREAM'
+  | 'NORDIC_FROST'
+  | 'CUSTOM';
+
+export type SocialBackgroundPattern = 'GRID' | 'DOTS' | 'ORBS' | 'NONE';
+
+export interface SocialCustomThemeConfig {
+  primaryColor: string;
+  secondaryColor: string;
+  accentColor: string;
+  textMode: 'AUTO' | 'LIGHT' | 'DARK';
+}
 
 export interface SocialRenderOptions {
   preset: SocialPlatformPreset;
@@ -57,7 +79,22 @@ export interface SocialRenderOptions {
   userHandle?: string;
   showStatsBanner: boolean;
   showCoverTitles: boolean;
+  useCardBlur?: boolean;
   showProgressBadge: boolean;
   showBranding: boolean;
+  itemsPerPage?: number;
+  pageIndex?: number;
+  totalPages?: number;
+  customTheme?: SocialCustomThemeConfig;
+  backgroundPattern?: SocialBackgroundPattern;
+}
+
+export interface SocialRenderedPage {
+  pageNumber: number;
+  totalPages: number;
+  width: number;
+  height: number;
+  dataUrl: string;
+  itemsCount: number;
 }
 

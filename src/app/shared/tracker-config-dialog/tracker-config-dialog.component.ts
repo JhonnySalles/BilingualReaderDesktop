@@ -21,6 +21,7 @@ import {
   TrackerSearchProvider,
   TrackerSearchResultItem
 } from '../tracker-search-dialog/tracker-search-dialog.component';
+import { TeleportToBodyDirective } from '../directives/teleport-to-body.directive';
 
 export interface RegexSuggestion {
   pattern: string;
@@ -31,11 +32,12 @@ export interface RegexSuggestion {
 @Component({
   selector: 'app-tracker-config-dialog',
   standalone: true,
-  imports: [CommonModule, FormsModule, TrackerSearchDialogComponent],
+  imports: [CommonModule, FormsModule, TrackerSearchDialogComponent, TeleportToBodyDirective],
   template: `
     @if (open) {
       <div
-        class="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in"
+        appTeleportToBody
+        class="fixed inset-0 z-[115] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in"
         (click)="onBackdropClick()">
         <div
           class="w-full max-w-2xl rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl overflow-hidden flex flex-col max-h-[92vh]"

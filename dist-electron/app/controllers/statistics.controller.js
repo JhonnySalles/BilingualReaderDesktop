@@ -36,6 +36,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.StatisticsController = void 0;
 const electron_1 = require("electron");
 const fs = __importStar(require("fs"));
+const path = __importStar(require("path"));
 const reading_time_service_1 = require("../services/reading-time.service");
 const epub_book_extractor_1 = require("../parser/book/epub-book-extractor");
 const main_1 = require("../main");
@@ -70,21 +71,40 @@ class StatisticsController {
         });
         electron_1.ipcMain.handle('social:save-image', async (event, payload) => {
             try {
-                const { dataUrl, defaultName = 'leitura-resumo.png' } = payload;
+                const { dataUrl, dataUrls, defaultName = 'leitura-resumo.png' } = payload;
+                const urls = dataUrls && dataUrls.length > 0 ? dataUrls : dataUrl ? [dataUrl] : [];
+                if (urls.length === 0) {
+                    return { success: false, error: 'Nenhuma imagem para salvar.' };
+                }
                 const win = electron_1.BrowserWindow.fromWebContents(event.sender);
                 const dialogOpts = {
-                    title: 'Salvar Imagem de Compartilhamento',
+                    title: urls.length > 1 ? `Salvar ${urls.length} Imagens de Compartilhamento` : 'Salvar Imagem de Compartilhamento',
                     defaultPath: defaultName,
                     filters: [{ name: 'Imagens PNG', extensions: ['png'] }]
                 };
-                const saveDialog = win ? await electron_1.dialog.showSaveDialog(win, dialogOpts) : await electron_1.dialog.showSaveDialog(dialogOpts);
+                const saveDialog = win
+                    ? await electron_1.dialog.showSaveDialog(win, dialogOpts)
+                    : await electron_1.dialog.showSaveDialog(dialogOpts);
                 if (saveDialog.canceled || !saveDialog.filePath) {
                     return { success: false, canceled: true };
                 }
-                const base64Data = dataUrl.replace(/^data:image\/\w+;base64,/, '');
-                const buffer = Buffer.from(base64Data, 'base64');
-                await fs.promises.writeFile(saveDialog.filePath, buffer);
-                return { success: true, filePath: saveDialog.filePath };
+                if (urls.length === 1) {
+                    const base64Data = urls[0].replace(/^data:image\/\w+;base64,/, '');
+                    const buffer = Buffer.from(base64Data, 'base64');
+                    await fs.promises.writeFile(saveDialog.filePath, buffer);
+                    return { success: true, filePath: saveDialog.filePath };
+                }
+                const parsed = path.parse(saveDialog.filePath);
+                const ext = parsed.ext || '.png';
+                const savedPaths = [];
+                for (let i = 0; i < urls.length; i++) {
+                    const pageFilePath = path.join(parsed.dir, `${parsed.name}-${i + 1}${ext}`);
+                    const base64Data = urls[i].replace(/^data:image\/\w+;base64,/, '');
+                    const buffer = Buffer.from(base64Data, 'base64');
+                    await fs.promises.writeFile(pageFilePath, buffer);
+                    savedPaths.push(pageFilePath);
+                }
+                return { success: true, filePath: savedPaths[0], filePaths: savedPaths };
             }
             catch (err) {
                 return { success: false, error: err?.message || String(err) };

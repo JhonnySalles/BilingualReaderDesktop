@@ -13,15 +13,17 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ElectronService } from '../../core/services/electron.service';
 import { Tag } from '../../core/models';
+import { TeleportToBodyDirective } from '../directives/teleport-to-body.directive';
 
 @Component({
   selector: 'app-tags-dialog',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, TeleportToBodyDirective],
   template: `
     @if (open) {
       <div
-        class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm animate-fade-in"
+        appTeleportToBody
+        class="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm animate-fade-in"
         (click)="cancel.emit()">
         <div
           class="w-full max-w-md rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl overflow-hidden flex flex-col max-h-[85vh] animate-scale-up"

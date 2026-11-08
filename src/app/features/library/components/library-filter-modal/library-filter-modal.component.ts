@@ -2,13 +2,14 @@ import { Component, EventEmitter, Input, Output, inject, HostListener } from '@a
 import { CommonModule } from '@angular/common';
 import { LibraryStateService, LibraryContext } from '../../../../core/services/library-state.service';
 import { OrderType, LibraryViewType } from '../../../../core/models';
+import { TeleportToBodyDirective } from '../../../../shared/directives/teleport-to-body.directive';
 
 @Component({
   selector: 'app-library-filter-modal',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, TeleportToBodyDirective],
   template: `
-    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in" (click)="close.emit()">
+    <div appTeleportToBody class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in" (click)="close.emit()">
       
       <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl shadow-indigo-950/20 text-slate-200"
         (click)="$event.stopPropagation()">

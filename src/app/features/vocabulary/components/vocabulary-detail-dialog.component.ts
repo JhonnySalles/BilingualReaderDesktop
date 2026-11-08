@@ -2,13 +2,14 @@ import { Component, EventEmitter, Input, OnInit, Output, inject, signal } from '
 import { CommonModule } from '@angular/common';
 import { ElectronService } from '../../../core/services/electron.service';
 import { Kanjax, Vocabulary } from '../../../core/models';
+import { TeleportToBodyDirective } from '../../../shared/directives/teleport-to-body.directive';
 
 @Component({
   selector: 'app-vocabulary-detail-dialog',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, TeleportToBodyDirective],
   template: `
-    <div class="absolute inset-0 z-50 flex items-center justify-center bg-black/60 p-4" (click)="close.emit()">
+    <div appTeleportToBody class="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in" (click)="close.emit()">
       <div class="w-full max-w-md rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl overflow-hidden"
         (click)="$event.stopPropagation()">
         <div class="px-5 py-4 border-b border-slate-800 flex items-start gap-4">

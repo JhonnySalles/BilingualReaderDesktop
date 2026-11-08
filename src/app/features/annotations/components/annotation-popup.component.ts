@@ -15,14 +15,16 @@ import {
   BookAnnotationColor,
   BOOK_ANNOTATION_COLOR_HEX
 } from '../../../core/models/entities/book.model';
+import { TeleportToBodyDirective } from '../../../shared/directives/teleport-to-body.directive';
 
 @Component({
   selector: 'app-annotation-popup',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, TeleportToBodyDirective],
   template: `
     <div
-      class="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm"
+      appTeleportToBody
+      class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm"
       (click)="onBackdrop($event)">
       <div
         class="w-[min(92vw,24rem)] bg-slate-900/95 backdrop-blur-md border border-slate-700 rounded-xl shadow-2xl p-4"

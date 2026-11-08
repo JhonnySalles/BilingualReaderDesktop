@@ -33,7 +33,6 @@ import { sortLibraryItems } from '../../core/utils/library-sort.util';
     CommonModule,
     RouterModule,
     SharedListComponent,
-    LibraryFilterModalComponent,
     HomeRecentCardComponent,
     HomeReadingHeatmapComponent,
     LibraryBookmarkDialogComponent,
@@ -45,18 +44,11 @@ import { sortLibraryItems } from '../../core/utils/library-sort.util';
   template: `
     <div class="h-full flex flex-col bg-slate-950 text-slate-100 overflow-hidden relative">
       
-      @if (libraryStateService.showFilterModal()) {
-        <app-library-filter-modal 
-          [context]="activeLibType()" 
-          (close)="libraryStateService.showFilterModal.set(false)">
-        </app-library-filter-modal>
-      }
-
       <app-library-bookmark-dialog
         [open]="!!bookmarkTarget()"
         [type]="activeLibType()"
         [filePath]="bookmarkTarget()?.path"
-        [accent]="activeLibType() === 'book' ? 'amber' : 'indigo'"
+        [accent]="activeLibType() === 'book' ? 'primary' : 'indigo'"
         [title]="bookmarkTarget()?.title || ''"
         [maxPages]="bookmarkTarget()?.pages || 1"
         [pageValue]="bookmarkTarget()?.bookMark || 0"

@@ -9,7 +9,7 @@ import { ConfirmDialogService } from '../../core/services/confirm-dialog.service
   template: `
     @if (confirmDialogService.activeDialog(); as dialog) {
       <div
-        class="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm animate-fade-in select-none"
+        class="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm animate-fade-in select-none"
         (click)="confirmDialogService.handleCancel()">
         
         <div

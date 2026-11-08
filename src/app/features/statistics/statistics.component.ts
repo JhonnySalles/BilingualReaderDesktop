@@ -67,11 +67,11 @@ export class StatisticsComponent implements OnInit {
   mangaLibraryId = signal<number | null>(null);
   bookLibraryId = signal<number | null>(null);
 
-  openShareDialog(type: 'MANGA' | 'BOOK' | 'ALL', year: number, libraryId: number | null): void {
+  openShareDialog(type: 'MANGA' | 'BOOK' | 'ALL', year: number, _libraryId?: number | null): void {
     this.socialShare.open({
       initialMediaType: type,
       initialYear: year,
-      initialLibraryId: libraryId
+      initialLibraryId: null
     });
   }
 
