@@ -6,7 +6,10 @@ import {
   EventEmitter,
   inject,
   signal,
-  computed
+  computed,
+  ViewChild,
+  ElementRef,
+  HostListener
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -40,7 +43,7 @@ import { TeleportToBodyDirective } from '../directives/teleport-to-body.directiv
         class="fixed inset-0 z-[150] flex items-center justify-center p-4 sm:p-6 bg-slate-950/85 backdrop-blur-md animate-fade-in select-none"
         (click)="onBackdropClick($event)">
         <div
-          class="w-full max-w-6xl max-h-[92vh] flex flex-col rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl overflow-hidden animate-scale-in"
+          class="w-full max-w-6xl h-[92vh] max-h-[92vh] flex flex-col rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl overflow-hidden animate-scale-in"
           (click)="$event.stopPropagation()">
 
           <!-- Header -->
@@ -630,24 +633,85 @@ import { TeleportToBodyDirective } from '../directives/teleport-to-body.directiv
 
             <!-- Coluna Direita: Preview em Tempo Real e Ações -->
             <div class="lg:col-span-7 flex flex-col bg-slate-950/70 p-6 overflow-hidden">
-              <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
                 <div class="flex items-center gap-2">
                   <span class="text-xs font-bold uppercase tracking-wider text-slate-400">
                     Visualização em Tempo Real (WYSIWYG)
                   </span>
                   @if (renderedPages().length > 1) {
                     <span class="px-2 py-0.5 rounded-full bg-primary-500/20 border border-primary-500/30 text-[10px] font-bold text-primary-300">
-                      {{ renderedPages().length }} páginas geradas (role para ver)
+                      {{ renderedPages().length }} págs
                     </span>
                   }
                 </div>
-                <span class="text-xs text-slate-500 font-mono">
-                  {{ activeDimensionsLabel() }}
-                </span>
+
+                <div class="flex items-center gap-3">
+                  <!-- Controles de Zoom -->
+                  <div class="flex items-center bg-slate-900 border border-slate-800 rounded-xl p-0.5 shadow-sm">
+                    <button
+                      type="button"
+                      (click)="zoomOut()"
+                      [disabled]="previewZoom() <= minZoom"
+                      class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-400 transition-colors cursor-pointer"
+                      title="Diminuir Zoom (Ctrl + Roda para baixo)">
+                      <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" />
+                      </svg>
+                    </button>
+
+                    <button
+                      type="button"
+                      (click)="resetZoom()"
+                      class="px-2 h-7 flex items-center justify-center text-xs font-mono font-semibold transition-colors rounded-lg hover:bg-slate-800 cursor-pointer"
+                      [class.text-primary-400]="previewZoom() !== 1"
+                      [class.text-slate-300]="previewZoom() === 1"
+                      title="Resetar Zoom (100%)">
+                      {{ previewZoomPercent() }}%
+                    </button>
+
+                    <button
+                      type="button"
+                      (click)="zoomIn()"
+                      [disabled]="previewZoom() >= maxZoom"
+                      class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-400 transition-colors cursor-pointer"
+                      title="Aumentar Zoom (Ctrl + Roda para cima)">
+                      <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                      </svg>
+                    </button>
+
+                    @if (previewZoom() !== 1) {
+                      <button
+                        type="button"
+                        (click)="resetZoom()"
+                        class="ml-1 px-2 h-7 flex items-center gap-1 text-[11px] font-medium text-primary-400 hover:text-primary-300 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+                        title="Ajustar à tela">
+                        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                        </svg>
+                        <span>Ajustar</span>
+                      </button>
+                    }
+                  </div>
+
+                  <span class="text-xs text-slate-500 font-mono">
+                    {{ activeDimensionsLabel() }}
+                  </span>
+                </div>
               </div>
 
-              <!-- Galeria de Páginas com Scroll -->
-              <div class="flex-1 min-h-0 overflow-y-auto space-y-6 p-4 rounded-2xl bg-slate-950 border border-slate-800/80 relative shadow-inner">
+              <!-- Galeria de Páginas com Scroll e Zoom/Pan -->
+              <div
+                #previewScrollContainer
+                (wheel)="onPreviewWheel($event)"
+                (mousedown)="onPreviewMouseDown($event)"
+                (mousemove)="onPreviewMouseMove($event)"
+                (mouseup)="onPreviewMouseUp()"
+                (mouseleave)="onPreviewMouseUp()"
+                class="flex-1 min-h-0 overflow-auto p-4 rounded-2xl bg-slate-950 border border-slate-800/80 relative shadow-inner select-none transition-colors space-y-6"
+                [class.cursor-grab]="previewZoom() > 1 && !isDragging()"
+                [class.cursor-grabbing]="previewZoom() > 1 && isDragging()">
+
                 @if (isRendering()) {
                   <div class="sticky top-2 z-20 flex items-center justify-center pointer-events-none">
                     <span class="px-3 py-1.5 rounded-full bg-slate-900/90 border border-primary-500/40 text-xs font-semibold text-primary-300 shadow-lg animate-pulse">
@@ -657,9 +721,15 @@ import { TeleportToBodyDirective } from '../directives/teleport-to-body.directiv
                 }
 
                 @for (page of renderedPages(); track page.pageNumber) {
-                  <div class="flex flex-col items-center space-y-2.5 bg-slate-900/50 border border-slate-800/70 rounded-2xl p-3">
+                  <div
+                    class="flex flex-col items-center space-y-2.5 bg-slate-900/50 border border-slate-800/70 rounded-2xl p-3 mx-auto transition-all shadow-xl"
+                    [class.my-auto]="previewZoom() <= 1 && renderedPages().length === 1"
+                    [style.width]="'fit-content'"
+                    [style.max-width]="'none'">
                     @if (page.totalPages > 1) {
-                      <div class="w-full flex items-center justify-between px-2 py-1 border-b border-slate-800/80 text-xs">
+                      <div
+                        class="flex items-center justify-between px-2 py-1 border-b border-slate-800/80 text-xs"
+                        [style.width.px]="getPageDimensions(page).width">
                         <div class="flex items-center gap-2">
                           <span class="font-bold text-primary-300">
                             Página {{ page.pageNumber }} de {{ page.totalPages }}
@@ -684,10 +754,21 @@ import { TeleportToBodyDirective } from '../directives/teleport-to-body.directiv
                         </div>
                       </div>
                     }
-                    <img
-                      [src]="page.dataUrl"
-                      [alt]="'Preview página ' + page.pageNumber"
-                      class="max-h-[65vh] max-w-full w-auto object-contain rounded-lg shadow-2xl transition-all" />
+                    <div class="flex items-center justify-center">
+                      <img
+                        [src]="page.dataUrl"
+                        [alt]="'Preview página ' + page.pageNumber"
+                        draggable="false"
+                        [style.width.px]="getPageDimensions(page).width"
+                        [style.height.px]="getPageDimensions(page).height"
+                        class="max-w-none max-h-none object-contain rounded-lg shadow-2xl pointer-events-none select-none transition-all duration-75" />
+                    </div>
+                  </div>
+                }
+
+                @if (previewZoom() > 1) {
+                  <div class="pointer-events-none sticky bottom-2 left-2 z-10 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-900/90 border border-slate-700/70 text-[10px] text-slate-400 shadow-lg">
+                    <span>💡 Arraste com o mouse para mover</span>
                   </div>
                 }
               </div>
@@ -800,6 +881,24 @@ export class SocialShareDialogComponent implements OnInit {
 
   isRendering = signal(false);
   copySuccess = signal(false);
+
+  // Zoom e Pan do Preview
+  @ViewChild('previewScrollContainer') previewScrollContainer?: ElementRef<HTMLDivElement>;
+
+  readonly minZoom = 0.5;
+  readonly maxZoom = 4.0;
+  readonly zoomStep = 0.25;
+  readonly Math = Math;
+
+  previewZoom = signal<number>(1);
+  previewZoomPercent = computed(() => Math.round(this.previewZoom() * 100));
+
+  isDragging = signal<boolean>(false);
+  private isPanning = false;
+  private startPanX = 0;
+  private startPanY = 0;
+  private startScrollLeft = 0;
+  private startScrollTop = 0;
 
   activePresetConfig = computed(() => this.generator.getPresetConfig(this.selectedPreset()));
 
@@ -1087,7 +1186,141 @@ export class SocialShareDialogComponent implements OnInit {
     }
   }
 
+  containerResizeTrigger = signal(0);
+
+  @HostListener('window:resize')
+  onWindowResize(): void {
+    this.containerResizeTrigger.update(v => v + 1);
+  }
+
+  getPageDimensions(page: SocialRenderedPage): { width: number; height: number } {
+    // Leitura do signal para reavaliação automática no resize da janela
+    this.containerResizeTrigger();
+
+    const pageW = page.width || this.activePresetConfig().width || 1080;
+    const pageH = page.height || this.activePresetConfig().height || 1080;
+    const container = this.previewScrollContainer?.nativeElement;
+
+    let availW = 600;
+    let availH = 650;
+
+    if (container && container.clientWidth > 50 && container.clientHeight > 50) {
+      availW = Math.max(100, container.clientWidth - 56);
+      const headerH = page.totalPages > 1 ? 46 : 0;
+      availH = Math.max(100, container.clientHeight - 56 - headerH);
+    } else if (typeof window !== 'undefined') {
+      availW = Math.max(200, (window.innerWidth * 0.55) - 60);
+      availH = Math.max(200, (window.innerHeight * 0.90) - 200);
+    }
+
+    const fitScale = Math.min(availW / pageW, availH / pageH);
+    const zoom = this.previewZoom();
+
+    return {
+      width: Math.max(40, Math.round(pageW * fitScale * zoom)),
+      height: Math.max(40, Math.round(pageH * fitScale * zoom))
+    };
+  }
+
+  zoomIn(): void {
+    const prev = this.previewZoom();
+    const next = Math.min(this.maxZoom, Math.round((prev + this.zoomStep) * 100) / 100);
+    if (next !== prev) {
+      this.previewZoom.set(next);
+      this.adjustScrollOnZoom(prev, next);
+    }
+  }
+
+  zoomOut(): void {
+    const prev = this.previewZoom();
+    const next = Math.max(this.minZoom, Math.round((prev - this.zoomStep) * 100) / 100);
+    if (next !== prev) {
+      this.previewZoom.set(next);
+      this.adjustScrollOnZoom(prev, next);
+    }
+  }
+
+  resetZoom(): void {
+    this.previewZoom.set(1);
+    this.isPanning = false;
+    this.isDragging.set(false);
+    if (this.previewScrollContainer?.nativeElement) {
+      this.previewScrollContainer.nativeElement.scrollLeft = 0;
+      this.previewScrollContainer.nativeElement.scrollTop = 0;
+    }
+  }
+
+  onPreviewWheel(event: WheelEvent): void {
+    if (event.ctrlKey || event.metaKey) {
+      event.preventDefault();
+      const prev = this.previewZoom();
+      const delta = event.deltaY < 0 ? 0.15 : -0.15;
+      const next = Math.min(this.maxZoom, Math.max(this.minZoom, Math.round((prev + delta) * 100) / 100));
+      if (next !== prev) {
+        this.previewZoom.set(next);
+        const container = this.previewScrollContainer?.nativeElement;
+        if (container) {
+          const rect = container.getBoundingClientRect();
+          const focalX = event.clientX - rect.left;
+          const focalY = event.clientY - rect.top;
+          this.adjustScrollOnZoom(prev, next, focalX, focalY);
+        }
+      }
+    }
+  }
+
+  private adjustScrollOnZoom(oldZoom: number, newZoom: number, focalX?: number, focalY?: number): void {
+    const container = this.previewScrollContainer?.nativeElement;
+    if (!container) return;
+
+    requestAnimationFrame(() => {
+      const ratio = newZoom / oldZoom;
+      const clientX = focalX ?? (container.clientWidth / 2);
+      const clientY = focalY ?? (container.clientHeight / 2);
+
+      const targetScrollLeft = (container.scrollLeft + clientX) * ratio - clientX;
+      const targetScrollTop = (container.scrollTop + clientY) * ratio - clientY;
+
+      container.scrollLeft = Math.max(0, targetScrollLeft);
+      container.scrollTop = Math.max(0, targetScrollTop);
+    });
+  }
+
+  onPreviewMouseDown(event: MouseEvent): void {
+    if (event.button !== 0) return;
+    const target = event.target as HTMLElement;
+    if (target.closest('button')) return;
+
+    const container = this.previewScrollContainer?.nativeElement;
+    if (!container) return;
+
+    this.isPanning = true;
+    this.isDragging.set(true);
+    this.startPanX = event.clientX;
+    this.startPanY = event.clientY;
+    this.startScrollLeft = container.scrollLeft;
+    this.startScrollTop = container.scrollTop;
+  }
+
+  onPreviewMouseMove(event: MouseEvent): void {
+    if (!this.isPanning) return;
+    const container = this.previewScrollContainer?.nativeElement;
+    if (!container) return;
+
+    event.preventDefault();
+    const dx = event.clientX - this.startPanX;
+    const dy = event.clientY - this.startPanY;
+    container.scrollLeft = this.startScrollLeft - dx;
+    container.scrollTop = this.startScrollTop - dy;
+  }
+
+  onPreviewMouseUp(): void {
+    this.isPanning = false;
+    this.isDragging.set(false);
+  }
+
   handleClose(): void {
+    this.resetZoom();
     this.socialShareService.close();
     this.close.emit();
   }

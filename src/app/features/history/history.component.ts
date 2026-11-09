@@ -24,6 +24,7 @@ interface HistoryDayGroup {
 
 export interface VirtualHistoryGroup {
   date: string;
+  totalItems: number;
   totalRows: number;
   totalHeight: number;
   topSpacer: number;
@@ -67,15 +68,27 @@ export interface VirtualHistoryGroup {
               <section>
                 <!-- Sticky Date Header (for non-carousel views with date) -->
                 @if (!isCarouselView() && group.date) {
-                  <div class="sticky top-0 z-10 mb-4 bg-slate-950/90 backdrop-blur py-2 border-b border-slate-800 flex items-center gap-3">
-                    <span
-                      class="text-xs font-bold uppercase tracking-wider font-mono px-2.5 py-1 rounded-lg border"
-                      [ngClass]="historyUi.activeType() === 'BOOK'
-                        ? 'book-badge'
-                        : (historyUi.activeType() === 'MANGA' ? 'manga-badge' : 'bg-primary-500/10 text-primary-400 border-primary-500/20')">
-                      {{ formatDateLabel(group.date) }}
-                    </span>
-                    <div class="h-px bg-slate-800 flex-1"></div>
+                  <div class="sticky top-0 z-10 mb-4 bg-slate-950/90 backdrop-blur py-2 flex items-center justify-between gap-3 px-1">
+                    <div class="flex items-center gap-2.5 min-w-0">
+                      <span
+                        class="text-sm font-bold font-mono px-2.5 py-1 rounded-lg border flex items-center gap-1.5 shadow-sm truncate"
+                        [ngClass]="historyUi.activeType() === 'BOOK'
+                          ? 'book-badge bg-book-500/10'
+                          : (historyUi.activeType() === 'MANGA' ? 'manga-badge bg-manga-500/10' : 'bg-primary-500/10 text-primary-300 border-primary-500/25')">
+                        <span
+                          class="w-1.5 h-1.5 rounded-full"
+                          [ngClass]="historyUi.activeType() === 'BOOK'
+                            ? 'book-section-dot'
+                            : (historyUi.activeType() === 'MANGA' ? 'manga-section-dot' : 'bg-primary-400')"></span>
+                        {{ formatDateLabel(group.date) }}
+                      </span>
+
+                      <span class="text-[11px] font-medium text-slate-400 font-mono">
+                        {{ group.totalItems }} {{ group.totalItems === 1 ? 'leitura' : 'leituras' }}
+                      </span>
+                    </div>
+
+                    <div class="h-px bg-slate-800 flex-1 mx-3 hidden sm:block"></div>
                   </div>
                 }
 
@@ -359,6 +372,7 @@ export class HistoryComponent implements OnInit, OnDestroy {
       if (itemsEndY < windowStart) {
         return {
           date: group.date,
+          totalItems: items.length,
           totalRows,
           totalHeight: groupItemsHeight,
           topSpacer: groupItemsHeight,
@@ -371,6 +385,7 @@ export class HistoryComponent implements OnInit, OnDestroy {
       if (itemsStartY > windowEnd) {
         return {
           date: group.date,
+          totalItems: items.length,
           totalRows,
           totalHeight: groupItemsHeight,
           topSpacer: 0,
@@ -414,6 +429,7 @@ export class HistoryComponent implements OnInit, OnDestroy {
 
       return {
         date: group.date,
+        totalItems: items.length,
         totalRows,
         totalHeight: groupItemsHeight,
         topSpacer,
@@ -555,12 +571,13 @@ export class HistoryComponent implements OnInit, OnDestroy {
   formatDateLabel(date: string): string {
     const d = new Date(date + 'T12:00:00');
     if (Number.isNaN(d.getTime())) return date;
-    return d.toLocaleDateString('pt-BR', {
+    const str = d.toLocaleDateString('pt-BR', {
       weekday: 'long',
       day: '2-digit',
       month: 'long',
       year: 'numeric'
     });
+    return str.charAt(0).toUpperCase() + str.slice(1);
   }
 
   formatTime(seconds: number): string {

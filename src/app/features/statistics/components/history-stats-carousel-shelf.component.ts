@@ -29,7 +29,7 @@ import { isBigScroll } from '../../../shared/scroll-edges-button/scroll-edges.ut
         <div class="flex items-center justify-between gap-3 mb-2 px-1">
           <div class="flex items-center gap-2.5 min-w-0">
             <span
-              class="text-xs font-bold font-mono px-2.5 py-1 rounded-lg border flex items-center gap-1.5 shadow-sm truncate"
+              class="text-sm font-bold font-mono px-2.5 py-1 rounded-lg border flex items-center gap-1.5 shadow-sm truncate"
               [ngClass]="headerBadgeClass">
               <span class="w-1.5 h-1.5 rounded-full" [ngClass]="headerDotClass"></span>
               {{ title }}

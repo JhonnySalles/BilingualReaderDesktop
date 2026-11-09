@@ -29,7 +29,7 @@ import { isBigScroll, smoothScrollHorizontalTo } from '../../../../shared/scroll
         <div class="flex items-center justify-between gap-3 mb-2 px-1">
           <div class="flex items-center gap-2.5 min-w-0">
             <span
-              class="text-xs font-bold font-mono px-2.5 py-1 rounded-lg border flex items-center gap-1.5 shadow-sm truncate"
+              class="text-sm font-bold font-mono px-2.5 py-1 rounded-lg border flex items-center gap-1.5 shadow-sm truncate"
               [ngClass]="type === 'manga'
                 ? 'manga-badge bg-manga-500/10'
                 : 'book-badge bg-book-500/10'">
