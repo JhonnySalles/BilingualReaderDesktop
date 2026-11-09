@@ -33,7 +33,7 @@ import { ExternalTrackerMediaDetails, ExternalTrackerRelatedItem } from '../../.
           <button
             type="button"
             (click)="openLink.emit(mediaDetails!.url!)"
-            class="text-[11px] font-medium text-indigo-400 hover:text-indigo-300 flex items-center gap-1 transition-colors cursor-pointer">
+            class="text-[11px] font-medium text-primary-400 hover:text-primary-300 flex items-center gap-1 transition-colors cursor-pointer">
             <span>Abrir no {{ mediaDetails?.source === 'MAL' ? 'MyAnimeList' : 'AniList' }}</span>
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
@@ -44,7 +44,7 @@ import { ExternalTrackerMediaDetails, ExternalTrackerRelatedItem } from '../../.
 
       @if (loading) {
         <div class="p-6 rounded-2xl border border-slate-800 bg-slate-900/40 flex items-center justify-center gap-3 text-xs text-slate-400 animate-pulse">
-          <div class="w-4 h-4 rounded-full border-2 border-indigo-500 border-t-transparent animate-spin"></div>
+          <div class="w-4 h-4 rounded-full border-2 border-primary-500 border-t-transparent animate-spin"></div>
           Buscando detalhes sincronizados na web (MAL / AniList)...
         </div>
       } @else if (!mediaDetails) {
@@ -122,7 +122,7 @@ import { ExternalTrackerMediaDetails, ExternalTrackerRelatedItem } from '../../.
               @if (mediaDetails.genres && mediaDetails.genres.length > 0) {
                 <div class="flex flex-wrap gap-1 pt-1">
                   @for (genre of mediaDetails.genres; track genre) {
-                    <span class="px-2 py-0.5 rounded-full text-[10px] font-medium bg-indigo-950/60 text-indigo-300 border border-indigo-800/50">
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-medium bg-primary-950/60 text-primary-300 border border-primary-800/50">
                       {{ genre }}
                     </span>
                   }
@@ -141,7 +141,7 @@ import { ExternalTrackerMediaDetails, ExternalTrackerRelatedItem } from '../../.
                 <button
                   type="button"
                   (click)="isSynopsisExpanded.set(!isSynopsisExpanded())"
-                  class="text-indigo-400 hover:text-indigo-300 font-semibold cursor-pointer text-[11px]">
+                  class="text-primary-400 hover:text-primary-300 font-semibold cursor-pointer text-[11px]">
                   {{ isSynopsisExpanded() ? 'Mostrar menos' : 'Mostrar mais' }}
                 </button>
               }
@@ -160,7 +160,7 @@ import { ExternalTrackerMediaDetails, ExternalTrackerRelatedItem } from '../../.
               @for (rel of mediaDetails.related; track rel.id) {
                 <div
                   (click)="rel.url ? openLink.emit(rel.url) : openRelated.emit(rel)"
-                  class="group relative rounded-xl border border-slate-800 bg-slate-900/80 hover:border-indigo-500/80 hover:bg-slate-900 transition-all p-2 flex flex-col gap-2 cursor-pointer shadow-sm hover:shadow-md">
+                  class="group relative rounded-xl border border-slate-800 bg-slate-900/80 hover:border-primary-500/80 hover:bg-slate-900 transition-all p-2 flex flex-col gap-2 cursor-pointer shadow-sm hover:shadow-md">
                   <div class="aspect-[2/3] rounded-lg overflow-hidden bg-slate-950 relative">
                     @if (rel.coverImage) {
                       <img
@@ -177,7 +177,7 @@ import { ExternalTrackerMediaDetails, ExternalTrackerRelatedItem } from '../../.
                   </div>
 
                   <div class="min-w-0">
-                    <p class="text-[11px] font-semibold text-slate-200 truncate group-hover:text-indigo-300 transition-colors" [title]="rel.title">
+                    <p class="text-[11px] font-semibold text-slate-200 truncate group-hover:text-primary-300 transition-colors" [title]="rel.title">
                       {{ rel.title }}
                     </p>
                     <p class="text-[9px] text-slate-500 uppercase">{{ rel.mediaType || 'MANGA' }}</p>

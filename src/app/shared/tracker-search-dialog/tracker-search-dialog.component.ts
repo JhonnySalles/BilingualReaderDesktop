@@ -87,13 +87,13 @@ export type TrackerSearchProvider = 'myanimelist' | 'anilist';
                   [(ngModel)]="searchQuery"
                   name="query"
                   [placeholder]="'Digite o nome da obra no ' + (provider === 'myanimelist' ? 'MyAnimeList' : 'AniList') + '...'"
-                  class="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 placeholder-slate-500 text-xs focus:outline-none focus:border-indigo-500/80 focus:ring-1 focus:ring-indigo-500/80"
+                  class="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 placeholder-slate-500 text-xs focus:outline-none focus:border-primary-500/80 focus:ring-1 focus:ring-primary-500/80"
                   autofocus />
               </div>
               <button
                 type="submit"
                 [disabled]="!searchQuery.trim() || isSearching()"
-                class="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:pointer-events-none text-white text-xs font-semibold shadow-md shadow-indigo-600/20 transition-all cursor-pointer flex items-center gap-1.5 shrink-0">
+                class="px-4 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-500 disabled:opacity-40 disabled:pointer-events-none text-white text-xs font-semibold shadow-md shadow-primary-600/20 transition-all cursor-pointer flex items-center gap-1.5 shrink-0">
                 @if (isSearching()) {
                   <svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -118,7 +118,7 @@ export type TrackerSearchProvider = 'myanimelist' | 'anilist';
               @for (item of results(); track item.id) {
                 <div
                   (click)="selectItem(item)"
-                  class="group flex items-start gap-3.5 p-3 rounded-xl bg-slate-950/60 hover:bg-slate-800/80 border border-slate-800/80 hover:border-indigo-500/40 transition-all cursor-pointer">
+                  class="group flex items-start gap-3.5 p-3 rounded-xl bg-slate-950/60 hover:bg-slate-800/80 border border-slate-800/80 hover:border-primary-500/40 transition-all cursor-pointer">
                   
                   <!-- Cover / Thumbnail -->
                   <div class="w-12 h-16 rounded-lg bg-slate-900 border border-slate-800 overflow-hidden shrink-0 flex items-center justify-center text-slate-600 font-bold text-[10px]">
@@ -132,7 +132,7 @@ export type TrackerSearchProvider = 'myanimelist' | 'anilist';
                   <!-- Details -->
                   <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-2">
-                      <h4 class="text-xs font-bold text-slate-200 group-hover:text-indigo-300 transition-colors truncate">
+                      <h4 class="text-xs font-bold text-slate-200 group-hover:text-primary-300 transition-colors truncate">
                         {{ item.title }}
                       </h4>
                       <span class="px-1.5 py-0.2 rounded bg-slate-900 text-slate-400 border border-slate-800 text-[9px] font-mono shrink-0">
@@ -148,7 +148,7 @@ export type TrackerSearchProvider = 'myanimelist' | 'anilist';
 
                     <div class="flex flex-wrap items-center gap-2 text-[10px] text-slate-500 mt-1.5">
                       @if (item.mediaType) {
-                        <span class="px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-400 font-semibold border border-indigo-500/20 text-[9px]">
+                        <span class="px-1.5 py-0.5 rounded bg-primary-500/10 text-primary-400 font-semibold border border-primary-500/20 text-[9px]">
                           {{ item.mediaType }}
                         </span>
                       }
@@ -178,7 +178,7 @@ export type TrackerSearchProvider = 'myanimelist' | 'anilist';
                     <button
                       type="button"
                       (click)="selectItem(item); $event.stopPropagation()"
-                      class="px-3 py-1.5 rounded-lg bg-indigo-600/15 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-500/30 text-[11px] font-semibold transition-all cursor-pointer">
+                      class="px-3 py-1.5 rounded-lg bg-primary-600/15 hover:bg-primary-600 text-primary-300 hover:text-white border border-primary-500/30 text-[11px] font-semibold transition-all cursor-pointer">
                       Selecionar
                     </button>
                   </div>
@@ -196,7 +196,7 @@ export type TrackerSearchProvider = 'myanimelist' | 'anilist';
               </div>
             } @else {
               <div class="p-8 text-center rounded-xl bg-slate-950/40 border border-dashed border-slate-800">
-                <div class="w-10 h-10 mx-auto rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-400 mb-2.5">
+                <div class="w-10 h-10 mx-auto rounded-full bg-primary-500/10 flex items-center justify-center text-primary-400 mb-2.5">
                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                   </svg>

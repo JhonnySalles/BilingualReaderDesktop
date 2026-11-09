@@ -86,10 +86,10 @@ export interface LibraryBookmarkPayload {
                 [class.border-amber-500]="!!errors().page"
                 [class.focus:ring-primary-500]="accent === 'primary'"
                 [class.focus:border-primary-500]="accent === 'primary'"
-                [class.focus:ring-indigo-500]="accent === 'indigo'"
-                [class.focus:border-indigo-500]="accent === 'indigo'"
-                [class.focus:ring-amber-500]="accent === 'amber'"
-                [class.focus:border-amber-500]="accent === 'amber'" />
+                [class.focus:ring-manga-500]="accent === 'indigo' || accent === 'manga'"
+                [class.focus:border-manga-500]="accent === 'indigo' || accent === 'manga'"
+                [class.focus:ring-book-500]="accent === 'amber' || accent === 'book'"
+                [class.focus:border-book-500]="accent === 'amber' || accent === 'book'" />
               @if (errors().page) {
                 <p class="mt-1 text-[11px] text-amber-300">{{ errors().page }}</p>
               }
@@ -108,10 +108,10 @@ export interface LibraryBookmarkPayload {
                   [class.border-amber-500]="!!errors().date"
                   [class.focus:ring-primary-500]="accent === 'primary'"
                   [class.focus:border-primary-500]="accent === 'primary'"
-                  [class.focus:ring-indigo-500]="accent === 'indigo'"
-                  [class.focus:border-indigo-500]="accent === 'indigo'"
-                  [class.focus:ring-amber-500]="accent === 'amber'"
-                  [class.focus:border-amber-500]="accent === 'amber'" />
+                  [class.focus:ring-manga-500]="accent === 'indigo' || accent === 'manga'"
+                  [class.focus:border-manga-500]="accent === 'indigo' || accent === 'manga'"
+                  [class.focus:ring-book-500]="accent === 'amber' || accent === 'book'"
+                  [class.focus:border-book-500]="accent === 'amber' || accent === 'book'" />
                 @if (errors().date) {
                   <p class="mt-1 text-[11px] text-amber-300">{{ errors().date }}</p>
                 }
@@ -128,10 +128,10 @@ export interface LibraryBookmarkPayload {
                   [class.border-amber-500]="!!errors().time"
                   [class.focus:ring-primary-500]="accent === 'primary'"
                   [class.focus:border-primary-500]="accent === 'primary'"
-                  [class.focus:ring-indigo-500]="accent === 'indigo'"
-                  [class.focus:border-indigo-500]="accent === 'indigo'"
-                  [class.focus:ring-amber-500]="accent === 'amber'"
-                  [class.focus:border-amber-500]="accent === 'amber'" />
+                  [class.focus:ring-manga-500]="accent === 'indigo' || accent === 'manga'"
+                  [class.focus:border-manga-500]="accent === 'indigo' || accent === 'manga'"
+                  [class.focus:ring-book-500]="accent === 'amber' || accent === 'book'"
+                  [class.focus:border-book-500]="accent === 'amber' || accent === 'book'" />
                 @if (errors().time) {
                   <p class="mt-1 text-[11px] text-amber-300">{{ errors().time }}</p>
                 }
@@ -167,10 +167,10 @@ export interface LibraryBookmarkPayload {
                       class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 pr-7 focus:outline-none focus:ring-1"
                       [class.focus:ring-primary-500]="accent === 'primary'"
                       [class.focus:border-primary-500]="accent === 'primary'"
-                      [class.focus:ring-indigo-500]="accent === 'indigo'"
-                      [class.focus:border-indigo-500]="accent === 'indigo'"
-                      [class.focus:ring-amber-500]="accent === 'amber'"
-                      [class.focus:border-amber-500]="accent === 'amber'" />
+                      [class.focus:ring-manga-500]="accent === 'indigo' || accent === 'manga'"
+                      [class.focus:border-manga-500]="accent === 'indigo' || accent === 'manga'"
+                      [class.focus:ring-book-500]="accent === 'amber' || accent === 'book'"
+                      [class.focus:border-book-500]="accent === 'amber' || accent === 'book'" />
                     <span class="absolute right-2.5 top-2 text-xs text-slate-500 font-medium">h</span>
                   </div>
                 </div>
@@ -186,10 +186,10 @@ export interface LibraryBookmarkPayload {
                       class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 pr-7 focus:outline-none focus:ring-1"
                       [class.focus:ring-primary-500]="accent === 'primary'"
                       [class.focus:border-primary-500]="accent === 'primary'"
-                      [class.focus:ring-indigo-500]="accent === 'indigo'"
-                      [class.focus:border-indigo-500]="accent === 'indigo'"
-                      [class.focus:ring-amber-500]="accent === 'amber'"
-                      [class.focus:border-amber-500]="accent === 'amber'" />
+                      [class.focus:ring-manga-500]="accent === 'indigo' || accent === 'manga'"
+                      [class.focus:border-manga-500]="accent === 'indigo' || accent === 'manga'"
+                      [class.focus:ring-book-500]="accent === 'amber' || accent === 'book'"
+                      [class.focus:border-book-500]="accent === 'amber' || accent === 'book'" />
                     <span class="absolute right-2.5 top-2 text-xs text-slate-500 font-medium">m</span>
                   </div>
                 </div>
@@ -205,10 +205,10 @@ export interface LibraryBookmarkPayload {
                       class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 pr-7 focus:outline-none focus:ring-1"
                       [class.focus:ring-primary-500]="accent === 'primary'"
                       [class.focus:border-primary-500]="accent === 'primary'"
-                      [class.focus:ring-indigo-500]="accent === 'indigo'"
-                      [class.focus:border-indigo-500]="accent === 'indigo'"
-                      [class.focus:ring-amber-500]="accent === 'amber'"
-                      [class.focus:border-amber-500]="accent === 'amber'" />
+                      [class.focus:ring-manga-500]="accent === 'indigo' || accent === 'manga'"
+                      [class.focus:border-manga-500]="accent === 'indigo' || accent === 'manga'"
+                      [class.focus:ring-book-500]="accent === 'amber' || accent === 'book'"
+                      [class.focus:border-book-500]="accent === 'amber' || accent === 'book'" />
                     <span class="absolute right-2.5 top-2 text-xs text-slate-500 font-medium">s</span>
                   </div>
                 </div>
@@ -226,8 +226,8 @@ export interface LibraryBookmarkPayload {
               <input
                 type="checkbox"
                 class="w-4 h-4 rounded accent-primary-600"
-                [class.accent-amber-600]="accent === 'amber'"
-                [class.accent-indigo-600]="accent === 'indigo'"
+                [class.accent-book-600]="accent === 'amber' || accent === 'book'"
+                [class.accent-manga-600]="accent === 'indigo' || accent === 'manga'"
                 [ngModel]="localCompleted"
                 (ngModelChange)="onCompletedChange($event)" />
             </label>
@@ -275,27 +275,27 @@ export class LibraryBookmarkDialogComponent implements OnChanges {
   @Input() pageValue = 0;
   @Input() lastAccess?: string | null;
   @Input() completed = false;
-  @Input() accent: 'primary' | 'indigo' | 'amber' = 'primary';
+  @Input() accent: 'primary' | 'indigo' | 'amber' | 'manga' | 'book' = 'primary';
 
   @Output() confirm = new EventEmitter<LibraryBookmarkPayload>();
   @Output() cancel = new EventEmitter<void>();
 
   get markReadBtnClass(): string {
-    if (this.accent === 'amber') {
-      return 'border-amber-500/40 text-amber-300 hover:bg-amber-600/15';
+    if (this.accent === 'amber' || this.accent === 'book') {
+      return 'border-book-500/40 text-book-300 hover:bg-book-600/15';
     }
-    if (this.accent === 'indigo') {
-      return 'border-indigo-500/40 text-indigo-300 hover:bg-indigo-600/15';
+    if (this.accent === 'indigo' || this.accent === 'manga') {
+      return 'border-manga-500/40 text-manga-300 hover:bg-manga-600/15';
     }
     return 'border-primary-500/40 text-primary-300 hover:bg-primary-600/15';
   }
 
   get saveBtnClass(): string {
-    if (this.accent === 'amber') {
-      return 'bg-amber-600 hover:bg-amber-500';
+    if (this.accent === 'amber' || this.accent === 'book') {
+      return 'bg-book-600 hover:bg-book-500';
     }
-    if (this.accent === 'indigo') {
-      return 'bg-indigo-600 hover:bg-indigo-500';
+    if (this.accent === 'indigo' || this.accent === 'manga') {
+      return 'bg-manga-600 hover:bg-manga-500';
     }
     return 'bg-primary-600 hover:bg-primary-500';
   }

@@ -29,7 +29,7 @@ export interface DetailBookmarkItem {
           <button
             type="button"
             (click)="addBookmark.emit()"
-            class="text-[11px] font-medium text-indigo-400 hover:text-indigo-300 transition-colors cursor-pointer">
+            class="text-[11px] font-medium text-primary-400 hover:text-primary-300 transition-colors cursor-pointer">
             + Novo Marcador
           </button>
         }
@@ -47,7 +47,8 @@ export interface DetailBookmarkItem {
                 (click)="select.emit(bm)"
                 class="flex-1 text-left cursor-pointer min-w-0">
                 <div class="flex items-center gap-2 mb-1">
-                  <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-950 text-indigo-300 border border-indigo-800/60 tabular-nums">
+                  <span class="px-2 py-0.5 rounded text-[10px] font-bold tabular-nums"
+                    [ngClass]="mediaType === 'book' ? 'book-badge' : 'manga-badge'">
                     Pág. {{ bm.page }}
                   </span>
                   @if (bm.chapter) {
@@ -80,6 +81,7 @@ export interface DetailBookmarkItem {
 export class DetailBookmarksListComponent {
   @Input() bookmarks: DetailBookmarkItem[] = [];
   @Input() showAddButton = false;
+  @Input() mediaType: 'book' | 'manga' = 'manga';
 
   @Output() select = new EventEmitter<DetailBookmarkItem>();
   @Output() delete = new EventEmitter<DetailBookmarkItem>();

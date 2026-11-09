@@ -43,7 +43,7 @@ export interface AssistantUiMessage {
         (click)="$event.stopPropagation()">
         <header class="flex items-center gap-3 px-4 py-3 border-b border-slate-800 shrink-0">
           <div class="min-w-0 flex-1">
-            <h2 class="text-sm font-bold text-indigo-300 truncate">Assistente de Leitura</h2>
+            <h2 class="text-sm font-bold text-primary-300 truncate">Assistente de Leitura</h2>
             <p class="text-[11px] text-slate-500 truncate">{{ title }}</p>
           </div>
           <button type="button" (click)="openSummary.emit()"
@@ -63,8 +63,8 @@ export interface AssistantUiMessage {
         </header>
 
         @if (serverStarting()) {
-          <div class="px-4 py-2 bg-indigo-950/80 border-b border-indigo-700/50 flex items-center gap-2 text-xs text-indigo-200 shrink-0">
-            <svg class="w-4 h-4 animate-spin text-indigo-400 shrink-0" fill="none" viewBox="0 0 24 24">
+          <div class="px-4 py-2 bg-primary-950/80 border-b border-primary-700/50 flex items-center gap-2 text-xs text-primary-200 shrink-0">
+            <svg class="w-4 h-4 animate-spin text-primary-400 shrink-0" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
@@ -83,11 +83,11 @@ export interface AssistantUiMessage {
                 <div class="flex" [class.justify-end]="m.role === 'USER'">
                   <div class="max-w-[90%] rounded-2xl px-3 py-2 text-xs leading-relaxed whitespace-pre-wrap"
                     [ngClass]="{
-                      'bg-indigo-600/30 border border-indigo-500/30 text-indigo-50': m.role === 'USER',
+                      'bg-primary-600/30 border border-primary-500/30 text-primary-50': m.role === 'USER',
                       'bg-slate-800 border border-slate-700 text-slate-100': m.role === 'ASSISTANT',
                       'bg-amber-950/40 border border-amber-800/40 text-amber-100': m.role === 'SYSTEM'
                     }">
-                    {{ m.message }}@if (m.streaming) {<span class="inline-block w-1.5 h-3 ml-0.5 bg-indigo-300 animate-pulse align-middle"></span>}
+                    {{ m.message }}@if (m.streaming) {<span class="inline-block w-1.5 h-3 ml-0.5 bg-primary-300 animate-pulse align-middle"></span>}
                   </div>
                 </div>
               }
@@ -99,7 +99,7 @@ export interface AssistantUiMessage {
             <div class="px-3 pt-2 flex flex-wrap gap-1.5 shrink-0">
               @for (chip of chips; track chip) {
                 <button type="button" (click)="ask(chip)"
-                  class="px-2 py-1 rounded-full text-[10px] font-medium bg-slate-800 text-slate-300 hover:bg-indigo-900/50 hover:text-indigo-200 cursor-pointer"
+                  class="px-2 py-1 rounded-full text-[10px] font-medium bg-slate-800 text-slate-300 hover:bg-primary-900/50 hover:text-primary-200 cursor-pointer"
                   [disabled]="streaming()">
                   {{ chip }}
                 </button>
@@ -118,7 +118,7 @@ export interface AssistantUiMessage {
                 </button>
               } @else {
                 <button type="submit"
-                  class="px-3 py-2 rounded-xl text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-500 cursor-pointer disabled:opacity-40"
+                  class="px-3 py-2 rounded-xl text-xs font-semibold bg-primary-600 text-white hover:bg-primary-500 cursor-pointer disabled:opacity-40"
                   [disabled]="!draft.trim()">
                   Enviar
                 </button>
@@ -160,7 +160,7 @@ export interface AssistantUiMessage {
             <div class="flex-1 overflow-y-auto p-2 space-y-1">
               @for (item of items; track item.id) {
                 <label class="flex items-start gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-900 cursor-pointer">
-                  <input type="checkbox" class="mt-0.5 accent-indigo-600"
+                  <input type="checkbox" class="mt-0.5 accent-primary-600"
                     [checked]="isSelected(item.id)"
                     (change)="toggleItem(item.id, $any($event.target).checked)" />
                   <span class="text-[11px] text-slate-300 leading-snug line-clamp-2">{{ item.label }}</span>

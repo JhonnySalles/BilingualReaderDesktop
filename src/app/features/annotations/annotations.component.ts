@@ -54,7 +54,7 @@ import { AnnotationPopupComponent } from './components/annotation-popup.componen
           <p class="text-xs text-slate-500 text-center py-16">Carregando anotações…</p>
         } @else if (rows().length === 0) {
           <div class="flex flex-col items-center justify-center py-20 text-center px-6">
-            <div class="w-14 h-14 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center mb-4 text-indigo-400">
+            <div class="w-14 h-14 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center mb-4 text-primary-400">
               <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
                   d="M7 8h10M7 12h6m-6 8l-4-4V6a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H7z"/>
@@ -69,7 +69,7 @@ import { AnnotationPopupComponent } from './components/annotation-popup.componen
           <div class="space-y-1 max-w-3xl mx-auto">
             @for (row of rows(); track row.key) {
               @if (row.kind === 'root') {
-                <div class="mt-6 first:mt-0 mb-2 rounded-xl bg-indigo-950/40 border border-indigo-500/20 px-4 py-3">
+                <div class="mt-6 first:mt-0 mb-2 rounded-xl bg-primary-950/40 border border-primary-500/20 px-4 py-3">
                   <p class="text-sm font-bold text-slate-100 truncate">{{ row.title }}</p>
                   @if (row.subtitle) {
                     <p class="text-[11px] text-slate-400 truncate mt-0.5">{{ row.subtitle }}</p>
@@ -78,7 +78,7 @@ import { AnnotationPopupComponent } from './components/annotation-popup.componen
               } @else if (row.kind === 'chapter') {
                 <div class="sticky top-0 z-10 flex items-center justify-between gap-3 py-2 px-1
                   bg-slate-950/90 backdrop-blur border-b border-slate-800 mt-4 first:mt-0">
-                  <span class="text-[11px] font-bold uppercase tracking-wider text-indigo-400 truncate">
+                  <span class="text-[11px] font-bold uppercase tracking-wider text-primary-400 truncate">
                     {{ row.title }}
                   </span>
                   <span class="text-[10px] font-semibold text-slate-500 tabular-nums shrink-0">

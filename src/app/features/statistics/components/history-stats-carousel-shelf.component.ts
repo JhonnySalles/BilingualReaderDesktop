@@ -83,8 +83,10 @@ import { isBigScroll } from '../../../shared/scroll-edges-button/scroll-edges.ut
           [class.opacity-100]="canScrollLeft() && isVisible()"
           class="absolute -left-2 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full flex items-center justify-center shadow-2xl transition-all duration-300 transform hover:scale-110 active:scale-95 backdrop-blur-xl border cursor-pointer focus:outline-none group opacity-0 pointer-events-none"
           [ngClass]="mediaType === 'BOOK'
-            ? 'bg-slate-900/90 text-amber-300 border-slate-700/70 hover:border-amber-500/70 hover:bg-slate-800 hover:text-amber-200 hover:shadow-amber-500/25 active:bg-amber-950/40'
-            : 'bg-slate-900/90 text-indigo-300 border-slate-700/70 hover:border-indigo-500/70 hover:bg-slate-800 hover:text-indigo-200 hover:shadow-indigo-500/25 active:bg-indigo-950/40'"
+            ? 'bg-slate-900/90 text-book-300 border-slate-700/70 hover:border-book-500/70 hover:bg-slate-800 hover:text-book-200 hover:shadow-book-500/25 active:bg-book-950/40'
+            : (mediaType === 'MANGA'
+                ? 'bg-slate-900/90 text-manga-300 border-slate-700/70 hover:border-manga-500/70 hover:bg-slate-800 hover:text-manga-200 hover:shadow-manga-500/25 active:bg-manga-950/40'
+                : 'bg-slate-900/90 border-slate-700/70 hover:bg-slate-800 scroll-edge-primary')"
           title="Ir para o início">
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -109,8 +111,10 @@ import { isBigScroll } from '../../../shared/scroll-edges-button/scroll-edges.ut
           [class.opacity-100]="canScrollRight() && isVisible()"
           class="absolute -right-2 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full flex items-center justify-center shadow-2xl transition-all duration-300 transform hover:scale-110 active:scale-95 backdrop-blur-xl border cursor-pointer focus:outline-none group opacity-0 pointer-events-none"
           [ngClass]="mediaType === 'BOOK'
-            ? 'bg-slate-900/90 text-amber-300 border-slate-700/70 hover:border-amber-500/70 hover:bg-slate-800 hover:text-amber-200 hover:shadow-amber-500/25 active:bg-amber-950/40'
-            : 'bg-slate-900/90 text-indigo-300 border-slate-700/70 hover:border-indigo-500/70 hover:bg-slate-800 hover:text-indigo-200 hover:shadow-indigo-500/25 active:bg-indigo-950/40'"
+            ? 'bg-slate-900/90 text-book-300 border-slate-700/70 hover:border-book-500/70 hover:bg-slate-800 hover:text-book-200 hover:shadow-book-500/25 active:bg-book-950/40'
+            : (mediaType === 'MANGA'
+                ? 'bg-slate-900/90 text-manga-300 border-slate-700/70 hover:border-manga-500/70 hover:bg-slate-800 hover:text-manga-200 hover:shadow-manga-500/25 active:bg-manga-950/40'
+                : 'bg-slate-900/90 border-slate-700/70 hover:bg-slate-800 scroll-edge-primary')"
           title="Ir para o final">
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -194,12 +198,12 @@ export class HistoryStatsCarouselShelfComponent implements AfterViewInit, OnDest
 
   get headerBadgeClass(): string {
     if (this.mediaType === 'MANGA') {
-      return 'manga-badge bg-indigo-500/10';
+      return 'manga-badge bg-manga-500/10';
     }
     if (this.mediaType === 'BOOK') {
-      return 'bg-amber-500/10 text-amber-300 border-amber-500/25';
+      return 'book-badge bg-book-500/10';
     }
-    return 'bg-indigo-500/10 text-indigo-300 border-indigo-500/25';
+    return 'bg-primary-500/10 text-primary-300 border-primary-500/25';
   }
 
   get headerDotClass(): string {
@@ -207,9 +211,9 @@ export class HistoryStatsCarouselShelfComponent implements AfterViewInit, OnDest
       return 'manga-section-dot';
     }
     if (this.mediaType === 'BOOK') {
-      return 'bg-amber-400';
+      return 'book-section-dot';
     }
-    return 'bg-indigo-400';
+    return 'bg-primary-400';
   }
 
   ngAfterViewInit(): void {

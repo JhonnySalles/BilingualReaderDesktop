@@ -14,7 +14,7 @@ import { SocialShareService } from '../../core/services/social-share.service';
   template: `
     <div class="h-full flex flex-col bg-slate-950 text-slate-100 overflow-hidden select-none">
       @if (stats.loading()) {
-        <div class="px-6 py-2 text-[10px] text-indigo-300 animate-pulse border-b border-slate-800">Atualizando…</div>
+        <div class="px-6 py-2 text-[10px] text-primary-300 animate-pulse border-b border-slate-800">Atualizando…</div>
       }
 
       <div class="flex-1 min-h-0 overflow-y-auto px-6 pb-12 pt-24">
@@ -25,7 +25,7 @@ import { SocialShareService } from '../../core/services/social-share.service';
           <app-statistics-sector
             type="MANGA"
             title="Mangás & Comics"
-            accent="indigo"
+            accent="manga"
             [stats]="stats.mangaStats()"
             [chartPoints]="stats.mangaChart()"
             [years]="stats.mangaYears()"
@@ -39,7 +39,7 @@ import { SocialShareService } from '../../core/services/social-share.service';
           <app-statistics-sector
             type="BOOK"
             title="Livros & EPUBs"
-            accent="amber"
+            accent="book"
             [stats]="stats.bookStats()"
             [chartPoints]="stats.bookChart()"
             [years]="stats.bookYears()"

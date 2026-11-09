@@ -369,7 +369,7 @@ const TAP_DEDUPE_MS = 350;
 
           <!-- Center Full-Screen Hero Cover Element (Full available size, fully visible) -->
           <div class="relative z-10 flex-1 min-h-0 w-full flex items-center justify-center p-2 sm:p-4 my-auto animate-fade-in">
-            <div class="relative max-h-full max-w-full h-full flex items-center justify-center rounded-2xl overflow-hidden shadow-[0_25px_60px_rgba(0,0,0,0.85)] shadow-indigo-500/10 border border-white/10 bg-slate-900/80 backdrop-blur-sm"
+            <div class="relative max-h-full max-w-full h-full flex items-center justify-center rounded-2xl overflow-hidden shadow-[0_25px_60px_rgba(0,0,0,0.85)] shadow-book-500/10 border border-white/10 bg-slate-900/80 backdrop-blur-sm"
                  [style.view-transition-name]="'cover-active'">
               @if (coverUrl()) {
                 <img [src]="coverUrl()" [alt]="title()" class="w-auto h-full max-h-[75vh] object-contain rounded-2xl" />
@@ -388,15 +388,15 @@ const TAP_DEDUPE_MS = 350;
           <div class="relative z-10 w-full max-w-md bg-slate-900/80 backdrop-blur-xl rounded-2xl border border-slate-700/70 p-3.5 sm:p-4 shadow-2xl flex flex-col gap-2.5 mb-2 animate-fade-in">
             <div class="flex justify-between items-center text-xs font-semibold text-slate-300">
               <span class="flex items-center gap-2 truncate">
-                <span class="w-2 h-2 rounded-full bg-indigo-500 animate-pulse shrink-0"></span>
+                <span class="w-2 h-2 rounded-full bg-book-500 animate-pulse shrink-0"></span>
                 <span class="text-slate-200 truncate">{{ loadingMessage() }}</span>
               </span>
-              <span class="text-indigo-400 tabular-nums font-mono shrink-0 ml-2">{{ loadingProgress() }}%</span>
+              <span class="text-book-400 tabular-nums font-mono shrink-0 ml-2">{{ loadingProgress() }}%</span>
             </div>
             
             <!-- Progress Bar -->
             <div class="h-1.5 w-full bg-slate-800/80 rounded-full overflow-hidden p-0.5 border border-slate-700/30">
-              <div class="h-full bg-gradient-to-r from-indigo-500 via-indigo-400 to-amber-400 rounded-full transition-all duration-300 ease-out shadow-[0_0_12px_rgba(99,102,241,0.6)]" 
+              <div class="h-full scan-progress-book rounded-full transition-all duration-300 ease-out shadow-[0_0_12px_rgba(var(--color-book-500),0.6)]" 
                    [style.width.%]="loadingProgress()">
               </div>
             </div>
@@ -533,7 +533,7 @@ const TAP_DEDUPE_MS = 350;
           <div class="flex items-center gap-1 sm:gap-1.5 shrink-0">
             <button type="button" (click)="toggleToc()"
               class="p-2 rounded-lg transition-colors cursor-pointer"
-              [class.text-indigo-300]="showToc()"
+              [class.text-book-300]="showToc()"
               [class.text-slate-300]="!showToc()"
               title="Capítulos">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -544,7 +544,7 @@ const TAP_DEDUPE_MS = 350;
 
             <button type="button" (click)="markPage()"
               class="p-2 rounded-lg transition-colors cursor-pointer"
-              [class.text-amber-400]="marked()"
+              [class.text-book-400]="marked()"
               [class.text-slate-300]="!marked()"
               title="Marcar página">
               <svg class="w-5 h-5" [attr.fill]="marked() ? 'currentColor' : 'none'" stroke="currentColor" viewBox="0 0 24 24">
@@ -566,7 +566,7 @@ const TAP_DEDUPE_MS = 350;
 
             <button type="button" (click)="toggleTypography()"
               class="p-2 rounded-lg transition-colors cursor-pointer"
-              [class.text-indigo-300]="showTypography()"
+              [class.text-book-300]="showTypography()"
               [class.text-slate-300]="!showTypography()"
               title="Tipografia">
               <span class="text-xs font-bold tracking-wide px-0.5">Aa</span>
@@ -597,7 +597,7 @@ const TAP_DEDUPE_MS = 350;
 
             <button type="button" (click)="openSearch()"
               class="hidden sm:block p-2 rounded-lg text-slate-300 hover:text-white transition-colors cursor-pointer"
-              [class.text-indigo-300]="showSearch()"
+              [class.text-book-300]="showSearch()"
               title="Buscar no livro">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -669,33 +669,33 @@ const TAP_DEDUPE_MS = 350;
                     <p class="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">Recursos &amp; Painéis</p>
                     <button type="button" (click)="toggleToc(); touchMenuOpen.set(false)"
                       class="w-full px-3 py-2 text-left text-xs font-medium text-slate-200 hover:bg-slate-800 cursor-pointer flex items-center gap-2.5">
-                      <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg class="w-4 h-4 text-book-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h10M4 18h10"/>
                       </svg>
                       Capítulos / Sumário
                     </button>
                     <button type="button" (click)="toggleTypography(); touchMenuOpen.set(false)"
                       class="w-full px-3 py-2 text-left text-xs font-medium text-slate-200 hover:bg-slate-800 cursor-pointer flex items-center gap-2.5">
-                      <span class="w-4 text-center text-xs font-bold text-indigo-300">Aa</span>
+                      <span class="w-4 text-center text-xs font-bold text-book-300">Aa</span>
                       Tipografia &amp; Layout
                     </button>
                     <button type="button" (click)="openAnnotations(); touchMenuOpen.set(false)"
                       class="w-full px-3 py-2 text-left text-xs font-medium text-slate-200 hover:bg-slate-800 cursor-pointer flex items-center gap-2.5">
-                      <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg class="w-4 h-4 text-book-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h6m-6 8l-4-4V6a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H7z"/>
                       </svg>
                       Anotações
                     </button>
                     <button type="button" (click)="toggleTts(); touchMenuOpen.set(false)"
                       class="w-full px-3 py-2 text-left text-xs font-medium text-slate-200 hover:bg-slate-800 cursor-pointer flex items-center gap-2.5">
-                      <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg class="w-4 h-4 text-book-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.121-9.193a8 8 0 010 11.314M11 5L6 9H3v6h3l5 4V5z"/>
                       </svg>
                       Leitura em Áudio (TTS)
                     </button>
                     <button type="button" (click)="openAssistant(); touchMenuOpen.set(false)"
                       class="w-full px-3 py-2 text-left text-xs font-medium text-slate-200 hover:bg-slate-800 cursor-pointer flex items-center gap-2.5">
-                      <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg class="w-4 h-4 text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/>
                       </svg>
                       Assistente de Leitura (IA)
@@ -709,7 +709,7 @@ const TAP_DEDUPE_MS = 350;
                     </button>
                     <button type="button" (click)="openTracker(); touchMenuOpen.set(false)"
                       class="w-full px-3 py-2 text-left text-xs font-medium text-slate-200 hover:bg-slate-800 cursor-pointer flex items-center gap-2.5">
-                      <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg class="w-4 h-4 text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                       </svg>
                       Rastreamento (MAL / AniList)
@@ -757,7 +757,7 @@ const TAP_DEDUPE_MS = 350;
               <span class="text-slate-500 ml-1">({{ progressPercent() }}%)</span>
             </span>
             <button type="button" (click)="toggleToc()"
-              class="text-[10px] font-semibold text-indigo-300 hover:text-indigo-200 cursor-pointer">
+              class="text-[10px] font-semibold text-book-300 hover:text-book-200 cursor-pointer">
               Capítulos
             </button>
           </div>
@@ -848,7 +848,7 @@ const TAP_DEDUPE_MS = 350;
 
           <button type="button" (click)="openAnnotations()"
             class="p-2.5 rounded-xl text-slate-200 hover:bg-slate-800 cursor-pointer"
-            [class.text-indigo-300]="showAnnotations()"
+            [class.text-book-300]="showAnnotations()"
             title="Anotações">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -858,7 +858,7 @@ const TAP_DEDUPE_MS = 350;
 
           <button type="button" (click)="toggleTts()"
             class="p-2.5 rounded-xl text-slate-200 hover:bg-slate-800 cursor-pointer"
-            [class.text-indigo-300]="ttsActive()"
+            [class.text-book-300]="ttsActive()"
             title="Leitura em áudio (TTS)">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -868,7 +868,7 @@ const TAP_DEDUPE_MS = 350;
 
           <button type="button" (click)="openAssistant()"
             class="p-2.5 rounded-xl text-slate-200 hover:bg-slate-800 cursor-pointer"
-            [class.text-indigo-300]="showAssistant()"
+            [class.text-primary-300]="showAssistant()"
             title="Assistente de leitura">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -879,7 +879,7 @@ const TAP_DEDUPE_MS = 350;
           <button type="button" (click)="openTracker()"
             class="p-2.5 rounded-xl cursor-pointer hover:bg-slate-800 text-slate-200"
             title="Rastreador (MAL / AniList)">
-            <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-5 h-5 text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
             </svg>
           </button>
@@ -916,7 +916,7 @@ const TAP_DEDUPE_MS = 350;
               @for (ch of toc(); track ch.href) {
                 <button type="button"
                   (click)="goToToc(ch)"
-                  class="text-left px-3 py-2 rounded-lg text-xs font-medium bg-slate-800/80 hover:bg-indigo-600 text-slate-200 cursor-pointer truncate">
+                  class="text-left px-3 py-2 rounded-lg text-xs font-medium bg-slate-800/80 hover:bg-book-600 text-slate-200 cursor-pointer truncate">
                   {{ ch.label }}
                 </button>
               }
@@ -947,10 +947,10 @@ const TAP_DEDUPE_MS = 350;
             @for (font of typographyFonts(); track font.id) {
               <button type="button" (click)="setFontFamily(font.css)"
                 class="snap-start shrink-0 w-[4.5rem] flex flex-col items-center gap-1 rounded-xl border px-1.5 py-2 cursor-pointer transition-colors hover:border-slate-500"
-                [class.border-indigo-400]="fontFamily() === font.css"
-                [class.bg-indigo-500]="fontFamily() === font.css"
+                [class.border-book-400]="fontFamily() === font.css"
+                [class.bg-book-500]="fontFamily() === font.css"
                 [class.bg-opacity-20]="fontFamily() === font.css"
-                [class.text-indigo-200]="fontFamily() === font.css"
+                [class.text-book-200]="fontFamily() === font.css"
                 [class.border-slate-700]="fontFamily() !== font.css"
                 [class.bg-slate-950]="fontFamily() !== font.css"
                 [class.text-slate-300]="fontFamily() !== font.css"
@@ -969,7 +969,7 @@ const TAP_DEDUPE_MS = 350;
               class="px-3 py-1.5 rounded-lg bg-slate-800 text-sm cursor-pointer hover:bg-slate-700"
               title="Diminuir">A−</button>
             <input type="range" min="12" max="32" [ngModel]="fontSize()" (ngModelChange)="setFontSize($event)"
-              class="flex-1 accent-indigo-500 cursor-pointer" />
+              class="flex-1 accent-book-500 cursor-pointer" />
             <button type="button" (click)="adjustFontSize(1)"
               class="px-3 py-1.5 rounded-lg bg-slate-800 text-sm cursor-pointer hover:bg-slate-700"
               title="Aumentar">A+</button>
@@ -981,8 +981,8 @@ const TAP_DEDUPE_MS = 350;
           <div class="flex justify-between gap-2 mb-4">
             <button type="button" (click)="setMargin('small')" title="Pequena"
               class="flex-1 aspect-square max-h-14 rounded-xl border flex items-center justify-center cursor-pointer transition-colors hover:bg-slate-800 border-slate-700 bg-slate-950"
-              [class.border-indigo-400]="margin() === 'small'"
-              [class.bg-indigo-500]="margin() === 'small'"
+              [class.border-book-400]="margin() === 'small'"
+              [class.bg-book-500]="margin() === 'small'"
               [class.bg-opacity-20]="margin() === 'small'">
               <svg class="w-7 h-7 text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <rect x="6" y="4" width="12" height="16" rx="1" stroke-width="1.5"/>
@@ -991,8 +991,8 @@ const TAP_DEDUPE_MS = 350;
             </button>
             <button type="button" (click)="setMargin('medium')" title="Média"
               class="flex-1 aspect-square max-h-14 rounded-xl border flex items-center justify-center cursor-pointer transition-colors hover:bg-slate-800 border-slate-700 bg-slate-950"
-              [class.border-indigo-400]="margin() === 'medium'"
-              [class.bg-indigo-500]="margin() === 'medium'"
+              [class.border-book-400]="margin() === 'medium'"
+              [class.bg-book-500]="margin() === 'medium'"
               [class.bg-opacity-20]="margin() === 'medium'">
               <svg class="w-7 h-7 text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <rect x="4" y="4" width="16" height="16" rx="1" stroke-width="1.5"/>
@@ -1001,8 +1001,8 @@ const TAP_DEDUPE_MS = 350;
             </button>
             <button type="button" (click)="setMargin('large')" title="Grande"
               class="flex-1 aspect-square max-h-14 rounded-xl border flex items-center justify-center cursor-pointer transition-colors hover:bg-slate-800 border-slate-700 bg-slate-950"
-              [class.border-indigo-400]="margin() === 'large'"
-              [class.bg-indigo-500]="margin() === 'large'"
+              [class.border-book-400]="margin() === 'large'"
+              [class.bg-book-500]="margin() === 'large'"
               [class.bg-opacity-20]="margin() === 'large'">
               <svg class="w-7 h-7 text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <rect x="2" y="4" width="20" height="16" rx="1" stroke-width="1.5"/>
@@ -1015,8 +1015,8 @@ const TAP_DEDUPE_MS = 350;
           <div class="flex justify-between gap-2 mb-4">
             <button type="button" (click)="setSpacing('small')" title="Compacto"
               class="flex-1 aspect-square max-h-14 rounded-xl border flex items-center justify-center cursor-pointer transition-colors hover:bg-slate-800 border-slate-700 bg-slate-950"
-              [class.border-indigo-400]="spacing() === 'small'"
-              [class.bg-indigo-500]="spacing() === 'small'"
+              [class.border-book-400]="spacing() === 'small'"
+              [class.bg-book-500]="spacing() === 'small'"
               [class.bg-opacity-20]="spacing() === 'small'">
               <svg class="w-7 h-7 text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-width="1.75" stroke-linecap="round" d="M5 8h14M5 11h14M5 14h14"/>
@@ -1024,8 +1024,8 @@ const TAP_DEDUPE_MS = 350;
             </button>
             <button type="button" (click)="setSpacing('medium')" title="Normal"
               class="flex-1 aspect-square max-h-14 rounded-xl border flex items-center justify-center cursor-pointer transition-colors hover:bg-slate-800 border-slate-700 bg-slate-950"
-              [class.border-indigo-400]="spacing() === 'medium'"
-              [class.bg-indigo-500]="spacing() === 'medium'"
+              [class.border-book-400]="spacing() === 'medium'"
+              [class.bg-book-500]="spacing() === 'medium'"
               [class.bg-opacity-20]="spacing() === 'medium'">
               <svg class="w-7 h-7 text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-width="1.75" stroke-linecap="round" d="M5 7h14M5 12h14M5 17h14"/>
@@ -1033,8 +1033,8 @@ const TAP_DEDUPE_MS = 350;
             </button>
             <button type="button" (click)="setSpacing('large')" title="Amplo"
               class="flex-1 aspect-square max-h-14 rounded-xl border flex items-center justify-center cursor-pointer transition-colors hover:bg-slate-800 border-slate-700 bg-slate-950"
-              [class.border-indigo-400]="spacing() === 'large'"
-              [class.bg-indigo-500]="spacing() === 'large'"
+              [class.border-book-400]="spacing() === 'large'"
+              [class.bg-book-500]="spacing() === 'large'"
               [class.bg-opacity-20]="spacing() === 'large'">
               <svg class="w-7 h-7 text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-width="1.75" stroke-linecap="round" d="M5 6h14M5 12h14M5 18h14"/>
@@ -1046,8 +1046,8 @@ const TAP_DEDUPE_MS = 350;
           <div class="flex justify-between gap-2 mb-4">
             <button type="button" (click)="setAlign('justify')" title="Justificado"
               class="flex-1 aspect-square max-h-12 rounded-xl border flex items-center justify-center cursor-pointer transition-colors hover:bg-slate-800 border-slate-700 bg-slate-950"
-              [class.border-indigo-400]="align() === 'justify'"
-              [class.bg-indigo-500]="align() === 'justify'"
+              [class.border-book-400]="align() === 'justify'"
+              [class.bg-book-500]="align() === 'justify'"
               [class.bg-opacity-20]="align() === 'justify'">
               <svg class="w-5 h-5 text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-width="2" stroke-linecap="round" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
@@ -1055,8 +1055,8 @@ const TAP_DEDUPE_MS = 350;
             </button>
             <button type="button" (click)="setAlign('left')" title="Esquerda"
               class="flex-1 aspect-square max-h-12 rounded-xl border flex items-center justify-center cursor-pointer transition-colors hover:bg-slate-800 border-slate-700 bg-slate-950"
-              [class.border-indigo-400]="align() === 'left'"
-              [class.bg-indigo-500]="align() === 'left'"
+              [class.border-book-400]="align() === 'left'"
+              [class.bg-book-500]="align() === 'left'"
               [class.bg-opacity-20]="align() === 'left'">
               <svg class="w-5 h-5 text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-width="2" stroke-linecap="round" d="M4 6h16M4 10h12M4 14h16M4 18h10"/>
@@ -1064,8 +1064,8 @@ const TAP_DEDUPE_MS = 350;
             </button>
             <button type="button" (click)="setAlign('center')" title="Centro"
               class="flex-1 aspect-square max-h-12 rounded-xl border flex items-center justify-center cursor-pointer transition-colors hover:bg-slate-800 border-slate-700 bg-slate-950"
-              [class.border-indigo-400]="align() === 'center'"
-              [class.bg-indigo-500]="align() === 'center'"
+              [class.border-book-400]="align() === 'center'"
+              [class.bg-book-500]="align() === 'center'"
               [class.bg-opacity-20]="align() === 'center'">
               <svg class="w-5 h-5 text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-width="2" stroke-linecap="round" d="M4 6h16M7 10h10M4 14h16M8 18h8"/>
@@ -1073,8 +1073,8 @@ const TAP_DEDUPE_MS = 350;
             </button>
             <button type="button" (click)="setAlign('right')" title="Direita"
               class="flex-1 aspect-square max-h-12 rounded-xl border flex items-center justify-center cursor-pointer transition-colors hover:bg-slate-800 border-slate-700 bg-slate-950"
-              [class.border-indigo-400]="align() === 'right'"
-              [class.bg-indigo-500]="align() === 'right'"
+              [class.border-book-400]="align() === 'right'"
+              [class.bg-book-500]="align() === 'right'"
               [class.bg-opacity-20]="align() === 'right'">
               <svg class="w-5 h-5 text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-width="2" stroke-linecap="round" d="M4 6h16M8 10h12M4 14h16M10 18h10"/>
@@ -1128,7 +1128,7 @@ const TAP_DEDUPE_MS = 350;
                   CSS writing-mode; funciona com furigana
                 </span>
               </span>
-              <input type="checkbox" class="w-4 h-4 accent-indigo-600 rounded shrink-0"
+              <input type="checkbox" class="w-4 h-4 accent-book-600 rounded shrink-0"
                 [ngModel]="settings.bookFontJapaneseStyle()"
                 (ngModelChange)="setTateGaki($event)" />
             </label>
@@ -1151,7 +1151,7 @@ const TAP_DEDUPE_MS = 350;
                 Cancelar
               </button>
               <button type="button" (click)="confirmSwitchFile()"
-                class="px-3 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer">
+                class="px-3 py-2 rounded-xl text-xs font-semibold bg-book-600 hover:bg-book-500 text-white cursor-pointer">
                 Abrir
               </button>
             </div>
@@ -1173,7 +1173,7 @@ const TAP_DEDUPE_MS = 350;
             </button>
             <input
               type="search"
-              class="flex-1 min-w-0 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500"
+              class="flex-1 min-w-0 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-book-500"
               placeholder="Buscar no livro…"
               [ngModel]="searchQuery()"
               (ngModelChange)="onSearchQueryChange($event)"
@@ -1187,7 +1187,7 @@ const TAP_DEDUPE_MS = 350;
               </button>
             } @else {
               <button type="button" (click)="submitSearch()"
-                class="px-3 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer disabled:opacity-40"
+                class="px-3 py-2 rounded-xl text-xs font-semibold bg-book-600 hover:bg-book-500 text-white cursor-pointer disabled:opacity-40"
                 [disabled]="!searchQuery().trim()"
                 title="Buscar">
                 Buscar
@@ -1209,7 +1209,7 @@ const TAP_DEDUPE_MS = 350;
                 <div class="flex flex-col">
                   @for (item of searchResults(); track searchResultTrack(item, $index)) {
                     @if (item.kind === 'chapter') {
-                      <p class="sticky top-0 z-[1] text-[10px] font-bold uppercase tracking-wider text-indigo-300 bg-slate-950/95 py-2 mt-1 first:mt-0 border-b border-slate-800">
+                      <p class="sticky top-0 z-[1] text-[10px] font-bold uppercase tracking-wider text-book-300 bg-slate-950/95 py-2 mt-1 first:mt-0 border-b border-slate-800">
                         {{ item.title }}
                       </p>
                     } @else {
@@ -1402,7 +1402,7 @@ const TAP_DEDUPE_MS = 350;
           [class.is-exiting]="lastPageAnimState() === 'exiting'">
           <div
             (click)="onLastPageClick()"
-            class="relative group flex flex-col items-center p-2 rounded-2xl bg-slate-900/95 backdrop-blur-md border border-slate-700/80 shadow-[0_12px_36px_rgba(15,23,42,0.8),0_0_20px_rgba(99,102,241,0.15)] hover:border-indigo-500/90 hover:shadow-[0_16px_40px_rgba(99,102,241,0.3)] hover:scale-105 transition-all duration-300 cursor-pointer max-w-[7.5rem] sm:max-w-[8.5rem]"
+            class="relative group flex flex-col items-center p-2 rounded-2xl bg-slate-900/95 backdrop-blur-md border border-slate-700/80 shadow-[0_12px_36px_rgba(15,23,42,0.8),0_0_20px_rgba(245,158,11,0.15)] hover:border-book-500/90 hover:shadow-[0_16px_40px_rgba(245,158,11,0.3)] hover:scale-105 transition-all duration-300 cursor-pointer max-w-[7.5rem] sm:max-w-[8.5rem]"
             [title]="'Retornar para a página ' + (lastPage.page + 1)">
             
             <button
@@ -1425,9 +1425,9 @@ const TAP_DEDUPE_MS = 350;
               </div>
             } @else {
               <div
-                class="w-20 sm:w-24 aspect-[3/4] rounded-xl flex flex-col items-center justify-center bg-slate-950 border border-slate-800 text-slate-400 p-2 text-center shadow-inner group-hover:border-indigo-500/40 transition-colors"
+                class="w-20 sm:w-24 aspect-[3/4] rounded-xl flex flex-col items-center justify-center bg-slate-950 border border-slate-800 text-slate-400 p-2 text-center shadow-inner group-hover:border-book-500/40 transition-colors"
                 [class.animate-thumb-pop]="thumbUpdated()">
-                <svg class="w-6 h-6 mb-1 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-6 h-6 mb-1 text-book-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                 </svg>
                 <span class="text-[9px] line-clamp-2 text-slate-300 font-medium leading-tight">
@@ -1436,7 +1436,7 @@ const TAP_DEDUPE_MS = 350;
               </div>
             }
 
-            <div class="mt-1.5 flex items-center gap-1 text-indigo-300 group-hover:text-indigo-200">
+            <div class="mt-1.5 flex items-center gap-1 text-book-300 group-hover:text-book-200">
               <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
               </svg>

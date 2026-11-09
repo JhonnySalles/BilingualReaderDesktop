@@ -47,7 +47,7 @@ import { AnnotationPopupComponent } from '../annotations/components/annotation-p
         </button>
         <input
           type="search"
-          class="flex-1 min-w-0 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500"
+          class="flex-1 min-w-0 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-book-500"
           placeholder="Buscar anotações…"
           [ngModel]="search()"
           (ngModelChange)="search.set($event)" />
@@ -55,8 +55,8 @@ import { AnnotationPopupComponent } from '../annotations/components/annotation-p
           type="button"
           (click)="showFilters.set(true)"
           class="p-2 rounded-xl border transition-colors cursor-pointer"
-          [class.border-indigo-500]="hasAdvanced()"
-          [class.text-indigo-300]="hasAdvanced()"
+          [class.border-book-500]="hasAdvanced()"
+          [class.text-book-300]="hasAdvanced()"
           [class.border-slate-700]="!hasAdvanced()"
           [class.text-slate-300]="!hasAdvanced()"
           [class.hover:bg-slate-800]="!hasAdvanced()"
@@ -78,7 +78,7 @@ import { AnnotationPopupComponent } from '../annotations/components/annotation-p
             @for (row of rows(); track row.key) {
               @if (row.kind === 'chapter') {
                 <div class="sticky top-0 z-[1] flex items-center justify-between gap-3
-                  text-[10px] font-bold uppercase tracking-wider text-indigo-300 bg-slate-950/95 py-2 mt-1 first:mt-0 border-b border-slate-800">
+                  text-[10px] font-bold uppercase tracking-wider text-book-300 bg-slate-950/95 py-2 mt-1 first:mt-0 border-b border-slate-800">
                   <span class="truncate">{{ row.title }}</span>
                   <span class="text-slate-500 tabular-nums shrink-0">{{ row.count }}</span>
                 </div>

@@ -19,7 +19,7 @@ import { progressPageLabel } from '../../../../core/utils/reading-progress.util'
         bg-slate-800 transition-all duration-300 cursor-pointer flex"
       [ngClass]="item.type === 'MANGA'
         ? 'manga-card-hover'
-        : 'hover:border-amber-500/50 hover:shadow-lg hover:shadow-amber-500/10'">
+        : 'book-card-hover'">
 
       <!-- Cover (right half visible) -->
       <div class="absolute inset-0" [style.view-transition-name]="sharedTransition.getCoverName(item.fkReference, item.type === 'MANGA' ? 'manga' : 'book', instanceId)">
@@ -40,7 +40,7 @@ import { progressPageLabel } from '../../../../core/utils/reading-progress.util'
         backdrop-blur-md border uppercase tracking-wider shadow pointer-events-none"
         [ngClass]="item.type === 'MANGA'
           ? 'manga-badge'
-          : 'text-amber-300 border-amber-500/30'">
+          : 'book-badge'">
         {{ item.fileType }}
       </span>
 
@@ -53,7 +53,7 @@ import { progressPageLabel } from '../../../../core/utils/reading-progress.util'
         <h4
           class="relative z-10 text-sm font-bold text-slate-100 leading-snug break-words
             transition-colors"
-          [ngClass]="item.type === 'MANGA' ? 'manga-title-hover' : 'group-hover:text-amber-300'"
+          [ngClass]="item.type === 'MANGA' ? 'manga-title-hover' : 'book-title-hover'"
           [style.view-transition-name]="sharedTransition.getTitleName(item.fkReference, item.type === 'MANGA' ? 'manga' : 'book', instanceId)">
           {{ item.title }}
         </h4>

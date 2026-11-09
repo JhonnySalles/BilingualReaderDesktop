@@ -44,7 +44,7 @@ interface ConfigCell {
           @if (coverUrl) {
             <img [src]="coverUrl" alt="" class="absolute inset-0 w-full h-full object-cover scale-105" />
           } @else {
-            <div class="absolute inset-0 bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-950"></div>
+            <div class="absolute inset-0 bg-gradient-to-br from-slate-900 via-primary-950/30 to-slate-950"></div>
           }
           <div class="absolute inset-0 bg-slate-950/55"></div>
         </div>
@@ -94,7 +94,7 @@ interface ConfigCell {
         <footer class="relative z-10 shrink-0 px-3 sm:px-4 pb-3 sm:pb-4">
           <div class="flex flex-col sm:flex-row gap-2">
             <button type="button" (click)="onSave()"
-              class="flex-1 h-12 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold flex items-center justify-center gap-2 cursor-pointer transition-colors">
+              class="flex-1 h-12 rounded-xl bg-primary-600 hover:bg-primary-500 text-white text-sm font-semibold flex items-center justify-center gap-2 cursor-pointer transition-colors">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
               </svg>
@@ -234,7 +234,7 @@ export class ReaderTouchConfigComponent implements OnChanges, AfterViewInit, OnD
 
       let cellClass = 'cursor-default bg-slate-900/30 border-dashed';
       if (configurable && isCorner) {
-        cellClass = 'cursor-pointer bg-indigo-500/30 hover:bg-indigo-500/45';
+        cellClass = 'cursor-pointer bg-primary-500/30 hover:bg-primary-500/45';
       } else if (configurable) {
         cellClass = 'cursor-pointer bg-slate-800/55 hover:bg-slate-700/60';
       }

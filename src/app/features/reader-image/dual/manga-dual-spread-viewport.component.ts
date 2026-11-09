@@ -68,7 +68,7 @@ import type { TurnDragEvent } from '../manga-spread-viewport.component';
               class="relative flex items-center justify-center h-full min-h-0 min-w-0"
               [class.flex-1]="!isSingle(s)"
               [class.w-full]="isSingle(s)"
-              [ngClass]="page === activePage ? 'ring-2 ring-indigo-500/50' : ''"
+              [ngClass]="page === activePage ? 'ring-2 ring-manga-500/50' : ''"
               (click)="onPageClick(page, $event)">
               @if (isLinked(page) && linkedList(page).length > 1) {
                 <div class="flex items-center justify-center gap-0.5 h-full w-full">

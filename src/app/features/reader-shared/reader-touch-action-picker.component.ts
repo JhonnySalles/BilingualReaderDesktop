@@ -23,7 +23,7 @@ import { TouchZoneMeta } from '../../core/services/touch-zone.service';
                 (click)="select.emit(item.action)"
                 class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors cursor-pointer"
                 [ngClass]="item.action === selected
-                  ? 'bg-indigo-600/30 text-indigo-200'
+                  ? 'bg-primary-600/30 text-primary-200'
                   : 'text-slate-200 hover:bg-slate-800'">
                 <span class="shrink-0 w-9 h-9 rounded-lg bg-slate-800/80 flex items-center justify-center">
                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

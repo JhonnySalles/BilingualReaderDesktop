@@ -48,18 +48,18 @@ import { formatReadingDuration } from '../../../core/services/statistics.service
       <div class="space-y-4">
         <div class="flex items-center gap-2">
           <span class="text-base">🎨</span>
-          <h3 class="text-xs font-bold uppercase tracking-wider text-[#818cf8]">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-manga-400">
             Bibliotecas de Mangás & Comics
           </h3>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           @for (lib of stats.manga; track lib.id) {
-            <div class="rounded-xl bg-slate-800/80 border border-slate-700/80 p-4 space-y-3 hover:border-[#6366f1]/60 hover:bg-slate-800 transition-all duration-200">
+            <div class="rounded-xl bg-slate-800/80 border border-slate-700/80 p-4 space-y-3 hover:border-manga-500/60 hover:bg-slate-800 transition-all duration-200">
               <!-- Topo do Card -->
               <div class="flex items-center justify-between gap-2">
                 <div class="flex items-center gap-2 min-w-0">
-                  <span class="w-2 h-2 rounded-full bg-[#6366f1] shrink-0"></span>
+                  <span class="w-2 h-2 rounded-full bg-manga-500 shrink-0"></span>
                   <h4 class="text-sm font-semibold text-slate-200 truncate" [title]="lib.title">{{ lib.title }}</h4>
                 </div>
                 <span class="text-[11px] font-mono text-slate-400 bg-slate-900/90 px-2 py-0.5 rounded border border-slate-700/60 shrink-0">
@@ -75,7 +75,7 @@ import { formatReadingDuration } from '../../../core/services/statistics.service
                 </div>
                 <div class="w-full h-1.5 bg-slate-900 rounded-full overflow-hidden border border-slate-700/40">
                   <div
-                    class="h-full bg-gradient-to-r from-[#6366f1] to-[#818cf8] rounded-full transition-all duration-500"
+                    class="h-full bg-gradient-to-r from-manga-500 to-manga-400 rounded-full transition-all duration-500"
                     [style.width.%]="calcPercent(lib.completed, lib.totalFiles)"></div>
                 </div>
               </div>
@@ -84,15 +84,15 @@ import { formatReadingDuration } from '../../../core/services/statistics.service
               <div class="grid grid-cols-3 sm:grid-cols-5 gap-2 pt-1 border-t border-slate-700/50">
                 <div class="text-center p-1.5 rounded bg-slate-900/60">
                   <p class="text-[9px] uppercase font-medium text-slate-400 mb-0.5">Concluído</p>
-                  <p class="text-xs font-bold text-primary-600 tabular-nums">{{ lib.completed }}</p>
+                  <p class="text-xs font-bold text-manga-400 tabular-nums">{{ lib.completed }}</p>
                 </div>
                 <div class="text-center p-1.5 rounded bg-slate-900/60">
                   <p class="text-[9px] uppercase font-medium text-slate-400 mb-0.5">Lendo</p>
-                  <p class="text-xs font-semibold text-primary-400 tabular-nums">{{ lib.reading }}</p>
+                  <p class="text-xs font-semibold text-manga-300 tabular-nums">{{ lib.reading }}</p>
                 </div>
                 <div class="text-center p-1.5 rounded bg-slate-900/60">
                   <p class="text-[9px] uppercase font-medium text-slate-400 mb-0.5">No Mês</p>
-                  <p class="text-xs font-semibold text-primary-400 tabular-nums">{{ lib.readThisMonth }}</p>
+                  <p class="text-xs font-semibold text-manga-300 tabular-nums">{{ lib.readThisMonth }}</p>
                 </div>
                 <div class="text-center p-1.5 rounded bg-slate-900/60">
                   <p class="text-[9px] uppercase font-medium text-slate-400 mb-0.5">Páginas</p>
@@ -128,18 +128,18 @@ import { formatReadingDuration } from '../../../core/services/statistics.service
       <div class="space-y-4">
         <div class="flex items-center gap-2">
           <span class="text-base">📚</span>
-          <h3 class="text-xs font-bold uppercase tracking-wider text-amber-400">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-book-400">
             Bibliotecas de Livros & EPUBs
           </h3>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           @for (lib of stats.book; track lib.id) {
-            <div class="rounded-xl bg-slate-800/80 border border-slate-700/80 p-4 space-y-3 hover:border-amber-500/60 hover:bg-slate-800 transition-all duration-200">
+            <div class="rounded-xl bg-slate-800/80 border border-slate-700/80 p-4 space-y-3 hover:border-book-500/60 hover:bg-slate-800 transition-all duration-200">
               <!-- Topo do Card -->
               <div class="flex items-center justify-between gap-2">
                 <div class="flex items-center gap-2 min-w-0">
-                  <span class="w-2 h-2 rounded-full bg-amber-400 shrink-0"></span>
+                  <span class="w-2 h-2 rounded-full bg-book-400 shrink-0"></span>
                   <h4 class="text-sm font-semibold text-slate-200 truncate" [title]="lib.title">{{ lib.title }}</h4>
                 </div>
                 <span class="text-[11px] font-mono text-slate-400 bg-slate-900/90 px-2 py-0.5 rounded border border-slate-700/60 shrink-0">
@@ -155,7 +155,7 @@ import { formatReadingDuration } from '../../../core/services/statistics.service
                 </div>
                 <div class="w-full h-1.5 bg-slate-900 rounded-full overflow-hidden border border-slate-700/40">
                   <div
-                    class="h-full bg-gradient-to-r from-amber-500 to-orange-500 rounded-full transition-all duration-500"
+                    class="h-full bg-gradient-to-r from-book-500 to-book-alt rounded-full transition-all duration-500"
                     [style.width.%]="calcPercent(lib.completed, lib.totalFiles)"></div>
                 </div>
               </div>
@@ -164,15 +164,15 @@ import { formatReadingDuration } from '../../../core/services/statistics.service
               <div class="grid grid-cols-3 sm:grid-cols-5 gap-2 pt-1 border-t border-slate-700/50">
                 <div class="text-center p-1.5 rounded bg-slate-900/60">
                   <p class="text-[9px] uppercase font-medium text-slate-400 mb-0.5">Concluído</p>
-                  <p class="text-xs font-bold text-primary-600 tabular-nums">{{ lib.completed }}</p>
+                  <p class="text-xs font-bold text-book-400 tabular-nums">{{ lib.completed }}</p>
                 </div>
                 <div class="text-center p-1.5 rounded bg-slate-900/60">
                   <p class="text-[9px] uppercase font-medium text-slate-400 mb-0.5">Lendo</p>
-                  <p class="text-xs font-semibold text-primary-400 tabular-nums">{{ lib.reading }}</p>
+                  <p class="text-xs font-semibold text-book-300 tabular-nums">{{ lib.reading }}</p>
                 </div>
                 <div class="text-center p-1.5 rounded bg-slate-900/60">
                   <p class="text-[9px] uppercase font-medium text-slate-400 mb-0.5">No Mês</p>
-                  <p class="text-xs font-semibold text-primary-400 tabular-nums">{{ lib.readThisMonth }}</p>
+                  <p class="text-xs font-semibold text-book-300 tabular-nums">{{ lib.readThisMonth }}</p>
                 </div>
                 <div class="text-center p-1.5 rounded bg-slate-900/60">
                   <p class="text-[9px] uppercase font-medium text-slate-400 mb-0.5">Páginas</p>

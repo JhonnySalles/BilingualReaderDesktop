@@ -72,8 +72,8 @@ export interface VirtualHistoryGroup {
                     <span
                       class="text-xs font-bold uppercase tracking-wider font-mono px-2.5 py-1 rounded-lg border"
                       [ngClass]="historyUi.activeType() === 'BOOK'
-                        ? 'bg-amber-500/10 text-amber-300 border-amber-500/20'
-                        : (historyUi.activeType() === 'MANGA' ? 'manga-badge bg-indigo-500/10' : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20')">
+                        ? 'book-badge'
+                        : (historyUi.activeType() === 'MANGA' ? 'manga-badge' : 'bg-primary-500/10 text-primary-400 border-primary-500/20')">
                       {{ formatDateLabel(group.date) }}
                     </span>
                     <div class="h-px bg-slate-800 flex-1"></div>

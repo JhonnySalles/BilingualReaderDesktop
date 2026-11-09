@@ -13,7 +13,7 @@ import { TeleportToBodyDirective } from '../../../shared/directives/teleport-to-
       <div class="w-full max-w-md rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl overflow-hidden"
         (click)="$event.stopPropagation()">
         <div class="px-5 py-4 border-b border-slate-800 flex items-start gap-4">
-          <span class="text-3xl font-bold text-indigo-200" [style.writing-mode]="'vertical-rl'">{{ item.word }}</span>
+          <span class="text-3xl font-bold text-primary-200" [style.writing-mode]="'vertical-rl'">{{ item.word }}</span>
           <div class="flex-1 min-w-0 space-y-1">
             <p class="text-sm text-slate-100">
               {{ item.reading || '—' }}
@@ -45,7 +45,7 @@ import { TeleportToBodyDirective } from '../../../shared/directives/teleport-to-
               <div class="flex flex-wrap gap-2">
                 @for (k of kanjiList(); track k.kanji) {
                   <button type="button" (click)="openKanji.emit(k)"
-                    class="w-11 h-11 rounded-xl border border-slate-700 bg-slate-950 text-lg text-indigo-100 hover:border-indigo-500 cursor-pointer">
+                    class="w-11 h-11 rounded-xl border border-slate-700 bg-slate-950 text-lg text-primary-100 hover:border-primary-500 cursor-pointer">
                     {{ k.kanji }}
                   </button>
                 }

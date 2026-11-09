@@ -48,7 +48,7 @@ import { sortLibraryItems } from '../../core/utils/library-sort.util';
         [open]="!!bookmarkTarget()"
         [type]="activeLibType()"
         [filePath]="bookmarkTarget()?.path"
-        [accent]="activeLibType() === 'book' ? 'primary' : 'indigo'"
+        [accent]="activeLibType() === 'book' ? 'book' : 'manga'"
         [title]="bookmarkTarget()?.title || ''"
         [maxPages]="bookmarkTarget()?.pages || 1"
         [pageValue]="bookmarkTarget()?.bookMark || 0"
@@ -80,21 +80,21 @@ import { sortLibraryItems } from '../../core/utils/library-sort.util';
         [open]="!!tagsTarget()"
         [title]="tagsTarget()?.title || ''"
         [initialTags]="$any(tagsTarget())?.tags || ''"
-        [accent]="activeLibType() === 'book' ? 'amber' : 'indigo'"
+        [accent]="activeLibType() === 'book' ? 'book' : 'manga'"
         (confirm)="onTagsSave($event)"
         (cancel)="tagsTarget.set(null)" />
 
       @if (activeLibId() === 'home') {
         <div class="flex-1 overflow-y-auto space-y-8 px-6 pb-6 pt-24">
           
-          <div class="relative rounded-2xl bg-gradient-to-r from-indigo-900/40 via-slate-900 to-indigo-950/40 p-8 border border-slate-800 shadow-xl overflow-hidden">
+          <div class="relative rounded-2xl bg-gradient-to-r from-primary-900/40 via-slate-900 to-primary-950/40 p-8 border border-slate-800 shadow-xl overflow-hidden">
             <div class="relative z-10 max-w-xl">
               <h2 class="text-2xl font-extrabold text-white tracking-tight">Bem-vindo ao Bilingual Reader</h2>
               <p class="text-sm text-slate-300 mt-2 leading-relaxed">
                 Continue de onde parou ou escolha uma biblioteca abaixo para ler mangás e livros.
               </p>
             </div>
-            <div class="absolute -right-6 -bottom-6 w-48 h-48 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none"></div>
+            <div class="absolute -right-6 -bottom-6 w-48 h-48 bg-primary-600/10 rounded-full blur-3xl pointer-events-none"></div>
           </div>
 
           <!-- Quadro de Atividades de Leitura (Heatmap) -->
@@ -105,8 +105,8 @@ import { sortLibraryItems } from '../../core/utils/library-sort.util';
           <!-- Top 3 Últimos Arquivos Globais -->
           <div>
             <div class="flex items-center gap-3 mb-4">
-              <span class="w-2.5 h-2.5 rounded-full bg-indigo-500 shadow-sm shadow-indigo-500/50"></span>
-              <h3 class="text-sm font-bold uppercase tracking-wider text-indigo-400">
+              <span class="w-2.5 h-2.5 rounded-full bg-primary-500 shadow-sm shadow-primary-500/50"></span>
+              <h3 class="text-sm font-bold uppercase tracking-wider text-primary-400">
                 Últimos arquivos
               </h3>
               <div class="h-px bg-slate-800 flex-1"></div>
@@ -160,8 +160,8 @@ import { sortLibraryItems } from '../../core/utils/library-sort.util';
           @if (bookRecentByLibrary().length > 0) {
             <div class="space-y-6 pt-2">
               <div class="flex items-center gap-3">
-                <span class="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-sm shadow-amber-500/50"></span>
-                <h3 class="text-sm font-bold uppercase tracking-wider text-amber-400">
+                <span class="w-2.5 h-2.5 rounded-full bg-book-500 shadow-sm shadow-book-500/50"></span>
+                <h3 class="text-sm font-bold uppercase tracking-wider text-book-400">
                   Livros
                 </h3>
                 <div class="h-px bg-slate-800 flex-1"></div>
@@ -189,38 +189,38 @@ import { sortLibraryItems } from '../../core/utils/library-sort.util';
 
           <div class="border-t border-slate-800 pt-8 space-y-6">
             <h3 class="text-sm font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
-              <span class="w-2 h-2 rounded-full bg-indigo-500"></span>
+              <span class="w-2 h-2 rounded-full bg-primary-500"></span>
               Suas bibliotecas
             </h3>
 
             <div class="space-y-3">
-              <h4 class="text-xs font-semibold uppercase tracking-wider manga-section-title opacity-90">Mangás &amp; Comics</h4>
+              <h4 class="text-xs font-semibold uppercase tracking-wider text-manga-400/90">Mangás &amp; Comics</h4>
               <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <a [routerLink]="['/']" [queryParams]="{ lib: 'manga-default' }"
-                  class="group p-5 rounded-2xl bg-slate-900/80 border border-slate-800 hover:border-indigo-500/50 hover:bg-slate-800/80 transition-all cursor-pointer flex items-center justify-between">
+                  class="group p-5 rounded-2xl bg-slate-900/80 border border-slate-800 hover:border-manga-500/50 hover:bg-slate-800/80 transition-all cursor-pointer flex items-center justify-between">
                   <div class="flex items-center gap-4 min-w-0">
-                    <div class="w-12 h-12 shrink-0 rounded-xl bg-indigo-600/20 text-indigo-400 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">🎨</div>
+                    <div class="w-12 h-12 shrink-0 rounded-xl bg-manga-600/20 text-manga-400 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">🎨</div>
                     <div class="min-w-0">
-                      <h4 class="text-base font-bold text-slate-100 group-hover:text-indigo-400 transition-colors truncate">Biblioteca de Mangás</h4>
-                      <p class="text-xs text-slate-400 mt-0.5">{{ mangaLibraryService.mangas().length }} itens · padrão</p>
+                    <h4 class="text-base font-bold text-slate-100 group-hover:text-manga-400 transition-colors truncate">Biblioteca de Mangás</h4>
+                    <p class="text-xs text-slate-400 mt-0.5">{{ mangaLibraryService.mangas().length }} itens · padrão</p>
                     </div>
                   </div>
-                  <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 shrink-0 text-slate-500 group-hover:text-indigo-400 group-hover:translate-x-1 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 shrink-0 text-slate-500 group-hover:text-manga-400 group-hover:translate-x-1 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                   </svg>
                 </a>
 
                 @for (lib of mangaCustomLibraries(); track lib.id) {
                   <a [routerLink]="['/']" [queryParams]="{ lib: lib.id }"
-                    class="group p-5 rounded-2xl bg-slate-900/80 border border-slate-800 hover:border-indigo-500/50 hover:bg-slate-800/80 transition-all cursor-pointer flex items-center justify-between">
+                    class="group p-5 rounded-2xl bg-slate-900/80 border border-slate-800 hover:border-manga-500/50 hover:bg-slate-800/80 transition-all cursor-pointer flex items-center justify-between">
                     <div class="flex items-center gap-4 min-w-0">
                       <div class="w-12 h-12 shrink-0 rounded-xl bg-slate-800 text-slate-300 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">🎨</div>
                       <div class="min-w-0">
-                        <h4 class="text-base font-bold text-slate-100 group-hover:text-indigo-400 transition-colors truncate">{{ lib.title }}</h4>
+                        <h4 class="text-base font-bold text-slate-100 group-hover:text-manga-400 transition-colors truncate">{{ lib.title }}</h4>
                         <p class="text-xs text-slate-400 mt-0.5 truncate">{{ lib.language || 'Personalizada' }}</p>
                       </div>
                     </div>
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 shrink-0 text-slate-500 group-hover:text-indigo-400 group-hover:translate-x-1 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 shrink-0 text-slate-500 group-hover:text-manga-400 group-hover:translate-x-1 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                     </svg>
                   </a>
@@ -229,33 +229,33 @@ import { sortLibraryItems } from '../../core/utils/library-sort.util';
             </div>
 
             <div class="space-y-3">
-              <h4 class="text-xs font-semibold text-amber-400/90 uppercase tracking-wider">Livros &amp; EPUBs</h4>
+              <h4 class="text-xs font-semibold text-book-400/90 uppercase tracking-wider">Livros &amp; EPUBs</h4>
               <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <a [routerLink]="['/']" [queryParams]="{ lib: 'book-default' }"
-                  class="group p-5 rounded-2xl bg-slate-900/80 border border-slate-800 hover:border-indigo-500/50 hover:bg-slate-800/80 transition-all cursor-pointer flex items-center justify-between">
+                  class="group p-5 rounded-2xl bg-slate-900/80 border border-slate-800 hover:border-book-500/50 hover:bg-slate-800/80 transition-all cursor-pointer flex items-center justify-between">
                   <div class="flex items-center gap-4 min-w-0">
-                    <div class="w-12 h-12 shrink-0 rounded-xl bg-indigo-600/20 text-indigo-400 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">📚</div>
+                    <div class="w-12 h-12 shrink-0 rounded-xl bg-book-600/20 text-book-400 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">📚</div>
                     <div class="min-w-0">
-                      <h4 class="text-base font-bold text-slate-100 group-hover:text-indigo-400 transition-colors truncate">Biblioteca de Livros</h4>
+                      <h4 class="text-base font-bold text-slate-100 group-hover:text-book-400 transition-colors truncate">Biblioteca de Livros</h4>
                       <p class="text-xs text-slate-400 mt-0.5">{{ bookLibraryService.books().length }} itens · padrão</p>
                     </div>
                   </div>
-                  <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 shrink-0 text-slate-500 group-hover:text-indigo-400 group-hover:translate-x-1 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 shrink-0 text-slate-500 group-hover:text-book-400 group-hover:translate-x-1 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                   </svg>
                 </a>
 
                 @for (lib of bookCustomLibraries(); track lib.id) {
                   <a [routerLink]="['/']" [queryParams]="{ lib: lib.id }"
-                    class="group p-5 rounded-2xl bg-slate-900/80 border border-slate-800 hover:border-indigo-500/50 hover:bg-slate-800/80 transition-all cursor-pointer flex items-center justify-between">
+                    class="group p-5 rounded-2xl bg-slate-900/80 border border-slate-800 hover:border-book-500/50 hover:bg-slate-800/80 transition-all cursor-pointer flex items-center justify-between">
                     <div class="flex items-center gap-4 min-w-0">
                       <div class="w-12 h-12 shrink-0 rounded-xl bg-slate-800 text-slate-300 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">📚</div>
                       <div class="min-w-0">
-                        <h4 class="text-base font-bold text-slate-100 group-hover:text-indigo-400 transition-colors truncate">{{ lib.title }}</h4>
+                        <h4 class="text-base font-bold text-slate-100 group-hover:text-book-400 transition-colors truncate">{{ lib.title }}</h4>
                         <p class="text-xs text-slate-400 mt-0.5 truncate">{{ lib.language || 'Personalizada' }}</p>
                       </div>
                     </div>
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 shrink-0 text-slate-500 group-hover:text-indigo-400 group-hover:translate-x-1 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 shrink-0 text-slate-500 group-hover:text-book-400 group-hover:translate-x-1 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                     </svg>
                   </a>
@@ -282,13 +282,13 @@ import { sortLibraryItems } from '../../core/utils/library-sort.util';
                 class="px-4 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-200 border border-slate-700 rounded-xl text-xs font-medium transition-all flex items-center gap-2 cursor-pointer"
                 title="Sincronizar bookmarks com a nuvem">
                 @if (shareMark.syncing()) {
-                  <svg class="animate-spin h-4 w-4 text-indigo-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <svg class="animate-spin h-4 w-4" [class.text-book-300]="activeLibType() === 'book'" [class.text-manga-300]="activeLibType() !== 'book'" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
                   Sincronizando...
                 } @else {
-                  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" [class.text-book-300]="activeLibType() === 'book'" [class.text-manga-300]="activeLibType() !== 'book'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
                   </svg>
                   Sincronizar bookmarks
@@ -312,7 +312,8 @@ import { sortLibraryItems } from '../../core/utils/library-sort.util';
               <button 
                 (click)="onScanClick()" 
                 [disabled]="isCurrentlyScanning() || (isExternalHd() && !isPathOnline())"
-                class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-xl text-xs font-medium transition-all shadow-lg shadow-indigo-600/20 flex items-center gap-2">
+                [ngClass]="activeLibType() === 'book' ? 'bg-book-600 hover:bg-book-500 shadow-book-600/20' : 'bg-manga-600 hover:bg-manga-500 shadow-manga-600/20'"
+                class="px-4 py-2 disabled:opacity-50 text-white rounded-xl text-xs font-medium transition-all shadow-lg flex items-center gap-2">
                 @if (isCurrentlyScanning()) {
                   <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -370,7 +371,7 @@ import { sortLibraryItems } from '../../core/utils/library-sort.util';
           <!-- Botões de rolagem suave para início e fim da lista -->
           <app-scroll-edges-button
             [target]="libraryScrollContainer"
-            [accent]="activeLibType() === 'book' ? 'amber' : 'indigo'">
+            [accent]="activeLibType() === 'book' ? 'book' : 'manga'">
           </app-scroll-edges-button>
         </div>
       }

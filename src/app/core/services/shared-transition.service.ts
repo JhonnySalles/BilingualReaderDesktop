@@ -9,6 +9,10 @@ export class SharedTransitionService {
   /** The item currently selected/active for transition */
   private readonly activeItem = signal<{ type: TransitionItemType; id: string; instanceId?: string } | null>(null);
 
+  /** Map of claimed transition names in the current microtask tick to enforce uniqueness per document */
+  private readonly claimedNames = new Map<string, string>();
+  private tickScheduled = false;
+
   setActiveItem(type: TransitionItemType, id: number | string | undefined | null, instanceId?: string): void {
     if (id == null) {
       this.activeItem.set(null);
@@ -29,25 +33,53 @@ export class SharedTransitionService {
     if (type && current.type !== type) return false;
     if (String(current.id) !== String(id)) return false;
 
-    // If the active item has a specific instanceId and the caller is also specifying an instanceId, they must match.
-    // If the caller doesn't specify an instanceId (e.g. detail/reader page), it matches by ID + type.
+    // If active item already has an instanceId and caller provides an instanceId, they must match.
     if (current.instanceId && instanceId && current.instanceId !== instanceId) {
       return false;
+    }
+
+    // If active item had no instanceId, bind to the first caller with an instanceId to avoid duplicates across repeated cards
+    if (!current.instanceId && instanceId) {
+      current.instanceId = instanceId;
     }
 
     return true;
   }
 
+  private claimName(name: string, instanceId?: string): string {
+    if (!this.tickScheduled) {
+      this.tickScheduled = true;
+      queueMicrotask(() => {
+        this.claimedNames.clear();
+        this.tickScheduled = false;
+      });
+    }
+
+    const key = instanceId ? `${name}::${instanceId}` : name;
+    const alreadyClaimedBy = this.claimedNames.get(name);
+
+    // If another element with a different instanceId already claimed this name in this tick, return 'none' to prevent duplicate view-transition-name
+    if (alreadyClaimedBy && alreadyClaimedBy !== key) {
+      return 'none';
+    }
+
+    this.claimedNames.set(name, key);
+    return name;
+  }
+
   getCoverName(id: number | string | undefined | null, type?: TransitionItemType, instanceId?: string): string {
-    return this.isActive(id, type, instanceId) ? 'cover-active' : 'none';
+    if (!this.isActive(id, type, instanceId)) return 'none';
+    return this.claimName('cover-active', instanceId);
   }
 
   getTitleName(id: number | string | undefined | null, type?: TransitionItemType, instanceId?: string): string {
-    return this.isActive(id, type, instanceId) ? 'title-active' : 'none';
+    if (!this.isActive(id, type, instanceId)) return 'none';
+    return this.claimName('title-active', instanceId);
   }
 
   getProgressName(id: number | string | undefined | null, type?: TransitionItemType, instanceId?: string): string {
-    return this.isActive(id, type, instanceId) ? 'progress-active' : 'none';
+    if (!this.isActive(id, type, instanceId)) return 'none';
+    return this.claimName('progress-active', instanceId);
   }
 }
 

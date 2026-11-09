@@ -47,7 +47,7 @@ const PAGE_SIZE = 40;
             @for (opt of orderOptions; track opt.value) {
               <button type="button"
                 class="w-full text-left px-3 py-2 rounded-lg text-xs cursor-pointer"
-                [class.bg-indigo-600]="ui.order() === opt.value"
+                [class.bg-primary-600]="ui.order() === opt.value"
                 [class.text-white]="ui.order() === opt.value"
                 [class.text-slate-300]="ui.order() !== opt.value"
                 [class.hover:bg-slate-800]="ui.order() !== opt.value"
@@ -70,7 +70,7 @@ const PAGE_SIZE = 40;
             <span class="px-2.5 py-1 rounded-lg text-[11px] font-semibold border"
               [ngClass]="ui.mangaId() != null
                 ? 'manga-btn-badge'
-                : 'bg-amber-950/40 border-amber-700/40 text-amber-200'">
+                : 'book-btn-badge'">
               {{ ui.scopeTitle() || (ui.mangaId() != null ? 'Mangá' : 'Livro') }}
             </span>
             <button type="button" (click)="clearScope()"
@@ -79,7 +79,7 @@ const PAGE_SIZE = 40;
             </button>
             @if (ui.mangaId() != null || ui.bookId() != null) {
               <button type="button" (click)="importScoped()" [disabled]="importing()"
-                class="ml-auto px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-50 cursor-pointer">
+                class="ml-auto px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-primary-600 hover:bg-primary-500 text-white disabled:opacity-50 cursor-pointer">
                 {{ importing() ? 'Importando…' : 'Importar vocabulário' }}
               </button>
             }
@@ -96,7 +96,7 @@ const PAGE_SIZE = 40;
           <p class="text-xs text-slate-500 text-center py-16">Carregando vocabulário…</p>
         } @else if (items().length === 0) {
           <div class="flex flex-col items-center justify-center py-20 text-center px-6">
-            <div class="w-14 h-14 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center mb-4 text-indigo-400">
+            <div class="w-14 h-14 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center mb-4 text-primary-400">
               <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
                   d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
@@ -112,7 +112,7 @@ const PAGE_SIZE = 40;
             </p>
             @if (ui.isScoped()) {
               <button type="button" (click)="importScoped()" [disabled]="importing()"
-                class="mt-4 px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-50 cursor-pointer">
+                class="mt-4 px-4 py-2 rounded-xl text-xs font-semibold bg-primary-600 hover:bg-primary-500 text-white disabled:opacity-50 cursor-pointer">
                 {{ importing() ? 'Importando…' : 'Importar agora' }}
               </button>
             }

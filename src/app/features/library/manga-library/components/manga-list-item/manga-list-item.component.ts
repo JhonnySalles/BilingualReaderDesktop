@@ -24,7 +24,7 @@ const MENU_WIDTH = 208; // w-52
   standalone: true,
   imports: [CommonModule],
   template: `
-    <div class="group relative bg-slate-800/40 backdrop-blur-md rounded-lg overflow-hidden border border-slate-700/40 manga-card-hover hover:bg-slate-800/80 transition-all duration-200 cursor-pointer flex items-stretch justify-between gap-3 pr-3">
+    <div data-media="manga" class="group relative bg-slate-800/40 backdrop-blur-md rounded-lg overflow-hidden border border-slate-700/40 manga-card-hover hover:bg-slate-800/80 transition-all duration-200 cursor-pointer flex items-stretch justify-between gap-3 pr-3">
       
       <!-- Left: Cover (Flush left, scaled up) -->
       <div class="flex items-center gap-2.5 min-w-0 flex-1">
@@ -115,40 +115,40 @@ const MENU_WIDTH = 208; // w-52
         [style.left.px]="menuPos().left">
         <button
           (click)="onOpenLocation($event)"
-          class="w-full px-3 py-2 text-left text-slate-300 hover:text-[#818cf8] hover:bg-slate-800/80 flex items-center gap-2 transition-colors">
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-[#818cf8]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          class="w-full px-3 py-2 text-left text-slate-300 hover:text-manga-400 hover:bg-slate-800/80 flex items-center gap-2 transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-manga-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
           </svg>
           Abrir local do arquivo
         </button>
         <button
           (click)="onSetBookmark($event)"
-          class="w-full px-3 py-2 text-left text-slate-300 hover:text-[#818cf8] hover:bg-slate-800/80 flex items-center gap-2 transition-colors">
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-[#818cf8]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          class="w-full px-3 py-2 text-left text-slate-300 hover:text-manga-400 hover:bg-slate-800/80 flex items-center gap-2 transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-manga-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
           </svg>
           Marcador
         </button>
         <button
           (click)="onOpenTracker($event)"
-          class="w-full px-3 py-2 text-left text-slate-300 hover:text-[#818cf8] hover:bg-slate-800/80 flex items-center gap-2 transition-colors">
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-[#818cf8]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          class="w-full px-3 py-2 text-left text-slate-300 hover:text-manga-400 hover:bg-slate-800/80 flex items-center gap-2 transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-manga-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
           </svg>
           Rastreador
         </button>
         <button
           (click)="onOpenTags($event)"
-          class="w-full px-3 py-2 text-left text-slate-300 hover:text-[#818cf8] hover:bg-slate-800/80 flex items-center gap-2 transition-colors">
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-[#818cf8]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          class="w-full px-3 py-2 text-left text-slate-300 hover:text-manga-400 hover:bg-slate-800/80 flex items-center gap-2 transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-manga-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
           </svg>
           Tags
         </button>
         <button
           (click)="onClearProgress($event)"
-          class="w-full px-3 py-2 text-left text-slate-300 hover:text-[#818cf8] hover:bg-slate-800/80 flex items-center gap-2 transition-colors">
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-[#818cf8]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          class="w-full px-3 py-2 text-left text-slate-300 hover:text-manga-400 hover:bg-slate-800/80 flex items-center gap-2 transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-manga-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
           Limpar progresso

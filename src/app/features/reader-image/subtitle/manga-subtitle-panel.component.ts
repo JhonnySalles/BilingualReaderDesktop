@@ -41,7 +41,7 @@ import { NormalizedSubtitleText } from '../../../core/utils/subtitle-normalize';
 
         <label class="flex items-center justify-between gap-2 text-xs text-slate-300 cursor-pointer">
           <span>Desenhar caixas</span>
-          <input type="checkbox" class="w-4 h-4 accent-indigo-600 rounded"
+          <input type="checkbox" class="w-4 h-4 accent-manga-600 rounded"
             [ngModel]="drawBoxes"
             (ngModelChange)="drawBoxesChange.emit($event)" />
         </label>
@@ -64,7 +64,7 @@ import { NormalizedSubtitleText } from '../../../core/utils/subtitle-normalize';
               type="button"
               class="w-full text-left rounded-xl border px-3 py-2 transition-colors cursor-pointer"
               [ngClass]="{
-                'border-amber-500 bg-amber-500/10': selectedSequence === t.sequence,
+                'border-manga-500 bg-manga-500/10': selectedSequence === t.sequence,
                 'border-slate-800 bg-slate-900/60': selectedSequence !== t.sequence
               }"
               (click)="selectText.emit(t)">

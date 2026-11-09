@@ -46,13 +46,13 @@ import { TeleportToBodyDirective } from '../directives/teleport-to-body.directiv
           <!-- Header -->
           <header class="px-6 py-4 border-b border-slate-800 flex items-center justify-between gap-4">
             <div class="flex items-center gap-3">
-              <span class="p-2 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-lg">
+              <span class="p-2 rounded-xl bg-primary-500/10 text-primary-400 border border-primary-500/20 text-lg">
                 📸
               </span>
               <div>
                 <h2 class="text-base font-bold text-slate-100 flex items-center gap-2">
                   Compartilhar Leituras
-                  <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300">
+                  <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-primary-500/20 text-primary-300">
                     Social Studio
                   </span>
                 </h2>
@@ -89,28 +89,28 @@ import { TeleportToBodyDirective } from '../directives/teleport-to-body.directiv
                     type="button"
                     (click)="setPeriodPreset('week')"
                     class="py-2 px-3 rounded-xl text-xs font-medium border text-center transition-all cursor-pointer"
-                    [ngClass]="activePeriod() === 'week' ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-600/20' : 'bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-800'">
+                    [ngClass]="activePeriod() === 'week' ? 'bg-primary-600 border-primary-500 text-white shadow-lg shadow-primary-600/20' : 'bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-800'">
                     Últimos 7 Dias
                   </button>
                   <button
                     type="button"
                     (click)="setPeriodPreset('month')"
                     class="py-2 px-3 rounded-xl text-xs font-medium border text-center transition-all cursor-pointer"
-                    [ngClass]="activePeriod() === 'month' ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-600/20' : 'bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-800'">
+                    [ngClass]="activePeriod() === 'month' ? 'bg-primary-600 border-primary-500 text-white shadow-lg shadow-primary-600/20' : 'bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-800'">
                     Este Mês
                   </button>
                   <button
                     type="button"
                     (click)="setPeriodPreset('year')"
                     class="py-2 px-3 rounded-xl text-xs font-medium border text-center transition-all cursor-pointer"
-                    [ngClass]="activePeriod() === 'year' ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-600/20' : 'bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-800'">
+                    [ngClass]="activePeriod() === 'year' ? 'bg-primary-600 border-primary-500 text-white shadow-lg shadow-primary-600/20' : 'bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-800'">
                     Este Ano
                   </button>
                   <button
                     type="button"
                     (click)="setPeriodPreset('custom')"
                     class="py-2 px-3 rounded-xl text-xs font-medium border text-center transition-all cursor-pointer"
-                    [ngClass]="activePeriod() === 'custom' ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-600/20' : 'bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-800'">
+                    [ngClass]="activePeriod() === 'custom' ? 'bg-primary-600 border-primary-500 text-white shadow-lg shadow-primary-600/20' : 'bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-800'">
                     Personalizado
                   </button>
                 </div>
@@ -163,8 +163,7 @@ import { TeleportToBodyDirective } from '../directives/teleport-to-body.directiv
                     type="button"
                     (click)="setMediaType('BOOK')"
                     class="py-1.5 rounded-lg font-semibold transition-all cursor-pointer"
-                    [class.bg-amber-600]="mediaType() === 'BOOK'"
-                    [class.text-white]="mediaType() === 'BOOK'"
+                    [class.book-pill-active]="mediaType() === 'BOOK'"
                     [class.shadow]="mediaType() === 'BOOK'"
                     [class.text-slate-400]="mediaType() !== 'BOOK'"
                     [class.hover:text-slate-200]="mediaType() !== 'BOOK'">
@@ -181,7 +180,7 @@ import { TeleportToBodyDirective } from '../directives/teleport-to-body.directiv
                     <select
                       [ngModel]="selectedLibraryId()"
                       (ngModelChange)="onLibraryChange($event)"
-                      class="w-full bg-slate-950 border border-slate-800 hover:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500/80 transition-colors cursor-pointer appearance-none pr-8">
+                      class="w-full bg-slate-950 border border-slate-800 hover:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-primary-500/80 transition-colors cursor-pointer appearance-none pr-8">
                       <option [ngValue]="null">📚 Todas as bibliotecas</option>
                       @for (lib of filteredLibraries(); track lib.id) {
                         <option [ngValue]="lib.id">
@@ -202,7 +201,7 @@ import { TeleportToBodyDirective } from '../directives/teleport-to-body.directiv
                     type="checkbox"
                     [(ngModel)]="onlyCompleted"
                     (change)="loadItems()"
-                    class="rounded bg-slate-950 border-slate-700 text-indigo-600 focus:ring-0" />
+                    class="rounded bg-slate-950 border-slate-700 text-primary-600 focus:ring-0" />
                   Apenas obras concluídas no período
                 </label>
               </section>
@@ -218,7 +217,7 @@ import { TeleportToBodyDirective } from '../directives/teleport-to-body.directiv
                       type="button"
                       (click)="selectPreset(p.id)"
                       class="p-2.5 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer"
-                      [ngClass]="selectedPreset() === p.id ? 'bg-indigo-950/40 border-indigo-500/60 ring-1 ring-indigo-500/40 text-slate-100' : 'bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700'">
+                      [ngClass]="selectedPreset() === p.id ? 'bg-primary-950/40 border-primary-500/60 ring-1 ring-primary-500/40 text-slate-100' : 'bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700'">
                       <div>
                         <div class="text-xs font-bold flex items-center gap-2">
                           {{ p.label }}
@@ -246,56 +245,56 @@ import { TeleportToBodyDirective } from '../directives/teleport-to-body.directiv
                     type="button"
                     (click)="setLayoutTemplate('BENTO_GRID')"
                     class="p-2 rounded-xl border text-center text-xs font-medium transition-all cursor-pointer"
-                    [ngClass]="selectedTemplate() === 'BENTO_GRID' ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-800'">
+                    [ngClass]="selectedTemplate() === 'BENTO_GRID' ? 'bg-primary-600 border-primary-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-800'">
                     🍱 Mosaico Bento
                   </button>
                   <button
                     type="button"
                     (click)="setLayoutTemplate('PERSPECTIVE_SHOWCASE')"
                     class="p-2 rounded-xl border text-center text-xs font-medium transition-all cursor-pointer"
-                    [ngClass]="selectedTemplate() === 'PERSPECTIVE_SHOWCASE' ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-800'">
+                    [ngClass]="selectedTemplate() === 'PERSPECTIVE_SHOWCASE' ? 'bg-primary-600 border-primary-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-800'">
                     📚 Estante 3D
                   </button>
                   <button
                     type="button"
                     (click)="setLayoutTemplate('WRAPPED_STATS')"
                     class="p-2 rounded-xl border text-center text-xs font-medium transition-all cursor-pointer"
-                    [ngClass]="selectedTemplate() === 'WRAPPED_STATS' ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-800'">
+                    [ngClass]="selectedTemplate() === 'WRAPPED_STATS' ? 'bg-primary-600 border-primary-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-800'">
                     📊 Wrapped Stats
                   </button>
                   <button
                     type="button"
                     (click)="setLayoutTemplate('MINIMALIST_LIST')"
                     class="p-2 rounded-xl border text-center text-xs font-medium transition-all cursor-pointer"
-                    [ngClass]="selectedTemplate() === 'MINIMALIST_LIST' ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-800'">
+                    [ngClass]="selectedTemplate() === 'MINIMALIST_LIST' ? 'bg-primary-600 border-primary-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-800'">
                     📝 Lista Editorial
                   </button>
                   <button
                     type="button"
                     (click)="setLayoutTemplate('MAGAZINE_HERO')"
                     class="p-2 rounded-xl border text-center text-xs font-medium transition-all cursor-pointer"
-                    [ngClass]="selectedTemplate() === 'MAGAZINE_HERO' ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-800'">
+                    [ngClass]="selectedTemplate() === 'MAGAZINE_HERO' ? 'bg-primary-600 border-primary-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-800'">
                     📰 Destaque Magazine
                   </button>
                   <button
                     type="button"
                     (click)="setLayoutTemplate('POLAROID_GALLERY')"
                     class="p-2 rounded-xl border text-center text-xs font-medium transition-all cursor-pointer"
-                    [ngClass]="selectedTemplate() === 'POLAROID_GALLERY' ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-800'">
+                    [ngClass]="selectedTemplate() === 'POLAROID_GALLERY' ? 'bg-primary-600 border-primary-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-800'">
                     🎞️ Mural Polaroid
                   </button>
                   <button
                     type="button"
                     (click)="setLayoutTemplate('PODIUM_RANKING')"
                     class="p-2 rounded-xl border text-center text-xs font-medium transition-all cursor-pointer"
-                    [ngClass]="selectedTemplate() === 'PODIUM_RANKING' ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-800'">
+                    [ngClass]="selectedTemplate() === 'PODIUM_RANKING' ? 'bg-primary-600 border-primary-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-800'">
                     🏆 Pódio Top 3
                   </button>
                   <button
                     type="button"
                     (click)="setLayoutTemplate('GLASS_CARDS')"
                     class="p-2 rounded-xl border text-center text-xs font-medium transition-all cursor-pointer"
-                    [ngClass]="selectedTemplate() === 'GLASS_CARDS' ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-800'">
+                    [ngClass]="selectedTemplate() === 'GLASS_CARDS' ? 'bg-primary-600 border-primary-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-800'">
                     💎 Vitrine Glass
                   </button>
                 </div>
@@ -307,7 +306,7 @@ import { TeleportToBodyDirective } from '../directives/teleport-to-body.directiv
                       <label class="text-[10px] text-slate-400 uppercase font-bold tracking-wider">
                         Capas por Página
                       </label>
-                      <span class="text-[11px] font-mono text-indigo-400">
+                      <span class="text-[11px] font-mono text-primary-400">
                         {{ itemsPerPage() }} capas/pág.
                       </span>
                     </div>
@@ -317,7 +316,7 @@ import { TeleportToBodyDirective } from '../directives/teleport-to-body.directiv
                           type="button"
                           (click)="setItemsPerPage(count)"
                           class="px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all cursor-pointer"
-                          [ngClass]="itemsPerPage() === count ? 'bg-indigo-600 border-indigo-500 text-white shadow' : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'">
+                          [ngClass]="itemsPerPage() === count ? 'bg-primary-600 border-primary-500 text-white shadow' : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'">
                           {{ count }}
                         </button>
                       }
@@ -328,12 +327,12 @@ import { TeleportToBodyDirective } from '../directives/teleport-to-body.directiv
                         [ngModel]="itemsPerPage()"
                         (ngModelChange)="onItemsPerPageInput($event)"
                         title="Quantidade personalizada de capas por página"
-                        class="w-16 bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-lg px-2 py-1 text-xs text-center font-mono text-slate-200 focus:outline-none" />
+                        class="w-16 bg-slate-950 border border-slate-800 focus:border-primary-500 rounded-lg px-2 py-1 text-xs text-center font-mono text-slate-200 focus:outline-none" />
                     </div>
                   </div>
                 } @else {
                   <div class="pt-2">
-                    <div class="px-3 py-2 rounded-xl bg-indigo-950/30 border border-indigo-500/30 text-[11px] text-indigo-300 flex items-center gap-2">
+                    <div class="px-3 py-2 rounded-xl bg-primary-950/30 border border-primary-500/30 text-[11px] text-primary-300 flex items-center gap-2">
                       <span>🖼️</span>
                       <span>Modo Imagem Única ativo: todas as {{ selectedItemsCount() }} capas serão renderizadas em uma só imagem.</span>
                     </div>
@@ -372,8 +371,8 @@ import { TeleportToBodyDirective } from '../directives/teleport-to-body.directiv
 
                   <!-- Painel de Customização de Cores (Aparece se tema for CUSTOM) -->
                   @if (selectedTheme === 'CUSTOM') {
-                    <div class="p-3 bg-slate-950/80 border border-indigo-500/30 rounded-xl space-y-3 animate-fade-in">
-                      <div class="text-[11px] font-bold text-indigo-300 flex items-center gap-1.5">
+                    <div class="p-3 bg-slate-950/80 border border-primary-500/30 rounded-xl space-y-3 animate-fade-in">
+                      <div class="text-[11px] font-bold text-primary-300 flex items-center gap-1.5">
                         <span>🎨</span>
                         <span>Configuração de Cores Personalizadas</span>
                       </div>
@@ -413,21 +412,21 @@ import { TeleportToBodyDirective } from '../directives/teleport-to-body.directiv
                             type="button"
                             (click)="setCustomTextMode('AUTO')"
                             class="px-2 py-0.5 rounded text-[10px] font-semibold border cursor-pointer"
-                            [ngClass]="customTextMode === 'AUTO' ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-900 border-slate-800 text-slate-400'">
+                            [ngClass]="customTextMode === 'AUTO' ? 'bg-primary-600 border-primary-500 text-white' : 'bg-slate-900 border-slate-800 text-slate-400'">
                             Auto
                           </button>
                           <button
                             type="button"
                             (click)="setCustomTextMode('LIGHT')"
                             class="px-2 py-0.5 rounded text-[10px] font-semibold border cursor-pointer"
-                            [ngClass]="customTextMode === 'LIGHT' ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-900 border-slate-800 text-slate-400'">
+                            [ngClass]="customTextMode === 'LIGHT' ? 'bg-primary-600 border-primary-500 text-white' : 'bg-slate-900 border-slate-800 text-slate-400'">
                             Claro
                           </button>
                           <button
                             type="button"
                             (click)="setCustomTextMode('DARK')"
                             class="px-2 py-0.5 rounded text-[10px] font-semibold border cursor-pointer"
-                            [ngClass]="customTextMode === 'DARK' ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-900 border-slate-800 text-slate-400'">
+                            [ngClass]="customTextMode === 'DARK' ? 'bg-primary-600 border-primary-500 text-white' : 'bg-slate-900 border-slate-800 text-slate-400'">
                             Escuro
                           </button>
                         </div>
@@ -445,28 +444,28 @@ import { TeleportToBodyDirective } from '../directives/teleport-to-body.directiv
                         type="button"
                         (click)="setBackgroundPattern('GRID')"
                         class="px-2 py-1 rounded-lg text-[10px] font-semibold border cursor-pointer"
-                        [ngClass]="selectedPattern === 'GRID' ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'">
+                        [ngClass]="selectedPattern === 'GRID' ? 'bg-primary-600 border-primary-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'">
                         Grade
                       </button>
                       <button
                         type="button"
                         (click)="setBackgroundPattern('DOTS')"
                         class="px-2 py-1 rounded-lg text-[10px] font-semibold border cursor-pointer"
-                        [ngClass]="selectedPattern === 'DOTS' ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'">
+                        [ngClass]="selectedPattern === 'DOTS' ? 'bg-primary-600 border-primary-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'">
                         Pontos
                       </button>
                       <button
                         type="button"
                         (click)="setBackgroundPattern('ORBS')"
                         class="px-2 py-1 rounded-lg text-[10px] font-semibold border cursor-pointer"
-                        [ngClass]="selectedPattern === 'ORBS' ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'">
+                        [ngClass]="selectedPattern === 'ORBS' ? 'bg-primary-600 border-primary-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'">
                         Orbs
                       </button>
                       <button
                         type="button"
                         (click)="setBackgroundPattern('NONE')"
                         class="px-2 py-1 rounded-lg text-[10px] font-semibold border cursor-pointer"
-                        [ngClass]="selectedPattern === 'NONE' ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'">
+                        [ngClass]="selectedPattern === 'NONE' ? 'bg-primary-600 border-primary-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'">
                         Liso
                       </button>
                     </div>
@@ -508,7 +507,7 @@ import { TeleportToBodyDirective } from '../directives/teleport-to-body.directiv
                       type="checkbox"
                       [(ngModel)]="showStatsBanner"
                       (ngModelChange)="triggerRender()"
-                      class="rounded bg-slate-950 border-slate-700 text-indigo-600 focus:ring-0" />
+                      class="rounded bg-slate-950 border-slate-700 text-primary-600 focus:ring-0" />
                     Exibir resumo numérico (páginas / tempo lido)
                   </label>
                   <label class="flex items-center gap-2 cursor-pointer">
@@ -516,7 +515,7 @@ import { TeleportToBodyDirective } from '../directives/teleport-to-body.directiv
                       type="checkbox"
                       [(ngModel)]="showCoverTitles"
                       (ngModelChange)="triggerRender()"
-                      class="rounded bg-slate-950 border-slate-700 text-indigo-600 focus:ring-0" />
+                      class="rounded bg-slate-950 border-slate-700 text-primary-600 focus:ring-0" />
                     Exibir nome do arquivo e tempo nas capas
                   </label>
                   @if (showCoverTitles) {
@@ -525,7 +524,7 @@ import { TeleportToBodyDirective } from '../directives/teleport-to-body.directiv
                         type="checkbox"
                         [(ngModel)]="useCardBlur"
                         (ngModelChange)="triggerRender()"
-                        class="rounded bg-slate-950 border-slate-700 text-indigo-600 focus:ring-0" />
+                        class="rounded bg-slate-950 border-slate-700 text-primary-600 focus:ring-0" />
                       Usar efeito Blur no campo de texto
                     </label>
                   }
@@ -534,7 +533,7 @@ import { TeleportToBodyDirective } from '../directives/teleport-to-body.directiv
                       type="checkbox"
                       [(ngModel)]="showProgressBadge"
                       (ngModelChange)="triggerRender()"
-                      class="rounded bg-slate-950 border-slate-700 text-indigo-600 focus:ring-0" />
+                      class="rounded bg-slate-950 border-slate-700 text-primary-600 focus:ring-0" />
                     Exibir badges de concluído / progresso
                   </label>
                 </div>
@@ -549,7 +548,7 @@ import { TeleportToBodyDirective } from '../directives/teleport-to-body.directiv
                   <button
                     type="button"
                     (click)="toggleSelectAll()"
-                    class="text-[11px] text-indigo-400 hover:text-indigo-300 cursor-pointer">
+                    class="text-[11px] text-primary-400 hover:text-primary-300 cursor-pointer">
                     {{ allSelected() ? 'Desmarcar Todos' : 'Selecionar Todos' }}
                   </button>
                 </div>
@@ -570,7 +569,7 @@ import { TeleportToBodyDirective } from '../directives/teleport-to-body.directiv
                         [ngClass]="isItemSelected(it)
                           ? (it.type === 'MANGA'
                               ? 'bg-slate-900 manga-card-selected hover:-translate-y-0.5'
-                              : 'bg-slate-900 border-amber-500/70 shadow-md shadow-amber-500/10 hover:-translate-y-0.5')
+                              : 'bg-slate-900 border-book-500/70 shadow-md shadow-book-500/10 hover:-translate-y-0.5')
                           : 'bg-slate-950/60 border-slate-800/80 opacity-55 grayscale-[35%] hover:opacity-85 hover:border-slate-700'">
 
                         <!-- Capa da Obra (Proporção 2:3) -->
@@ -586,7 +585,7 @@ import { TeleportToBodyDirective } from '../directives/teleport-to-body.directiv
                               class="w-full h-full flex flex-col items-center justify-center p-2 text-center"
                               [ngClass]="it.type === 'MANGA'
                                 ? 'manga-card-fallback-bg'
-                                : 'bg-gradient-to-br from-slate-900 via-slate-950 to-amber-950/40 text-amber-400'">
+                                : 'bg-gradient-to-br from-slate-900 via-slate-950 to-book-950/40 text-book-400'">
                               <span class="text-2xl mb-1">{{ it.type === 'MANGA' ? '📖' : '📚' }}</span>
                               <span class="text-[9px] uppercase font-bold tracking-wider opacity-80">
                                 {{ it.fileType || (it.type === 'MANGA' ? 'MANGA' : 'LIVRO') }}
@@ -614,7 +613,7 @@ import { TeleportToBodyDirective } from '../directives/teleport-to-body.directiv
                           <div class="mt-1.5 flex items-center justify-between text-[10px] font-mono">
                             <span
                               class="font-semibold"
-                              [ngClass]="it.type === 'MANGA' ? 'manga-text-accent' : 'text-amber-400'">
+                              [ngClass]="it.type === 'MANGA' ? 'manga-text-accent' : 'text-book-400'">
                               {{ it.pagesReadInPeriod }} pág.
                             </span>
                             @if (it.completed) {
@@ -637,7 +636,7 @@ import { TeleportToBodyDirective } from '../directives/teleport-to-body.directiv
                     Visualização em Tempo Real (WYSIWYG)
                   </span>
                   @if (renderedPages().length > 1) {
-                    <span class="px-2 py-0.5 rounded-full bg-indigo-500/20 border border-indigo-500/30 text-[10px] font-bold text-indigo-300">
+                    <span class="px-2 py-0.5 rounded-full bg-primary-500/20 border border-primary-500/30 text-[10px] font-bold text-primary-300">
                       {{ renderedPages().length }} páginas geradas (role para ver)
                     </span>
                   }
@@ -651,7 +650,7 @@ import { TeleportToBodyDirective } from '../directives/teleport-to-body.directiv
               <div class="flex-1 min-h-0 overflow-y-auto space-y-6 p-4 rounded-2xl bg-slate-950 border border-slate-800/80 relative shadow-inner">
                 @if (isRendering()) {
                   <div class="sticky top-2 z-20 flex items-center justify-center pointer-events-none">
-                    <span class="px-3 py-1.5 rounded-full bg-slate-900/90 border border-indigo-500/40 text-xs font-semibold text-indigo-300 shadow-lg animate-pulse">
+                    <span class="px-3 py-1.5 rounded-full bg-slate-900/90 border border-primary-500/40 text-xs font-semibold text-primary-300 shadow-lg animate-pulse">
                       Renderizando {{ renderedPages().length > 1 ? 'páginas' : 'imagem' }}…
                     </span>
                   </div>
@@ -662,7 +661,7 @@ import { TeleportToBodyDirective } from '../directives/teleport-to-body.directiv
                     @if (page.totalPages > 1) {
                       <div class="w-full flex items-center justify-between px-2 py-1 border-b border-slate-800/80 text-xs">
                         <div class="flex items-center gap-2">
-                          <span class="font-bold text-indigo-300">
+                          <span class="font-bold text-primary-300">
                             Página {{ page.pageNumber }} de {{ page.totalPages }}
                           </span>
                           <span class="text-[11px] text-slate-400">
@@ -679,7 +678,7 @@ import { TeleportToBodyDirective } from '../directives/teleport-to-body.directiv
                           <button
                             type="button"
                             (click)="saveSinglePage(page)"
-                            class="px-2.5 py-1 rounded-lg bg-indigo-600/80 hover:bg-indigo-600 text-white text-[11px] font-semibold transition-colors cursor-pointer">
+                            class="px-2.5 py-1 rounded-lg bg-primary-600/80 hover:bg-primary-600 text-white text-[11px] font-semibold transition-colors cursor-pointer">
                             Salvar Pág. {{ page.pageNumber }}
                           </button>
                         </div>
@@ -709,7 +708,7 @@ import { TeleportToBodyDirective } from '../directives/teleport-to-body.directiv
                     (click)="copyToClipboard()"
                     [disabled]="isRendering() || selectedItems().length === 0 || renderedPages().length === 0"
                     class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 border border-slate-700 text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50">
-                    <svg class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg class="w-4 h-4 text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
                     </svg>
                     {{ renderedPages().length > 1 ? 'Copiar 1ª Página' : 'Copiar Imagem' }}
@@ -719,7 +718,7 @@ import { TeleportToBodyDirective } from '../directives/teleport-to-body.directiv
                     type="button"
                     (click)="saveImage()"
                     [disabled]="isRendering() || selectedItems().length === 0 || renderedPages().length === 0"
-                    class="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shadow-lg shadow-indigo-600/20 disabled:opacity-50">
+                    class="px-5 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-500 active:scale-95 text-white text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shadow-lg shadow-primary-600/20 disabled:opacity-50">
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                     </svg>

@@ -14,7 +14,7 @@ import { markTypeLabel } from '../annotation-group.util';
   template: `
     <div
       class="group relative w-full text-left rounded-xl border border-slate-800/80 bg-slate-900/60
-        hover:border-indigo-500/40 hover:bg-slate-900 transition-all px-3 py-3 cursor-pointer"
+        hover:border-primary-500/40 hover:bg-slate-900 transition-all px-3 py-3 cursor-pointer"
       (click)="open.emit(item)">
       <div class="flex items-center gap-2 mb-2">
         <button
@@ -89,18 +89,18 @@ import { markTypeLabel } from '../annotation-group.util';
                 type="button"
                 class="flex items-start gap-1.5 text-left w-full cursor-pointer group/note"
                 (click)="onEditNote($event)">
-                <svg class="w-3.5 h-3.5 mt-0.5 text-indigo-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-3.5 h-3.5 mt-0.5 text-primary-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                 </svg>
-                <span class="text-xs text-indigo-300/90 group-hover/note:text-indigo-200 whitespace-pre-wrap break-words">
+                <span class="text-xs text-primary-300/90 group-hover/note:text-primary-200 whitespace-pre-wrap break-words">
                   {{ item.note }}
                 </span>
               </button>
             } @else {
               <button
                 type="button"
-                class="text-[11px] font-semibold text-slate-400 hover:text-indigo-300 cursor-pointer px-2 py-1 rounded-lg hover:bg-slate-800"
+                class="text-[11px] font-semibold text-slate-400 hover:text-primary-300 cursor-pointer px-2 py-1 rounded-lg hover:bg-slate-800"
                 (click)="onEditNote($event)">
                 Adicionar nota
               </button>

@@ -1,6 +1,7 @@
 import { Component, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ChartPoint } from '../../../core/models';
+import { getMediaColor } from '../../../core/theme/media-palette';
 
 const MONTH_LABELS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
@@ -59,14 +60,16 @@ interface PlottedPoint {
 })
 export class StatisticsChartComponent {
   @Input() points: ChartPoint[] = [];
-  @Input() accent: 'indigo' | 'amber' = 'indigo';
+  @Input() accent: 'indigo' | 'amber' | 'manga' | 'book' = 'manga';
   @Input() label = 'Leituras / mês';
 
   readonly gradientId = `stats-fill-${Math.random().toString(36).slice(2, 9)}`;
   readonly gridYs = [20, 60, 100, 140, 180];
 
   get strokeColor(): string {
-    return this.accent === 'indigo' ? 'rgb(99, 102, 241)' : 'rgb(245, 158, 11)';
+    return this.accent === 'amber' || this.accent === 'book'
+      ? getMediaColor('book', 500)
+      : getMediaColor('manga', 500);
   }
 
   maxCount(): number {

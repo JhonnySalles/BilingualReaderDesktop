@@ -25,18 +25,22 @@ export class StatisticsKpiCardComponent {
   @Input({ required: true }) label!: string;
   @Input({ required: true }) value!: string | number;
   @Input() clickable = false;
-  @Input() accent: 'indigo' | 'amber' = 'indigo';
+  @Input() accent: 'indigo' | 'amber' | 'manga' | 'book' = 'manga';
   @Output() pressed = new EventEmitter<void>();
+
+  get isManga(): boolean {
+    return this.accent === 'indigo' || this.accent === 'manga';
+  }
 
   get hostClass(): Record<string, boolean> {
     return {
       'hover:-translate-y-0.5': this.clickable,
-      'manga-kpi-hover': this.clickable && this.accent === 'indigo',
-      'hover:border-amber-400': this.clickable && this.accent === 'amber'
+      'manga-kpi-hover': this.clickable && this.isManga,
+      'book-kpi-hover': this.clickable && !this.isManga
     };
   }
 
   get valueClass(): string {
-    return this.accent === 'indigo' ? 'manga-kpi-value' : 'text-amber-300';
+    return this.isManga ? 'manga-kpi-value' : 'book-kpi-value';
   }
 }

@@ -200,7 +200,7 @@ export class ReaderTouchOverlayComponent implements OnChanges, AfterViewInit, On
 
       let cellClass = 'bg-slate-800/50';
       if (isCenter) cellClass = 'bg-slate-900/40 border-dashed';
-      else if (isCorner) cellClass = 'bg-indigo-500/25';
+      else if (isCorner) cellClass = 'bg-primary-500/25';
 
       return {
         position,

@@ -16,7 +16,7 @@ import {
       <div class="w-full max-w-lg rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl overflow-hidden"
         (click)="$event.stopPropagation()">
         <div class="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
-          <h3 class="text-sm font-bold text-indigo-300">Resumo do trecho</h3>
+          <h3 class="text-sm font-bold text-primary-300">Resumo do trecho</h3>
           <button type="button" (click)="close.emit()" class="p-1.5 rounded-lg text-slate-400 hover:bg-slate-800 cursor-pointer">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -28,7 +28,7 @@ import {
             Usa a seleção atual de contexto ({{ selectedCount }} itens, {{ charCount }} chars).
           </p>
           @if (busy()) {
-            <p class="text-xs text-slate-300 whitespace-pre-wrap min-h-[6rem]">{{ summary() }}<span class="inline-block w-1.5 h-3 ml-0.5 bg-indigo-300 animate-pulse align-middle"></span></p>
+            <p class="text-xs text-slate-300 whitespace-pre-wrap min-h-[6rem]">{{ summary() }}<span class="inline-block w-1.5 h-3 ml-0.5 bg-primary-300 animate-pulse align-middle"></span></p>
           } @else if (summary()) {
             <p class="text-xs text-slate-200 whitespace-pre-wrap max-h-64 overflow-y-auto">{{ summary() }}</p>
           } @else {
@@ -45,7 +45,7 @@ import {
               </button>
             }
             <button type="button" (click)="generate()" [disabled]="busy() || !selectedCount"
-              class="px-3 py-2 rounded-xl text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-500 cursor-pointer disabled:opacity-40">
+              class="px-3 py-2 rounded-xl text-xs font-semibold bg-primary-600 text-white hover:bg-primary-500 cursor-pointer disabled:opacity-40">
               {{ busy() ? 'Gerando…' : 'Gerar resumo' }}
             </button>
           </div>

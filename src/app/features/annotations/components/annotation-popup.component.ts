@@ -63,7 +63,7 @@ import { TeleportToBodyDirective } from '../../../shared/directives/teleport-to-
           #noteInput
           rows="4"
           class="w-full mb-4 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200
-            placeholder:text-slate-500 resize-y focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            placeholder:text-slate-500 resize-y focus:outline-none focus:ring-1 focus:ring-primary-500"
           placeholder="Escreva uma anotação (opcional)…"
           [(ngModel)]="note"
           (keydown)="onTextareaKeydown($event)"></textarea>
@@ -114,7 +114,7 @@ import { TeleportToBodyDirective } from '../../../shared/directives/teleport-to-
             <button
               type="button"
               (click)="confirm()"
-              class="px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 cursor-pointer">
+              class="px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-primary-600 hover:bg-primary-500 cursor-pointer">
               Confirmar
             </button>
           </div>

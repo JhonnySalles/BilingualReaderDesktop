@@ -33,7 +33,7 @@ import { TeleportToBodyDirective } from '../directives/teleport-to-body.directiv
           <!-- Header -->
           <div class="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-900/90">
             <div class="flex items-center gap-3">
-              <div class="p-2.5 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+              <div class="p-2.5 rounded-xl bg-primary-500/10 text-primary-400 border border-primary-500/20">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                 </svg>
@@ -71,7 +71,7 @@ import { TeleportToBodyDirective } from '../directives/teleport-to-body.directiv
                   <button
                     type="button"
                     (click)="onOpenFullConfig()"
-                    class="text-[10px] font-semibold text-indigo-400 hover:text-indigo-300 underline cursor-pointer">
+                    class="text-[10px] font-semibold text-primary-400 hover:text-primary-300 underline cursor-pointer">
                     Editar Configurações
                   </button>
                 }
@@ -84,7 +84,7 @@ import { TeleportToBodyDirective } from '../directives/teleport-to-body.directiv
                     type="text"
                     [(ngModel)]="searchQuery"
                     placeholder="Filtrar rastreadores por título..."
-                    class="w-full pl-8 pr-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-100 placeholder-slate-600 text-xs focus:outline-none focus:border-indigo-500/60" />
+                    class="w-full pl-8 pr-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-100 placeholder-slate-600 text-xs focus:outline-none focus:border-primary-500/60" />
                   <svg class="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                   </svg>
@@ -94,7 +94,7 @@ import { TeleportToBodyDirective } from '../directives/teleport-to-body.directiv
               <select
                 [ngModel]="selectedTrackId()"
                 (ngModelChange)="onTrackSelected($event)"
-                class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 focus:outline-none focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/60 text-xs font-medium cursor-pointer">
+                class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 focus:outline-none focus:border-primary-500/60 focus:ring-1 focus:ring-primary-500/60 text-xs font-medium cursor-pointer">
                 <option [ngValue]="null">-- Nenhum rastreador selecionado --</option>
                 @for (t of filteredTracks(); track t.id) {
                   <option [ngValue]="t.id">
@@ -164,7 +164,7 @@ import { TeleportToBodyDirective } from '../directives/teleport-to-body.directiv
                 <div class="grid grid-cols-2 gap-2.5 pt-1">
                   <!-- Capítulos -->
                   <div class="p-2 rounded-lg bg-slate-900/90 border border-slate-750">
-                    <span class="block text-[10px] font-semibold text-indigo-300 mb-1">Capítulos</span>
+                    <span class="block text-[10px] font-semibold text-manga-300 mb-1">Capítulos</span>
                     <div class="flex items-center gap-1.5">
                       <input
                         type="number"
@@ -180,7 +180,7 @@ import { TeleportToBodyDirective } from '../directives/teleport-to-body.directiv
 
                   <!-- Volumes -->
                   <div class="p-2 rounded-lg bg-slate-900/90 border border-slate-750">
-                    <span class="block text-[10px] font-semibold text-amber-300 mb-1">Volumes</span>
+                    <span class="block text-[10px] font-semibold text-book-300 mb-1">Volumes</span>
                     <div class="flex items-center gap-1.5">
                       <input
                         type="number"
@@ -201,9 +201,9 @@ import { TeleportToBodyDirective } from '../directives/teleport-to-body.directiv
                     type="button"
                     (click)="syncExternalServices()"
                     [disabled]="isSyncing()"
-                    class="w-full py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-750 border border-slate-700 text-indigo-300 hover:text-indigo-200 font-semibold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-50">
+                    class="w-full py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-750 border border-slate-700 text-primary-300 hover:text-primary-200 font-semibold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-50">
                     @if (isSyncing()) {
-                      <div class="w-3.5 h-3.5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin"></div>
+                      <div class="w-3.5 h-3.5 border-2 border-primary-400 border-t-transparent rounded-full animate-spin"></div>
                       <span>Sincronizando com MAL / AniList...</span>
                     } @else {
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -233,7 +233,7 @@ import { TeleportToBodyDirective } from '../directives/teleport-to-body.directiv
             <button
               type="button"
               (click)="onOpenFullConfig()"
-              class="text-xs text-indigo-400 hover:text-indigo-300 underline cursor-pointer">
+              class="text-xs text-primary-400 hover:text-primary-300 underline cursor-pointer">
               Configurações Avançadas
             </button>
 
@@ -248,7 +248,7 @@ import { TeleportToBodyDirective } from '../directives/teleport-to-body.directiv
                 type="button"
                 (click)="onConfirm()"
                 [disabled]="!selectedTrack()"
-                class="px-5 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:pointer-events-none text-white shadow-lg shadow-indigo-600/25 transition-all cursor-pointer">
+                class="px-5 py-2 rounded-xl text-xs font-semibold bg-primary-600 hover:bg-primary-500 disabled:opacity-40 disabled:pointer-events-none text-white shadow-lg shadow-primary-600/25 transition-all cursor-pointer">
                 Confirmar
               </button>
             </div>

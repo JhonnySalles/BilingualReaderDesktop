@@ -43,12 +43,12 @@ export interface DetailChapterItem {
 })
 export class DetailChaptersListComponent {
   @Input() chapters: DetailChapterItem[] = [];
-  @Input() accent: 'primary' | 'indigo' | 'amber' = 'primary';
+  @Input() accent: 'primary' | 'indigo' | 'amber' | 'book' | 'manga' = 'primary';
   @Output() select = new EventEmitter<DetailChapterItem>();
 
   get chapterBorderClass(): string {
-    if (this.accent === 'amber') return 'hover:border-amber-500';
-    if (this.accent === 'indigo') return 'hover:border-indigo-500';
+    if (this.accent === 'amber' || this.accent === 'book') return 'hover:border-book-500';
+    if (this.accent === 'indigo' || this.accent === 'manga') return 'hover:border-manga-500';
     return 'hover:border-primary-500';
   }
 }

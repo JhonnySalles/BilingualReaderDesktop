@@ -410,7 +410,8 @@ function buildSimpleCarouselRows(
             } @else {
               @if (row.groupTitle) {
                 <div class="flex items-center gap-3 my-4 first:mt-1">
-                  <span class="text-sm font-bold text-indigo-400 font-mono bg-indigo-500/10 px-2.5 py-1 rounded-lg border border-indigo-500/20">
+                  <span class="text-sm font-bold font-mono px-2.5 py-1 rounded-lg border"
+                    [ngClass]="type === 'book' ? 'text-book-400 bg-book-500/10 border-book-500/20' : 'text-manga-400 bg-manga-500/10 border-manga-500/20'">
                     {{ row.groupTitle }}
                   </span>
                   <div class="h-px bg-slate-800 flex-1"></div>
@@ -435,7 +436,8 @@ function buildSimpleCarouselRows(
                     [attr.data-flip-id]="'lib-' + getItemKey(item)"
                     [class.opacity-40]="draggedItemKey() === getItemKey(item)"
                     [class.border-2]="dragOverItemKey() === getItemKey(item)"
-                    [class.border-indigo-500]="dragOverItemKey() === getItemKey(item)"
+                    [class.border-manga-500]="dragOverItemKey() === getItemKey(item) && type === 'manga'"
+                    [class.border-book-500]="dragOverItemKey() === getItemKey(item) && type === 'book'"
                     class="cursor-pointer active:cursor-grabbing rounded-xl overflow-hidden">
 
                     @if (type === 'manga') {
@@ -479,7 +481,8 @@ function buildSimpleCarouselRows(
                     (contextmenu)="onContextMenu($event, item)"
                     [class.opacity-40]="draggedItemKey() === getItemKey(item)"
                     [class.border-l-4]="dragOverItemKey() === getItemKey(item)"
-                    [class.border-indigo-500]="dragOverItemKey() === getItemKey(item)"
+                    [class.border-manga-500]="dragOverItemKey() === getItemKey(item) && type === 'manga'"
+                    [class.border-book-500]="dragOverItemKey() === getItemKey(item) && type === 'book'"
                     class="cursor-pointer active:cursor-grabbing transition-all duration-200 rounded-lg animate-fade-in-up">
 
                     @if (type === 'manga') {

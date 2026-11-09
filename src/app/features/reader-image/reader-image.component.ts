@@ -327,7 +327,7 @@ const MAGNIFIER_SQUARE_PX = 250;
 
           <!-- Center Full-Screen Hero Cover Element (Full available size, fully visible) -->
           <div class="relative z-10 flex-1 min-h-0 w-full flex items-center justify-center p-2 sm:p-4 my-auto animate-fade-in">
-            <div class="relative max-h-full max-w-full h-full flex items-center justify-center rounded-2xl overflow-hidden shadow-[0_25px_60px_rgba(0,0,0,0.85)] shadow-indigo-500/10 border border-white/10 bg-slate-900/80 backdrop-blur-sm"
+            <div class="relative max-h-full max-w-full h-full flex items-center justify-center rounded-2xl overflow-hidden shadow-[0_25px_60px_rgba(0,0,0,0.85)] shadow-manga-500/10 border border-white/10 bg-slate-900/80 backdrop-blur-sm"
                  [style.view-transition-name]="'cover-active'">
               @if (coverUrl()) {
                 <img [src]="coverUrl()" [alt]="title()" class="w-auto h-full max-h-[75vh] object-contain rounded-2xl" />
@@ -346,22 +346,22 @@ const MAGNIFIER_SQUARE_PX = 250;
           <div class="relative z-10 w-full max-w-md bg-slate-900/80 backdrop-blur-xl rounded-2xl border border-slate-700/70 p-3.5 sm:p-4 shadow-2xl flex flex-col gap-2.5 mb-2 animate-fade-in">
             <div class="flex justify-between items-center text-xs font-semibold text-slate-300">
               <span class="flex items-center gap-2 truncate">
-                <span class="w-2 h-2 rounded-full bg-indigo-500 animate-pulse shrink-0"></span>
+                <span class="w-2 h-2 rounded-full bg-manga-500 animate-pulse shrink-0"></span>
                 <span class="text-slate-200 truncate">{{ loadingMessage() }}</span>
               </span>
               @if (extractTotal() > 0) {
-                <span class="text-indigo-400 tabular-nums font-mono shrink-0 ml-2">{{ extractPercent() }}%</span>
+                <span class="text-manga-400 tabular-nums font-mono shrink-0 ml-2">{{ extractPercent() }}%</span>
               }
             </div>
             
             <!-- Progress Bar -->
             <div class="h-1.5 w-full bg-slate-800/80 rounded-full overflow-hidden p-0.5 border border-slate-700/30">
               @if (extractTotal() > 0) {
-                <div class="h-full bg-gradient-to-r from-indigo-500 via-indigo-400 to-amber-400 rounded-full transition-all duration-300 ease-out shadow-[0_0_12px_rgba(99,102,241,0.6)]" 
+                <div class="h-full bg-gradient-to-r from-manga-500 to-manga-400 rounded-full transition-all duration-300 ease-out shadow-[0_0_12px_rgba(99,102,241,0.6)]" 
                      [style.width.%]="extractPercent()">
                 </div>
               } @else {
-                <div class="h-full bg-gradient-to-r from-indigo-500 to-indigo-400 rounded-full animate-pulse w-full"></div>
+                <div class="h-full bg-gradient-to-r from-manga-500 to-manga-400 rounded-full animate-pulse w-full"></div>
               }
             </div>
             @if (extractTotal() > 0) {
@@ -501,7 +501,7 @@ const MAGNIFIER_SQUARE_PX = 250;
               <p class="text-[10px] text-slate-400 tabular-nums">
                 {{ pageLabel() }}
                 @if (isShowingLinked(activeReadPage())) {
-                  <span class="ml-1 text-indigo-300 font-semibold">· Tradução</span>
+                  <span class="ml-1 text-manga-300 font-semibold">· Tradução</span>
                 }
               </p>
             </div>
@@ -532,7 +532,7 @@ const MAGNIFIER_SQUARE_PX = 250;
 
             <button type="button" (click)="openPagesLink()"
               class="p-2 rounded-lg transition-colors cursor-pointer"
-              [class.text-indigo-300]="hasFileLink()"
+              [class.text-manga-300]="hasFileLink()"
               [class.text-slate-300]="!hasFileLink()"
               title="Vincular páginas">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -544,7 +544,7 @@ const MAGNIFIER_SQUARE_PX = 250;
             <button type="button" (click)="toggleLinkedPage()"
               class="p-2 rounded-lg transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
               [disabled]="!hasLinkedPage(activeReadPage())"
-              [class.text-indigo-300]="isShowingLinked(activeReadPage())"
+              [class.text-manga-300]="isShowingLinked(activeReadPage())"
               [class.text-slate-300]="!isShowingLinked(activeReadPage())"
               title="Trocar imagem vinculada (L)">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -664,7 +664,7 @@ const MAGNIFIER_SQUARE_PX = 250;
                     <p class="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">Recursos &amp; Painéis</p>
                     <button type="button" (click)="toggleChapters(); touchMenuOpen.set(false)"
                       class="w-full px-3 py-2 text-left text-xs font-medium text-slate-200 hover:bg-slate-800 cursor-pointer flex items-center gap-2.5">
-                      <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg class="w-4 h-4 text-manga-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h10M4 18h10"/>
                       </svg>
                       Capítulos
@@ -678,7 +678,7 @@ const MAGNIFIER_SQUARE_PX = 250;
                     </button>
                     <button type="button" (click)="openAssistant(); touchMenuOpen.set(false)"
                       class="w-full px-3 py-2 text-left text-xs font-medium text-slate-200 hover:bg-slate-800 cursor-pointer flex items-center gap-2.5">
-                      <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg class="w-4 h-4 text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/>
                       </svg>
                       Assistente de Leitura (IA)
@@ -692,7 +692,7 @@ const MAGNIFIER_SQUARE_PX = 250;
                     </button>
                     <button type="button" (click)="toggleSubtitlePanel(); touchMenuOpen.set(false)"
                       class="w-full px-3 py-2 text-left text-xs font-medium text-slate-200 hover:bg-slate-800 cursor-pointer flex items-center gap-2.5">
-                      <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg class="w-4 h-4 text-manga-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h8m-8 4h6M5 4h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z"/>
                       </svg>
                       Legendas
@@ -707,7 +707,7 @@ const MAGNIFIER_SQUARE_PX = 250;
                     </button>
                     <button type="button" (click)="openTracker(); touchMenuOpen.set(false)"
                       class="w-full px-3 py-2 text-left text-xs font-medium text-slate-200 hover:bg-slate-800 cursor-pointer flex items-center gap-2.5">
-                      <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg class="w-4 h-4 text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                       </svg>
                       Rastreamento (MAL / AniList)
@@ -719,7 +719,7 @@ const MAGNIFIER_SQUARE_PX = 250;
                     <p class="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">Páginas &amp; Toque</p>
                     <button type="button" (click)="openPagesLink(); touchMenuOpen.set(false)"
                       class="w-full px-3 py-2 text-left text-xs font-medium text-slate-200 hover:bg-slate-800 cursor-pointer flex items-center gap-2.5">
-                      <svg class="w-4 h-4 text-indigo-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg class="w-4 h-4 text-manga-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
                       </svg>
                       Vincular páginas
@@ -727,7 +727,7 @@ const MAGNIFIER_SQUARE_PX = 250;
                     <button type="button" (click)="toggleLinkedPage(); touchMenuOpen.set(false)"
                       class="w-full px-3 py-2 text-left text-xs font-medium text-slate-200 hover:bg-slate-800 cursor-pointer disabled:opacity-40 flex items-center gap-2.5"
                       [disabled]="!hasLinkedPage(activeReadPage())">
-                      <svg class="w-4 h-4 text-indigo-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg class="w-4 h-4 text-manga-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
                       </svg>
                       Trocar imagem vinculada (L)
@@ -768,7 +768,7 @@ const MAGNIFIER_SQUARE_PX = 250;
               {{ seekBarPage() + 1 }} / {{ pageCount() }}
             </span>
             <button type="button" (click)="toggleChapters()"
-              class="text-[10px] font-semibold text-indigo-300 hover:text-indigo-200 cursor-pointer">
+              class="text-[10px] font-semibold text-manga-300 hover:text-manga-200 cursor-pointer">
               Capítulos
             </button>
           </div>
@@ -845,7 +845,7 @@ const MAGNIFIER_SQUARE_PX = 250;
 
           <button type="button" (click)="openAssistant()"
             class="p-2.5 rounded-xl cursor-pointer hover:bg-slate-800 text-slate-200"
-            [class.text-indigo-300]="showAssistant()"
+            [class.text-primary-300]="showAssistant()"
             title="Assistente de leitura">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -869,7 +869,7 @@ const MAGNIFIER_SQUARE_PX = 250;
           <button type="button" (click)="toggleSubtitlePanel()"
             class="p-2.5 rounded-xl cursor-pointer hover:bg-slate-800"
             [ngClass]="{
-              'text-indigo-300 bg-indigo-600/20': subtitlePanelOpen(),
+              'text-manga-300 bg-manga-600/20': subtitlePanelOpen(),
               'text-slate-200': !subtitlePanelOpen()
             }"
             title="Legendas">
@@ -882,7 +882,7 @@ const MAGNIFIER_SQUARE_PX = 250;
           <button type="button" (click)="openTracker()"
             class="p-2.5 rounded-xl cursor-pointer hover:bg-slate-800 text-slate-200"
             title="Rastreador (MAL / AniList)">
-            <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-5 h-5 text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
             </svg>
           </button>
@@ -934,7 +934,7 @@ const MAGNIFIER_SQUARE_PX = 250;
 
           <button type="button" (click)="openPagesLink()"
             class="p-2.5 rounded-xl cursor-pointer hover:bg-slate-800 transition-colors"
-            [class.text-indigo-300]="hasFileLink()"
+            [class.text-manga-300]="hasFileLink()"
             [class.text-slate-200]="!hasFileLink()"
             title="Vincular páginas">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -972,7 +972,7 @@ const MAGNIFIER_SQUARE_PX = 250;
               @for (ch of chapters(); track ch; let i = $index) {
                 <button type="button"
                   (click)="seekTo(ch, 'start', true); showChapters.set(false)"
-                  class="px-2 py-2 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-indigo-600 text-slate-200 cursor-pointer">
+                  class="px-2 py-2 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-manga-600 text-slate-200 cursor-pointer">
                   {{ chapterLabel(ch, i) }}
                 </button>
               }
@@ -1029,7 +1029,7 @@ const MAGNIFIER_SQUARE_PX = 250;
           <div class="flex items-center justify-between">
             <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Filtros de cor</p>
             <button type="button" (click)="resetColorFilters()"
-              class="text-[10px] font-semibold text-indigo-300 hover:text-indigo-200 cursor-pointer">
+              class="text-[10px] font-semibold text-manga-300 hover:text-manga-200 cursor-pointer">
               Limpar
             </button>
           </div>
@@ -1106,7 +1106,7 @@ const MAGNIFIER_SQUARE_PX = 250;
           <div class="pt-2 border-t border-slate-700">
             <label class="flex items-center justify-between text-xs text-slate-200 cursor-pointer">
               <span>Lupa circular</span>
-              <input type="checkbox" class="w-4 h-4 accent-indigo-600 rounded"
+              <input type="checkbox" class="w-4 h-4 accent-manga-600 rounded"
                 [ngModel]="useCircleMagnifier()"
                 (ngModelChange)="setMagnifierType($event)" />
             </label>
@@ -1144,7 +1144,7 @@ const MAGNIFIER_SQUARE_PX = 250;
                 Cancelar
               </button>
               <button type="button" (click)="confirmSwitchFile()"
-                class="px-3 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer">
+                class="px-3 py-2 rounded-xl text-xs font-semibold bg-manga-600 hover:bg-manga-500 text-white cursor-pointer">
                 Abrir
               </button>
             </div>
@@ -1311,7 +1311,7 @@ const MAGNIFIER_SQUARE_PX = 250;
 
               @for (b of ocrBlocks(); track $index) {
                 <button type="button"
-                  class="w-full text-left rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2 cursor-pointer hover:border-indigo-700/50"
+                  class="w-full text-left rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2 cursor-pointer hover:border-manga-700/50"
                   (click)="openVocabularyFromText(b.text)"
                   title="Buscar vocabulário">
                   <p class="text-[10px] text-slate-600 font-mono mb-1">{{ b.x }},{{ b.y }} {{ b.width }}×{{ b.height }}</p>
@@ -1385,7 +1385,7 @@ const MAGNIFIER_SQUARE_PX = 250;
           [class.is-exiting]="lastPageAnimState() === 'exiting'">
           <div
             (click)="onLastPageClick()"
-            class="relative group flex flex-col items-center p-2 rounded-2xl bg-slate-900/95 backdrop-blur-md border border-slate-700/80 shadow-[0_12px_36px_rgba(15,23,42,0.8),0_0_20px_rgba(99,102,241,0.15)] hover:border-indigo-500/90 hover:shadow-[0_16px_40px_rgba(99,102,241,0.3)] hover:scale-105 transition-all duration-300 cursor-pointer max-w-[7.5rem] sm:max-w-[8.5rem]"
+            class="relative group flex flex-col items-center p-2 rounded-2xl bg-slate-900/95 backdrop-blur-md border border-slate-700/80 shadow-[0_12px_36px_rgba(15,23,42,0.8),0_0_20px_rgba(99,102,241,0.15)] hover:border-manga-500/90 hover:shadow-[0_16px_40px_rgba(99,102,241,0.3)] hover:scale-105 transition-all duration-300 cursor-pointer max-w-[7.5rem] sm:max-w-[8.5rem]"
             [title]="'Retornar para a página ' + (lastPage.page + 1)">
             
             <button
@@ -1408,7 +1408,7 @@ const MAGNIFIER_SQUARE_PX = 250;
               </div>
             }
 
-            <div class="mt-1.5 flex items-center gap-1 text-indigo-300 group-hover:text-indigo-200">
+            <div class="mt-1.5 flex items-center gap-1 text-manga-300 group-hover:text-manga-200">
               <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
               </svg>

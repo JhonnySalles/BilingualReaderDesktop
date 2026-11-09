@@ -181,6 +181,7 @@ import { extractMangaSearchTitle } from '../../core/utils/media-title-cleaner.ut
             @if (bookmarks().length > 0) {
               <div class="pt-6">
                 <app-detail-bookmarks-list
+                  mediaType="manga"
                   [bookmarks]="bookmarks()"
                   (select)="onBookmarkSelect($event)"
                   (delete)="onBookmarkDelete($event)"
@@ -191,6 +192,7 @@ import { extractMangaSearchTitle } from '../../core/utils/media-title-cleaner.ut
             <!-- Chapters List -->
             <div class="pt-6">
               <app-detail-chapters-list
+                accent="manga"
                 [chapters]="chapters()"
                 (select)="onChapter($event)" />
             </div>
@@ -199,7 +201,7 @@ import { extractMangaSearchTitle } from '../../core/utils/media-title-cleaner.ut
       }
 
       <app-library-bookmark-dialog
-        accent="primary"
+        accent="manga"
         type="manga"
         [filePath]="manga()?.path"
         [open]="showBookmark()"

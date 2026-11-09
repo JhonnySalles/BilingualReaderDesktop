@@ -29,7 +29,7 @@ const MENU_WIDTH = 176; // w-44
   template: `
     <!-- UNIFIED CARD TEMPLATE (Smooth morphing between STANDARD and OVERLAY with blur collapse) -->
     <div
-      (click)="open.emit(item)"
+      (click)="onCardClick()"
       class="group relative w-full text-left rounded-xl overflow-hidden border border-slate-700/50 transition-all duration-300 ease-out hover:-translate-y-1 cursor-pointer flex flex-col select-none hover:shadow-xl"
       [ngClass]="[
         cardHoverClass,
@@ -92,7 +92,7 @@ const MENU_WIDTH = 176; // w-44
             (click)="onToggleFavorite($event)"
             [class.opacity-100]="item.favorite"
             [class.opacity-0]="!item.favorite"
-            class="group-hover:opacity-100 transition-all duration-300 p-1.5 rounded-full text-indigo-400 hover:scale-110 border bg-transparent border-transparent shadow-none group-hover:bg-slate-950/80 group-hover:backdrop-blur-md group-hover:border-indigo-500/20 group-hover:shadow-md translate-x-7 group-hover:translate-x-0 cursor-pointer"
+            class="group-hover:opacity-100 transition-all duration-300 p-1.5 rounded-full text-amber-400 hover:scale-110 border bg-transparent border-transparent shadow-none group-hover:bg-slate-950/80 group-hover:backdrop-blur-md group-hover:border-amber-500/20 group-hover:shadow-md translate-x-7 group-hover:translate-x-0 cursor-pointer"
             [title]="item.favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" [class.fill-current]="item.favorite" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
@@ -197,8 +197,8 @@ const MENU_WIDTH = 176; // w-44
         <button
           type="button"
           (click)="onToggleFavorite($event)"
-          class="w-full px-3 py-2 text-left text-slate-300 hover:text-indigo-400 hover:bg-slate-800/80 flex items-center gap-2 transition-colors">
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-400" [class.fill-current]="item.favorite" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          class="w-full px-3 py-2 text-left text-slate-300 hover:text-amber-400 hover:bg-slate-800/80 flex items-center gap-2 transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-amber-400" [class.fill-current]="item.favorite" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
           </svg>
           Favorito
@@ -208,8 +208,8 @@ const MENU_WIDTH = 176; // w-44
         <button
           type="button"
           (click)="onPromptClearHistory($event)"
-          class="w-full px-3 py-2 text-left text-slate-300 hover:text-indigo-400 hover:bg-slate-800/80 flex items-center gap-2 transition-colors">
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          class="w-full px-3 py-2 text-left text-slate-300 hover:text-primary-400 hover:bg-slate-800/80 flex items-center gap-2 transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           Limpar histórico
@@ -235,7 +235,7 @@ const MENU_WIDTH = 176; // w-44
         (click)="$event.stopPropagation()"
         class="fixed inset-0 z-[210] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in">
         <div class="bg-slate-900 border border-slate-700 rounded-2xl p-5 max-w-md w-full shadow-2xl flex flex-col gap-4 text-center">
-          <div class="w-12 h-12 rounded-full bg-indigo-500/10 text-indigo-400 flex items-center justify-center mx-auto border border-indigo-500/20">
+          <div class="w-12 h-12 rounded-full bg-primary-500/10 text-primary-400 flex items-center justify-center mx-auto border border-primary-500/20">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
@@ -250,7 +250,7 @@ const MENU_WIDTH = 176; // w-44
             <button
               type="button"
               (click)="confirmClearHistory($event)"
-              class="px-4 py-2.5 text-xs font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-500 transition-colors shadow-lg shadow-indigo-600/20 w-full cursor-pointer">
+              class="px-4 py-2.5 text-xs font-semibold rounded-lg bg-primary-600 text-white hover:bg-primary-500 transition-colors shadow-lg shadow-primary-600/20 w-full cursor-pointer">
               Limpar histórico
             </button>
             <button
@@ -395,21 +395,21 @@ export class HistoryStatsCardComponent implements OnDestroy {
   get cardHoverClass(): string {
     return this.item.type === 'MANGA'
       ? 'manga-card-hover'
-      : 'hover:border-amber-500/50 hover:shadow-amber-500/10';
+      : 'book-card-hover';
   }
 
   get badgeClass(): string {
     return this.item.type === 'MANGA'
       ? 'manga-badge'
-      : 'text-amber-300 border-amber-500/30';
+      : 'book-badge';
   }
 
   get titleHoverClass(): string {
-    return this.item.type === 'MANGA' ? 'manga-title-hover' : 'group-hover:text-amber-400';
+    return this.item.type === 'MANGA' ? 'manga-title-hover' : 'book-title-hover';
   }
 
   get barClass(): string {
-    return this.item.type === 'MANGA' ? 'manga-progress-bar' : 'bg-gradient-to-r from-amber-500 to-orange-500';
+    return this.item.type === 'MANGA' ? 'manga-progress-bar' : 'book-progress-bar';
   }
 
   progressPercent(): number {
@@ -425,6 +425,15 @@ export class HistoryStatsCardComponent implements OnDestroy {
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return '';
     return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  onCardClick(): void {
+    this.sharedTransition.setActiveItem(
+      this.item.type === 'MANGA' ? 'manga' : 'book',
+      this.item.fkReference,
+      this.instanceId
+    );
+    this.open.emit(this.item);
   }
 
   toggleMenu(event: MouseEvent): void {

@@ -40,7 +40,7 @@ import { AudioStatus } from '../../core/models/enums/tts-enums';
 
           <button
             type="button"
-            class="relative p-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer
+            class="relative p-3 rounded-xl bg-book-600 hover:bg-book-500 text-white cursor-pointer
               disabled:opacity-60 disabled:cursor-wait min-w-[3rem] flex items-center justify-center"
             [title]="status() === AudioStatus.PLAY ? 'Pausar' : 'Reproduzir'"
             [disabled]="status() === AudioStatus.PREPARE"

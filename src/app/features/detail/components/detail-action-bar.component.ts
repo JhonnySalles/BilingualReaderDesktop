@@ -72,7 +72,7 @@ import { CommonModule } from '@angular/common';
   `
 })
 export class DetailActionBarComponent {
-  @Input() accent: 'primary' | 'indigo' | 'amber' = 'primary';
+  @Input() accent: 'primary' | 'indigo' | 'amber' | 'book' | 'manga' = 'primary';
   @Input() isFavorite = false;
   @Input() showAddTag = false;
   @Input() showSyncFile = false;
@@ -90,11 +90,11 @@ export class DetailActionBarComponent {
 
   get favoriteBtnClass(): string {
     if (this.isFavorite) {
-      if (this.accent === 'amber') {
-        return 'bg-amber-600 text-white border-amber-500';
+      if (this.accent === 'amber' || this.accent === 'book') {
+        return 'bg-book-600 text-white border-book-500';
       }
-      if (this.accent === 'indigo') {
-        return 'bg-indigo-600 text-white border-indigo-500';
+      if (this.accent === 'indigo' || this.accent === 'manga') {
+        return 'bg-manga-600 text-white border-manga-500';
       }
       return 'bg-primary-600 text-white border-primary-500';
     }

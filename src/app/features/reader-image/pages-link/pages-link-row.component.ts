@@ -20,7 +20,7 @@ export type PageSlotMenuAction =
     <div
       class="flex items-stretch gap-3 p-3 rounded-2xl bg-slate-900/80 border border-slate-800/80 shadow-lg transition-all"
       [class.ring-2]="dropHighlight"
-      [class.ring-indigo-500]="dropHighlight">
+      [class.ring-manga-500]="dropHighlight">
       
       <!-- Page Index -->
       <div class="flex flex-col items-center justify-center w-8 shrink-0">
@@ -56,7 +56,7 @@ export type PageSlotMenuAction =
       <div
         class="relative flex-1 min-w-0 rounded-xl overflow-hidden border-2 transition-all duration-200 cursor-grab flex items-center justify-center group"
         [ngClass]="[
-          dragOverLeft ? 'border-indigo-400 bg-indigo-950/40 ring-2 ring-indigo-400/50 scale-[1.01]' : '',
+          dragOverLeft ? 'border-manga-400 bg-manga-950/40 ring-2 ring-manga-400/50 scale-[1.01]' : '',
           !dragOverLeft && hasLeft ? 'border-slate-700/80 bg-slate-950' : '',
           !dragOverLeft && !hasLeft ? 'border-dashed border-slate-700 bg-slate-900/40 hover:border-slate-500' : ''
         ]"
@@ -79,7 +79,7 @@ export type PageSlotMenuAction =
             {{ page.fileLinkLeftPage + 1 }}
           </span>
           @if (page.isFileLeftDualPage) {
-            <span class="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-indigo-500 text-white shadow">DUP</span>
+            <span class="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-manga-500 text-white shadow">DUP</span>
           }
         } @else {
           <div class="h-56 sm:h-72 flex flex-col items-center justify-center gap-1 text-xs text-slate-500">
@@ -104,7 +104,7 @@ export type PageSlotMenuAction =
       <div
         class="relative flex-1 min-w-0 rounded-xl overflow-hidden border-2 transition-all duration-200 flex items-center justify-center group"
         [ngClass]="[
-          dragOverRight ? 'border-indigo-400 bg-indigo-950/40 ring-2 ring-indigo-400/50 scale-[1.01]' : '',
+          dragOverRight ? 'border-manga-400 bg-manga-950/40 ring-2 ring-manga-400/50 scale-[1.01]' : '',
           !dragOverRight && hasRight ? 'border-slate-700/80 bg-slate-950 cursor-grab' : '',
           !dragOverRight && !hasRight ? 'border-dashed border-slate-700 bg-slate-900/40 hover:border-slate-500' : ''
         ]"

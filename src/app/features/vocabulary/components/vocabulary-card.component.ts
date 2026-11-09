@@ -16,7 +16,7 @@ import { Vocabulary, VocabularyBook, VocabularyManga } from '../../../core/model
       (click)="open.emit(item)"
       (contextmenu)="onContext($event)">
       <div class="shrink-0 w-10 flex items-start justify-center pt-0.5">
-        <span class="text-xl font-bold text-indigo-200 leading-tight writing-vertical"
+        <span class="text-xl font-bold text-primary-200 leading-tight writing-vertical"
           [style.writing-mode]="'vertical-rl'"
           [style.text-orientation]="'upright'">
           {{ item.word }}
@@ -64,16 +64,16 @@ import { Vocabulary, VocabularyBook, VocabularyManga } from '../../../core/model
                 @if (m.coverPath) {
                   <img [src]="'local-cover:///' + m.coverPath" alt="" class="w-full h-full object-cover" />
                 }
-                <span class="absolute bottom-0 inset-x-0 text-[9px] text-center bg-black/70 text-indigo-200">{{ m.appears }}</span>
+                <span class="absolute bottom-0 inset-x-0 text-[9px] text-center bg-black/70 text-manga-200">{{ m.appears }}</span>
               </div>
             }
             @for (b of relatedBooks; track b.fkBook) {
-              <div class="relative shrink-0 w-9 h-12 rounded-md overflow-hidden border border-amber-900/50 bg-slate-800"
+              <div class="relative shrink-0 w-9 h-12 rounded-md overflow-hidden border border-book-900/50 bg-slate-800"
                 [title]="(b.title || '') + ' · ' + b.appears">
                 @if (b.coverPath) {
                   <img [src]="'local-cover:///' + b.coverPath" alt="" class="w-full h-full object-cover" />
                 }
-                <span class="absolute bottom-0 inset-x-0 text-[9px] text-center bg-black/70 text-amber-200">{{ b.appears }}</span>
+                <span class="absolute bottom-0 inset-x-0 text-[9px] text-center bg-black/70 text-book-200">{{ b.appears }}</span>
               </div>
             }
           </div>
@@ -86,7 +86,7 @@ import { Vocabulary, VocabularyBook, VocabularyManga } from '../../../core/model
               Mangás
             </button>
             <button type="button" (click)="filterBook.emit(item)"
-              class="px-2 py-1 rounded-lg text-[10px] font-semibold bg-amber-950/40 text-amber-300 border border-amber-800/40 hover:bg-amber-900/40 cursor-pointer">
+              class="px-2 py-1 rounded-lg text-[10px] font-semibold book-btn-badge border transition-colors cursor-pointer">
               Livros
             </button>
           </div>

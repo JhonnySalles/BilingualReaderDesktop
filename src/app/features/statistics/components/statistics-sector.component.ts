@@ -17,7 +17,7 @@ import { StatisticsChartComponent } from './statistics-chart.component';
 
       <header class="px-5 py-4 border-b border-slate-800 flex items-center justify-between gap-3">
         <div class="flex items-center gap-3 min-w-0">
-          <span class="text-xl">{{ accent === 'indigo' ? '🎨' : '📚' }}</span>
+          <span class="text-xl">{{ isManga ? '🎨' : '📚' }}</span>
           <div class="min-w-0">
             <h2 class="text-sm font-bold truncate" [ngClass]="titleClass">
               {{ title }}
@@ -172,7 +172,7 @@ import { StatisticsChartComponent } from './statistics-chart.component';
             (click)="openShare.emit({ year: selectedYear, libraryId: selectedLibraryId })"
             class="py-2.5 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 border border-slate-700 transition-all cursor-pointer flex items-center justify-center gap-1.5"
             title="Gerar imagem para Redes Sociais">
-            <svg class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg class="w-4 h-4" [ngClass]="isManga ? 'text-manga-400' : 'text-book-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
             </svg>
             Compartilhar
@@ -191,28 +191,32 @@ export class StatisticsSectorComponent implements OnChanges {
   @Input() libraries: LibraryOption[] = [];
   @Input() selectedYear = new Date().getFullYear();
   @Input() selectedLibraryId: number | null = null;
-  @Input() accent: 'indigo' | 'amber' = 'indigo';
+  @Input() accent: 'indigo' | 'amber' | 'manga' | 'book' = 'manga';
 
   @Output() openHistory = new EventEmitter<{ year: number; libraryId: number | null }>();
   @Output() openShare = new EventEmitter<{ year: number; libraryId: number | null }>();
   @Output() filtersChange = new EventEmitter<{ year: number; libraryId: number | null }>();
+
+  get isManga(): boolean {
+    return this.accent === 'indigo' || this.accent === 'manga';
+  }
 
   get chartTitle(): string {
     return this.type === 'MANGA' ? 'Mangá / Comic leituras / mês' : 'Livro leituras / mês';
   }
 
   get panelBorderClass(): string {
-    return this.accent === 'indigo' ? 'manga-stats-border' : 'border-amber-500';
+    return this.isManga ? 'manga-stats-border' : 'book-stats-border';
   }
 
   get titleClass(): string {
-    return this.accent === 'indigo' ? 'manga-stats-title' : 'text-amber-300';
+    return this.isManga ? 'manga-stats-title' : 'book-stats-title';
   }
 
   get ctaClass(): string {
-    return this.accent === 'indigo'
+    return this.isManga
       ? 'manga-stats-cta'
-      : 'bg-amber-600 hover:bg-amber-500';
+      : 'book-stats-cta';
   }
 
   ngOnChanges(changes: SimpleChanges): void {

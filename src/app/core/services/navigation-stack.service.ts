@@ -56,13 +56,18 @@ export class NavigationStackService {
   }
 
   openDetail(router: Router, type: 'manga' | 'book', id: number | string, initialData?: any, instanceId?: string): void {
-    this.sharedTransition.setActiveItem(type, id, instanceId);
+    if (instanceId || !this.sharedTransition.isActive(id, type)) {
+      this.sharedTransition.setActiveItem(type, id, instanceId);
+    }
     this.pushReturnUrl(router.url);
     void router.navigate(['/detail', type, id], { state: { initialData } });
   }
 
   openReader(router: Router, kind: 'image' | 'text', id: number | string, instanceId?: string): void {
-    this.sharedTransition.setActiveItem(kind === 'image' ? 'manga' : 'book', id, instanceId);
+    const type = kind === 'image' ? 'manga' : 'book';
+    if (instanceId || !this.sharedTransition.isActive(id, type)) {
+      this.sharedTransition.setActiveItem(type, id, instanceId);
+    }
     this.pushReturnUrl(router.url);
     void router.navigate([kind === 'image' ? '/reader-image' : '/reader-text', id]);
   }

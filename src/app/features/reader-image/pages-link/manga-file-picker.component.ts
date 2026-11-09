@@ -29,7 +29,7 @@ import { Manga } from '../../../core/models';
         </button>
         <input
           type="search"
-          class="flex-1 min-w-0 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500"
+          class="flex-1 min-w-0 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-manga-500"
           placeholder="Buscar mangá na biblioteca…"
           [ngModel]="query()"
           (ngModelChange)="query.set($event)"
@@ -47,7 +47,7 @@ import { Manga } from '../../../core/models';
               <button
                 type="button"
                 (click)="select.emit(m)"
-                class="group text-left rounded-xl overflow-hidden border border-slate-800 bg-slate-900/60 hover:border-indigo-500 hover:ring-1 hover:ring-indigo-500/40 cursor-pointer transition-all">
+                class="group text-left rounded-xl overflow-hidden border border-slate-800 bg-slate-900/60 hover:border-manga-500 hover:ring-1 hover:ring-manga-500/40 cursor-pointer transition-all">
                 <div class="aspect-[2/3] bg-slate-950 relative">
                   @if (coverUrl(m)) {
                     <img [src]="coverUrl(m)" [alt]="m.title" class="w-full h-full object-cover" loading="lazy" />

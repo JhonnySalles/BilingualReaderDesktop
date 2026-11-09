@@ -45,7 +45,7 @@ export interface RegexSuggestion {
           <!-- Header -->
           <div class="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-900/90">
             <div class="flex items-center gap-3">
-              <div class="p-2.5 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+              <div class="p-2.5 rounded-xl bg-primary-500/10 text-primary-400 border border-primary-500/20">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                 </svg>
@@ -81,7 +81,7 @@ export interface RegexSuggestion {
               <select
                 [(ngModel)]="selectedLibraryId"
                 (ngModelChange)="onLibraryOrRegexChange()"
-                class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 focus:outline-none focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/60 text-xs font-medium cursor-pointer">
+                class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 focus:outline-none focus:border-primary-500/60 focus:ring-1 focus:ring-primary-500/60 text-xs font-medium cursor-pointer">
                 <option [ngValue]="0" disabled>Selecione uma biblioteca...</option>
                 @for (lib of libraries(); track lib.id) {
                   <option [ngValue]="lib.id">{{ lib.displayName }}</option>
@@ -102,7 +102,7 @@ export interface RegexSuggestion {
                 [(ngModel)]="title"
                 (ngModelChange)="onTitleChange()"
                 placeholder="Ex: One Piece, Solo Leveling, O Senhor dos Anéis..."
-                class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 placeholder-slate-600 focus:outline-none focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/60" />
+                class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 placeholder-slate-600 focus:outline-none focus:border-primary-500/60 focus:ring-1 focus:ring-primary-500/60" />
             </div>
 
             <!-- 3. Regex de Correspondência com Sugestões -->
@@ -124,7 +124,7 @@ export interface RegexSuggestion {
                   <button
                     type="button"
                     (click)="generateDefaultRegex()"
-                    class="text-[10px] font-semibold text-indigo-400 hover:text-indigo-300 underline cursor-pointer">
+                    class="text-[10px] font-semibold text-primary-400 hover:text-primary-300 underline cursor-pointer">
                     Auto-gerar
                   </button>
                 </div>
@@ -137,7 +137,7 @@ export interface RegexSuggestion {
                   (focus)="showSuggestions.set(true)"
                   (ngModelChange)="onLibraryOrRegexChange()"
                   placeholder="Ex: ^One Piece.*"
-                  class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 placeholder-slate-600 focus:outline-none focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/60 font-mono text-[11px]" />
+                  class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 placeholder-slate-600 focus:outline-none focus:border-primary-500/60 focus:ring-1 focus:ring-primary-500/60 font-mono text-[11px]" />
                 
                 @if (titleRegex) {
                   <button
@@ -170,7 +170,7 @@ export interface RegexSuggestion {
                       type="button"
                       (click)="applySuggestion(sug.pattern)"
                       class="w-full px-3.5 py-2 text-left hover:bg-slate-800/80 transition-colors flex flex-col gap-0.5 group cursor-pointer">
-                      <span class="font-mono text-[11px] text-indigo-400 group-hover:text-indigo-300 font-semibold truncate">
+                      <span class="font-mono text-[11px] text-primary-400 group-hover:text-primary-300 font-semibold truncate">
                         {{ sug.pattern }}
                       </span>
                       <span class="text-[10px] text-slate-400 group-hover:text-slate-300">
@@ -199,12 +199,12 @@ export interface RegexSuggestion {
                     type="text"
                     [(ngModel)]="malId"
                     placeholder="Ex: 13 ou clique na lupa"
-                    class="w-full pl-12 pr-10 py-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 placeholder-slate-600 focus:outline-none focus:border-indigo-500/60 font-mono text-xs" />
+                    class="w-full pl-12 pr-10 py-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 placeholder-slate-600 focus:outline-none focus:border-primary-500/60 font-mono text-xs" />
                   <button
                     type="button"
                     (click)="openSearch('myanimelist')"
                     title="Pesquisar no MyAnimeList"
-                    class="absolute right-1.5 p-1.5 rounded-lg text-slate-400 hover:text-indigo-300 hover:bg-slate-800 transition-colors cursor-pointer">
+                    class="absolute right-1.5 p-1.5 rounded-lg text-slate-400 hover:text-primary-300 hover:bg-slate-800 transition-colors cursor-pointer">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                     </svg>
@@ -223,12 +223,12 @@ export interface RegexSuggestion {
                     type="text"
                     [(ngModel)]="aniId"
                     placeholder="Ex: 30013 ou clique na lupa"
-                    class="w-full pl-10 pr-10 py-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 placeholder-slate-600 focus:outline-none focus:border-indigo-500/60 font-mono text-xs" />
+                    class="w-full pl-10 pr-10 py-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 placeholder-slate-600 focus:outline-none focus:border-primary-500/60 font-mono text-xs" />
                   <button
                     type="button"
                     (click)="openSearch('anilist')"
                     title="Pesquisar no AniList"
-                    class="absolute right-1.5 p-1.5 rounded-lg text-slate-400 hover:text-indigo-300 hover:bg-slate-800 transition-colors cursor-pointer">
+                    class="absolute right-1.5 p-1.5 rounded-lg text-slate-400 hover:text-primary-300 hover:bg-slate-800 transition-colors cursor-pointer">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                     </svg>
@@ -245,7 +245,7 @@ export interface RegexSuggestion {
                 </label>
                 <select
                   [(ngModel)]="status"
-                  class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 focus:outline-none focus:border-indigo-500/60 cursor-pointer">
+                  class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 focus:outline-none focus:border-primary-500/60 cursor-pointer">
                   <option value="READING">Lendo (Reading)</option>
                   <option value="COMPLETED">Completo (Completed)</option>
                   <option value="ON_HOLD">Em Espera (On Hold)</option>
@@ -264,7 +264,7 @@ export interface RegexSuggestion {
                   max="10"
                   [(ngModel)]="score"
                   placeholder="Ex: 9.5"
-                  class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 placeholder-slate-600 focus:outline-none focus:border-indigo-500/60" />
+                  class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 placeholder-slate-600 focus:outline-none focus:border-primary-500/60" />
               </div>
             </div>
 
@@ -272,7 +272,7 @@ export interface RegexSuggestion {
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               <!-- Capítulos -->
               <div class="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800 space-y-2">
-                <span class="block text-[11px] font-semibold text-indigo-300">Capítulos</span>
+                <span class="block text-[11px] font-semibold text-primary-300">Capítulos</span>
                 <div class="flex items-center gap-2">
                   <div class="flex-1">
                     <label class="block text-[9px] uppercase font-bold text-slate-500 mb-0.5">Lidos</label>
@@ -328,7 +328,7 @@ export interface RegexSuggestion {
                   <span class="text-[11px] font-bold uppercase tracking-wider text-slate-300">
                     Itens Correspondentes da Biblioteca
                   </span>
-                  <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/15 text-indigo-300 border border-indigo-500/25">
+                  <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary-500/15 text-primary-300 border border-primary-500/25">
                     {{ visibleMatchedItems().length }} {{ visibleMatchedItems().length === 1 ? 'item' : 'itens' }}
                   </span>
                   @if (ignoredItemIds().length > 0) {
@@ -341,7 +341,7 @@ export interface RegexSuggestion {
                   }
                 </div>
                 @if (isLoadingMatches()) {
-                  <span class="text-[10px] text-indigo-400 animate-pulse">Buscando itens…</span>
+                  <span class="text-[10px] text-primary-400 animate-pulse">Buscando itens…</span>
                 }
               </div>
 
@@ -380,7 +380,7 @@ export interface RegexSuggestion {
                             {{ item.title }}
                           </h4>
                           <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-slate-400 mt-0.5">
-                            <span class="px-1.5 py-0.2 rounded bg-slate-900 text-indigo-300 font-mono text-[9px] border border-slate-700 uppercase">
+                            <span class="px-1.5 py-0.2 rounded bg-slate-900 text-primary-300 font-mono text-[9px] border border-slate-700 uppercase">
                               {{ item.fileType || 'MEDIA' }}
                             </span>
                             @if (item.series) {
@@ -406,7 +406,7 @@ export interface RegexSuggestion {
                           </div>
                           <div class="w-full h-1 bg-slate-800 rounded-full overflow-hidden">
                             <div
-                              class="h-full bg-indigo-500 rounded-full"
+                              class="h-full bg-primary-500 rounded-full"
                               [style.width.%]="getProgressPercentage(item)">
                             </div>
                           </div>
@@ -474,7 +474,7 @@ export interface RegexSuggestion {
                 type="button"
                 (click)="onSave()"
                 [disabled]="!title || !selectedLibraryId"
-                class="px-5 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:pointer-events-none text-white shadow-lg shadow-indigo-600/25 transition-all cursor-pointer">
+                class="px-5 py-2 rounded-xl text-xs font-semibold bg-primary-600 hover:bg-primary-500 disabled:opacity-40 disabled:pointer-events-none text-white shadow-lg shadow-primary-600/25 transition-all cursor-pointer">
                 Salvar Rastreador
               </button>
             </div>

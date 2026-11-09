@@ -27,9 +27,9 @@ const MENU_WIDTH = 176; // w-44
   imports: [CommonModule],
   template: `
     <div
-      (click)="open.emit(item)"
+      (click)="onCardClick()"
       class="group bg-slate-800/40 backdrop-blur-md rounded-lg p-2.5 border border-slate-700/40 hover:bg-slate-800/80 transition-all duration-200 cursor-pointer flex items-stretch justify-between gap-4 min-h-[5rem]"
-      [ngClass]="item.type === 'MANGA' ? 'manga-card-hover' : 'hover:border-amber-500/40'">
+      [ngClass]="item.type === 'MANGA' ? 'manga-card-hover' : 'book-card-hover'">
 
       <!-- Thumbnail & Info -->
       <div class="flex items-stretch gap-3 min-w-0 flex-1">
@@ -45,7 +45,7 @@ const MENU_WIDTH = 176; // w-44
             <div class="absolute inset-0 flex items-center justify-center p-1">
               <span
                 class="text-[10px] font-bold uppercase text-center"
-                [ngClass]="item.type === 'MANGA' ? 'text-indigo-400' : 'text-amber-400'">
+                [ngClass]="item.type === 'MANGA' ? 'text-manga-400' : 'text-book-400'">
                 {{ item.type === 'MANGA' ? 'Manga' : 'Livro' }}
               </span>
             </div>
@@ -56,7 +56,7 @@ const MENU_WIDTH = 176; // w-44
           <div class="flex items-center gap-2">
             <h4
               class="text-sm font-medium text-slate-200 truncate transition-colors"
-              [ngClass]="item.type === 'MANGA' ? 'manga-title-hover' : 'group-hover:text-amber-400'"
+              [ngClass]="item.type === 'MANGA' ? 'manga-title-hover' : 'book-title-hover'"
               [title]="item.title"
               [style.view-transition-name]="sharedTransition.getTitleName(item.fkReference, item.type === 'MANGA' ? 'manga' : 'book', instanceId)">
               {{ item.title }}
@@ -69,7 +69,7 @@ const MENU_WIDTH = 176; // w-44
           <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400 mt-1">
             <span
               class="px-1.5 py-0.5 rounded bg-slate-900/80 font-mono text-[10px] border uppercase"
-              [ngClass]="item.type === 'MANGA' ? 'manga-badge' : 'text-amber-300 border-slate-700/60'">
+              [ngClass]="item.type === 'MANGA' ? 'manga-badge' : 'book-badge'">
               {{ item.type === 'MANGA' ? 'Manga' : 'Livro' }}
             </span>
 
@@ -112,7 +112,7 @@ const MENU_WIDTH = 176; // w-44
         <div class="w-full h-1.5 bg-slate-700/60 rounded-full overflow-hidden" [style.view-transition-name]="sharedTransition.getProgressName(item.fkReference, item.type === 'MANGA' ? 'manga' : 'book', instanceId)">
           <div
             class="h-full rounded-full transition-all duration-300"
-            [ngClass]="item.type === 'MANGA' ? 'manga-progress-bar' : 'bg-gradient-to-r from-amber-500 to-orange-500'"
+            [ngClass]="item.type === 'MANGA' ? 'manga-progress-bar' : 'book-progress-bar'"
             [style.width.%]="progressPercent()"></div>
         </div>
       </div>
@@ -149,8 +149,8 @@ const MENU_WIDTH = 176; // w-44
         <button
           type="button"
           (click)="onToggleFavorite($event)"
-          class="w-full px-3 py-2 text-left text-slate-300 hover:text-indigo-400 hover:bg-slate-800/80 flex items-center gap-2 transition-colors">
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-400" [class.fill-current]="item.favorite" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          class="w-full px-3 py-2 text-left text-slate-300 hover:text-amber-400 hover:bg-slate-800/80 flex items-center gap-2 transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-amber-400" [class.fill-current]="item.favorite" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
           </svg>
           Favorito
@@ -160,8 +160,8 @@ const MENU_WIDTH = 176; // w-44
         <button
           type="button"
           (click)="onPromptClearHistory($event)"
-          class="w-full px-3 py-2 text-left text-slate-300 hover:text-indigo-400 hover:bg-slate-800/80 flex items-center gap-2 transition-colors">
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          class="w-full px-3 py-2 text-left text-slate-300 hover:text-primary-400 hover:bg-slate-800/80 flex items-center gap-2 transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           Limpar histórico
@@ -187,7 +187,7 @@ const MENU_WIDTH = 176; // w-44
         (click)="$event.stopPropagation()"
         class="fixed inset-0 z-[210] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in">
         <div class="bg-slate-900 border border-slate-700 rounded-2xl p-5 max-w-md w-full shadow-2xl flex flex-col gap-4 text-center">
-          <div class="w-12 h-12 rounded-full bg-indigo-500/10 text-indigo-400 flex items-center justify-center mx-auto border border-indigo-500/20">
+          <div class="w-12 h-12 rounded-full bg-primary-500/10 text-primary-400 flex items-center justify-center mx-auto border border-primary-500/20">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
@@ -202,7 +202,7 @@ const MENU_WIDTH = 176; // w-44
             <button
               type="button"
               (click)="confirmClearHistory($event)"
-              class="px-4 py-2.5 text-xs font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-500 transition-colors shadow-lg shadow-indigo-600/20 w-full cursor-pointer">
+              class="px-4 py-2.5 text-xs font-semibold rounded-lg bg-primary-600 text-white hover:bg-primary-500 transition-colors shadow-lg shadow-primary-600/20 w-full cursor-pointer">
               Limpar histórico
             </button>
             <button
@@ -354,6 +354,15 @@ export class HistoryStatsListItemComponent implements OnDestroy {
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return '';
     return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  onCardClick(): void {
+    this.sharedTransition.setActiveItem(
+      this.item.type === 'MANGA' ? 'manga' : 'book',
+      this.item.fkReference,
+      this.instanceId
+    );
+    this.open.emit(this.item);
   }
 
   toggleMenu(event: MouseEvent): void {

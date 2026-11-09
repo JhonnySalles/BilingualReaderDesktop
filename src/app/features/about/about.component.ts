@@ -47,7 +47,7 @@ interface OssCredit {
             @for (c of credits; track c.name) {
               <li>
                 <button type="button" (click)="open(c.url)"
-                  class="text-sm text-indigo-300 hover:text-indigo-200 hover:underline cursor-pointer">
+                  class="text-sm text-primary-300 hover:text-primary-200 hover:underline cursor-pointer">
                   {{ c.name }}
                 </button>
               </li>

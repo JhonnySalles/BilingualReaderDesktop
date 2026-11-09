@@ -138,7 +138,7 @@ import { extractBookSearchTitle } from '../../core/utils/media-title-cleaner.uti
                     <span>Pág. {{ book()!.bookMark }} / {{ book()!.pages }} ({{ progress() }}%)</span>
                   </div>
                   <div class="h-1.5 bg-slate-800 rounded-full overflow-hidden" [style.view-transition-name]="'progress-active'">
-                    <div class="h-full bg-gradient-to-r from-amber-500 to-orange-500 rounded-full" [style.width.%]="progress()"></div>
+                    <div class="h-full book-progress-bar rounded-full" [style.width.%]="progress()"></div>
                   </div>
                 </div>
 
@@ -265,6 +265,7 @@ import { extractBookSearchTitle } from '../../core/utils/media-title-cleaner.uti
             @if (bookmarks().length > 0) {
               <div class="pt-6">
                 <app-detail-bookmarks-list
+                  mediaType="book"
                   [bookmarks]="bookmarks()"
                   (select)="onBookmarkSelect($event)"
                   (delete)="onBookmarkDelete($event)"
@@ -276,7 +277,7 @@ import { extractBookSearchTitle } from '../../core/utils/media-title-cleaner.uti
             @if (chapters().length > 0) {
               <div class="pt-6">
                 <app-detail-chapters-list
-                  accent="primary"
+                  accent="book"
                   [chapters]="chapters()"
                   (select)="onChapter($event)" />
               </div>
@@ -286,7 +287,7 @@ import { extractBookSearchTitle } from '../../core/utils/media-title-cleaner.uti
       }
 
       <app-library-bookmark-dialog
-        accent="primary"
+        accent="book"
         type="book"
         [filePath]="book()?.path"
         [open]="showBookmark()"

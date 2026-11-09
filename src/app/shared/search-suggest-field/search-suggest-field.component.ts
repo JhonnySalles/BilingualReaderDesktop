@@ -57,7 +57,7 @@ import { replaceLastAtSegment } from '../../core/utils/library-search.parser';
           autocomplete="off"
           spellcheck="false"
           class="w-full pl-9 pr-8 py-1.5 bg-slate-900/90 border border-slate-800 rounded-xl text-xs text-slate-200
-            placeholder-slate-500 focus:outline-none focus:border-indigo-500/80 focus:ring-1 focus:ring-indigo-500/80
+            placeholder-slate-500 focus:outline-none focus:border-primary-500/80 focus:ring-1 focus:ring-primary-500/80
             transition-all shadow-sm" />
 
         @if (displayValue()) {
@@ -78,7 +78,7 @@ import { replaceLastAtSegment } from '../../core/utils/library-search.parser';
           @for (t of tokens(); track t.index + t.raw) {
             <span
               class="inline-flex items-center gap-1 max-w-full px-2 py-0.5 rounded-lg text-[10px] font-semibold
-                bg-indigo-600/15 text-indigo-300 border border-indigo-500/30">
+                bg-primary-600/15 text-primary-300 border border-primary-500/30">
               <span class="truncate">{{ t.label }}: {{ t.value }}</span>
               <button
                 type="button"
@@ -113,13 +113,13 @@ import { replaceLastAtSegment } from '../../core/utils/library-search.parser';
                 [attr.aria-selected]="i === activeIndex()"
                 (mousedown)="onSuggestionMouseDown($event, s)"
                 class="w-full flex items-center gap-2 px-3 py-2 text-left text-xs transition-colors cursor-pointer hover:bg-slate-800"
-                [ngClass]="i === activeIndex() ? 'bg-indigo-600/15 text-indigo-200' : 'text-slate-200'">
+                [ngClass]="i === activeIndex() ? 'bg-primary-600/15 text-primary-200' : 'text-slate-200'">
                 @if (s.kind === 'type') {
-                  <span class="font-bold text-indigo-400 shrink-0">&#64;</span>
+                  <span class="font-bold text-primary-400 shrink-0">&#64;</span>
                   <span class="truncate font-medium">{{ s.label.replace('@', '') }}</span>
                   <span class="ml-auto text-[10px] uppercase tracking-wider text-slate-500">filtro</span>
                 } @else {
-                  <span class="w-1.5 h-1.5 rounded-full bg-indigo-500/80 shrink-0"></span>
+                  <span class="w-1.5 h-1.5 rounded-full bg-primary-500/80 shrink-0"></span>
                   <span class="truncate font-mono text-[11px]">{{ s.label }}</span>
                 }
               </button>

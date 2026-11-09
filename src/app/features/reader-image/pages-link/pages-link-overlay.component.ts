@@ -46,10 +46,10 @@ import { SettingsService } from '../../../core/services/settings.service';
           </button>
           <div class="min-w-0">
             <div class="flex items-center gap-2">
-              <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-400">Vincular páginas</span>
+              <span class="text-[10px] font-bold uppercase tracking-wider text-manga-400">Vincular páginas</span>
               <span class="text-slate-600 text-xs">•</span>
               <select
-                class="bg-slate-900 border border-slate-700 rounded-md px-1.5 py-0.5 text-[10px] font-medium text-slate-200 cursor-pointer focus:outline-none focus:border-indigo-500"
+                class="bg-slate-900 border border-slate-700 rounded-md px-1.5 py-0.5 text-[10px] font-medium text-slate-200 cursor-pointer focus:outline-none focus:border-manga-500"
                 [ngModel]="language()"
                 (ngModelChange)="onLanguage($event)"
                 title="Idioma do arquivo vinculado">
@@ -66,14 +66,14 @@ import { SettingsService } from '../../../core/services/settings.service';
 
         <!-- Center: Linked File Info -->
         <div class="flex items-center gap-2 min-w-0 max-w-md px-3 py-1.5 rounded-xl bg-slate-900/90 border border-slate-700/80 text-xs text-slate-300 shadow-inner">
-          <svg class="w-4 h-4 text-indigo-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-4 h-4 text-manga-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
           </svg>
           <span class="truncate font-medium flex-1" [title]="linkedFileName() || 'Nenhum arquivo vinculado'">
             {{ linkedFileName() || 'Nenhum arquivo vinculado' }}
           </span>
           @if (engine.linkedFile.pages) {
-            <span class="shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+            <span class="shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-manga-500/20 text-manga-300 border border-manga-500/30">
               {{ engine.linkedFile.pages }} pág.
             </span>
           }
@@ -92,7 +92,7 @@ import { SettingsService } from '../../../core/services/settings.service';
             Novo arquivo
           </button>
           <button type="button" (click)="save()"
-            class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer disabled:opacity-40 shadow-sm transition-colors"
+            class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-manga-600 hover:bg-manga-500 text-white cursor-pointer disabled:opacity-40 shadow-sm transition-colors"
             [disabled]="busy() || !engine.hasLinkedFile">
             Salvar
           </button>
@@ -153,7 +153,7 @@ import { SettingsService } from '../../../core/services/settings.service';
           class="w-72 lg:w-80 shrink-0 border-l border-slate-800 bg-slate-950/60 flex flex-col transition-all duration-200"
           [class.ring-2]="notLinkedDropActive()"
           [class.ring-inset]="notLinkedDropActive()"
-          [class.ring-indigo-500]="notLinkedDropActive()"
+          [class.ring-manga-500]="notLinkedDropActive()"
           [class.bg-slate-900]="notLinkedDropActive()"
           (dragover)="onNotLinkedDragOver($event)"
           (dragleave)="notLinkedDropActive.set(false)"
@@ -177,7 +177,7 @@ import { SettingsService } from '../../../core/services/settings.service';
               <div class="flex flex-wrap gap-2.5">
                 @for (p of pagesNotLink(); track trackNotLinked(p, $index); let i = $index) {
                   <div
-                    class="relative w-20 shrink-0 rounded-lg overflow-hidden border border-slate-700 hover:border-indigo-400/80 bg-slate-950 cursor-grab active:cursor-grabbing transition-all hover:scale-105 shadow-md group"
+                    class="relative w-20 shrink-0 rounded-lg overflow-hidden border border-slate-700 hover:border-manga-400/80 bg-slate-950 cursor-grab active:cursor-grabbing transition-all hover:scale-105 shadow-md group"
                     draggable="true"
                     (dragstart)="onNotLinkedDragStart($event, i, p)">
                     @if (p.imageLeftFileLinkPage) {

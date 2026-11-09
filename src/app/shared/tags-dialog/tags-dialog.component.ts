@@ -76,10 +76,10 @@ import { TeleportToBodyDirective } from '../directives/teleport-to-body.directiv
                     class="w-full bg-slate-950 border border-slate-700/80 rounded-xl pl-7 pr-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1"
                     [class.focus:ring-primary-500]="accent === 'primary'"
                     [class.focus:border-primary-500]="accent === 'primary'"
-                    [class.focus:ring-amber-500]="accent === 'amber'"
-                    [class.focus:border-amber-500]="accent === 'amber'"
-                    [class.focus:ring-indigo-500]="accent === 'indigo'"
-                    [class.focus:border-indigo-500]="accent === 'indigo'" />
+                    [class.focus:ring-book-500]="accent === 'amber' || accent === 'book'"
+                    [class.focus:border-book-500]="accent === 'amber' || accent === 'book'"
+                    [class.focus:ring-manga-500]="accent === 'indigo' || accent === 'manga'"
+                    [class.focus:border-manga-500]="accent === 'indigo' || accent === 'manga'" />
                 </div>
                 <button
                   type="submit"
@@ -226,7 +226,7 @@ export class TagsDialogComponent implements OnChanges {
   @Input() open = false;
   @Input() title = '';
   @Input() initialTags: string[] | string | null | undefined = [];
-  @Input() accent: 'primary' | 'amber' | 'indigo' = 'primary';
+  @Input() accent: 'primary' | 'amber' | 'indigo' | 'manga' | 'book' = 'primary';
 
   @Output() confirm = new EventEmitter<string[]>();
   @Output() cancel = new EventEmitter<void>();
@@ -240,40 +240,40 @@ export class TagsDialogComponent implements OnChanges {
   selectedTagsList = computed(() => Array.from(this.selectedTags()));
 
   get headerBadgeClass(): string {
-    if (this.accent === 'amber') return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
-    if (this.accent === 'indigo') return 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20';
+    if (this.accent === 'amber' || this.accent === 'book') return 'bg-book-500/10 text-book-400 border-book-500/20';
+    if (this.accent === 'indigo' || this.accent === 'manga') return 'bg-manga-500/10 text-manga-400 border-manga-500/20';
     return 'bg-primary-500/10 text-primary-400 border-primary-500/20';
   }
 
   get addBtnClass(): string {
-    if (this.accent === 'amber') return 'bg-amber-600 hover:bg-amber-500 shadow-amber-600/20';
-    if (this.accent === 'indigo') return 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/20';
+    if (this.accent === 'amber' || this.accent === 'book') return 'bg-book-600 hover:bg-book-500 shadow-book-600/20';
+    if (this.accent === 'indigo' || this.accent === 'manga') return 'bg-manga-600 hover:bg-manga-500 shadow-manga-600/20';
     return 'bg-primary-600 hover:bg-primary-500 shadow-primary-600/20';
   }
 
   get tagBadgeClass(): string {
-    if (this.accent === 'amber') return 'bg-amber-950/70 text-amber-300 border-amber-800/60';
-    if (this.accent === 'indigo') return 'bg-indigo-950/70 text-indigo-300 border-indigo-800/60';
+    if (this.accent === 'amber' || this.accent === 'book') return 'bg-book-950/70 text-book-300 border-book-800/60';
+    if (this.accent === 'indigo' || this.accent === 'manga') return 'bg-manga-950/70 text-manga-300 border-manga-800/60';
     return 'bg-primary-950/70 text-primary-300 border-primary-800/60';
   }
 
   tagSelectedCheckboxClass(tagName: string): string {
     if (!this.isTagSelected(tagName)) return 'border-slate-700 bg-slate-900 group-hover:border-slate-500';
-    if (this.accent === 'amber') return 'bg-amber-500 border-amber-500 text-slate-950';
-    if (this.accent === 'indigo') return 'bg-indigo-600 border-indigo-600 text-white';
+    if (this.accent === 'amber' || this.accent === 'book') return 'bg-book-500 border-book-500 text-slate-950';
+    if (this.accent === 'indigo' || this.accent === 'manga') return 'bg-manga-600 border-manga-600 text-white';
     return 'bg-primary-600 border-primary-600 text-white';
   }
 
   tagSelectedTextClass(tagName: string): string {
     if (!this.isTagSelected(tagName)) return 'text-slate-200';
-    if (this.accent === 'amber') return 'text-amber-300';
-    if (this.accent === 'indigo') return 'text-indigo-300';
+    if (this.accent === 'amber' || this.accent === 'book') return 'text-book-300';
+    if (this.accent === 'indigo' || this.accent === 'manga') return 'text-manga-300';
     return 'text-primary-300';
   }
 
   get confirmBtnClass(): string {
-    if (this.accent === 'amber') return 'bg-amber-600 hover:bg-amber-500 shadow-amber-600/25';
-    if (this.accent === 'indigo') return 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/25';
+    if (this.accent === 'amber' || this.accent === 'book') return 'bg-book-600 hover:bg-book-500 shadow-book-600/25';
+    if (this.accent === 'indigo' || this.accent === 'manga') return 'bg-manga-600 hover:bg-manga-500 shadow-manga-600/25';
     return 'bg-primary-600 hover:bg-primary-500 shadow-primary-600/25';
   }
 

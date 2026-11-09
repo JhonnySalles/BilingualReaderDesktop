@@ -38,11 +38,11 @@ import {
         [attr.tabindex]="(canScrollUp() && isVisible()) ? 0 : -1"
         class="w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all duration-200 transform hover:scale-110 active:scale-95 shadow-2xl backdrop-blur-xl border cursor-pointer focus:outline-none group"
         [class.pointer-events-auto]="canScrollUp() && isVisible()"
-        [ngClass]="accent === 'amber'
-          ? 'bg-slate-900/90 text-amber-300 border-slate-700/70 hover:border-amber-500/70 hover:bg-slate-800 hover:text-amber-200 hover:shadow-amber-500/25 active:bg-amber-950/40'
-          : (accent === 'primary'
-              ? 'bg-slate-900/90 border-slate-700/70 hover:bg-slate-800 scroll-edge-primary'
-              : 'bg-slate-900/90 text-indigo-300 border-slate-700/70 hover:border-indigo-500/70 hover:bg-slate-800 hover:text-indigo-200 hover:shadow-indigo-500/25 active:bg-indigo-950/40')"
+        [ngClass]="(accent === 'amber' || accent === 'book')
+          ? 'bg-slate-900/90 text-book-300 border-slate-700/70 hover:border-book-500/70 hover:bg-slate-800 hover:text-book-200 hover:shadow-book-500/25 active:bg-book-950/40'
+          : ((accent === 'indigo' || accent === 'manga')
+              ? 'bg-slate-900/90 text-manga-300 border-slate-700/70 hover:border-manga-500/70 hover:bg-slate-800 hover:text-manga-200 hover:shadow-manga-500/25 active:bg-manga-950/40'
+              : 'bg-slate-900/90 border-slate-700/70 hover:bg-slate-800 scroll-edge-primary')"
         title="Ir para o início (topo)">
         <svg xmlns="http://www.w3.org/2000/svg"
           class="w-5 h-5 transition-transform duration-200"
@@ -70,11 +70,11 @@ import {
         [attr.tabindex]="(canScrollDown() && isVisible()) ? 0 : -1"
         class="w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all duration-200 transform hover:scale-110 active:scale-95 shadow-2xl backdrop-blur-xl border cursor-pointer focus:outline-none group"
         [class.pointer-events-auto]="canScrollDown() && isVisible()"
-        [ngClass]="accent === 'amber'
-          ? 'bg-slate-900/90 text-amber-300 border-slate-700/70 hover:border-amber-500/70 hover:bg-slate-800 hover:text-amber-200 hover:shadow-amber-500/25 active:bg-amber-950/40'
-          : (accent === 'primary'
-              ? 'bg-slate-900/90 border-slate-700/70 hover:bg-slate-800 scroll-edge-primary'
-              : 'bg-slate-900/90 text-indigo-300 border-slate-700/70 hover:border-indigo-500/70 hover:bg-slate-800 hover:text-indigo-200 hover:shadow-indigo-500/25 active:bg-indigo-950/40')"
+        [ngClass]="(accent === 'amber' || accent === 'book')
+          ? 'bg-slate-900/90 text-book-300 border-slate-700/70 hover:border-book-500/70 hover:bg-slate-800 hover:text-book-200 hover:shadow-book-500/25 active:bg-book-950/40'
+          : ((accent === 'indigo' || accent === 'manga')
+              ? 'bg-slate-900/90 text-manga-300 border-slate-700/70 hover:border-manga-500/70 hover:bg-slate-800 hover:text-manga-200 hover:shadow-manga-500/25 active:bg-manga-950/40'
+              : 'bg-slate-900/90 border-slate-700/70 hover:bg-slate-800 scroll-edge-primary')"
         title="Ir para o final (fim)">
         <svg xmlns="http://www.w3.org/2000/svg"
           class="w-5 h-5 transition-transform duration-200"
@@ -90,7 +90,7 @@ export class ScrollEdgesButtonComponent implements AfterViewInit, OnDestroy, OnC
   private elRef = inject(ElementRef);
 
   @Input() target?: HTMLElement | null;
-  @Input() accent: 'indigo' | 'amber' | 'primary' = 'indigo';
+  @Input() accent: 'indigo' | 'amber' | 'primary' | 'manga' | 'book' = 'primary';
   @Input() threshold: number = 200;
   @Input() minScrollDistance: number = 160;
   @Input() topPositionClass: string = 'top-36 left-1/2 -translate-x-1/2';

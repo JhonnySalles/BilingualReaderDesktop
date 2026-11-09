@@ -28,7 +28,7 @@ import { ScrollEdgesButtonComponent } from '../../../shared/scroll-edges-button/
       <header class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div>
           <h1 class="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-7 h-7 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-7 h-7 text-manga-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
             </svg>
             Biblioteca de Mangás
@@ -48,7 +48,7 @@ import { ScrollEdgesButtonComponent } from '../../../shared/scroll-edges-button/
               [ngModel]="libraryService.searchQuery()" 
               (ngModelChange)="libraryService.searchQuery.set($event)"
               placeholder="Pesquisar título, autor..." 
-              class="w-full pl-9 pr-4 py-2 bg-slate-900/80 border border-slate-800 rounded-xl text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500/80 focus:ring-1 focus:ring-indigo-500/80 transition-all" />
+              class="w-full pl-9 pr-4 py-2 bg-slate-900/80 border border-slate-800 rounded-xl text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-manga-500/80 focus:ring-1 focus:ring-manga-500/80 transition-all" />
           </div>
 
           <!-- Options & Filter Button -->
@@ -64,7 +64,7 @@ import { ScrollEdgesButtonComponent } from '../../../shared/scroll-edges-button/
           <button 
             (click)="onScanClick()" 
             [disabled]="libraryService.isScanning()"
-            class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-xl text-sm font-medium transition-all shadow-lg shadow-indigo-600/20 flex items-center gap-2 flex-shrink-0">
+            class="px-4 py-2 bg-manga-600 hover:bg-manga-500 disabled:opacity-50 text-white rounded-xl text-sm font-medium transition-all shadow-lg shadow-manga-600/20 flex items-center gap-2 flex-shrink-0">
             @if (libraryService.isScanning()) {
               <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -137,7 +137,7 @@ import { ScrollEdgesButtonComponent } from '../../../shared/scroll-edges-button/
         <app-library-filter-modal (close)="showModal.set(false)"></app-library-filter-modal>
       }
 
-      <app-scroll-edges-button [target]="mangaScrollContainer" accent="indigo"></app-scroll-edges-button>
+      <app-scroll-edges-button [target]="mangaScrollContainer" accent="manga"></app-scroll-edges-button>
 
     </div>
   `

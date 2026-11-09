@@ -16,7 +16,7 @@ import { TeleportToBodyDirective } from '../../../../shared/directives/teleport-
       (click)="close.emit()">
 
       <div
-        class="bg-slate-900 border border-slate-800 rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl shadow-indigo-950/20 text-slate-200"
+        class="bg-slate-900 border border-slate-800 rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl shadow-primary-950/20 text-slate-200"
         (click)="$event.stopPropagation()">
 
         <!-- Header -->
@@ -24,7 +24,7 @@ import { TeleportToBodyDirective } from '../../../../shared/directives/teleport-
           <h3 class="text-lg font-semibold text-slate-100 flex items-center gap-2">
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              class="w-5 h-5 text-indigo-400"
+              class="w-5 h-5 text-primary-400"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor">
@@ -33,7 +33,7 @@ import { TeleportToBodyDirective } from '../../../../shared/directives/teleport-
             <span>Opções do Histórico</span>
             <span
               class="text-xs px-2 py-0.5 rounded-full font-medium border"
-              [ngClass]="isBook() ? 'bg-amber-500/10 text-amber-300 border-amber-500/30' : 'bg-indigo-500/10 text-indigo-300 border-indigo-500/30'">
+              [ngClass]="isBook() ? 'bg-book-500/10 text-book-300 border-book-500/30' : 'bg-manga-500/10 text-manga-300 border-manga-500/30'">
               {{ isBook() ? 'Livros' : 'Mangás' }}
             </span>
           </h3>
@@ -57,7 +57,7 @@ import { TeleportToBodyDirective } from '../../../../shared/directives/teleport-
                 type="button"
                 (click)="libraryStateService.setCurrentView(viewOpt.value)"
                 [ngClass]="libraryStateService.currentView() === viewOpt.value 
-                  ? 'bg-indigo-600 text-white font-semibold shadow-sm shadow-indigo-600/20'
+                  ? 'bg-primary-600 text-white font-semibold shadow-sm shadow-primary-600/20'
                   : 'bg-slate-800 text-slate-300 hover:border-slate-600'"
                 [class.col-span-2]="viewOpt.value === LibraryViewType.SEPARATOR_LINE"
                 class="flex items-center justify-center gap-1.5 p-2 rounded-xl border border-slate-700/60 text-xs font-medium transition-all text-center cursor-pointer">
@@ -74,7 +74,7 @@ import { TeleportToBodyDirective } from '../../../../shared/directives/teleport-
             <button
               type="button"
               (click)="libraryStateService.toggleSortDirection()"
-              class="text-xs text-indigo-400 flex items-center gap-1 font-medium hover:underline cursor-pointer transition-colors">
+              class="text-xs text-primary-400 flex items-center gap-1 font-medium hover:underline cursor-pointer transition-colors">
               {{ libraryStateService.isAscending() ? 'Crescente ↑' : 'Decrescente ↓' }}
             </button>
           </div>
@@ -84,7 +84,7 @@ import { TeleportToBodyDirective } from '../../../../shared/directives/teleport-
                 type="button"
                 (click)="libraryStateService.setCurrentOrder(order.value)"
                 [ngClass]="libraryStateService.currentOrder() === order.value
-                  ? 'border-indigo-500 bg-indigo-950/70 text-indigo-300 font-semibold'
+                  ? 'border-primary-500 bg-primary-950/70 text-primary-300 font-semibold'
                   : 'border-slate-800 bg-slate-800/50 text-slate-300 hover:border-slate-700'"
                 class="p-2.5 rounded-xl border text-left text-sm font-medium transition-all cursor-pointer">
                 {{ order.label }}
@@ -97,7 +97,7 @@ import { TeleportToBodyDirective } from '../../../../shared/directives/teleport-
         <button
           type="button"
           (click)="close.emit()"
-          class="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-sm transition-all cursor-pointer shadow-lg shadow-indigo-600/20">
+          class="w-full py-2.5 rounded-xl bg-primary-600 hover:bg-primary-500 text-white font-medium text-sm transition-all cursor-pointer shadow-lg shadow-primary-600/20">
           Concluído
         </button>
 

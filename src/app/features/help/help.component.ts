@@ -26,7 +26,7 @@ interface HelpSection {
           <div class="flex flex-wrap gap-2">
             @for (s of sections; track s.id) {
               <button type="button" (click)="scrollTo(s.id)"
-                class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-indigo-600/30 border border-slate-700 text-[11px] text-slate-200 cursor-pointer">
+                class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-primary-600/30 border border-slate-700 text-[11px] text-slate-200 cursor-pointer">
                 {{ s.title }}
               </button>
             }
@@ -35,7 +35,7 @@ interface HelpSection {
 
         @for (s of sections; track s.id) {
           <section [attr.id]="s.id" class="scroll-mt-6 rounded-xl border border-slate-800 bg-slate-900/50 p-5 space-y-3">
-            <h2 class="text-sm font-bold text-indigo-300">{{ s.title }}</h2>
+            <h2 class="text-sm font-bold text-primary-300">{{ s.title }}</h2>
             @for (p of s.body; track $index) {
               <p class="text-sm text-slate-300 leading-relaxed">{{ p }}</p>
             }
@@ -44,7 +44,7 @@ interface HelpSection {
       </div>
 
       <button type="button" (click)="scrollTop()"
-        class="fixed bottom-6 right-8 z-20 px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white shadow-lg cursor-pointer">
+        class="fixed bottom-6 right-8 z-20 px-3 py-2 rounded-xl bg-primary-600 hover:bg-primary-500 text-xs font-semibold text-white shadow-lg cursor-pointer">
         Voltar ao topo
       </button>
     </div>

@@ -25,7 +25,7 @@ import { ConfirmDialogService } from '../../core/services/confirm-dialog.service
                 'bg-rose-500/10 border-rose-500/20 text-rose-400': dialog.icon === 'danger',
                 'bg-amber-500/10 border-amber-500/20 text-amber-400': dialog.icon === 'warning',
                 'bg-sky-500/10 border-sky-500/20 text-sky-400': dialog.icon === 'sync' || dialog.icon === 'info',
-                'bg-indigo-500/10 border-indigo-500/20 text-indigo-400': dialog.icon === 'question' || !dialog.icon
+                'bg-primary-500/10 border-primary-500/20 text-primary-400': dialog.icon === 'question' || !dialog.icon
               }">
               
               @if (dialog.icon === 'danger') {
@@ -77,7 +77,7 @@ import { ConfirmDialogService } from '../../core/services/confirm-dialog.service
               [ngClass]="{
                 'bg-rose-600 hover:bg-rose-500 shadow-rose-600/25': dialog.confirmVariant === 'danger',
                 'bg-amber-600 hover:bg-amber-500 shadow-amber-600/25': dialog.confirmVariant === 'warning' || dialog.confirmVariant === 'amber',
-                'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/25': dialog.confirmVariant === 'primary' || dialog.confirmVariant === 'indigo' || !dialog.confirmVariant
+                'bg-primary-600 hover:bg-primary-500 shadow-primary-600/25': dialog.confirmVariant === 'primary' || dialog.confirmVariant === 'indigo' || !dialog.confirmVariant
               }">
               {{ dialog.confirmText }}
             </button>

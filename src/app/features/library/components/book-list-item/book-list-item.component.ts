@@ -24,7 +24,7 @@ const MENU_WIDTH = 208; // w-52
   standalone: true,
   imports: [CommonModule],
   template: `
-    <div class="group relative bg-slate-800/40 backdrop-blur-md rounded-lg overflow-hidden border border-slate-700/40 hover:border-amber-500/50 hover:bg-slate-800/80 hover:shadow-xl hover:shadow-amber-500/10 transition-all duration-200 cursor-pointer flex items-stretch justify-between gap-3 pr-3">
+    <div data-media="book" class="group relative bg-slate-800/40 backdrop-blur-md rounded-lg overflow-hidden border border-slate-700/40 book-card-hover hover:bg-slate-800/80 transition-all duration-200 cursor-pointer flex items-stretch justify-between gap-3 pr-3">
       
       <!-- Left: Cover (Flush left, scaled up) -->
       <div class="flex items-center gap-2.5 min-w-0 flex-1">
@@ -32,7 +32,7 @@ const MENU_WIDTH = 208; // w-52
           @if (book.coverPath) {
             <img [src]="'local-cover:///' + book.coverPath" [alt]="book.title" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
           } @else {
-            <span class="text-amber-400 font-bold text-[10px] uppercase p-1">
+            <span class="text-book-400 font-bold text-[10px] uppercase p-1">
               {{ book.fileType || 'EPUB' }}
             </span>
           }
@@ -61,11 +61,11 @@ const MENU_WIDTH = 208; // w-52
 
         <!-- Metadata -->
         <div class="min-w-0 flex-1 py-2">
-          <h4 class="text-sm font-medium text-slate-200 truncate group-hover:text-amber-400 transition-colors" [title]="book.title" [style.view-transition-name]="sharedTransition.getTitleName(book.id, 'book', instanceId)">
+          <h4 class="text-sm font-medium text-slate-200 truncate book-title-hover transition-colors" [title]="book.title" [style.view-transition-name]="sharedTransition.getTitleName(book.id, 'book', instanceId)">
             {{ book.title }}
           </h4>
           <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400 mt-1">
-            <span class="px-1.5 py-0.5 rounded bg-slate-900/80 text-amber-300 font-mono text-[10px] border border-slate-700/60 uppercase">
+            <span class="px-1.5 py-0.5 rounded book-badge font-mono text-[10px] uppercase">
               {{ book.fileType || 'EPUB' }}
             </span>
             @if (book.series) {
@@ -94,7 +94,7 @@ const MENU_WIDTH = 208; // w-52
           <span>{{ getProgressPercentage() }}%</span>
         </div>
         <div class="w-full h-1.5 bg-slate-700/60 rounded-full overflow-hidden" [style.view-transition-name]="sharedTransition.getProgressName(book.id, 'book', instanceId)">
-          <div class="h-full bg-gradient-to-r from-amber-500 to-orange-500 rounded-full transition-all duration-300" [style.width.%]="getProgressPercentage()"></div>
+          <div class="h-full book-progress-bar rounded-full transition-all duration-300" [style.width.%]="getProgressPercentage()"></div>
         </div>
       </div>
 
@@ -115,40 +115,40 @@ const MENU_WIDTH = 208; // w-52
         [style.left.px]="menuPos().left">
         <button
           (click)="onOpenLocation($event)"
-          class="w-full px-3 py-2 text-left text-slate-300 hover:text-amber-400 hover:bg-slate-800/80 flex items-center gap-2 transition-colors">
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          class="w-full px-3 py-2 text-left text-slate-300 hover:text-book-400 hover:bg-slate-800/80 flex items-center gap-2 transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-book-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
           </svg>
           Abrir local do arquivo
         </button>
         <button
           (click)="onSetBookmark($event)"
-          class="w-full px-3 py-2 text-left text-slate-300 hover:text-amber-400 hover:bg-slate-800/80 flex items-center gap-2 transition-colors">
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          class="w-full px-3 py-2 text-left text-slate-300 hover:text-book-400 hover:bg-slate-800/80 flex items-center gap-2 transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-book-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
           </svg>
           Marcador
         </button>
         <button
           (click)="onOpenTracker($event)"
-          class="w-full px-3 py-2 text-left text-slate-300 hover:text-amber-400 hover:bg-slate-800/80 flex items-center gap-2 transition-colors">
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          class="w-full px-3 py-2 text-left text-slate-300 hover:text-book-400 hover:bg-slate-800/80 flex items-center gap-2 transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-book-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
           </svg>
           Rastreador
         </button>
         <button
           (click)="onOpenTags($event)"
-          class="w-full px-3 py-2 text-left text-slate-300 hover:text-amber-400 hover:bg-slate-800/80 flex items-center gap-2 transition-colors">
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          class="w-full px-3 py-2 text-left text-slate-300 hover:text-book-400 hover:bg-slate-800/80 flex items-center gap-2 transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-book-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
           </svg>
           Tags
         </button>
         <button
           (click)="onClearProgress($event)"
-          class="w-full px-3 py-2 text-left text-slate-300 hover:text-amber-400 hover:bg-slate-800/80 flex items-center gap-2 transition-colors">
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          class="w-full px-3 py-2 text-left text-slate-300 hover:text-book-400 hover:bg-slate-800/80 flex items-center gap-2 transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-book-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
           Limpar progresso

@@ -31,9 +31,9 @@ import { isBigScroll, smoothScrollHorizontalTo } from '../../../../shared/scroll
             <span
               class="text-xs font-bold font-mono px-2.5 py-1 rounded-lg border flex items-center gap-1.5 shadow-sm truncate"
               [ngClass]="type === 'manga'
-                ? 'manga-badge bg-indigo-500/10'
-                : 'bg-amber-500/10 text-amber-300 border-amber-500/25'">
-              <span class="w-1.5 h-1.5 rounded-full" [ngClass]="type === 'manga' ? 'manga-section-dot' : 'bg-amber-400'"></span>
+                ? 'manga-badge bg-manga-500/10'
+                : 'book-badge bg-book-500/10'">
+              <span class="w-1.5 h-1.5 rounded-full" [ngClass]="type === 'manga' ? 'manga-section-dot' : 'book-section-dot'"></span>
               {{ title }}
             </span>
 
@@ -85,8 +85,8 @@ import { isBigScroll, smoothScrollHorizontalTo } from '../../../../shared/scroll
           [class.opacity-100]="canScrollLeft() && isVisible()"
           class="absolute -left-2 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full flex items-center justify-center shadow-2xl transition-all duration-300 transform hover:scale-110 active:scale-95 backdrop-blur-xl border cursor-pointer focus:outline-none group opacity-0 pointer-events-none"
           [ngClass]="type === 'book'
-            ? 'bg-slate-900/90 text-amber-300 border-slate-700/70 hover:border-amber-500/70 hover:bg-slate-800 hover:text-amber-200 hover:shadow-amber-500/25 active:bg-amber-950/40'
-            : 'bg-slate-900/90 text-indigo-300 border-slate-700/70 hover:border-indigo-500/70 hover:bg-slate-800 hover:text-indigo-200 hover:shadow-indigo-500/25 active:bg-indigo-950/40'"
+            ? 'bg-slate-900/90 text-book-300 border-slate-700/70 hover:border-book-500/70 hover:bg-slate-800 hover:text-book-200 hover:shadow-book-500/25 active:bg-book-950/40'
+            : 'bg-slate-900/90 text-manga-300 border-slate-700/70 hover:border-manga-500/70 hover:bg-slate-800 hover:text-manga-200 hover:shadow-manga-500/25 active:bg-manga-950/40'"
           title="Ir para o início">
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -111,8 +111,8 @@ import { isBigScroll, smoothScrollHorizontalTo } from '../../../../shared/scroll
           [class.opacity-100]="canScrollRight() && isVisible()"
           class="absolute -right-2 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full flex items-center justify-center shadow-2xl transition-all duration-300 transform hover:scale-110 active:scale-95 backdrop-blur-xl border cursor-pointer focus:outline-none group opacity-0 pointer-events-none"
           [ngClass]="type === 'book'
-            ? 'bg-slate-900/90 text-amber-300 border-slate-700/70 hover:border-amber-500/70 hover:bg-slate-800 hover:text-amber-200 hover:shadow-amber-500/25 active:bg-amber-950/40'
-            : 'bg-slate-900/90 text-indigo-300 border-slate-700/70 hover:border-indigo-500/70 hover:bg-slate-800 hover:text-indigo-200 hover:shadow-indigo-500/25 active:bg-indigo-950/40'"
+            ? 'bg-slate-900/90 text-book-300 border-slate-700/70 hover:border-book-500/70 hover:bg-slate-800 hover:text-book-200 hover:shadow-book-500/25 active:bg-book-950/40'
+            : 'bg-slate-900/90 text-manga-300 border-slate-700/70 hover:border-manga-500/70 hover:bg-slate-800 hover:text-manga-200 hover:shadow-manga-500/25 active:bg-manga-950/40'"
           title="Ir para o final">
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -175,7 +175,7 @@ import { isBigScroll, smoothScrollHorizontalTo } from '../../../../shared/scroll
       border-radius: 9999px;
     }
     .custom-horizontal-scrollbar::-webkit-scrollbar-thumb:hover {
-      background: rgba(99, 102, 241, 0.6);
+      background: rgb(var(--manga-500) / 0.6);
     }
   `]
 })

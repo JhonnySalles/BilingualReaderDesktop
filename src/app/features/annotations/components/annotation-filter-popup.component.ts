@@ -34,8 +34,8 @@ import { TeleportToBodyDirective } from '../../../shared/directives/teleport-to-
             <button
               type="button"
               class="flex-1 px-3 py-2.5 text-xs font-semibold transition-colors cursor-pointer border-b-2"
-              [class.border-indigo-500]="activeTab() === tab.id"
-              [class.text-indigo-300]="activeTab() === tab.id"
+              [class.border-primary-500]="activeTab() === tab.id"
+              [class.text-primary-300]="activeTab() === tab.id"
               [class.border-transparent]="activeTab() !== tab.id"
               [class.text-slate-400]="activeTab() !== tab.id"
               [class.hover:text-slate-200]="activeTab() !== tab.id"
@@ -52,7 +52,7 @@ import { TeleportToBodyDirective } from '../../../shared/directives/teleport-to-
                 <label class="flex items-center gap-3 cursor-pointer group">
                   <input
                     type="checkbox"
-                    class="w-4 h-4 accent-indigo-600 rounded"
+                    class="w-4 h-4 accent-primary-600 rounded"
                     [checked]="localMarks().includes(opt.value)"
                     (change)="toggleMark(opt.value)" />
                   <span class="text-sm text-slate-200 group-hover:text-white">{{ opt.label }}</span>
@@ -67,7 +67,7 @@ import { TeleportToBodyDirective } from '../../../shared/directives/teleport-to-
                 <label class="flex items-center gap-3 cursor-pointer group">
                   <input
                     type="checkbox"
-                    class="w-4 h-4 accent-indigo-600 rounded"
+                    class="w-4 h-4 accent-primary-600 rounded"
                     [checked]="localColors().includes(opt.value)"
                     (change)="toggleColor(opt.value)" />
                   <span
@@ -89,7 +89,7 @@ import { TeleportToBodyDirective } from '../../../shared/directives/teleport-to-
                   <label class="flex items-center gap-3 cursor-pointer group px-1 py-1 rounded-lg hover:bg-slate-800/60">
                     <input
                       type="checkbox"
-                      class="w-4 h-4 accent-indigo-600 rounded"
+                      class="w-4 h-4 accent-primary-600 rounded"
                       [checked]="localChapters().includes(ch)"
                       (change)="toggleChapter(ch)" />
                     <span class="text-sm text-slate-200 group-hover:text-white truncate">{{ ch }}</span>
@@ -109,7 +109,7 @@ import { TeleportToBodyDirective } from '../../../shared/directives/teleport-to-
           </button>
           <button
             type="button"
-            class="px-4 py-1.5 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer"
+            class="px-4 py-1.5 rounded-xl text-xs font-semibold bg-primary-600 hover:bg-primary-500 text-white cursor-pointer"
             (click)="apply()">
             Aplicar
           </button>

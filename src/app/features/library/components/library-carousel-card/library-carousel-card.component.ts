@@ -28,11 +28,12 @@ const MENU_WIDTH = 208;
     <div
       [attr.data-flip-id]="'lib-' + (item.id || $any(item).path)"
       class="group relative flex-none bg-slate-900/90 rounded-xl overflow-hidden border transition-all duration-300 flex flex-col select-none cursor-pointer"
+      [attr.data-media]="type"
       [ngClass]="[
         cardSize === 'small' ? 'w-28 sm:w-32' : 'w-36 sm:w-40',
         type === 'manga'
           ? 'border-slate-800/80 manga-card-hover hover:shadow-xl hover:-translate-y-1.5'
-          : 'border-slate-800/80 hover:border-amber-500/60 hover:shadow-xl hover:shadow-amber-500/10 hover:-translate-y-1.5'
+          : 'border-slate-800/80 book-card-hover hover:shadow-xl hover:-translate-y-1.5'
       ]"
       (pointerdown)="onPointerDown($event)"
       (pointerup)="onPointerUp($event)"
@@ -57,8 +58,8 @@ const MENU_WIDTH = 208;
           <div
             class="w-full h-full flex flex-col items-center justify-center p-3 text-center"
             [ngClass]="type === 'manga'
-              ? 'bg-gradient-to-br from-slate-900 via-slate-950 to-indigo-950/40 text-[#818cf8]'
-              : 'bg-gradient-to-br from-slate-900 via-slate-950 to-amber-950/40 text-amber-400'">
+              ? 'bg-gradient-to-br from-slate-900 via-slate-950 to-manga-950/40 text-manga-400'
+              : 'bg-gradient-to-br from-slate-900 via-slate-950 to-book-950/40 text-book-400'">
             <span class="text-3xl mb-1.5">{{ type === 'manga' ? '🎨' : '📚' }}</span>
             <span class="text-[10px] uppercase font-bold tracking-wider opacity-80">{{ item.fileType || (type === 'manga' ? 'MANGA' : 'EPUB') }}</span>
           </div>
@@ -71,7 +72,7 @@ const MENU_WIDTH = 208;
             class="px-1.5 py-0.5 text-[9px] font-bold rounded-md bg-slate-950/85 backdrop-blur-md uppercase tracking-wider border shadow-sm pointer-events-none"
             [ngClass]="type === 'manga'
               ? 'manga-badge'
-              : 'text-amber-300 border-amber-500/30'">
+              : 'book-badge'">
             {{ item.fileType || (type === 'manga' ? 'CBZ' : 'EPUB') }}
           </span>
 
@@ -119,7 +120,7 @@ const MENU_WIDTH = 208;
             class="h-full rounded-r transition-all duration-300"
             [ngClass]="type === 'manga'
               ? 'manga-progress-bar'
-              : 'bg-gradient-to-r from-amber-500 to-orange-500'"
+              : 'book-progress-bar'"
             [style.width.%]="getProgressPercentage()">
           </div>
         </div>
@@ -134,7 +135,7 @@ const MENU_WIDTH = 208;
             <div class="flex items-baseline justify-between gap-1">
               <span
                 class="text-xs font-bold font-mono tracking-tight"
-                [ngClass]="type === 'manga' ? 'text-[#a5b4fc]' : 'text-amber-300'">
+                [ngClass]="type === 'manga' ? 'text-manga-300' : 'text-book-300'">
                 {{ getFormattedVolume() }}
               </span>
               <span class="text-[10px] text-slate-400 font-mono">
@@ -149,7 +150,7 @@ const MENU_WIDTH = 208;
           } @else {
             <h4
               class="text-xs font-semibold text-slate-200 line-clamp-2 leading-tight transition-colors"
-              [ngClass]="type === 'manga' ? 'manga-title-hover' : 'group-hover:text-amber-400'"
+              [ngClass]="type === 'manga' ? 'manga-title-hover' : 'book-title-hover'"
               [style.view-transition-name]="sharedTransition.getTitleName(item.id, type, instanceId)">
               {{ item.title }}
             </h4>
@@ -172,8 +173,8 @@ const MENU_WIDTH = 208;
           <button
             (click)="onOpenLocation($event)"
             class="w-full px-3 py-2 text-left text-slate-300 hover:bg-slate-800/80 flex items-center gap-2 transition-colors"
-            [ngClass]="type === 'manga' ? 'hover:text-[#818cf8]' : 'hover:text-amber-400'">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" [ngClass]="type === 'manga' ? 'text-[#818cf8]' : 'text-amber-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            [ngClass]="type === 'manga' ? 'hover:text-manga-400' : 'hover:text-book-400'">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" [ngClass]="type === 'manga' ? 'text-manga-400' : 'text-book-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
             </svg>
             Abrir local do arquivo
@@ -181,8 +182,8 @@ const MENU_WIDTH = 208;
           <button
             (click)="onSetBookmark($event)"
             class="w-full px-3 py-2 text-left text-slate-300 hover:bg-slate-800/80 flex items-center gap-2 transition-colors"
-            [ngClass]="type === 'manga' ? 'hover:text-[#818cf8]' : 'hover:text-amber-400'">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" [ngClass]="type === 'manga' ? 'text-[#818cf8]' : 'text-amber-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            [ngClass]="type === 'manga' ? 'hover:text-manga-400' : 'hover:text-book-400'">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" [ngClass]="type === 'manga' ? 'text-manga-400' : 'text-book-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
             </svg>
             Marcador
@@ -190,8 +191,8 @@ const MENU_WIDTH = 208;
           <button
             (click)="onOpenTracker($event)"
             class="w-full px-3 py-2 text-left text-slate-300 hover:bg-slate-800/80 flex items-center gap-2 transition-colors"
-            [ngClass]="type === 'manga' ? 'hover:text-[#818cf8]' : 'hover:text-amber-400'">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" [ngClass]="type === 'manga' ? 'text-[#818cf8]' : 'text-amber-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            [ngClass]="type === 'manga' ? 'hover:text-manga-400' : 'hover:text-book-400'">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" [ngClass]="type === 'manga' ? 'text-manga-400' : 'text-book-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
             Rastreador
@@ -199,8 +200,8 @@ const MENU_WIDTH = 208;
           <button
             (click)="onOpenTags($event)"
             class="w-full px-3 py-2 text-left text-slate-300 hover:bg-slate-800/80 flex items-center gap-2 transition-colors"
-            [ngClass]="type === 'manga' ? 'hover:text-[#818cf8]' : 'hover:text-amber-400'">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" [ngClass]="type === 'manga' ? 'text-[#818cf8]' : 'text-amber-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            [ngClass]="type === 'manga' ? 'hover:text-manga-400' : 'hover:text-book-400'">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" [ngClass]="type === 'manga' ? 'text-manga-400' : 'text-book-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
             </svg>
             Tags
@@ -208,8 +209,8 @@ const MENU_WIDTH = 208;
           <button
             (click)="onClearProgress($event)"
             class="w-full px-3 py-2 text-left text-slate-300 hover:bg-slate-800/80 flex items-center gap-2 transition-colors"
-            [ngClass]="type === 'manga' ? 'hover:text-[#818cf8]' : 'hover:text-amber-400'">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" [ngClass]="type === 'manga' ? 'text-[#818cf8]' : 'text-amber-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            [ngClass]="type === 'manga' ? 'hover:text-manga-400' : 'hover:text-book-400'">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" [ngClass]="type === 'manga' ? 'text-manga-400' : 'text-book-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
             Limpar progresso

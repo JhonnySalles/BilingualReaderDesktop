@@ -40,7 +40,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
         <div class="w-64 shrink-0 bg-slate-900/50 border-r border-slate-800 p-4 pt-24 space-y-1">
           <button 
             (click)="activeTab.set('manga')"
-            [class.bg-indigo-600]="activeTab() === 'manga'"
+            [class.bg-primary-600]="activeTab() === 'manga'"
             [class.text-white]="activeTab() === 'manga'"
             [class.text-slate-400]="activeTab() !== 'manga'"
             class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold transition-all cursor-pointer hover:bg-slate-800/60">
@@ -50,7 +50,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
 
           <button 
             (click)="activeTab.set('book')"
-            [class.bg-indigo-600]="activeTab() === 'book'"
+            [class.bg-primary-600]="activeTab() === 'book'"
             [class.text-white]="activeTab() === 'book'"
             [class.text-slate-400]="activeTab() !== 'book'"
             class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold transition-all cursor-pointer hover:bg-slate-800/60">
@@ -60,7 +60,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
 
           <button 
             (click)="activeTab.set('system')"
-            [class.bg-indigo-600]="activeTab() === 'system'"
+            [class.bg-primary-600]="activeTab() === 'system'"
             [class.text-white]="activeTab() === 'system'"
             [class.text-slate-400]="activeTab() !== 'system'"
             class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold transition-all cursor-pointer hover:bg-slate-800/60">
@@ -70,7 +70,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
 
           <button 
             (click)="activeTab.set('ai')"
-            [class.bg-indigo-600]="activeTab() === 'ai'"
+            [class.bg-primary-600]="activeTab() === 'ai'"
             [class.text-white]="activeTab() === 'ai'"
             [class.text-slate-400]="activeTab() !== 'ai'"
             class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold transition-all cursor-pointer hover:bg-slate-800/60">
@@ -80,7 +80,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
 
           <button 
             (click)="activeTab.set('tracker')"
-            [class.bg-indigo-600]="activeTab() === 'tracker'"
+            [class.bg-primary-600]="activeTab() === 'tracker'"
             [class.text-white]="activeTab() === 'tracker'"
             [class.text-slate-400]="activeTab() !== 'tracker'"
             class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold transition-all cursor-pointer hover:bg-slate-800/60">
@@ -96,7 +96,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
           @if (activeTab() === 'manga') {
             <section class="space-y-6">
               <div class="border-b border-slate-800 pb-3">
-                <h2 class="text-lg font-bold text-indigo-400">Configurações de Mangá & Comic (CBZ/CBR)</h2>
+                <h2 class="text-lg font-bold text-manga-400">Configurações de Mangá & Comic (CBZ/CBR)</h2>
                 <p class="text-xs text-slate-400 mt-1">Diretório padrão, gerenciamento de bibliotecas, exibição e leitura</p>
               </div>
 
@@ -109,14 +109,14 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
                     <input type="text" readonly [value]="mangaBasePath()" class="flex-1 bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200">
                     <button 
                       (click)="browseMangaBasePath()"
-                      class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold rounded-lg text-white transition-colors cursor-pointer flex items-center gap-2">
+                      class="px-4 py-2 bg-manga-600 hover:bg-manga-500 text-xs font-semibold rounded-lg text-white transition-colors cursor-pointer flex items-center gap-2">
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
                       Procurar...
                     </button>
                   </div>
                   <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer mt-2">
                     <input type="checkbox"
-                      class="w-4 h-4 accent-indigo-600 rounded"
+                      class="w-4 h-4 accent-manga-600 rounded"
                       [ngModel]="settingsService.mangaBasePathExternalHd()"
                       (ngModelChange)="settingsService.mangaBasePathExternalHd.set($event)">
                     <span>HD Externo</span>
@@ -134,7 +134,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
                   </div>
                   <button 
                     (click)="openAddLibraryModal('manga')"
-                    class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold rounded-lg text-indigo-400 transition-colors cursor-pointer flex items-center gap-1.5">
+                    class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold rounded-lg text-manga-400 transition-colors cursor-pointer flex items-center gap-1.5">
                     <span>+ Adicionar Biblioteca</span>
                   </button>
                 </div>
@@ -143,12 +143,12 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
                   @for (lib of mangaLibraries(); track lib.id) {
                     <div (click)="openEditLibraryModal(lib)" class="flex items-center justify-between bg-slate-950 hover:bg-slate-900/60 transition-colors p-3 rounded-lg border border-slate-800 cursor-pointer group">
                       <div class="flex items-center gap-3">
-                        <div class="w-8 h-8 rounded-lg bg-indigo-600/20 text-indigo-400 flex items-center justify-center font-bold text-sm">
+                        <div class="w-8 h-8 rounded-lg bg-manga-600/20 text-manga-400 flex items-center justify-center font-bold text-sm">
                           🎨
                         </div>
                         <div>
-                          <h4 class="text-xs font-bold text-slate-200 group-hover:text-indigo-400 transition-colors">{{ lib.title }}</h4>
-                          <p class="text-[10px] text-slate-400">{{ lib.path }} • <span class="text-indigo-400">{{ lib.language }}</span></p>
+                          <h4 class="text-xs font-bold text-slate-200 group-hover:text-manga-400 transition-colors">{{ lib.title }}</h4>
+                          <p class="text-[10px] text-slate-400">{{ lib.path }} • <span class="text-manga-400">{{ lib.language }}</span></p>
                         </div>
                       </div>
                       <div class="flex items-center gap-2">
@@ -279,34 +279,34 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
                 <div class="pt-3 border-t border-slate-800/80 space-y-3">
                   <label class="flex items-center justify-between text-xs text-slate-300 cursor-pointer">
                     <span>Exibir Relógio e Indicador de Bateria na Leitura</span>
-                    <input type="checkbox" checked class="w-4 h-4 accent-indigo-600 rounded">
+                    <input type="checkbox" checked class="w-4 h-4 accent-manga-600 rounded">
                   </label>
                   <label class="flex items-center justify-between text-xs text-slate-300 cursor-pointer">
                     <span>Manter Nível de Zoom ao Trocar de Página</span>
-                    <input type="checkbox" checked class="w-4 h-4 accent-indigo-600 rounded">
+                    <input type="checkbox" checked class="w-4 h-4 accent-manga-600 rounded">
                   </label>
                   <label class="flex items-center justify-between text-xs text-slate-300 cursor-pointer">
                     <span>Habilitar Lupa Magnificadora em Balões de Fala</span>
-                    <input type="checkbox" checked class="w-4 h-4 accent-indigo-600 rounded">
+                    <input type="checkbox" checked class="w-4 h-4 accent-manga-600 rounded">
                   </label>
                   <label class="flex items-center justify-between text-xs text-slate-300 cursor-pointer">
                     <span>Extrair e Processar Vocabulário Automaticamente</span>
                     <input type="checkbox"
-                      class="w-4 h-4 accent-indigo-600 rounded"
+                      class="w-4 h-4 accent-manga-600 rounded"
                       [ngModel]="settingsService.mangaProcessVocabulary()"
                       (ngModelChange)="settingsService.mangaProcessVocabulary.set($event)">
                   </label>
                   <label class="flex items-center justify-between text-xs text-slate-300 cursor-pointer">
                     <span>Usar Nome da Pasta para Vincular Capítulos</span>
                     <input type="checkbox"
-                      class="w-4 h-4 accent-indigo-600 rounded"
+                      class="w-4 h-4 accent-manga-600 rounded"
                       [ngModel]="settingsService.mangaUsePagePathForLinked()"
                       (ngModelChange)="settingsService.mangaUsePagePathForLinked.set($event)">
                   </label>
                   <label class="flex items-center justify-between text-xs text-slate-300 cursor-pointer">
                     <span>Calcular Páginas Duplas Vinculadas</span>
                     <input type="checkbox"
-                      class="w-4 h-4 accent-indigo-600 rounded"
+                      class="w-4 h-4 accent-manga-600 rounded"
                       [ngModel]="settingsService.mangaDualPageCalculate()"
                       (ngModelChange)="settingsService.mangaDualPageCalculate.set($event)">
                   </label>
@@ -342,7 +342,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
                         type="button"
                         (click)="startRecalculateBatch('MANGA', false)"
                         [disabled]="recalculating()"
-                        class="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-xs font-semibold text-white transition-colors cursor-pointer flex items-center gap-1.5">
+                        class="px-3 py-2 rounded-xl bg-manga-600 hover:bg-manga-500 disabled:opacity-50 text-xs font-semibold text-white transition-colors cursor-pointer flex items-center gap-1.5">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                         <span>Recalcular Todos</span>
                       </button>
@@ -351,7 +351,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
                         type="button"
                         (click)="startRecalculateBatch('MANGA', true)"
                         [disabled]="recalculating()"
-                        class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-xs font-semibold text-indigo-300 border border-indigo-500/30 transition-colors cursor-pointer flex items-center gap-1.5">
+                        class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-xs font-semibold text-manga-300 border border-manga-500/30 transition-colors cursor-pointer flex items-center gap-1.5">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
                         <span>Calcular Novos</span>
                       </button>
@@ -365,7 +365,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
                 <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Funções de Clique do Leitor</h3>
                 <p class="text-[11px] text-slate-500">Configure as ações das zonas 3×3 (topo, centro e rodapé) usadas no leitor de mangá.</p>
                 <button type="button" (click)="openTouchConfig('manga')"
-                  class="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white transition-colors cursor-pointer inline-flex items-center gap-2">
+                  class="px-4 py-2.5 rounded-xl bg-manga-600 hover:bg-manga-500 text-xs font-semibold text-white transition-colors cursor-pointer inline-flex items-center gap-2">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                       d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"/>
@@ -380,7 +380,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
           @if (activeTab() === 'book') {
             <section class="space-y-6">
               <div class="border-b border-slate-800 pb-3">
-                <h2 class="text-lg font-bold text-indigo-400">Configurações de Livros (EPUB)</h2>
+                <h2 class="text-lg font-bold text-book-400">Configurações de Livros (EPUB)</h2>
                 <p class="text-xs text-slate-400 mt-1">Diretórios, fontes, vozes TTS, Furigana e leitorEPUB</p>
               </div>
 
@@ -393,14 +393,14 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
                     <input type="text" readonly [value]="bookBasePath()" class="flex-1 bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200">
                     <button 
                       (click)="browseBookBasePath()"
-                      class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold rounded-lg text-white transition-colors cursor-pointer flex items-center gap-2">
+                      class="px-4 py-2 bg-book-600 hover:bg-book-500 text-xs font-semibold rounded-lg text-white transition-colors cursor-pointer flex items-center gap-2">
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
                       Procurar...
                     </button>
                   </div>
                   <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer mt-2">
                     <input type="checkbox"
-                      class="w-4 h-4 accent-indigo-600 rounded"
+                      class="w-4 h-4 accent-book-600 rounded"
                       [ngModel]="settingsService.bookBasePathExternalHd()"
                       (ngModelChange)="settingsService.bookBasePathExternalHd.set($event)">
                     <span>HD Externo</span>
@@ -418,7 +418,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
                   </div>
                   <button 
                     (click)="openAddLibraryModal('book')"
-                    class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold rounded-lg text-indigo-400 transition-colors cursor-pointer flex items-center gap-1.5">
+                    class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold rounded-lg text-book-400 transition-colors cursor-pointer flex items-center gap-1.5">
                     <span>+ Adicionar Biblioteca</span>
                   </button>
                 </div>
@@ -427,12 +427,12 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
                   @for (lib of bookLibraries(); track lib.id) {
                     <div (click)="openEditLibraryModal(lib)" class="flex items-center justify-between bg-slate-950 hover:bg-slate-900/60 transition-colors p-3 rounded-lg border border-slate-800 cursor-pointer group">
                       <div class="flex items-center gap-3">
-                        <div class="w-8 h-8 rounded-lg bg-indigo-600/20 text-indigo-400 flex items-center justify-center font-bold text-sm">
+                        <div class="w-8 h-8 rounded-lg bg-book-600/20 text-book-400 flex items-center justify-center font-bold text-sm">
                           📚
                         </div>
                         <div>
-                          <h4 class="text-xs font-bold text-slate-200 group-hover:text-indigo-400 transition-colors">{{ lib.title }}</h4>
-                          <p class="text-[10px] text-slate-400">{{ lib.path }} • <span class="text-indigo-400">{{ lib.language }}</span></p>
+                          <h4 class="text-xs font-bold text-slate-200 group-hover:text-book-400 transition-colors">{{ lib.title }}</h4>
+                          <p class="text-[10px] text-slate-400">{{ lib.path }} • <span class="text-book-400">{{ lib.language }}</span></p>
                         </div>
                       </div>
                       <div class="flex items-center gap-2">
@@ -452,21 +452,21 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
                   <label class="flex items-center justify-between text-xs text-slate-300 cursor-pointer">
                     <span>Processar Texto em Japonês (Sudachi / Kuromoji)</span>
                     <input type="checkbox"
-                      class="w-4 h-4 accent-indigo-600 rounded"
+                      class="w-4 h-4 accent-book-600 rounded"
                       [ngModel]="settingsService.bookProcessJapaneseText()"
                       (ngModelChange)="settingsService.bookProcessJapaneseText.set($event)">
                   </label>
                   <label class="flex items-center justify-between text-xs text-slate-300 cursor-pointer">
                     <span>Exibir Lectura Furigana Acima dos Kanjis</span>
                     <input type="checkbox"
-                      class="w-4 h-4 accent-indigo-600 rounded"
+                      class="w-4 h-4 accent-book-600 rounded"
                       [ngModel]="settingsService.bookGenerateFurigana()"
                       (ngModelChange)="settingsService.bookGenerateFurigana.set($event)">
                   </label>
                   <label class="flex items-center justify-between text-xs text-slate-300 cursor-pointer">
                     <span>Extração Automática de Palavras do Vocabulário</span>
                     <input type="checkbox"
-                      class="w-4 h-4 accent-indigo-600 rounded"
+                      class="w-4 h-4 accent-book-600 rounded"
                       [ngModel]="settingsService.bookProcessVocabulary()"
                       (ngModelChange)="settingsService.bookProcessVocabulary.set($event)">
                   </label>
@@ -478,7 +478,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
                       </span>
                     </span>
                     <input type="checkbox"
-                      class="w-4 h-4 accent-indigo-600 rounded shrink-0"
+                      class="w-4 h-4 accent-book-600 rounded shrink-0"
                       [ngModel]="settingsService.bookFontJapaneseStyle()"
                       (ngModelChange)="settingsService.bookFontJapaneseStyle.set($event)">
                   </label>
@@ -517,7 +517,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
                 <div>
                   <div class="flex justify-between text-xs text-slate-300 mb-1 font-medium">
                     <span>Velocidade de leitura</span>
-                    <span class="text-indigo-400 font-bold tabular-nums">{{ ttsSpeedLabel() }}</span>
+                    <span class="text-book-400 font-bold tabular-nums">{{ ttsSpeedLabel() }}</span>
                   </div>
                   <input
                     type="range"
@@ -526,7 +526,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
                     step="5"
                     [value]="ttsSpeed()"
                     (input)="updateTtsSpeed($event)"
-                    class="w-full accent-indigo-600 cursor-pointer">
+                    class="w-full accent-book-600 cursor-pointer">
                   <div class="flex justify-between text-[10px] text-slate-500 mt-1">
                     <span>−50%</span>
                     <span>0</span>
@@ -591,9 +591,9 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
                 <div>
                   <div class="flex justify-between text-xs text-slate-300 mb-1 font-medium">
                     <span>Tamanho Base da Fonte</span>
-                    <span class="text-indigo-400 font-bold">{{ fontSize() }}px</span>
+                    <span class="text-book-400 font-bold">{{ fontSize() }}px</span>
                   </div>
-                  <input type="range" min="12" max="32" step="1" [value]="fontSize()" (input)="updateFontSize($event)" class="w-full accent-indigo-600 cursor-pointer">
+                  <input type="range" min="12" max="32" step="1" [value]="fontSize()" (input)="updateFontSize($event)" class="w-full accent-book-600 cursor-pointer">
                 </div>
               </div>
 
@@ -628,7 +628,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
                         type="button"
                         (click)="startRecalculateBatch('BOOK', false)"
                         [disabled]="recalculating()"
-                        class="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-xs font-semibold text-white transition-colors cursor-pointer flex items-center gap-1.5">
+                        class="px-3 py-2 rounded-xl bg-book-600 hover:bg-book-500 disabled:opacity-50 text-xs font-semibold text-white transition-colors cursor-pointer flex items-center gap-1.5">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                         <span>Recalcular Todos</span>
                       </button>
@@ -637,7 +637,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
                         type="button"
                         (click)="startRecalculateBatch('BOOK', true)"
                         [disabled]="recalculating()"
-                        class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-xs font-semibold text-indigo-300 border border-indigo-500/30 transition-colors cursor-pointer flex items-center gap-1.5">
+                        class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-xs font-semibold text-book-300 border border-book-500/30 transition-colors cursor-pointer flex items-center gap-1.5">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
                         <span>Calcular Novos</span>
                       </button>
@@ -651,7 +651,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
                 <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Funções de Clique do Leitor</h3>
                 <p class="text-[11px] text-slate-500">Configure as ações das zonas 3×3 usadas no leitor de livros (EPUB).</p>
                 <button type="button" (click)="openTouchConfig('book')"
-                  class="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white transition-colors cursor-pointer inline-flex items-center gap-2">
+                  class="px-4 py-2.5 rounded-xl bg-book-600 hover:bg-book-500 text-xs font-semibold text-white transition-colors cursor-pointer inline-flex items-center gap-2">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                       d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"/>
@@ -666,7 +666,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
           @if (activeTab() === 'system') {
             <section class="space-y-6">
               <div class="border-b border-slate-800 pb-3">
-                <h2 class="text-lg font-bold text-indigo-400">Sistema & Banco de Dados</h2>
+                <h2 class="text-lg font-bold text-primary-400">Sistema & Banco de Dados</h2>
                 <p class="text-xs text-slate-400 mt-1">Gerenciamento visual de temas, SQLite, backup e sincronização</p>
               </div>
 
@@ -679,10 +679,10 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
                   <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     <button 
                       (click)="selectTheme('dark')"
-                      [class.border-indigo-500]="themeMode() === 'dark'"
-                      [class.bg-indigo-950]="themeMode() === 'dark'"
+                      [class.border-primary-500]="themeMode() === 'dark'"
+                      [class.bg-primary-950]="themeMode() === 'dark'"
                       [class.ring-2]="themeMode() === 'dark'"
-                      [class.ring-indigo-500]="themeMode() === 'dark'"
+                      [class.ring-primary-500]="themeMode() === 'dark'"
                       class="p-4 bg-slate-950 rounded-xl border border-slate-800 text-left transition-all cursor-pointer hover:border-slate-700 flex flex-col justify-between min-h-[90px]">
                       <div class="flex items-center gap-2 mb-1">
                         <span class="text-lg">🌙</span>
@@ -693,10 +693,10 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
 
                     <button 
                       (click)="selectTheme('light')"
-                      [class.border-indigo-500]="themeMode() === 'light'"
-                      [class.bg-indigo-950]="themeMode() === 'light'"
+                      [class.border-primary-500]="themeMode() === 'light'"
+                      [class.bg-primary-950]="themeMode() === 'light'"
                       [class.ring-2]="themeMode() === 'light'"
-                      [class.ring-indigo-500]="themeMode() === 'light'"
+                      [class.ring-primary-500]="themeMode() === 'light'"
                       class="p-4 bg-slate-950 rounded-xl border border-slate-800 text-left transition-all cursor-pointer hover:border-slate-700 flex flex-col justify-between min-h-[90px]">
                       <div class="flex items-center gap-2 mb-1">
                         <span class="text-lg">☀️</span>
@@ -707,10 +707,10 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
 
                     <button 
                       (click)="selectTheme('win-mica-dark')"
-                      [class.border-indigo-500]="themeMode() === 'win-mica-dark'"
-                      [class.bg-indigo-950]="themeMode() === 'win-mica-dark'"
+                      [class.border-primary-500]="themeMode() === 'win-mica-dark'"
+                      [class.bg-primary-950]="themeMode() === 'win-mica-dark'"
                       [class.ring-2]="themeMode() === 'win-mica-dark'"
-                      [class.ring-indigo-500]="themeMode() === 'win-mica-dark'"
+                      [class.ring-primary-500]="themeMode() === 'win-mica-dark'"
                       class="p-4 bg-slate-950 rounded-xl border border-slate-800 text-left transition-all cursor-pointer hover:border-slate-700 flex flex-col justify-between min-h-[90px]">
                       <div class="flex items-center gap-2 mb-1">
                         <span class="text-lg">🪟</span>
@@ -721,10 +721,10 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
 
                     <button 
                       (click)="selectTheme('win-mica-light')"
-                      [class.border-indigo-500]="themeMode() === 'win-mica-light'"
-                      [class.bg-indigo-950]="themeMode() === 'win-mica-light'"
+                      [class.border-primary-500]="themeMode() === 'win-mica-light'"
+                      [class.bg-primary-950]="themeMode() === 'win-mica-light'"
                       [class.ring-2]="themeMode() === 'win-mica-light'"
-                      [class.ring-indigo-500]="themeMode() === 'win-mica-light'"
+                      [class.ring-primary-500]="themeMode() === 'win-mica-light'"
                       class="p-4 bg-slate-950 rounded-xl border border-slate-800 text-left transition-all cursor-pointer hover:border-slate-700 flex flex-col justify-between min-h-[90px]">
                       <div class="flex items-center gap-2 mb-1">
                         <span class="text-lg">🪟</span>
@@ -735,10 +735,10 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
 
                     <button 
                       (click)="selectTheme('system')"
-                      [class.border-indigo-500]="themeMode() === 'system'"
-                      [class.bg-indigo-950]="themeMode() === 'system'"
+                      [class.border-primary-500]="themeMode() === 'system'"
+                      [class.bg-primary-950]="themeMode() === 'system'"
                       [class.ring-2]="themeMode() === 'system'"
-                      [class.ring-indigo-500]="themeMode() === 'system'"
+                      [class.ring-primary-500]="themeMode() === 'system'"
                       class="p-4 bg-slate-950 rounded-xl border border-slate-800 text-left transition-all cursor-pointer hover:border-slate-700 flex flex-col justify-between min-h-[90px]">
                       <div class="flex items-center gap-2 mb-1">
                         <span class="text-lg">💻</span>
@@ -841,21 +841,21 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
                   <label class="flex items-center justify-between text-xs text-slate-300 cursor-pointer">
                     <span>Habilitar Efeito Glassmorphism (Desfocagem Transparente)</span>
                     <input type="checkbox"
-                      class="w-4 h-4 accent-indigo-600 rounded"
+                      class="w-4 h-4 accent-primary-600 rounded"
                       [ngModel]="settingsService.themeGlassmorphism()"
                       (ngModelChange)="settingsService.themeGlassmorphism.set($event)">
                   </label>
                   <label class="flex items-center justify-between text-xs text-slate-300 cursor-pointer">
                     <span>Renderizar Capas com Efeito 3D na Prateleira</span>
                     <input type="checkbox"
-                      class="w-4 h-4 accent-indigo-600 rounded"
+                      class="w-4 h-4 accent-primary-600 rounded"
                       [ngModel]="settingsService.theme3DCovers()"
                       (ngModelChange)="settingsService.theme3DCovers.set($event)">
                   </label>
                   <label class="flex items-center justify-between text-xs text-slate-300 cursor-pointer">
                     <span>Exibir Capa 3D nos Detalhes (Livro/Mangá)</span>
                     <input type="checkbox"
-                      class="w-4 h-4 accent-indigo-600 rounded"
+                      class="w-4 h-4 accent-primary-600 rounded"
                       [ngModel]="settingsService.theme3dCoverInDetail()"
                       (ngModelChange)="settingsService.theme3dCoverInDetail.set($event)">
                   </label>
@@ -873,7 +873,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
                     <span>Ativar</span>
                     <input
                       type="checkbox"
-                      class="w-4 h-4 accent-indigo-600 rounded"
+                      class="w-4 h-4 accent-primary-600 rounded"
                       [checked]="shareMark.status().enabled"
                       (change)="onShareMarkEnabled($event)">
                   </label>
@@ -905,7 +905,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
                       <div class="flex gap-2">
                         <button
                           type="button"
-                          class="flex-1 px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-indigo-300 text-left truncate"
+                          class="flex-1 px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-primary-300 text-left truncate"
                           [title]="shareMark.status().email || ''">
                           {{ shareMark.status().email || 'Conta conectada' }}
                         </button>
@@ -921,7 +921,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
                         type="button"
                         (click)="shareMark.signIn()"
                         [disabled]="shareMark.signingIn() || !shareMark.status().oauthConfigured"
-                        class="w-full px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-xs font-semibold rounded-lg text-white transition-colors cursor-pointer flex items-center justify-center gap-2">
+                        class="w-full px-4 py-2 bg-primary-600 hover:bg-primary-500 disabled:opacity-50 text-xs font-semibold rounded-lg text-white transition-colors cursor-pointer flex items-center justify-center gap-2">
                         @if (shareMark.signingIn()) {
                           <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -982,7 +982,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
                 
                 <div class="flex flex-wrap gap-3">
                   <button type="button" (click)="onCreateBackup()"
-                    class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold rounded-lg text-white transition-colors cursor-pointer">
+                    class="px-4 py-2 bg-primary-600 hover:bg-primary-500 text-xs font-semibold rounded-lg text-white transition-colors cursor-pointer">
                     💾 Criar Backup (.db)
                   </button>
                   <button type="button" (click)="onRestoreBackup()"
@@ -1070,7 +1070,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
           @if (activeTab() === 'ai') {
             <section class="space-y-6">
               <div class="border-b border-slate-800 pb-3">
-                <h2 class="text-lg font-bold text-indigo-400">Inteligência Artificial & Tradução</h2>
+                <h2 class="text-lg font-bold text-primary-400">Inteligência Artificial & Tradução</h2>
                 <p class="text-xs text-slate-400 mt-1">
                   OpenRouter (nuvem) ou assistente local via Ollama / LM Studio (API OpenAI-compatible)
                 </p>
@@ -1081,7 +1081,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
                   <span>Ativar Recursos de IA no Leitor</span>
                   <input
                     type="checkbox"
-                    class="w-4 h-4 accent-indigo-600 rounded"
+                    class="w-4 h-4 accent-primary-600 rounded"
                     [ngModel]="settingsService.llmEnabled()"
                     (ngModelChange)="settingsService.llmEnabled.set($event)" />
                 </label>
@@ -1153,7 +1153,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
                   @if (!internalLlmStatus()?.running) {
                     <button type="button" (click)="onStartInternalLlm()"
                       [disabled]="internalLlmLoading() || !internalLlmStatus()?.available"
-                      class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-xs font-semibold rounded-lg text-white transition-colors cursor-pointer flex items-center gap-2 shadow-md shadow-indigo-600/20">
+                      class="px-4 py-2 bg-primary-600 hover:bg-primary-500 disabled:opacity-50 text-xs font-semibold rounded-lg text-white transition-colors cursor-pointer flex items-center gap-2 shadow-md shadow-primary-600/20">
                       @if (internalLlmLoading()) {
                         <svg class="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
                           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -1204,7 +1204,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
                 <div class="space-y-3">
                   @for (m of llmModels(); track m.id) {
                     <div class="p-4 rounded-xl border transition-all"
-                      [ngClass]="activeModelId() === m.id ? 'bg-indigo-950/20 border-indigo-500/50 ring-1 ring-indigo-500/30' : 'bg-slate-950 border-slate-800'">
+                      [ngClass]="activeModelId() === m.id ? 'bg-primary-950/20 border-primary-500/50 ring-1 ring-primary-500/30' : 'bg-slate-950 border-slate-800'">
                       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div class="space-y-1.5 flex-1">
                           <div class="flex items-center gap-2 flex-wrap">
@@ -1234,7 +1234,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
                           } @else if (m.installed) {
                             <div class="flex items-center gap-2">
                               @if (activeModelId() === m.id) {
-                                <span class="px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-indigo-600/20">
+                                <span class="px-3 py-1.5 rounded-lg bg-primary-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-primary-600/20">
                                   <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                                   <span>Modelo Ativo</span>
                                 </span>
@@ -1254,7 +1254,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
                             </div>
                           } @else {
                             <button type="button" (click)="onDownloadModel(m.id)"
-                              class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shadow-md shadow-indigo-600/20">
+                              class="px-3.5 py-1.5 bg-primary-600 hover:bg-primary-500 text-white rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shadow-md shadow-primary-600/20">
                               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                               <span>Baixar Modelo</span>
                             </button>
@@ -1265,11 +1265,11 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
                       @if (m.downloading) {
                         <div class="mt-3 space-y-1.5 pt-2.5 border-t border-slate-800/80">
                           <div class="flex justify-between text-[11px]">
-                            <span class="text-indigo-400 font-medium">Baixando arquivo .gguf... ({{ m.downloadSpeed || 'Calculando velocidade...' }})</span>
+                            <span class="text-primary-400 font-medium">Baixando arquivo .gguf... ({{ m.downloadSpeed || 'Calculando velocidade...' }})</span>
                             <span class="text-slate-200 font-mono font-bold">{{ m.progress }}%</span>
                           </div>
                           <div class="w-full bg-slate-900 rounded-full h-2 overflow-hidden border border-slate-800">
-                            <div class="h-full bg-indigo-500 transition-all duration-300 rounded-full" [style.width.%]="m.progress"></div>
+                            <div class="h-full bg-primary-500 transition-all duration-300 rounded-full" [style.width.%]="m.progress"></div>
                           </div>
                         </div>
                       }
@@ -1347,7 +1347,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
 
                 <div class="pt-2">
                   <button type="button" (click)="onTestAiConnection('openrouter')" [disabled]="aiTesting()"
-                    class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-xs font-semibold rounded-lg text-white transition-colors cursor-pointer">
+                    class="px-4 py-2 bg-primary-600 hover:bg-primary-500 disabled:opacity-50 text-xs font-semibold rounded-lg text-white transition-colors cursor-pointer">
                     {{ aiTesting() ? 'Testando…' : 'Testar conexão OpenRouter' }}
                   </button>
                 </div>
@@ -1394,7 +1394,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
 
                 <div class="flex flex-wrap gap-2">
                   <button type="button" (click)="onTestLocalConnection()" [disabled]="localTesting()"
-                    class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-xs font-semibold rounded-lg text-white transition-colors cursor-pointer">
+                    class="px-4 py-2 bg-primary-600 hover:bg-primary-500 disabled:opacity-50 text-xs font-semibold rounded-lg text-white transition-colors cursor-pointer">
                     {{ localTesting() ? 'Testando…' : 'Testar conexão' }}
                   </button>
                   <button type="button" (click)="onRefreshLocalModels()" [disabled]="localModelsLoading()"
@@ -1483,7 +1483,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
                     min="0"
                     max="100"
                     step="5"
-                    class="w-full accent-indigo-600"
+                    class="w-full accent-primary-600"
                     [ngModel]="settingsService.llmTemperature()"
                     (ngModelChange)="settingsService.llmTemperature.set(+$event)" />
                 </div>
@@ -1492,7 +1492,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
                   <span>Traduzir automaticamente após OCR</span>
                   <input
                     type="checkbox"
-                    class="w-4 h-4 accent-indigo-600 rounded"
+                    class="w-4 h-4 accent-primary-600 rounded"
                     [ngModel]="settingsService.ocrAutoTranslate()"
                     (ngModelChange)="settingsService.ocrAutoTranslate.set($event)" />
                 </label>
@@ -1501,7 +1501,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
                   <span>Interpretar automaticamente após OCR</span>
                   <input
                     type="checkbox"
-                    class="w-4 h-4 accent-indigo-600 rounded"
+                    class="w-4 h-4 accent-primary-600 rounded"
                     [ngModel]="settingsService.ocrAutoInterpret()"
                     (ngModelChange)="settingsService.ocrAutoInterpret.set($event)" />
                 </label>
@@ -1513,7 +1513,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
           @if (activeTab() === 'tracker') {
             <section class="space-y-6">
               <div class="border-b border-slate-800 pb-3">
-                <h2 class="text-lg font-bold text-indigo-400">Rastreadores & Sincronização Externa</h2>
+                <h2 class="text-lg font-bold text-primary-400">Rastreadores & Sincronização Externa</h2>
                 <p class="text-xs text-slate-400 mt-1">
                   Gerencie contas, credenciais de acesso e sincronização de progresso com MyAnimeList e AniList
                 </p>
@@ -1559,7 +1559,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
                     <div class="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800/80 space-y-2 text-xs">
                       <div class="flex items-center justify-between text-[11px]">
                         <span class="text-slate-400 font-medium">Usuário Conectado:</span>
-                        <span class="font-semibold" [class.text-indigo-300]="malStatus().connected" [class.text-slate-500]="!malStatus().connected">
+                        <span class="font-semibold" [class.text-primary-300]="malStatus().connected" [class.text-slate-500]="!malStatus().connected">
                           {{ malStatus().username || 'Nenhum' }}
                         </span>
                       </div>
@@ -1579,11 +1579,11 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
                     <div class="pt-1 space-y-2.5 text-xs text-slate-300">
                       <label class="flex items-center justify-between cursor-pointer">
                         <span class="text-[11px]">Sincronizar ao terminar leitura de capítulo</span>
-                        <input type="checkbox" checked class="w-4 h-4 accent-indigo-600 rounded">
+                        <input type="checkbox" checked class="w-4 h-4 accent-primary-600 rounded">
                       </label>
                       <label class="flex items-center justify-between cursor-pointer">
                         <span class="text-[11px]">Atualizar pontuação (score) no MAL</span>
-                        <input type="checkbox" checked class="w-4 h-4 accent-indigo-600 rounded">
+                        <input type="checkbox" checked class="w-4 h-4 accent-primary-600 rounded">
                       </label>
                     </div>
                   </div>
@@ -1600,7 +1600,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
                       <button
                         type="button"
                         (click)="onSyncMal()"
-                        class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shadow-md shadow-indigo-600/20">
+                        class="px-4 py-2 rounded-xl bg-primary-600 hover:bg-primary-500 text-white text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shadow-md shadow-primary-600/20">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                         <span>Sincronizar Agora</span>
                       </button>
@@ -1673,11 +1673,11 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
                     <div class="pt-1 space-y-2.5 text-xs text-slate-300">
                       <label class="flex items-center justify-between cursor-pointer">
                         <span class="text-[11px]">Sincronizar ao terminar leitura de capítulo</span>
-                        <input type="checkbox" checked class="w-4 h-4 accent-indigo-600 rounded">
+                        <input type="checkbox" checked class="w-4 h-4 accent-primary-600 rounded">
                       </label>
                       <label class="flex items-center justify-between cursor-pointer">
                         <span class="text-[11px]">Atualizar formato de notas avançado (AniList)</span>
-                        <input type="checkbox" checked class="w-4 h-4 accent-indigo-600 rounded">
+                        <input type="checkbox" checked class="w-4 h-4 accent-primary-600 rounded">
                       </label>
                     </div>
                   </div>
@@ -1694,7 +1694,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
                       <button
                         type="button"
                         (click)="onSyncAniList()"
-                        class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shadow-md shadow-indigo-600/20">
+                        class="px-4 py-2 rounded-xl bg-primary-600 hover:bg-primary-500 text-white text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shadow-md shadow-primary-600/20">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                         <span>Sincronizar Agora</span>
                       </button>
@@ -1736,11 +1736,11 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
                 <div class="pt-3 border-t border-slate-800/80 space-y-3">
                   <label class="flex items-center justify-between text-xs text-slate-300 cursor-pointer">
                     <span>Exibir notificações no aplicativo ao sincronizar status</span>
-                    <input type="checkbox" checked class="w-4 h-4 accent-indigo-600 rounded">
+                    <input type="checkbox" checked class="w-4 h-4 accent-primary-600 rounded">
                   </label>
                   <label class="flex items-center justify-between text-xs text-slate-300 cursor-pointer">
                     <span>Rastrear capítulos lidos em modo offline e sincronizar ao reconectar</span>
-                    <input type="checkbox" checked class="w-4 h-4 accent-indigo-600 rounded">
+                    <input type="checkbox" checked class="w-4 h-4 accent-primary-600 rounded">
                   </label>
                 </div>
               </div>
@@ -1807,7 +1807,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
                     class="flex-1 bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200">
                   <button 
                     (click)="browseModalLibraryPath()"
-                    class="px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold rounded-lg text-white transition-colors cursor-pointer flex items-center gap-1.5">
+                    class="px-3 py-2 bg-primary-600 hover:bg-primary-500 text-xs font-semibold rounded-lg text-white transition-colors cursor-pointer flex items-center gap-1.5">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
                     Procurar
                   </button>
@@ -1817,7 +1817,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
               <div>
                 <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
                   <input type="checkbox"
-                    class="w-4 h-4 accent-indigo-600 rounded"
+                    class="w-4 h-4 accent-primary-600 rounded"
                     [(ngModel)]="libraryForm.externalHd">
                   <span>HD Externo</span>
                   <span class="text-[10px] text-slate-500">(protege contra exclusão quando desconectado)</span>
@@ -1833,7 +1833,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
               </button>
               <button 
                 (click)="saveLibrary()" 
-                class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold rounded-lg text-white transition-colors cursor-pointer">
+                class="px-4 py-2 bg-primary-600 hover:bg-primary-500 text-xs font-semibold rounded-lg text-white transition-colors cursor-pointer">
                 Salvar Biblioteca
               </button>
             </div>
@@ -1851,7 +1851,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
       @if (recalculating()) {
         <div appTeleportToBody class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
           <div class="w-full max-w-sm rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl p-6 flex flex-col items-center text-center space-y-4">
-            <div class="w-12 h-12 rounded-full bg-indigo-600/20 text-indigo-400 flex items-center justify-center">
+            <div class="w-12 h-12 rounded-full bg-primary-600/20 text-primary-400 flex items-center justify-center">
               <svg class="w-6 h-6 animate-spin" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -1863,7 +1863,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
             </div>
             <div class="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-800">
               <div
-                class="h-full bg-indigo-600 transition-all duration-200"
+                class="h-full bg-primary-600 transition-all duration-200"
                 [style.width.%]="recalculatePercent()"></div>
             </div>
             <p class="text-[11px] text-slate-500 font-medium">

@@ -22,7 +22,7 @@ const MONTH_LABELS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'S
     <div class="rounded-2xl bg-slate-900/80 border border-slate-800 p-5 space-y-4">
       <div class="flex items-center justify-between gap-3 flex-wrap">
         <h3 class="text-sm font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
-          <span class="w-2 h-2 rounded-full bg-indigo-500"></span>
+          <span class="w-2 h-2 rounded-full bg-primary-500"></span>
           Atividade de leitura
         </h3>
         <div class="flex items-center gap-1.5 text-[10px] text-slate-500">
@@ -91,10 +91,10 @@ export class HomeReadingHeatmapComponent implements OnChanges {
 
   levelClass(level: number): string {
     switch (level) {
-      case 1: return 'bg-indigo-900/80';
-      case 2: return 'bg-indigo-700/80';
-      case 3: return 'bg-indigo-500/90';
-      case 4: return 'bg-indigo-400';
+      case 1: return 'bg-primary-900/80';
+      case 2: return 'bg-primary-700/80';
+      case 3: return 'bg-primary-500/90';
+      case 4: return 'bg-primary-400';
       default: return 'bg-slate-800';
     }
   }

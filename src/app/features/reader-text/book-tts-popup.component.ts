@@ -46,14 +46,14 @@ import {
           <div>
             <div class="flex justify-between text-xs text-slate-300 mb-1.5 font-medium">
               <span>Velocidade</span>
-              <span class="text-indigo-400 font-bold tabular-nums">{{ speedLabel() }}</span>
+              <span class="text-book-400 font-bold tabular-nums">{{ speedLabel() }}</span>
             </div>
             <input
               type="range"
               min="-50"
               max="50"
               step="5"
-              class="w-full accent-indigo-600 cursor-pointer"
+              class="w-full accent-book-600 cursor-pointer"
               [ngModel]="draftSpeed()"
               (ngModelChange)="draftSpeed.set(+$event)" />
             <div class="flex justify-between text-[10px] text-slate-500 mt-1">
@@ -70,7 +70,7 @@ import {
               Cancelar
             </button>
             <button type="button"
-              class="px-3 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer"
+              class="px-3 py-2 rounded-xl text-xs font-semibold bg-book-600 hover:bg-book-500 text-white cursor-pointer"
               (click)="apply.emit({ voice: draftVoice(), speed: draftSpeed() })">
               Aplicar
             </button>
