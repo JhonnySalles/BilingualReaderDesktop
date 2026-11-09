@@ -4,6 +4,8 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule, Router, NavigationEnd } from '@angular/router';
 import { filter } from 'rxjs/operators';
+import { TranslatePipe } from '@ngx-translate/core';
+import { LanguageService } from '../services/language.service';
 import { ElectronService } from '../services/electron.service';
 import { SettingsService } from '../services/settings.service';
 import { LibraryStateService } from '../services/library-state.service';
@@ -35,7 +37,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
 @Component({
   selector: 'app-main-layout',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, SearchSuggestFieldComponent, LibraryFilterModalComponent, HistoryFilterModalComponent],
+  imports: [CommonModule, FormsModule, RouterModule, TranslatePipe, SearchSuggestFieldComponent, LibraryFilterModalComponent, HistoryFilterModalComponent],
   template: `
     <div class="h-screen w-screen flex bg-slate-950 text-slate-100 overflow-hidden font-sans">
       <aside
@@ -54,7 +56,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
             class="absolute p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-all duration-300 ease-in-out cursor-pointer z-20 shrink-0"
             [style.left]="isExpanded() ? '212px' : (hasSidebarScroll() ? '24px' : '16px')"
             [style.top]="isExpanded() ? '14px' : '10px'"
-            title="Expandir / Recolher Menu">
+            [title]="'nav.expandMenu' | translate">
             <svg class="w-5 h-5 transition-transform duration-300 ease-in-out" [class.rotate-180]="!isExpanded()" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
             </svg>
@@ -88,19 +90,19 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
             </svg>
             <span class="overflow-hidden whitespace-nowrap transition-all"
                   [ngClass]="isExpanded() ? 'opacity-100 max-w-[200px] translate-x-0 ml-3 duration-300 delay-100 ease-out' : 'opacity-0 max-w-0 -translate-x-2 ml-0 duration-150 delay-0 ease-in'">
-              Início
+              {{ 'nav.home' | translate }}
             </span>
           </a>
 
           <div class="my-2 border-t border-slate-800"></div>
           <div class="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-500 overflow-hidden whitespace-nowrap transition-all flex items-center justify-between"
                [ngClass]="isExpanded() ? 'opacity-100 max-h-[20px] translate-x-0 pt-1 pb-1 duration-300 delay-100 ease-out' : 'opacity-0 max-h-0 -translate-x-2 pt-0 pb-0 duration-150 delay-0 ease-in'">
-            <span>Mangás & Comics</span>
+            <span>{{ 'nav.mangasAndComics' | translate }}</span>
           </div>
 
           <button
             (click)="selectLibrary(defaultMangaLibrary())"
-            [title]="defaultMangaLibrary().name + ' (' + defaultMangaLibrary().count + ' itens)'"
+            [title]="defaultMangaLibrary().name + ' (' + defaultMangaLibrary().count + ' ' + (defaultMangaLibrary().count === 1 ? ('common.item' | translate) : ('common.items' | translate)) + ')'"
             [ngClass]="getNavMangaButtonClass(defaultMangaLibrary().id)"
             class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-all duration-300 cursor-pointer">
             <div class="flex items-center overflow-hidden">
@@ -135,7 +137,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
           @for (lib of customMangaLibraries(); track lib.id) {
             <button
               (click)="selectLibrary(lib)"
-              [title]="lib.name + ' (' + lib.count + ' itens)'"
+              [title]="lib.name + ' (' + lib.count + ' ' + (lib.count === 1 ? ('common.item' | translate) : ('common.items' | translate)) + ')'"
               [ngClass]="getNavMangaButtonClass(lib.id)"
               class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-all duration-300 cursor-pointer">
               <div class="flex items-center overflow-hidden">
@@ -171,12 +173,12 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
           <div class="my-2 border-t border-slate-800"></div>
           <div class="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-500 overflow-hidden whitespace-nowrap transition-all flex items-center justify-between"
                [ngClass]="isExpanded() ? 'opacity-100 max-h-[20px] translate-x-0 pt-1 pb-1 duration-300 delay-100 ease-out' : 'opacity-0 max-h-0 -translate-x-2 pt-0 pb-0 duration-150 delay-0 ease-in'">
-            <span>Livros & EPUBs</span>
+            <span>{{ 'nav.booksAndEpubs' | translate }}</span>
           </div>
 
           <button
             (click)="selectLibrary(defaultBookLibrary())"
-            [title]="defaultBookLibrary().name + ' (' + defaultBookLibrary().count + ' itens)'"
+            [title]="defaultBookLibrary().name + ' (' + defaultBookLibrary().count + ' ' + (defaultBookLibrary().count === 1 ? ('common.book' | translate) : ('common.books' | translate)) + ')'"
             [ngClass]="getNavBookButtonClass(defaultBookLibrary().id)"
             class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-all duration-300 cursor-pointer">
             <div class="flex items-center overflow-hidden">
@@ -211,7 +213,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
           @for (lib of customBookLibraries(); track lib.id) {
             <button
               (click)="selectLibrary(lib)"
-              [title]="lib.name + ' (' + lib.count + ' itens)'"
+              [title]="lib.name + ' (' + lib.count + ' ' + (lib.count === 1 ? ('common.item' | translate) : ('common.items' | translate)) + ')'"
               [ngClass]="getNavBookButtonClass(lib.id)"
               class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-all duration-300 cursor-pointer">
               <div class="flex items-center overflow-hidden">
@@ -247,7 +249,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
           <div class="my-2 border-t border-slate-800"></div>
           <div class="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-500 overflow-hidden whitespace-nowrap transition-all"
                [ngClass]="isExpanded() ? 'opacity-100 max-h-[20px] translate-x-0 pt-1 pb-1 duration-300 delay-100 ease-out' : 'opacity-0 max-h-0 -translate-x-2 pt-0 pb-0 duration-150 delay-0 ease-in'">
-            <span>Menu do Leitor</span>
+            <span>{{ 'nav.readerMenu' | translate }}</span>
           </div>
 
           <a
@@ -259,7 +261,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
             </svg>
             <span class="overflow-hidden whitespace-nowrap transition-all"
                   [ngClass]="isExpanded() ? 'opacity-100 max-w-[200px] translate-x-0 ml-3 duration-300 delay-100 ease-out' : 'opacity-0 max-w-0 -translate-x-2 ml-0 duration-150 delay-0 ease-in'">
-              Histórico de Leitura
+              {{ 'nav.readingHistory' | translate }}
             </span>
           </a>
 
@@ -273,7 +275,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
             </svg>
             <span class="overflow-hidden whitespace-nowrap transition-all"
                   [ngClass]="isExpanded() ? 'opacity-100 max-w-[200px] translate-x-0 ml-3 duration-300 delay-100 ease-out' : 'opacity-0 max-w-0 -translate-x-2 ml-0 duration-150 delay-0 ease-in'">
-              Anotações
+              {{ 'nav.annotations' | translate }}
             </span>
           </a>
 
@@ -286,7 +288,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
             </svg>
             <span class="overflow-hidden whitespace-nowrap transition-all"
                   [ngClass]="isExpanded() ? 'opacity-100 max-w-[200px] translate-x-0 ml-3 duration-300 delay-100 ease-out' : 'opacity-0 max-w-0 -translate-x-2 ml-0 duration-150 delay-0 ease-in'">
-              Vocabulário
+              {{ 'nav.vocabulary' | translate }}
             </span>
           </a>
 
@@ -299,7 +301,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
             </svg>
             <span class="overflow-hidden whitespace-nowrap transition-all"
                   [ngClass]="isExpanded() ? 'opacity-100 max-w-[200px] translate-x-0 ml-3 duration-300 delay-100 ease-out' : 'opacity-0 max-w-0 -translate-x-2 ml-0 duration-150 delay-0 ease-in'">
-              Rastreadores (Trackers)
+              {{ 'nav.trackers' | translate }}
             </span>
           </a>
 
@@ -313,7 +315,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
             </svg>
             <span class="overflow-hidden whitespace-nowrap transition-all"
                   [ngClass]="isExpanded() ? 'opacity-100 max-w-[200px] translate-x-0 ml-3 duration-300 delay-100 ease-out' : 'opacity-0 max-w-0 -translate-x-2 ml-0 duration-150 delay-0 ease-in'">
-              Estatísticas de Uso
+              {{ 'nav.statistics' | translate }}
             </span>
           </a>
         </nav>
@@ -333,7 +335,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
             </svg>
             <span class="overflow-hidden whitespace-nowrap transition-all"
                   [ngClass]="isExpanded() ? 'opacity-100 max-w-[200px] translate-x-0 ml-3 duration-300 delay-100 ease-out' : 'opacity-0 max-w-0 -translate-x-2 ml-0 duration-150 delay-0 ease-in'">
-              Configurações
+              {{ 'nav.settings' | translate }}
             </span>
           </a>
           <a
@@ -346,7 +348,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
             </svg>
             <span class="overflow-hidden whitespace-nowrap transition-all"
                   [ngClass]="isExpanded() ? 'opacity-100 max-w-[200px] translate-x-0 ml-3 duration-300 delay-100 ease-out' : 'opacity-0 max-w-0 -translate-x-2 ml-0 duration-150 delay-0 ease-in'">
-              Ajuda
+              {{ 'nav.help' | translate }}
             </span>
           </a>
           <a
@@ -359,7 +361,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
             </svg>
             <span class="overflow-hidden whitespace-nowrap transition-all"
                   [ngClass]="isExpanded() ? 'opacity-100 max-w-[200px] translate-x-0 ml-3 duration-300 delay-100 ease-out' : 'opacity-0 max-w-0 -translate-x-2 ml-0 duration-150 delay-0 ease-in'">
-              Sobre
+              {{ 'nav.about' | translate }}
             </span>
           </a>
         </div>
@@ -379,8 +381,8 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
             }
             @if (headerMode() === 'settings') {
               <div class="flex items-center gap-3 min-w-0">
-                <h2 class="text-lg font-bold text-slate-100 truncate">Configurações do Leitor</h2>
-                <span class="text-xs text-slate-400 truncate hidden sm:inline">Portado do aplicativo nativo Android</span>
+                <h2 class="text-lg font-bold text-slate-100 truncate">{{ 'nav.readerSettings' | translate }}</h2>
+                <span class="text-xs text-slate-400 truncate hidden sm:inline">{{ 'nav.portedFromAndroid' | translate }}</span>
               </div>
             } @else {
               <h2 class="text-lg font-bold text-slate-100 truncate">
@@ -401,7 +403,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
                   flex items-center gap-3">
                 <div class="min-w-0 flex-1">
                   <div class="flex items-center gap-2">
-                    <span class="text-xs font-bold text-primary-300">Continuar</span>
+                    <span class="text-xs font-bold text-primary-300">{{ 'nav.continue' | translate }}</span>
                     @if (home.continueItem(); as item) {
                       <span class="px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded bg-slate-950/60 text-slate-300 border border-slate-700">
                         {{ item.fileType }}
@@ -412,7 +414,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
                     @if (home.continueItem(); as item) {
                       {{ item.title }}
                     } @else {
-                      Nenhuma leitura recente
+                      {{ 'nav.noRecentReading' | translate }}
                     }
                   </p>
                 </div>
@@ -429,7 +431,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
               <app-search-suggest-field
                 [value]="libraryStateService.searchQuery()"
                 [scope]="librarySearchScope()"
-                placeholder="Pesquisar ou @Autor:"
+                [placeholder]="'nav.searchPlaceholder' | translate"
                 (rawChange)="onLibrarySearchRaw($event)"
                 (valueChange)="onLibrarySearchCommit($event)" />
 
@@ -441,7 +443,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
                 (click)="onButtonClick('view', $event)"
                 (contextmenu)="onButtonContextMenu($event)"
                 class="p-2 bg-slate-900 border border-slate-800 hover:border-slate-700 active:scale-90 active:rotate-12 rounded-xl text-slate-300 hover:text-white transition-all duration-200 flex items-center justify-center cursor-pointer shadow-sm hover:shadow-primary-500/10"
-                [title]="'Modo Atual: ' + getViewLabel(libraryStateService.getView(currentLibraryType())) + ' (Pressione para mais opções)'">
+                [title]="'nav.currentMode' | translate:{ mode: getViewLabel(libraryStateService.getView(currentLibraryType())) }">
                 @switch (libraryStateService.getView(currentLibraryType())) {
                   @case (LibraryViewType.GRID_BIG) {
                     <!-- Grid Big: 4 large tiles -->
@@ -543,7 +545,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
                 (click)="onButtonClick('sort', $event)"
                 (contextmenu)="onButtonContextMenu($event)"
                 class="p-2 bg-slate-900 border border-slate-800 hover:border-slate-700 active:scale-80 active:-rotate-12 rounded-xl text-slate-300 hover:text-white transition-all duration-200 flex items-center justify-center cursor-pointer shadow-sm hover:shadow-primary-500/10"
-                [title]="(libraryStateService.getIsAscending(currentLibraryType()) ? 'Ordem Crescente (A-Z)' : 'Ordem Decrescente (Z-A)') + ' (Pressione para mais opções)'">
+                [title]="(libraryStateService.getIsAscending(currentLibraryType()) ? ('nav.sortAscending' | translate) : ('nav.sortDescending' | translate))">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 sort-arrow-transition" [class.rotate-180]="!libraryStateService.getIsAscending(currentLibraryType())" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
                 </svg>
@@ -553,7 +555,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
                 type="button"
                 (click)="openLibrarySocialShare()"
                 class="p-2 bg-slate-900 border border-slate-800 hover:border-primary-500/50 hover:bg-primary-950/30 rounded-xl text-primary-400 hover:text-primary-300 transition-all flex items-center justify-center cursor-pointer shadow-sm hover:shadow-primary-500/10"
-                title="Compartilhar Leituras desta Biblioteca">
+                [title]="'nav.shareLibraryReadings' | translate">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
                 </svg>
@@ -562,7 +564,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
 <button
                 (click)="libraryStateService.showFilterModal.set(true)"
                 class="p-2 bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl text-slate-300 hover:text-white transition-all flex items-center justify-center cursor-pointer"
-                title="Filtros e Opções">
+                [title]="'nav.filtersAndOptions' | translate">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
                 </svg>
@@ -575,7 +577,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
               <app-search-suggest-field
                 [value]="historyUi.search()"
                 scope="history"
-                placeholder="Pesquisar ou @Autor:"
+                [placeholder]="'nav.searchPlaceholder' | translate"
                 (rawChange)="onHistorySearchRaw($event)"
                 (valueChange)="onHistorySearchCommit($event)" />
 
@@ -583,7 +585,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
                 class="bg-slate-900 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-slate-200"
                 [ngModel]="historyUi.year()"
                 (ngModelChange)="historyUi.setYear($event)">
-                <option [ngValue]="null">Todos os anos</option>
+                <option [ngValue]="null">{{ 'nav.allYears' | translate }}</option>
                 @for (y of historyUi.years(); track y) {
                   <option [ngValue]="y">{{ y }}</option>
                 }
@@ -593,7 +595,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
                 class="bg-slate-900 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-slate-200 max-w-[10rem]"
                 [ngModel]="historyUi.libraryId()"
                 (ngModelChange)="historyUi.setLibrary($event)">
-                <option [ngValue]="null">Todas as bibliotecas</option>
+                <option [ngValue]="null">{{ 'nav.allLibraries' | translate }}</option>
                 @for (lib of historyUi.libraries(); track lib.id) {
                   <option [ngValue]="lib.id">{{ lib.title }}</option>
                 }
@@ -606,7 +608,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
                   class="px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
                   [class.manga-pill-active]="historyUi.activeType() === 'MANGA'"
                   [class.text-slate-400]="historyUi.activeType() !== 'MANGA'">
-                  Mangá
+                  {{ 'nav.manga' | translate }}
                 </button>
                 <button
                   type="button"
@@ -615,7 +617,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
                   [class.book-pill-active]="historyUi.activeType() === 'BOOK'"
                   [class.text-white]="historyUi.activeType() === 'BOOK'"
                   [class.text-slate-400]="historyUi.activeType() !== 'BOOK'">
-                  Livro
+                  {{ 'nav.book' | translate }}
                 </button>
               </div>
 
@@ -627,7 +629,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
                 (click)="onButtonClick('view', $event)"
                 (contextmenu)="onButtonContextMenu($event)"
                 class="p-2 bg-slate-900 border border-slate-800 hover:border-slate-700 active:scale-90 active:rotate-12 rounded-xl text-slate-300 hover:text-white transition-all duration-200 flex items-center justify-center cursor-pointer shadow-sm hover:shadow-primary-500/10"
-                [title]="'Modo Atual: ' + getViewLabel(libraryStateService.currentView()) + ' (Pressione para mais opções)'">
+                [title]="'nav.currentMode' | translate:{ mode: getViewLabel(libraryStateService.currentView()) }">
                 @switch (libraryStateService.currentView()) {
                   @case (LibraryViewType.GRID_BIG) {
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-primary-400 animate-icon-swap" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -715,7 +717,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
                 (click)="onButtonClick('sort', $event)"
                 (contextmenu)="onButtonContextMenu($event)"
                 class="p-2 bg-slate-900 border border-slate-800 hover:border-slate-700 active:scale-80 active:-rotate-12 rounded-xl text-slate-300 hover:text-white transition-all duration-200 flex items-center justify-center cursor-pointer shadow-sm hover:shadow-primary-500/10"
-                [title]="(libraryStateService.isAscending() ? 'Ordem Crescente' : 'Ordem Decrescente') + ' (Pressione para mais opções)'">
+                [title]="(libraryStateService.isAscending() ? ('nav.sortAscendingSimple' | translate) : ('nav.sortDescendingSimple' | translate))">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 sort-arrow-transition" [class.rotate-180]="!libraryStateService.isAscending()" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
                 </svg>
@@ -725,7 +727,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
                 type="button"
                 (click)="socialShare.open({ initialMediaType: historyUi.activeType(), initialYear: historyUi.year(), initialLibraryId: null })"
                 class="p-2 bg-slate-900 border border-slate-800 hover:border-primary-500/50 hover:bg-primary-950/30 rounded-xl text-primary-400 hover:text-primary-300 transition-all flex items-center justify-center cursor-pointer shadow-sm hover:shadow-primary-500/10"
-                title="Compartilhar Leituras (Social Studio)">
+                [title]="'nav.shareSocialStudio' | translate">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
                 </svg>
@@ -734,7 +736,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
 <button
                 (click)="libraryStateService.showFilterModal.set(true)"
                 class="p-2 bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl text-slate-300 hover:text-white transition-all flex items-center justify-center cursor-pointer"
-                title="Filtros e Opções">
+                [title]="'nav.filtersAndOptions' | translate">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
                 </svg>
@@ -752,7 +754,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
                   type="text"
                   [ngModel]="annotationsUi.search()"
                   (ngModelChange)="onAnnotationsSearch($event)"
-                  placeholder="Pesquisar anotações..."
+                  [placeholder]="'nav.searchAnnotations' | translate"
                   class="w-full pl-9 pr-3 py-1.5 bg-slate-900/90 border border-slate-800 rounded-xl text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-primary-500/80 transition-all" />
               </div>
 
@@ -764,7 +766,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
                   [class.bg-primary-600]="annotationsUi.type() === null"
                   [class.text-white]="annotationsUi.type() === null"
                   [class.text-slate-400]="annotationsUi.type() !== null">
-                  Todos
+                  {{ 'common.all' | translate }}
                 </button>
                 <button
                   type="button"
@@ -773,7 +775,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
                   [class.bg-book-600]="annotationsUi.type() === 'BOOK'"
                   [class.text-white]="annotationsUi.type() === 'BOOK'"
                   [class.text-slate-400]="annotationsUi.type() !== 'BOOK'">
-                  Livros
+                  {{ 'nav.books' | translate }}
                 </button>
                 <button
                   type="button"
@@ -781,7 +783,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
                   class="px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
                   [class.manga-pill-active]="annotationsUi.type() === 'MANGA'"
                   [class.text-slate-400]="annotationsUi.type() !== 'MANGA'">
-                  Mangás
+                  {{ 'nav.mangas' | translate }}
                 </button>
               </div>
 
@@ -794,7 +796,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
                 [class.border-slate-800]="!annotationsUi.hasAdvancedFilters()"
                 [class.text-slate-300]="!annotationsUi.hasAdvancedFilters()"
                 [class.hover:border-slate-700]="!annotationsUi.hasAdvancedFilters()"
-                title="Filtros">
+                [title]="'common.filter' | translate">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
                 </svg>
@@ -812,7 +814,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
                   type="text"
                   [ngModel]="vocabularyUi.search()"
                   (ngModelChange)="onVocabularySearch($event)"
-                  placeholder="Pesquisar palavras..."
+                  [placeholder]="'nav.searchWords' | translate"
                   class="w-full pl-9 pr-3 py-1.5 bg-slate-900/90 border border-slate-800 rounded-xl text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-primary-500/80 transition-all" />
               </div>
 
@@ -824,7 +826,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
                 [class.text-amber-300]="vocabularyUi.favoriteOnly()"
                 [class.border-slate-800]="!vocabularyUi.favoriteOnly()"
                 [class.text-slate-300]="!vocabularyUi.favoriteOnly()"
-                title="Somente favoritos">
+                [title]="'nav.onlyFavorites' | translate">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" [attr.fill]="vocabularyUi.favoriteOnly() ? 'currentColor' : 'none'" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/>
@@ -836,7 +838,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
                 (click)="vocabularyUi.cycleOrder()"
                 (contextmenu)="vocabularyUi.showOrderPopup.set(true); $event.preventDefault()"
                 class="p-2 bg-slate-900 border border-slate-800 hover:border-slate-700 active:scale-80 active:-rotate-12 rounded-xl text-slate-300 hover:text-white transition-all duration-200 flex items-center justify-center cursor-pointer shadow-sm hover:shadow-primary-500/10"
-                [title]="'Ordenar: ' + vocabularyUi.order()">
+                [title]="'nav.orderBy' | translate:{ order: vocabularyUi.order() }">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 sort-arrow-transition" [class.rotate-180]="vocabularyUi.desc()" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
                 </svg>
@@ -847,7 +849,7 @@ type HeaderMode = 'home' | 'library' | 'history' | 'annotations' | 'vocabulary' 
           @if (headerMode() === 'settings') {
             <div class="relative z-10 flex items-center gap-2 shrink-0 pointer-events-auto">
               <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                Configurações Salvas
+                {{ 'nav.settingsSaved' | translate }}
               </span>
             </div>
           }
@@ -886,6 +888,7 @@ export class MainLayoutComponent implements OnInit, AfterViewInit {
   private librarySearch = inject(LibrarySearchService);
   public mangaLibraryService = inject(MangaLibraryService);
   public bookLibraryService = inject(BookLibraryService);
+  public languageService = inject(LanguageService);
   private ngZone = inject(NgZone);
 
   @ViewChild('navElement', { static: false }) navRef?: ElementRef<HTMLElement>;
@@ -956,18 +959,19 @@ export class MainLayoutComponent implements OnInit, AfterViewInit {
 
   readonly headerTitle = computed(() => {
     const mode = this.headerMode();
-    if (mode === 'home') return 'Início';
+    this.languageService.currentLang();
+    if (mode === 'home') return this.languageService.t('nav.home');
     if (mode === 'library') return this.libraryStateService.activeLibrary().name;
     if (mode === 'history') return this.historyUi.pageTitle();
     if (mode === 'annotations') return this.annotationsUi.pageTitle();
     if (mode === 'vocabulary') return this.vocabularyUi.pageTitle();
-    if (mode === 'settings') return 'Configurações do Leitor';
-    if (mode === 'help') return 'Ajuda';
-    if (mode === 'about') return 'Sobre';
+    if (mode === 'settings') return this.languageService.t('nav.readerSettings');
+    if (mode === 'help') return this.languageService.t('nav.help');
+    if (mode === 'about') return this.languageService.t('nav.about');
     return this.titleOnlyLabel();
   });
 
-  private titleOnlyLabel = signal('Início');
+  private titleOnlyLabel = signal('');
 
   readonly isLineView = computed(() => {
     const view = this.libraryStateService.currentView();
@@ -1048,6 +1052,12 @@ export class MainLayoutComponent implements OnInit, AfterViewInit {
       if (this.navScrollTimer) {
         clearTimeout(this.navScrollTimer);
       }
+    });
+
+    effect(() => {
+      this.languageService.currentLang();
+      this.defaultMangaLibrary.update(l => ({ ...l, name: this.languageService.t('nav.mangaLibrary') }));
+      this.defaultBookLibrary.update(l => ({ ...l, name: this.languageService.t('nav.bookLibrary') }));
     });
 
     // Efeito 1: Atualiza contagens quando configurações ou bibliotecas primárias mudarem
@@ -1198,9 +1208,9 @@ export class MainLayoutComponent implements OnInit, AfterViewInit {
       return;
     }
     this.headerMode.set('titleOnly');
-    if (path.startsWith('/trackers')) this.titleOnlyLabel.set('Rastreadores de Leitura');
-    else if (path.startsWith('/statistics')) this.titleOnlyLabel.set('Estatísticas de Uso');
-    else if (path.startsWith('/detail')) this.titleOnlyLabel.set('Detalhe');
+    if (path.startsWith('/trackers')) this.titleOnlyLabel.set(this.languageService.t('nav.trackers'));
+    else if (path.startsWith('/statistics')) this.titleOnlyLabel.set(this.languageService.t('nav.statistics'));
+    else if (path.startsWith('/detail')) this.titleOnlyLabel.set(this.languageService.t('nav.detail'));
     else this.titleOnlyLabel.set('Bilingual Reader');
   }
 
@@ -1323,33 +1333,33 @@ export class MainLayoutComponent implements OnInit, AfterViewInit {
   getViewLabel(view: LibraryViewType): string {
     if (this.headerMode() === 'history') {
       switch (view) {
-        case LibraryViewType.SEPARATOR_BIG: return 'Grid Grande';
-        case LibraryViewType.SEPARATOR_MEDIUM: return 'Grid Médio';
-        case LibraryViewType.SEPARATOR_SMALL: return 'Grid Pequeno';
-        case LibraryViewType.SEPARATOR_OVERLAY: return 'Grid Blur';
-        case LibraryViewType.SEPARATOR_CAROUSEL: return 'Carrossel';
-        case LibraryViewType.SEPARATOR_CAROUSEL_SMALL: return 'Carrossel Pequeno';
-        case LibraryViewType.SEPARATOR_LINE: return 'Linha Detalhada';
-        default: return 'Grade';
+        case LibraryViewType.SEPARATOR_BIG: return this.languageService.t('enums.view.gridBig');
+        case LibraryViewType.SEPARATOR_MEDIUM: return this.languageService.t('enums.view.gridMedium');
+        case LibraryViewType.SEPARATOR_SMALL: return this.languageService.t('enums.view.gridSmall');
+        case LibraryViewType.SEPARATOR_OVERLAY: return this.languageService.t('enums.view.gridOverlay');
+        case LibraryViewType.SEPARATOR_CAROUSEL: return this.languageService.t('enums.view.carousel');
+        case LibraryViewType.SEPARATOR_CAROUSEL_SMALL: return this.languageService.t('enums.view.carouselSmall');
+        case LibraryViewType.SEPARATOR_LINE: return this.languageService.t('enums.view.lineDetailed');
+        default: return this.languageService.t('enums.view.grid');
       }
     }
 
     switch (view) {
-      case LibraryViewType.GRID_BIG: return 'Grid Grande';
-      case LibraryViewType.GRID_MEDIUM: return 'Grid Médio';
-      case LibraryViewType.GRID_SMALL: return 'Grid Pequeno';
-      case LibraryViewType.GRID_OVERLAY: return 'Grid Blur';
-      case LibraryViewType.CAROUSEL: return 'Carrossel';
-      case LibraryViewType.CAROUSEL_SMALL: return 'Carrossel Pequeno';
-      case LibraryViewType.SEPARATOR_BIG: return 'Grande c/ Separador';
-      case LibraryViewType.SEPARATOR_MEDIUM: return 'Médio c/ Separador';
-      case LibraryViewType.SEPARATOR_SMALL: return 'Pequeno c/ Separador';
-      case LibraryViewType.SEPARATOR_OVERLAY: return 'Grid Blur c/ Separador';
-      case LibraryViewType.SEPARATOR_CAROUSEL: return 'Carrossel c/ Separador';
-      case LibraryViewType.SEPARATOR_CAROUSEL_SMALL: return 'Carrossel Pequeno c/ Separador';
-      case LibraryViewType.SEPARATOR_LINE: return 'Linha c/ Separador';
-      case LibraryViewType.LINE: return 'Linha Detalhada';
-      default: return 'Grade';
+      case LibraryViewType.GRID_BIG: return this.languageService.t('enums.view.gridBig');
+      case LibraryViewType.GRID_MEDIUM: return this.languageService.t('enums.view.gridMedium');
+      case LibraryViewType.GRID_SMALL: return this.languageService.t('enums.view.gridSmall');
+      case LibraryViewType.GRID_OVERLAY: return this.languageService.t('enums.view.gridOverlay');
+      case LibraryViewType.CAROUSEL: return this.languageService.t('enums.view.carousel');
+      case LibraryViewType.CAROUSEL_SMALL: return this.languageService.t('enums.view.carouselSmall');
+      case LibraryViewType.SEPARATOR_BIG: return this.languageService.t('enums.view.separatorBig');
+      case LibraryViewType.SEPARATOR_MEDIUM: return this.languageService.t('enums.view.separatorMedium');
+      case LibraryViewType.SEPARATOR_SMALL: return this.languageService.t('enums.view.separatorSmall');
+      case LibraryViewType.SEPARATOR_OVERLAY: return this.languageService.t('enums.view.separatorOverlay');
+      case LibraryViewType.SEPARATOR_CAROUSEL: return this.languageService.t('enums.view.separatorCarousel');
+      case LibraryViewType.SEPARATOR_CAROUSEL_SMALL: return this.languageService.t('enums.view.separatorCarouselSmall');
+      case LibraryViewType.SEPARATOR_LINE: return this.languageService.t('enums.view.separatorLine');
+      case LibraryViewType.LINE: return this.languageService.t('enums.view.lineDetailed');
+      default: return this.languageService.t('enums.view.grid');
     }
   }
 }

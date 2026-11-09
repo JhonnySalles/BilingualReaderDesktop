@@ -1,4 +1,5 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
+import { LanguageService } from './language.service';
 import {
   PlatformPresetConfig,
   SocialLayoutTemplate,
@@ -71,6 +72,7 @@ export const PLATFORM_PRESETS: PlatformPresetConfig[] = [
   providedIn: 'root'
 })
 export class SocialImageGeneratorService {
+  private languageService = inject(LanguageService);
   private imageCache = new Map<string, HTMLImageElement>();
 
   public getPresetConfig(preset: SocialPlatformPreset): PlatformPresetConfig {
@@ -742,7 +744,8 @@ export class SocialImageGeneratorService {
 
     // Indicador de Página no canto superior direito quando houver múltiplas páginas
     if (options.totalPages && options.totalPages > 1 && options.pageIndex) {
-      const pageLabel = `PÁGINA ${options.pageIndex} / ${options.totalPages}`;
+      const pageWord = this.languageService.currentLang() === 'pt' ? 'PÁGINA' : 'PAGE';
+      const pageLabel = `${pageWord} ${options.pageIndex} / ${options.totalPages}`;
       ctx.font = 'bold 15px "Inter", "Segoe UI", sans-serif';
       const labelW = ctx.measureText(pageLabel).width + 36;
       const badgeX = w - 60 - labelW;
@@ -763,7 +766,8 @@ export class SocialImageGeneratorService {
     // Título Principal
     ctx.fillStyle = isLight ? '#0f172a' : '#f8fafc';
     ctx.font = 'bold 46px "Inter", "Segoe UI", sans-serif';
-    this.drawTruncatedText(ctx, options.title || 'Minhas Leituras', 60, startY + 84, w - 120);
+    const defaultRecapTitle = this.languageService.currentLang() === 'pt' ? 'Minhas Leituras' : 'My Readings';
+    this.drawTruncatedText(ctx, options.title || defaultRecapTitle, 60, startY + 84, w - 120);
 
     // Subtítulo / Período
     ctx.fillStyle = isLight ? '#64748b' : '#94a3b8';
@@ -804,11 +808,12 @@ export class SocialImageGeneratorService {
       ctx.fill();
       ctx.stroke();
 
+      const isPtStats = this.languageService.currentLang() === 'pt';
       const cols = [
-        { label: 'OBRAS LIDAS', val: `${totalWorks}` },
-        { label: 'PÁGINAS', val: `${totalPages}` },
-        { label: 'TEMPO TOTAL', val: formatReadingDuration(totalSeconds) },
-        { label: 'CONCLUÍDOS', val: `${completedCount}` }
+        { label: isPtStats ? 'OBRAS LIDAS' : 'TITLES READ', val: `${totalWorks}` },
+        { label: isPtStats ? 'PÁGINAS' : 'PAGES', val: `${totalPages}` },
+        { label: isPtStats ? 'TEMPO TOTAL' : 'TOTAL TIME', val: formatReadingDuration(totalSeconds) },
+        { label: isPtStats ? 'CONCLUÍDOS' : 'COMPLETED', val: `${completedCount}` }
       ];
 
       const colW = cardW / cols.length;
@@ -1021,8 +1026,9 @@ export class SocialImageGeneratorService {
     // Métricas específicas do destaque (Páginas + Tempo)
     ctx.fillStyle = isLight ? '#475569' : '#cbd5e1';
     ctx.font = '600 17px "Inter", "Segoe UI", sans-serif';
+    const pagesReadSuffix = this.languageService.currentLang() === 'pt' ? 'páginas lidas' : 'pages read';
     ctx.fillText(
-      `⏱️ ${formatReadingDuration(topItem.secondsReadInPeriod)}  •  📖 ${topItem.pagesReadInPeriod} páginas lidas`,
+      `⏱️ ${formatReadingDuration(topItem.secondsReadInPeriod)}  •  📖 ${topItem.pagesReadInPeriod} ${pagesReadSuffix}`,
       textX,
       rect.y + 168
     );

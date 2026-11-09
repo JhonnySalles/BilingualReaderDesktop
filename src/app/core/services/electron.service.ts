@@ -128,6 +128,7 @@ declare global {
       deleteTag: (id: number) => Promise<boolean>;
       getSetting: (key: string, defaultValue?: any) => Promise<any>;
       setSetting: (key: string, value: any) => Promise<any>;
+      setAppLanguage: (lang: string) => Promise<any>;
       getSecret: (secretKey: string) => Promise<any>;
       telemetryIsEnabled: () => Promise<boolean>;
       telemetryRecord: (payload: {
@@ -625,6 +626,7 @@ export class ElectronService {
         getLibraryCount: async () => 1,
         getSetting: async (key: string, def: any) => def,
         setSetting: async (key: string, val: any) => val,
+        setAppLanguage: async (lang: string) => ({ success: true }),
         getTags: async () => [{ id: 1, name: 'Favorito' }, { id: 2, name: 'Lendo' }],
         saveTag: async (name: string) => ({ id: Date.now(), name }),
         deleteTag: async () => true,
@@ -736,6 +738,13 @@ export class ElectronService {
       return await window.electronAPI.setSetting(key, value);
     }
     return value;
+  }
+
+  async setAppLanguage(lang: string): Promise<any> {
+    if (this.isElectron && window.electronAPI?.setAppLanguage) {
+      return await window.electronAPI.setAppLanguage(lang);
+    }
+    return { success: true };
   }
 
   async telemetryIsEnabled(): Promise<boolean> {

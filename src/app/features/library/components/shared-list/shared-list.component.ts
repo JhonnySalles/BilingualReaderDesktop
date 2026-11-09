@@ -25,6 +25,7 @@ import { progressPercent } from '../../../../core/utils/reading-progress.util';
 import { sortLibraryItems } from '../../../../core/utils/library-sort.util';
 import { LibraryCarouselShelfComponent } from '../library-carousel-shelf/library-carousel-shelf.component';
 import { LibraryCarouselSkeletonComponent } from '../library-carousel-skeleton/library-carousel-skeleton.component';
+import { LanguageService } from '../../../../core/services/language.service';
 
 export interface VirtualRow {
   id: string;
@@ -34,10 +35,11 @@ export interface VirtualRow {
   isCarousel?: boolean;
 }
 
-function formatSeparatorDate(dateStr?: string | null, fallbackLabel = 'Sem data'): string {
-  if (!dateStr || !dateStr.trim() || dateStr === '0' || dateStr === '0000-00-00') return fallbackLabel;
+function formatSeparatorDate(dateStr?: string | null, fallbackLabel?: string, langService?: LanguageService): string {
+  const fallback = fallbackLabel || (langService ? langService.t('common.noDate') : 'Sem data');
+  if (!dateStr || !dateStr.trim() || dateStr === '0' || dateStr === '0000-00-00') return fallback;
   const d = new Date(dateStr);
-  if (Number.isNaN(d.getTime())) return fallbackLabel;
+  if (Number.isNaN(d.getTime())) return fallback;
 
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
@@ -45,19 +47,20 @@ function formatSeparatorDate(dateStr?: string | null, fallbackLabel = 'Sem data'
   const diffDays = Math.floor((todayStart - itemDateStart) / (1000 * 60 * 60 * 24));
 
   if (diffDays <= 0) {
-    return 'Hoje';
+    return langService ? langService.t('common.today') : 'Hoje';
   }
   if (diffDays === 1) {
-    return 'Ontem';
+    return langService ? langService.t('common.yesterday') : 'Ontem';
   }
   if (diffDays <= 7) {
-    return 'Esta semana';
+    return langService ? langService.t('common.thisWeek') : 'Esta semana';
   }
   if (d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()) {
-    return 'Este mês';
+    return langService ? langService.t('common.thisMonth') : 'Este mês';
   }
 
-  const monthName = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  const locale = langService ? langService.locale() : 'pt-BR';
+  const monthName = d.toLocaleDateString(locale, { month: 'long', year: 'numeric' });
   return monthName.charAt(0).toUpperCase() + monthName.slice(1);
 }
 
@@ -65,7 +68,7 @@ function getItemDisplayName(item: Manga | Book): string {
   return (item.title || (item as any).name || '').trim();
 }
 
-function getItemSeparatorTitle(item: Manga | Book, order: OrderType): string {
+function getItemSeparatorTitle(item: Manga | Book, order: OrderType, langService?: LanguageService): string {
   switch (order) {
     case OrderType.Name: {
       const displayName = getItemDisplayName(item);
@@ -74,26 +77,30 @@ function getItemSeparatorTitle(item: Manga | Book, order: OrderType): string {
     }
     case OrderType.Author: {
       const author = item.author?.trim();
-      return author ? author : 'Sem autor';
+      return author ? author : (langService ? langService.t('common.noAuthor') : 'Sem autor');
     }
     case OrderType.Date: {
       const dateCreate = (item as any).dateCreate;
-      return formatSeparatorDate(dateCreate);
+      return formatSeparatorDate(dateCreate, undefined, langService);
     }
     case OrderType.LastAccess: {
       const lastAccess = (item as any).lastAccess;
-      return formatSeparatorDate(lastAccess, 'Nunca acessado');
+      const fallback = langService ? langService.t('common.neverAccessed') : 'Nunca acessado';
+      return formatSeparatorDate(lastAccess, fallback, langService);
     }
     case OrderType.Favorite: {
-      return item.favorite ? 'Favoritos' : 'Outros';
+      if (item.favorite) {
+        return langService ? langService.t('common.favorites') : 'Favoritos';
+      }
+      return langService ? langService.t('common.others') : 'Outros';
     }
     case OrderType.Genre: {
       const genre = (item as any).genre?.trim();
-      return genre ? genre : 'Sem gênero';
+      return genre ? genre : (langService ? langService.t('common.noGenre') : 'Sem gênero');
     }
     case OrderType.Series: {
       const series = (item as any).series?.trim();
-      return series ? series : 'Sem série';
+      return series ? series : (langService ? langService.t('common.noSeries') : 'Sem série');
     }
     default: {
       const displayName = getItemDisplayName(item);
@@ -103,13 +110,14 @@ function getItemSeparatorTitle(item: Manga | Book, order: OrderType): string {
   }
 }
 
-function getDayGroupInfo(dateStr?: string | null, fallbackLabel = 'Sem data'): { dayKey: string; title: string } {
+function getDayGroupInfo(dateStr?: string | null, fallbackLabel?: string, langService?: LanguageService): { dayKey: string; title: string } {
+  const fallback = fallbackLabel || (langService ? langService.t('common.noDate') : 'Sem data');
   if (!dateStr || !dateStr.trim()) {
-    return { dayKey: '0000-00-00', title: fallbackLabel };
+    return { dayKey: '0000-00-00', title: fallback };
   }
   const d = new Date(dateStr);
   if (Number.isNaN(d.getTime())) {
-    return { dayKey: '0000-00-00', title: fallbackLabel };
+    return { dayKey: '0000-00-00', title: fallback };
   }
 
   const yyyy = d.getFullYear();
@@ -125,9 +133,11 @@ function getDayGroupInfo(dateStr?: string | null, fallbackLabel = 'Sem data'): {
   const formattedDate = `${dd}/${mm}/${yyyy}`;
   let title = formattedDate;
   if (diffDays === 0) {
-    title = `Hoje (${formattedDate})`;
+    const todayLabel = langService ? langService.t('common.today') : 'Hoje';
+    title = `${todayLabel} (${formattedDate})`;
   } else if (diffDays === 1) {
-    title = `Ontem (${formattedDate})`;
+    const yesterdayLabel = langService ? langService.t('common.yesterday') : 'Ontem';
+    title = `${yesterdayLabel} (${formattedDate})`;
   }
 
   return { dayKey, title };
@@ -141,7 +151,8 @@ function buildSimpleCarouselRows(
   items: (Manga | Book)[],
   order: OrderType,
   isAsc: boolean,
-  getItemKey: (item: Manga | Book) => string | number
+  getItemKey: (item: Manga | Book) => string | number,
+  langService?: LanguageService
 ): VirtualRow[] {
   const rows: VirtualRow[] = [];
 
@@ -181,7 +192,7 @@ function buildSimpleCarouselRows(
       const dayMap = new Map<string, { title: string; dateSortKey: string; items: (Manga | Book)[] }>();
       for (const item of items) {
         const rawDate = (item as any).dateCreate;
-        const info = getDayGroupInfo(rawDate, 'Sem data');
+        const info = getDayGroupInfo(rawDate, undefined, langService);
         if (!dayMap.has(info.dayKey)) {
           dayMap.set(info.dayKey, { title: info.title, dateSortKey: info.dayKey, items: [] });
         }
@@ -212,7 +223,7 @@ function buildSimpleCarouselRows(
       const dayMap = new Map<string, { title: string; dateSortKey: string; items: (Manga | Book)[] }>();
       for (const item of items) {
         const rawDate = (item as any).lastAccess;
-        const info = getDayGroupInfo(rawDate, 'Nunca acessado');
+        const info = getDayGroupInfo(rawDate, langService ? langService.t('common.neverAccessed') : 'Nunca acessado', langService);
         if (!dayMap.has(info.dayKey)) {
           dayMap.set(info.dayKey, { title: info.title, dateSortKey: info.dayKey, items: [] });
         }
@@ -242,14 +253,16 @@ function buildSimpleCarouselRows(
       // 4-Autor: Agrupar por registros de mesmo autor
       const authorMap = new Map<string, (Manga | Book)[]>();
       for (const item of items) {
-        const author = item.author?.trim() || 'Sem autor';
+        const fallbackNoAuthor = langService ? langService.t('common.noAuthor') : 'Sem autor';
+        const author = item.author?.trim() || fallbackNoAuthor;
         if (!authorMap.has(author)) authorMap.set(author, []);
         authorMap.get(author)!.push(item);
       }
 
       const authors = Array.from(authorMap.keys()).sort((a, b) => {
-        if (a === 'Sem autor') return 1;
-        if (b === 'Sem autor') return -1;
+        const noAuth = langService ? langService.t('common.noAuthor') : 'Sem autor';
+        if (a === noAuth || a === 'Sem autor') return 1;
+        if (b === noAuth || b === 'Sem autor') return -1;
         return isAsc ? a.localeCompare(b) : b.localeCompare(a);
       });
 
@@ -559,6 +572,7 @@ export class SharedListComponent implements OnInit, OnDestroy {
 
   public sharedTransition = inject(SharedTransitionService);
   public libraryStateService = inject(LibraryStateService);
+  public languageService = inject(LanguageService);
   private bookService = inject(BookLibraryService);
   private elRef = inject(ElementRef);
   LibraryViewType = LibraryViewType;
@@ -778,6 +792,7 @@ export class SharedListComponent implements OnInit, OnDestroy {
   }
 
   allRows = computed<VirtualRow[]>(() => {
+    this.languageService.currentLang();
     const items = this._items();
     if (!items || items.length === 0) return [];
 
@@ -790,13 +805,13 @@ export class SharedListComponent implements OnInit, OnDestroy {
       const isAsc = this.libraryStateService.getIsAscending(this._type());
 
       if (!this.hasSeparator) {
-        return buildSimpleCarouselRows(items, order, isAsc, (item) => this.getItemKey(item));
+        return buildSimpleCarouselRows(items, order, isAsc, (item) => this.getItemKey(item), this.languageService);
       }
 
       // Separator Carousel: group items by category
       const groups: Map<string, (Manga | Book)[]> = new Map();
       for (const item of items) {
-        const title = getItemSeparatorTitle(item, order);
+        const title = getItemSeparatorTitle(item, order, this.languageService);
         if (!groups.has(title)) {
           groups.set(title, []);
         }
@@ -835,7 +850,7 @@ export class SharedListComponent implements OnInit, OnDestroy {
     const order = this.libraryStateService.getOrder(this._type());
     const groups: Map<string, (Manga | Book)[]> = new Map();
     for (const item of items) {
-      const title = getItemSeparatorTitle(item, order);
+      const title = getItemSeparatorTitle(item, order, this.languageService);
       if (!groups.has(title)) {
         groups.set(title, []);
       }

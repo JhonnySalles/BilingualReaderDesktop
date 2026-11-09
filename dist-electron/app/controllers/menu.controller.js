@@ -37,6 +37,7 @@ exports.MenuController = void 0;
 const electron_1 = require("electron");
 const path = __importStar(require("path"));
 const settings_service_1 = require("../services/settings.service");
+const i18n_1 = require("../i18n");
 const MANGA_EXTENSIONS = new Set(['.cbz', '.cbr', '.cb7', '.cbt', '.zip', '.rar', '.7z', '.tar']);
 class MenuController {
     static _instance;
@@ -67,7 +68,7 @@ class MenuController {
         if (!win)
             return;
         const result = await electron_1.dialog.showOpenDialog(win, {
-            title: 'Abrir Livro ou Mangá',
+            title: (0, i18n_1.t)('openFileTitle'),
             properties: ['openFile'],
             filters: [
                 {
@@ -156,11 +157,11 @@ class MenuController {
         const customLibraries = settings_service_1.SettingsService.instance.get('libraries', []);
         const librarySubmenu = [
             {
-                label: 'Biblioteca de Mangás (Padrão)',
+                label: (0, i18n_1.t)('mangaLibraryDefault'),
                 click: () => this.navigate('/?lib=manga-default')
             },
             {
-                label: 'Biblioteca de Livros (Padrão)',
+                label: (0, i18n_1.t)('bookLibraryDefault'),
                 click: () => this.navigate('/?lib=book-default')
             }
         ];
@@ -176,10 +177,10 @@ class MenuController {
         }
         const template = [
             {
-                label: 'Arquivo',
+                label: (0, i18n_1.t)('file'),
                 submenu: [
                     {
-                        label: 'Abrir...',
+                        label: (0, i18n_1.t)('open'),
                         accelerator: process.platform === 'darwin' ? 'Cmd+O' : 'Ctrl+O',
                         click: () => {
                             void this.openFile();
@@ -188,53 +189,53 @@ class MenuController {
                 ]
             },
             {
-                label: 'Início',
+                label: (0, i18n_1.t)('home'),
                 click: () => this.navigate('/?lib=home')
             },
             {
-                label: 'Biblioteca',
+                label: (0, i18n_1.t)('library'),
                 submenu: librarySubmenu
             },
             {
-                label: 'Histórico',
+                label: (0, i18n_1.t)('history'),
                 click: () => this.navigate('/history')
             },
             {
-                label: 'Vocabulário',
+                label: (0, i18n_1.t)('vocabulary'),
                 click: () => this.navigate('/vocabulary')
             },
             {
-                label: 'Estatísticas',
+                label: (0, i18n_1.t)('statistics'),
                 click: () => this.navigate('/statistics')
             },
             {
-                label: 'Configurações',
+                label: (0, i18n_1.t)('settings'),
                 click: () => this.navigate('/settings')
             },
             {
-                label: 'Ajuda',
+                label: (0, i18n_1.t)('help'),
                 click: () => this.navigate('/help')
             },
             {
-                label: 'Sobre',
+                label: (0, i18n_1.t)('about'),
                 click: () => this.navigate('/about')
             },
             {
-                label: 'Exibir',
+                label: (0, i18n_1.t)('view'),
                 submenu: [
-                    { role: 'reload', label: 'Recarregar' },
-                    { role: 'forceReload', label: 'Forçar Recarregamento' },
-                    { role: 'toggleDevTools', label: 'Alternar Ferramentas de Desenvolvedor' },
+                    { role: 'reload', label: (0, i18n_1.t)('reload') },
+                    { role: 'forceReload', label: (0, i18n_1.t)('forceReload') },
+                    { role: 'toggleDevTools', label: (0, i18n_1.t)('toggleDevTools') },
                     { type: 'separator' },
-                    { role: 'resetZoom', label: 'Tamanho Real' },
-                    { role: 'zoomIn', label: 'Aumentar Zoom' },
-                    { role: 'zoomOut', label: 'Diminuir Zoom' },
+                    { role: 'resetZoom', label: (0, i18n_1.t)('resetZoom') },
+                    { role: 'zoomIn', label: (0, i18n_1.t)('zoomIn') },
+                    { role: 'zoomOut', label: (0, i18n_1.t)('zoomOut') },
                     { type: 'separator' },
-                    { role: 'togglefullscreen', label: 'Alternar Tela Cheia' }
+                    { role: 'togglefullscreen', label: (0, i18n_1.t)('togglefullscreen') }
                 ]
             },
             {
-                label: 'Sair',
+                label: (0, i18n_1.t)('exit'),
                 accelerator: process.platform === 'darwin' ? 'Cmd+Q' : 'Alt+F4',
                 click: () => {
                     electron_1.app.quit();

@@ -15,6 +15,8 @@ import { HistoryStatsListItemComponent } from './components/history-stats-list-i
 import { HistoryStatsCarouselShelfComponent } from './components/history-stats-carousel-shelf.component';
 import { HistoryFilterModalComponent } from '../history/components/history-filter-modal/history-filter-modal.component';
 import { ScrollEdgesButtonComponent } from '../../shared/scroll-edges-button/scroll-edges-button.component';
+import { TranslatePipe } from '@ngx-translate/core';
+import { LanguageService } from '../../core/services/language.service';
 import { formatShortDuration } from '../../core/services/statistics.service';
 import { parseLibrarySearch } from '../../core/utils/library-search.parser';
 
@@ -44,6 +46,7 @@ export interface VirtualHistoryGroup {
   imports: [
     CommonModule,
     RouterModule,
+    TranslatePipe,
     HistoryStatsCardComponent,
     HistoryStatsListItemComponent,
     HistoryStatsCarouselShelfComponent,
@@ -85,7 +88,7 @@ export interface VirtualHistoryGroup {
                       </span>
 
                       <span class="text-[11px] font-medium text-slate-400 font-mono">
-                        {{ group.totalItems }} {{ group.totalItems === 1 ? 'leitura' : 'leituras' }}
+                        {{ group.totalItems }} {{ group.totalItems === 1 ? ('history.reading_one' | translate) : ('history.readings' | translate) }}
                       </span>
                     </div>
 
@@ -174,6 +177,7 @@ export class StatisticsHistoryComponent implements OnInit, OnDestroy {
   private mangaLibrary = inject(MangaLibraryService);
   private bookLibrary = inject(BookLibraryService);
   private elRef = inject(ElementRef);
+  public languageService = inject(LanguageService);
 
   readonly items = signal<HistoryStatisticsItem[]>([]);
   readonly loading = signal(false);
@@ -325,6 +329,7 @@ export class StatisticsHistoryComponent implements OnInit, OnDestroy {
   }
 
   readonly virtualGroups = computed<VirtualHistoryGroup[]>(() => {
+    this.languageService.currentLang();
     const rawGroups = this.groups();
     if (!rawGroups || rawGroups.length === 0) return [];
 
@@ -560,15 +565,7 @@ export class StatisticsHistoryComponent implements OnInit, OnDestroy {
   }
 
   formatDateLabel(date: string): string {
-    const d = new Date(date + 'T12:00:00');
-    if (Number.isNaN(d.getTime())) return date;
-    const str = d.toLocaleDateString('pt-BR', {
-      weekday: 'long',
-      day: '2-digit',
-      month: 'long',
-      year: 'numeric'
-    });
-    return str.charAt(0).toUpperCase() + str.slice(1);
+    return this.languageService.formatDateLabel(date);
   }
 
   formatTime(seconds: number): string {

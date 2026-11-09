@@ -2544,6 +2544,13 @@
   resolved "https://registry.npmjs.org/@ngtools/webpack/-/webpack-19.2.27.tgz"
   integrity sha512-nuKxH4WaRILjlje4143T8XeDWVi5AIDlCMu/SPSKsYtyGxX7AC3sEu0UatFG7rrJkS/SB+fZngtuydoprhvYkQ==
 
+"@ngx-translate/core@^18.1.0":
+  version "18.1.0"
+  resolved "https://registry.yarnpkg.com/@ngx-translate/core/-/core-18.1.0.tgz#d3531d2e0c120a4eadd46942845035aac53d2260"
+  integrity sha512-UYbxYUmobUboO9aa8LO+rJBfvxbwRsIrbCI7+fC5lGzwwcVbQ0FiPysYFgZC+JWsGBw/+z7u1a6vciJZzqXrcQ==
+  dependencies:
+    tslib "^2.3.0"
+
 "@noble/hashes@1.4.0":
   version "1.4.0"
   resolved "https://registry.npmjs.org/@noble/hashes/-/hashes-1.4.0.tgz"
@@ -5711,7 +5718,7 @@ environment@^1.0.0:
   integrity sha512-xUtoPkMggbz0MPyPiIWr1Kp4aeWJjDZ6SMvURhimjdZgsRuDplF5/s9hcgGhyXMhs+6vpnuoiZ2kFiu3FMnS8Q==
 
 "epubjs@file:./libs/epubjs":
-  version "0.3.93"
+  version "0.3.94"
   dependencies:
     "@types/localforage" "0.0.34"
     "@xmldom/xmldom" "^0.7.5"

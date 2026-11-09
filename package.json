@@ -128,6 +128,7 @@
   },
   "private": true,
   "dependencies": {
+    "7zip-bin": "^5.2.0",
     "@angular/cdk": "^19.2.0",
     "@angular/common": "^19.2.0",
     "@angular/compiler": "^19.2.0",
@@ -136,8 +137,8 @@
     "@angular/platform-browser": "^19.2.0",
     "@angular/platform-browser-dynamic": "^19.2.0",
     "@angular/router": "^19.2.0",
+    "@ngx-translate/core": "^18.1.0",
     "@sentry/electron": "7.18.0",
-    "7zip-bin": "^5.2.0",
     "adm-zip": "^0.6.0",
     "better-sqlite3": "^13.0.3",
     "chokidar": "^5.0.0",

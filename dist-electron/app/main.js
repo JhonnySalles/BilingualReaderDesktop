@@ -64,6 +64,7 @@ const tracker_controller_1 = require("./controllers/tracker.controller");
 const book_image_cover_controller_1 = require("./controllers/book-image-cover.controller");
 const manga_image_cover_controller_1 = require("./controllers/manga-image-cover.controller");
 const book_page_bitmap_capture_service_1 = require("./services/book-page-bitmap-capture.service");
+const i18n_1 = require("./i18n");
 const epub_book_extractor_1 = require("./parser/book/epub-book-extractor");
 const book_extractor_factory_1 = require("./parser/book/book-extractor.factory");
 const telemetry_1 = require("./utils/telemetry");
@@ -468,8 +469,18 @@ electron_1.app.on('ready', () => {
         });
         createWindow();
         tray_service_1.TrayService.instance.init(() => mainWindow);
+        const savedLang = settings_service_1.SettingsService.instance.get('APP_LANGUAGE', 'auto');
+        const resolvedLang = (savedLang === 'auto' || !savedLang)
+            ? (electron_1.app.getLocale()?.toLowerCase().startsWith('pt') ? 'pt' : 'en')
+            : String(savedLang);
+        (0, i18n_1.setAppLanguage)(resolvedLang);
         menu_controller_1.MenuController.instance.setServices(() => mainWindow, storageService, scannerMangaService, scannerBookService);
         menu_controller_1.MenuController.instance.buildMenu();
+        electron_1.ipcMain.handle('i18n:set-language', async (_event, lang) => {
+            (0, i18n_1.setAppLanguage)(lang);
+            menu_controller_1.MenuController.instance.buildMenu();
+            return { success: true };
+        });
         electron_1.ipcMain.handle('app:ping', async () => {
             return 'Pong de Electron Node.js!';
         });
@@ -557,7 +568,7 @@ electron_1.app.on('ready', () => {
             if (!mainWindow)
                 return null;
             const result = await electron_1.dialog.showOpenDialog(mainWindow, {
-                title: 'Selecionar Diretório de Biblioteca',
+                title: (0, i18n_1.t)('selectLibraryDirTitle'),
                 defaultPath: lastOpenedDirectory,
                 properties: ['openDirectory', 'createDirectory']
             });

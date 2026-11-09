@@ -35,6 +35,7 @@ electron_1.contextBridge.exposeInMainWorld('electronAPI', {
     getTags: () => electron_1.ipcRenderer.invoke('tags:list'),
     saveTag: (name) => electron_1.ipcRenderer.invoke('tags:save', name),
     deleteTag: (id) => electron_1.ipcRenderer.invoke('tags:delete', id),
+    setAppLanguage: (lang) => electron_1.ipcRenderer.invoke('i18n:set-language', lang),
     getSetting: (key, defaultValue) => electron_1.ipcRenderer.invoke('settings:get', key, defaultValue),
     setSetting: (key, value) => electron_1.ipcRenderer.invoke('settings:set', key, value),
     getSecret: (secretKey) => electron_1.ipcRenderer.invoke('secrets:get', secretKey),

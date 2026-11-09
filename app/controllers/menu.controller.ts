@@ -4,6 +4,7 @@ import { SettingsService } from '../services/settings.service';
 import { StorageService } from '../database/storage.service';
 import { ScannerMangaService } from '../scanner/scanner-manga.service';
 import { ScannerBookService } from '../scanner/scanner-book.service';
+import { t } from '../i18n';
 
 const MANGA_EXTENSIONS = new Set(['.cbz', '.cbr', '.cb7', '.cbt', '.zip', '.rar', '.7z', '.tar']);
 
@@ -45,7 +46,7 @@ export class MenuController {
     if (!win) return;
 
     const result = await dialog.showOpenDialog(win, {
-      title: 'Abrir Livro ou Mangá',
+      title: t('openFileTitle'),
       properties: ['openFile'],
       filters: [
         {
@@ -139,11 +140,11 @@ export class MenuController {
 
     const librarySubmenu: MenuItemConstructorOptions[] = [
       {
-        label: 'Biblioteca de Mangás (Padrão)',
+        label: t('mangaLibraryDefault'),
         click: () => this.navigate('/?lib=manga-default')
       },
       {
-        label: 'Biblioteca de Livros (Padrão)',
+        label: t('bookLibraryDefault'),
         click: () => this.navigate('/?lib=book-default')
       }
     ];
@@ -161,10 +162,10 @@ export class MenuController {
 
     const template: MenuItemConstructorOptions[] = [
       {
-        label: 'Arquivo',
+        label: t('file'),
         submenu: [
           {
-            label: 'Abrir...',
+            label: t('open'),
             accelerator: process.platform === 'darwin' ? 'Cmd+O' : 'Ctrl+O',
             click: () => {
               void this.openFile();
@@ -173,53 +174,53 @@ export class MenuController {
         ]
       },
       {
-        label: 'Início',
+        label: t('home'),
         click: () => this.navigate('/?lib=home')
       },
       {
-        label: 'Biblioteca',
+        label: t('library'),
         submenu: librarySubmenu
       },
       {
-        label: 'Histórico',
+        label: t('history'),
         click: () => this.navigate('/history')
       },
       {
-        label: 'Vocabulário',
+        label: t('vocabulary'),
         click: () => this.navigate('/vocabulary')
       },
       {
-        label: 'Estatísticas',
+        label: t('statistics'),
         click: () => this.navigate('/statistics')
       },
       {
-        label: 'Configurações',
+        label: t('settings'),
         click: () => this.navigate('/settings')
       },
       {
-        label: 'Ajuda',
+        label: t('help'),
         click: () => this.navigate('/help')
       },
       {
-        label: 'Sobre',
+        label: t('about'),
         click: () => this.navigate('/about')
       },
       {
-        label: 'Exibir',
+        label: t('view'),
         submenu: [
-          { role: 'reload', label: 'Recarregar' },
-          { role: 'forceReload', label: 'Forçar Recarregamento' },
-          { role: 'toggleDevTools', label: 'Alternar Ferramentas de Desenvolvedor' },
+          { role: 'reload', label: t('reload') },
+          { role: 'forceReload', label: t('forceReload') },
+          { role: 'toggleDevTools', label: t('toggleDevTools') },
           { type: 'separator' },
-          { role: 'resetZoom', label: 'Tamanho Real' },
-          { role: 'zoomIn', label: 'Aumentar Zoom' },
-          { role: 'zoomOut', label: 'Diminuir Zoom' },
+          { role: 'resetZoom', label: t('resetZoom') },
+          { role: 'zoomIn', label: t('zoomIn') },
+          { role: 'zoomOut', label: t('zoomOut') },
           { type: 'separator' },
-          { role: 'togglefullscreen', label: 'Alternar Tela Cheia' }
+          { role: 'togglefullscreen', label: t('togglefullscreen') }
         ]
       },
       {
-        label: 'Sair',
+        label: t('exit'),
         accelerator: process.platform === 'darwin' ? 'Cmd+Q' : 'Alt+F4',
         click: () => {
           app.quit();

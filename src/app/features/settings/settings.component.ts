@@ -1,6 +1,8 @@
 import { Component, signal, computed, inject, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { TranslatePipe } from '@ngx-translate/core';
+import { LanguageService } from '../../core/services/language.service';
 import { ElectronService, LlmCatalogModel, LlmDownloadProgressEvent } from '../../core/services/electron.service';
 import { ThemeService, ThemeMode, AccentColor } from '../../core/services/theme.service';
 import { SettingsService, CustomLibrary, LlmProviderSetting, LlmLocalKind, normalizeEbookConvertMode, EBOOK_CONVERT_MODE_KEY } from '../../core/services/settings.service';
@@ -31,7 +33,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
 @Component({
   selector: 'app-settings',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReaderTouchConfigComponent, TeleportToBodyDirective],
+  imports: [CommonModule, FormsModule, ReaderTouchConfigComponent, TeleportToBodyDirective, TranslatePipe],
   template: `
     <div class="h-full flex flex-col bg-slate-950 text-slate-100 overflow-hidden select-none relative">
       <!-- Settings Layout (Left Navigation, Right Scrollable Content) -->
@@ -45,7 +47,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
             [class.text-slate-400]="activeTab() !== 'manga'"
             class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold transition-all cursor-pointer hover:bg-slate-800/60">
             <span class="text-base">🎨</span>
-            <span class="truncate">Mangás & Comics</span>
+            <span class="truncate">{{ 'nav.mangasAndComics' | translate }}</span>
           </button>
 
           <button 
@@ -55,7 +57,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
             [class.text-slate-400]="activeTab() !== 'book'"
             class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold transition-all cursor-pointer hover:bg-slate-800/60">
             <span class="text-base">📚</span>
-            <span class="truncate">Livros & EPUBs</span>
+            <span class="truncate">{{ 'nav.booksAndEpubs' | translate }}</span>
           </button>
 
           <button 
@@ -65,7 +67,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
             [class.text-slate-400]="activeTab() !== 'system'"
             class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold transition-all cursor-pointer hover:bg-slate-800/60">
             <span class="text-base">⚙️</span>
-            <span class="truncate">Sistema & Banco de Dados</span>
+            <span class="truncate">{{ 'settings.system.title' | translate }}</span>
           </button>
 
           <button 
@@ -75,7 +77,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
             [class.text-slate-400]="activeTab() !== 'ai'"
             class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold transition-all cursor-pointer hover:bg-slate-800/60">
             <span class="text-base">🤖</span>
-            <span class="truncate">Inteligência Artificial (OpenRouter)</span>
+            <span class="truncate">{{ 'settings.tabs.ai' | translate }}</span>
           </button>
 
           <button 
@@ -85,7 +87,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
             [class.text-slate-400]="activeTab() !== 'tracker'"
             class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold transition-all cursor-pointer hover:bg-slate-800/60">
             <span class="text-base">🎯</span>
-            <span class="truncate">Rastreadores (MAL / AniList)</span>
+            <span class="truncate">{{ 'settings.tabs.tracker' | translate }}</span>
           </button>
         </div>
 
@@ -666,8 +668,83 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
           @if (activeTab() === 'system') {
             <section class="space-y-6">
               <div class="border-b border-slate-800 pb-3">
-                <h2 class="text-lg font-bold text-primary-400">Sistema & Banco de Dados</h2>
-                <p class="text-xs text-slate-400 mt-1">Gerenciamento visual de temas, SQLite, backup e sincronização</p>
+                <h2 class="text-lg font-bold text-primary-400">
+                  {{ 'settings.system.title' | translate }}
+                </h2>
+                <p class="text-xs text-slate-400 mt-1">
+                  {{ 'settings.system.subtitle' | translate }}
+                </p>
+              </div>
+
+              <!-- Language Selection -->
+              <div class="bg-slate-900/80 rounded-xl p-5 border border-slate-800 space-y-4">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">
+                      {{ 'settings.system.language.title' | translate }}
+                    </h3>
+                    <p class="text-[11px] text-slate-500 mt-0.5">
+                      {{ 'settings.system.language.description' | translate }}
+                    </p>
+                  </div>
+                  <span class="px-2.5 py-1 rounded-lg bg-primary-500/10 border border-primary-500/20 text-[11px] font-mono font-bold text-primary-400">
+                    {{ languageService.currentLang().toUpperCase() }} ({{ languageService.locale() }})
+                  </span>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <!-- Automático (Sistema) -->
+                  <button
+                    type="button"
+                    (click)="languageService.setPreference('auto')"
+                    [class.border-primary-500]="languageService.preference() === 'auto'"
+                    [class.bg-primary-950]="languageService.preference() === 'auto'"
+                    [class.ring-2]="languageService.preference() === 'auto'"
+                    [class.ring-primary-500]="languageService.preference() === 'auto'"
+                    class="p-4 bg-slate-950 rounded-xl border border-slate-800 text-left transition-all cursor-pointer hover:border-slate-700 flex flex-col justify-between min-h-[90px]">
+                    <div class="flex items-center gap-2 mb-1">
+                      <span class="text-lg">🖥️</span>
+                      <span class="text-xs font-bold text-slate-100">
+                        {{ 'settings.system.language.auto' | translate }}
+                      </span>
+                    </div>
+                    <span class="text-[10px] text-slate-400">
+                      {{ languageService.systemLanguage() === 'pt' ? 'Detectado: Português' : 'Detected: English' }}
+                    </span>
+                  </button>
+
+                  <!-- English -->
+                  <button
+                    type="button"
+                    (click)="languageService.setPreference('en')"
+                    [class.border-primary-500]="languageService.preference() === 'en'"
+                    [class.bg-primary-950]="languageService.preference() === 'en'"
+                    [class.ring-2]="languageService.preference() === 'en'"
+                    [class.ring-primary-500]="languageService.preference() === 'en'"
+                    class="p-4 bg-slate-950 rounded-xl border border-slate-800 text-left transition-all cursor-pointer hover:border-slate-700 flex flex-col justify-between min-h-[90px]">
+                    <div class="flex items-center gap-2 mb-1">
+                      <span class="text-lg">🇺🇸</span>
+                      <span class="text-xs font-bold text-slate-100">English</span>
+                    </div>
+                    <span class="text-[10px] text-slate-400">Default application language</span>
+                  </button>
+
+                  <!-- Português (Brasil) -->
+                  <button
+                    type="button"
+                    (click)="languageService.setPreference('pt')"
+                    [class.border-primary-500]="languageService.preference() === 'pt'"
+                    [class.bg-primary-950]="languageService.preference() === 'pt'"
+                    [class.ring-2]="languageService.preference() === 'pt'"
+                    [class.ring-primary-500]="languageService.preference() === 'pt'"
+                    class="p-4 bg-slate-950 rounded-xl border border-slate-800 text-left transition-all cursor-pointer hover:border-slate-700 flex flex-col justify-between min-h-[90px]">
+                    <div class="flex items-center gap-2 mb-1">
+                      <span class="text-lg">🇧🇷</span>
+                      <span class="text-xs font-bold text-slate-100">Português (Brasil)</span>
+                    </div>
+                    <span class="text-[10px] text-slate-400">Interface completa em português</span>
+                  </button>
+                </div>
               </div>
 
               <!-- Theme & Accent Selection -->
@@ -1878,6 +1955,7 @@ type SettingTab = 'manga' | 'book' | 'system' | 'ai' | 'tracker';
 export class SettingsComponent implements OnInit, OnDestroy {
   private electronService = inject(ElectronService);
   themeService = inject(ThemeService);
+  languageService = inject(LanguageService);
   settingsService = inject(SettingsService);
   shareMark = inject(ShareMarkUiService);
   private libraryState = inject(LibraryStateService);

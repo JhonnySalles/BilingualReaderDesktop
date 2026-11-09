@@ -15,12 +15,13 @@ import { CommonModule } from '@angular/common';
 import { HistoryStatisticsItem } from '../../../core/models';
 import { HistoryStatsCardComponent } from './history-stats-card.component';
 import { LayoutAnimationService } from '../../../core/services/layout-animation.service';
+import { TranslatePipe } from '@ngx-translate/core';
 import { isBigScroll } from '../../../shared/scroll-edges-button/scroll-edges.util';
 
 @Component({
   selector: 'app-history-stats-carousel-shelf',
   standalone: true,
-  imports: [CommonModule, HistoryStatsCardComponent],
+  imports: [CommonModule, TranslatePipe, HistoryStatsCardComponent],
   template: `
     <div class="w-full relative group/shelf my-5 first:mt-1">
 
@@ -36,7 +37,7 @@ import { isBigScroll } from '../../../shared/scroll-edges-button/scroll-edges.ut
             </span>
 
             <span class="text-[11px] font-medium text-slate-400 font-mono">
-              {{ items.length }} {{ items.length === 1 ? 'leitura' : 'leituras' }}
+              {{ items.length }} {{ items.length === 1 ? ('history.reading_one' | translate) : ('history.readings' | translate) }}
             </span>
           </div>
 
@@ -49,7 +50,7 @@ import { isBigScroll } from '../../../shared/scroll-edges-button/scroll-edges.ut
               (click)="scrollLeft()"
               [disabled]="!canScrollLeft()"
               class="p-1.5 rounded-lg border border-slate-800 bg-slate-900/80 text-slate-300 hover:text-white hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer shadow-sm"
-              title="Rolar para esquerda">
+              [title]="'common.scrollLeft' | translate">
               <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
               </svg>
@@ -60,7 +61,7 @@ import { isBigScroll } from '../../../shared/scroll-edges-button/scroll-edges.ut
               (click)="scrollRight()"
               [disabled]="!canScrollRight()"
               class="p-1.5 rounded-lg border border-slate-800 bg-slate-900/80 text-slate-300 hover:text-white hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer shadow-sm"
-              title="Rolar para direita">
+              [title]="'common.scrollRight' | translate">
               <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
               </svg>
@@ -87,7 +88,7 @@ import { isBigScroll } from '../../../shared/scroll-edges-button/scroll-edges.ut
             : (mediaType === 'MANGA'
                 ? 'bg-slate-900/90 text-manga-300 border-slate-700/70 hover:border-manga-500/70 hover:bg-slate-800 hover:text-manga-200 hover:shadow-manga-500/25 active:bg-manga-950/40'
                 : 'bg-slate-900/90 border-slate-700/70 hover:bg-slate-800 scroll-edge-primary')"
-          title="Ir para o início">
+          [title]="'common.scrollToStart' | translate">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             class="w-5 h-5 transition-transform duration-200 group-hover:-translate-x-0.5"
@@ -115,7 +116,7 @@ import { isBigScroll } from '../../../shared/scroll-edges-button/scroll-edges.ut
             : (mediaType === 'MANGA'
                 ? 'bg-slate-900/90 text-manga-300 border-slate-700/70 hover:border-manga-500/70 hover:bg-slate-800 hover:text-manga-200 hover:shadow-manga-500/25 active:bg-manga-950/40'
                 : 'bg-slate-900/90 border-slate-700/70 hover:bg-slate-800 scroll-edge-primary')"
-          title="Ir para o final">
+          [title]="'common.scrollToEnd' | translate">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             class="w-5 h-5 transition-transform duration-200 group-hover:translate-x-0.5"

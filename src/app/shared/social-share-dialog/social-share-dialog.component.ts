@@ -31,11 +31,12 @@ import {
 import { SocialShareService } from '../../core/services/social-share.service';
 import { LibraryOption } from '../../core/models';
 import { TeleportToBodyDirective } from '../directives/teleport-to-body.directive';
+import { TranslatePipe } from '@ngx-translate/core';
 
 @Component({
   selector: 'app-social-share-dialog',
   standalone: true,
-  imports: [CommonModule, FormsModule, TeleportToBodyDirective],
+  imports: [CommonModule, FormsModule, TeleportToBodyDirective, TranslatePipe],
   template: `
     @if (isVisible()) {
       <div
@@ -54,13 +55,13 @@ import { TeleportToBodyDirective } from '../directives/teleport-to-body.directiv
               </span>
               <div>
                 <h2 class="text-base font-bold text-slate-100 flex items-center gap-2">
-                  Compartilhar Leituras
+                  {{ 'socialShare.title' | translate }}
                   <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-primary-500/20 text-primary-300">
-                    Social Studio
+                    {{ 'socialShare.subtitle' | translate }}
                   </span>
                 </h2>
                 <p class="text-xs text-slate-400">
-                  Gere imagens personalizadas em alta definição prontas para postar no Instagram, Twitter e Tumblr.
+                  {{ 'socialShare.tagline' | translate }}
                 </p>
               </div>
             </div>
@@ -68,7 +69,7 @@ import { TeleportToBodyDirective } from '../directives/teleport-to-body.directiv
               type="button"
               (click)="handleClose()"
               class="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
-              title="Fechar">
+              [title]="'common.close' | translate">
               <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
               </svg>
@@ -636,11 +637,11 @@ import { TeleportToBodyDirective } from '../directives/teleport-to-body.directiv
               <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
                 <div class="flex items-center gap-2">
                   <span class="text-xs font-bold uppercase tracking-wider text-slate-400">
-                    Visualização em Tempo Real (WYSIWYG)
+                    {{ 'socialShare.realtimePreview' | translate }}
                   </span>
                   @if (renderedPages().length > 1) {
                     <span class="px-2 py-0.5 rounded-full bg-primary-500/20 border border-primary-500/30 text-[10px] font-bold text-primary-300">
-                      {{ renderedPages().length }} págs
+                      {{ 'socialShare.pagesBadge' | translate:{ count: renderedPages().length } }}
                     </span>
                   }
                 </div>
@@ -653,7 +654,7 @@ import { TeleportToBodyDirective } from '../directives/teleport-to-body.directiv
                       (click)="zoomOut()"
                       [disabled]="previewZoom() <= minZoom"
                       class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-400 transition-colors cursor-pointer"
-                      title="Diminuir Zoom (Ctrl + Roda para baixo)">
+                      [title]="'socialShare.zoomOut' | translate">
                       <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" />
                       </svg>
@@ -665,7 +666,7 @@ import { TeleportToBodyDirective } from '../directives/teleport-to-body.directiv
                       class="px-2 h-7 flex items-center justify-center text-xs font-mono font-semibold transition-colors rounded-lg hover:bg-slate-800 cursor-pointer"
                       [class.text-primary-400]="previewZoom() !== 1"
                       [class.text-slate-300]="previewZoom() === 1"
-                      title="Resetar Zoom (100%)">
+                      [title]="'socialShare.resetZoom' | translate">
                       {{ previewZoomPercent() }}%
                     </button>
 
@@ -674,7 +675,7 @@ import { TeleportToBodyDirective } from '../directives/teleport-to-body.directiv
                       (click)="zoomIn()"
                       [disabled]="previewZoom() >= maxZoom"
                       class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-400 transition-colors cursor-pointer"
-                      title="Aumentar Zoom (Ctrl + Roda para cima)">
+                      [title]="'socialShare.zoomIn' | translate">
                       <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                       </svg>
@@ -685,11 +686,11 @@ import { TeleportToBodyDirective } from '../directives/teleport-to-body.directiv
                         type="button"
                         (click)="resetZoom()"
                         class="ml-1 px-2 h-7 flex items-center gap-1 text-[11px] font-medium text-primary-400 hover:text-primary-300 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
-                        title="Ajustar à tela">
+                        [title]="'socialShare.fitScreen' | translate">
                         <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
                         </svg>
-                        <span>Ajustar</span>
+                        <span>{{ 'socialShare.fitScreen' | translate }}</span>
                       </button>
                     }
                   </div>
@@ -715,7 +716,7 @@ import { TeleportToBodyDirective } from '../directives/teleport-to-body.directiv
                 @if (isRendering()) {
                   <div class="sticky top-2 z-20 flex items-center justify-center pointer-events-none">
                     <span class="px-3 py-1.5 rounded-full bg-slate-900/90 border border-primary-500/40 text-xs font-semibold text-primary-300 shadow-lg animate-pulse">
-                      Renderizando {{ renderedPages().length > 1 ? 'páginas' : 'imagem' }}…
+                      {{ 'socialShare.rendering' | translate }}
                     </span>
                   </div>
                 }
@@ -778,7 +779,7 @@ import { TeleportToBodyDirective } from '../directives/teleport-to-body.directiv
                 <div class="text-xs text-slate-400">
                   @if (copySuccess()) {
                     <span class="text-emerald-400 font-semibold animate-fade-in flex items-center gap-1">
-                      ✓ Imagem copiada para a Área de Transferência! (Cole com Ctrl+V)
+                      ✓ {{ 'socialShare.copiedSuccess' | translate }}
                     </span>
                   }
                 </div>
@@ -792,7 +793,7 @@ import { TeleportToBodyDirective } from '../directives/teleport-to-body.directiv
                     <svg class="w-4 h-4 text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
                     </svg>
-                    {{ renderedPages().length > 1 ? 'Copiar 1ª Página' : 'Copiar Imagem' }}
+                    {{ renderedPages().length > 1 ? ('socialShare.copyFirstPage' | translate) : ('socialShare.copyImage' | translate) }}
                   </button>
 
                   <button
@@ -803,7 +804,7 @@ import { TeleportToBodyDirective } from '../directives/teleport-to-body.directiv
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                     </svg>
-                    {{ renderedPages().length > 1 ? ('Salvar Todas (' + renderedPages().length + ' PNGs)…') : 'Salvar PNG…' }}
+                    {{ renderedPages().length > 1 ? ('socialShare.saveAllPngs' | translate:{ count: renderedPages().length }) : ('socialShare.savePng' | translate) }}
                   </button>
                 </div>
               </footer>

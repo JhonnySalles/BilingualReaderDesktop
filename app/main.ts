@@ -28,6 +28,7 @@ import { TrackerController } from './controllers/tracker.controller';
 import { BookImageCoverController } from './controllers/book-image-cover.controller';
 import { MangaImageCoverController } from './controllers/manga-image-cover.controller';
 import { BookPageBitmapCaptureService } from './services/book-page-bitmap-capture.service';
+import { setAppLanguage, t } from './i18n';
 import { EpubBookExtractor } from './parser/book/epub-book-extractor';
 import { BookExtractorFactory } from './parser/book/book-extractor.factory';
 import { Book } from '../src/app/core/models/entities/book.model';
@@ -472,6 +473,12 @@ app.on('ready', () => {
     createWindow();
     TrayService.instance.init(() => mainWindow);
 
+    const savedLang = SettingsService.instance.get('APP_LANGUAGE', 'auto');
+    const resolvedLang = (savedLang === 'auto' || !savedLang)
+      ? (app.getLocale()?.toLowerCase().startsWith('pt') ? 'pt' : 'en')
+      : String(savedLang);
+    setAppLanguage(resolvedLang);
+
     MenuController.instance.setServices(
       () => mainWindow,
       storageService,
@@ -479,6 +486,12 @@ app.on('ready', () => {
       scannerBookService
     );
     MenuController.instance.buildMenu();
+
+    ipcMain.handle('i18n:set-language', async (_event, lang: string) => {
+      setAppLanguage(lang);
+      MenuController.instance.buildMenu();
+      return { success: true };
+    });
 
     ipcMain.handle('app:ping', async () => {
       return 'Pong de Electron Node.js!';
@@ -574,7 +587,7 @@ app.on('ready', () => {
     ipcMain.handle('dialog:openDirectory', async () => {
       if (!mainWindow) return null;
       const result = await dialog.showOpenDialog(mainWindow, {
-        title: 'Selecionar Diretório de Biblioteca',
+        title: t('selectLibraryDirTitle'),
         defaultPath: lastOpenedDirectory,
         properties: ['openDirectory', 'createDirectory']
       });

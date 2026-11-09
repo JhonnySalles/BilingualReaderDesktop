@@ -15,12 +15,14 @@ import { CommonModule } from '@angular/common';
 import { Manga, Book, OrderType } from '../../../../core/models';
 import { LibraryCarouselCardComponent } from '../library-carousel-card/library-carousel-card.component';
 import { LayoutAnimationService } from '../../../../core/services/layout-animation.service';
+import { TranslatePipe } from '@ngx-translate/core';
+import { LanguageService } from '../../../../core/services/language.service';
 import { isBigScroll, smoothScrollHorizontalTo } from '../../../../shared/scroll-edges-button/scroll-edges.util';
 
 @Component({
   selector: 'app-library-carousel-shelf',
   standalone: true,
-  imports: [CommonModule, LibraryCarouselCardComponent],
+  imports: [CommonModule, TranslatePipe, LibraryCarouselCardComponent],
   template: `
     <div class="w-full relative group/shelf my-5 first:mt-1">
       
@@ -51,7 +53,7 @@ import { isBigScroll, smoothScrollHorizontalTo } from '../../../../shared/scroll
               (click)="scrollLeft()"
               [disabled]="!canScrollLeft()"
               class="p-1.5 rounded-lg border border-slate-800 bg-slate-900/80 text-slate-300 hover:text-white hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer shadow-sm"
-              title="Rolar para esquerda">
+              [title]="'common.scrollLeft' | translate">
               <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
               </svg>
@@ -62,7 +64,7 @@ import { isBigScroll, smoothScrollHorizontalTo } from '../../../../shared/scroll
               (click)="scrollRight()"
               [disabled]="!canScrollRight()"
               class="p-1.5 rounded-lg border border-slate-800 bg-slate-900/80 text-slate-300 hover:text-white hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer shadow-sm"
-              title="Rolar para direita">
+              [title]="'common.scrollRight' | translate">
               <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
               </svg>
@@ -87,7 +89,7 @@ import { isBigScroll, smoothScrollHorizontalTo } from '../../../../shared/scroll
           [ngClass]="type === 'book'
             ? 'bg-slate-900/90 text-book-300 border-slate-700/70 hover:border-book-500/70 hover:bg-slate-800 hover:text-book-200 hover:shadow-book-500/25 active:bg-book-950/40'
             : 'bg-slate-900/90 text-manga-300 border-slate-700/70 hover:border-manga-500/70 hover:bg-slate-800 hover:text-manga-200 hover:shadow-manga-500/25 active:bg-manga-950/40'"
-          title="Ir para o início">
+          [title]="'common.scrollToStart' | translate">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             class="w-5 h-5 transition-transform duration-200 group-hover:-translate-x-0.5"
@@ -113,7 +115,7 @@ import { isBigScroll, smoothScrollHorizontalTo } from '../../../../shared/scroll
           [ngClass]="type === 'book'
             ? 'bg-slate-900/90 text-book-300 border-slate-700/70 hover:border-book-500/70 hover:bg-slate-800 hover:text-book-200 hover:shadow-book-500/25 active:bg-book-950/40'
             : 'bg-slate-900/90 text-manga-300 border-slate-700/70 hover:border-manga-500/70 hover:bg-slate-800 hover:text-manga-200 hover:shadow-manga-500/25 active:bg-manga-950/40'"
-          title="Ir para o final">
+          [title]="'common.scrollToEnd' | translate">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             class="w-5 h-5 transition-transform duration-200 group-hover:translate-x-0.5"
@@ -202,6 +204,7 @@ export class LibraryCarouselShelfComponent implements AfterViewInit, OnDestroy {
   isAnimatingLeft = signal<boolean>(false);
   isAnimatingRight = signal<boolean>(false);
 
+  private languageService = inject(LanguageService);
   private isDragging = false;
   private startX = 0;
   private scrollStart = 0;
@@ -240,11 +243,13 @@ export class LibraryCarouselShelfComponent implements AfterViewInit, OnDestroy {
 
   getItemCountLabel(): string {
     if (this.order === OrderType.Series) {
-      return this.items.length === 1 ? 'volume' : 'volumes';
+      return this.items.length === 1
+        ? this.languageService.t('common.volume')
+        : this.languageService.t('common.volumes');
     }
     return this.items.length === 1
-      ? (this.type === 'manga' ? 'item' : 'livro')
-      : (this.type === 'manga' ? 'itens' : 'livros');
+      ? (this.type === 'manga' ? this.languageService.t('common.item') : this.languageService.t('common.book'))
+      : (this.type === 'manga' ? this.languageService.t('common.items') : this.languageService.t('common.books'));
   }
 
   onTrackScroll(): void {

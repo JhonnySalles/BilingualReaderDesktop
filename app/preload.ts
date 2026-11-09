@@ -47,6 +47,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getTags: () => ipcRenderer.invoke('tags:list'),
   saveTag: (name: string) => ipcRenderer.invoke('tags:save', name),
   deleteTag: (id: number) => ipcRenderer.invoke('tags:delete', id),
+  setAppLanguage: (lang: string) => ipcRenderer.invoke('i18n:set-language', lang),
   getSetting: (key: string, defaultValue?: any) => ipcRenderer.invoke('settings:get', key, defaultValue),
   setSetting: (key: string, value: any) => ipcRenderer.invoke('settings:set', key, value),
   getSecret: (secretKey: string) => ipcRenderer.invoke('secrets:get', secretKey),
