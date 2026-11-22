@@ -429,6 +429,7 @@ export class LibraryComponent implements OnInit {
   isExternalHd = signal<boolean>(false);
   isPathOnline = signal<boolean>(true);
   isChangingLibrary = signal<boolean>(false);
+  private isNavigating = false;
   private currentNavSession = 0;
 
   isCurrentlyScanning = computed(() => {
@@ -863,65 +864,93 @@ export class LibraryComponent implements OnInit {
   }
 
   async onOpenRecent(event: { item: HomeRecentItem; instanceId?: string } | HomeRecentItem): Promise<void> {
-    const item = 'item' in event ? event.item : event;
-    const instanceId = 'instanceId' in event ? event.instanceId : undefined;
-    if (!item.fkReference) return;
-    if (item.type === 'MANGA') {
-      const manga = this.mangaLibraryService.mangas().find(m => m.id === item.fkReference) || await this.electronService.getManga(item.fkReference);
-      if (manga?.path) {
-        const online = await this.electronService.checkPathOnline(manga.path);
+    if (this.isNavigating) return;
+    this.isNavigating = true;
+    try {
+      const item = 'item' in event ? event.item : event;
+      const instanceId = 'instanceId' in event ? event.instanceId : undefined;
+      if (!item.fkReference) return;
+      if (item.type === 'MANGA') {
+        const manga = this.mangaLibraryService.mangas().find(m => m.id === item.fkReference) || await this.electronService.getManga(item.fkReference);
+        if (manga?.path) {
+          const online = await this.electronService.checkPathOnline(manga.path);
+          if (!online) {
+            this.shareMark.showToast('HD Externo desconectado. Conecte o dispositivo para acessar o arquivo.', 'error');
+            return;
+          }
+        }
+      } else {
+        const book = this.bookLibraryService.books().find(b => b.id === item.fkReference) || await this.electronService.getBook(item.fkReference);
+        if (book?.path) {
+          const online = await this.electronService.checkPathOnline(book.path);
+          if (!online) {
+            this.shareMark.showToast('HD Externo desconectado. Conecte o dispositivo para acessar o arquivo.', 'error');
+            return;
+          }
+        }
+      }
+      this.nav.openReader(
+        this.router,
+        item.type === 'MANGA' ? 'image' : 'text',
+        item.fkReference,
+        instanceId
+      );
+    } finally {
+      setTimeout(() => {
+        this.isNavigating = false;
+      }, 500);
+    }
+  }
+
+  async onOpenItem(event: { item: Manga | Book; instanceId?: string } | Manga | Book): Promise<void> {
+    if (this.isNavigating) return;
+    this.isNavigating = true;
+    try {
+      const item = 'item' in event ? event.item : event;
+      const instanceId = 'instanceId' in event ? event.instanceId : undefined;
+      if (!item.id) return;
+      if (item.path) {
+        const online = await this.electronService.checkPathOnline(item.path);
         if (!online) {
           this.shareMark.showToast('HD Externo desconectado. Conecte o dispositivo para acessar o arquivo.', 'error');
           return;
         }
       }
-    } else {
-      const book = this.bookLibraryService.books().find(b => b.id === item.fkReference) || await this.electronService.getBook(item.fkReference);
-      if (book?.path) {
-        const online = await this.electronService.checkPathOnline(book.path);
+      if (this.activeLibType() === 'manga') {
+        this.nav.openReader(this.router, 'image', item.id, instanceId);
+      } else {
+        this.nav.openReader(this.router, 'text', item.id, instanceId);
+      }
+    } finally {
+      setTimeout(() => {
+        this.isNavigating = false;
+      }, 500);
+    }
+  }
+
+  async onOpenDetail(event: { item: Manga | Book; instanceId?: string } | Manga | Book): Promise<void> {
+    if (this.isNavigating) return;
+    this.isNavigating = true;
+    try {
+      const item = 'item' in event ? event.item : event;
+      const instanceId = 'instanceId' in event ? event.instanceId : undefined;
+      if (!item.id) return;
+      if (item.path) {
+        const online = await this.electronService.checkPathOnline(item.path);
         if (!online) {
           this.shareMark.showToast('HD Externo desconectado. Conecte o dispositivo para acessar o arquivo.', 'error');
           return;
         }
       }
-    }
-    this.nav.openReader(
-      this.router,
-      item.type === 'MANGA' ? 'image' : 'text',
-      item.fkReference,
-      instanceId
-    );
-  }
-
-  async onOpenItem(item: Manga | Book): Promise<void> {
-    if (!item.id) return;
-    if (item.path) {
-      const online = await this.electronService.checkPathOnline(item.path);
-      if (!online) {
-        this.shareMark.showToast('HD Externo desconectado. Conecte o dispositivo para acessar o arquivo.', 'error');
-        return;
+      if (this.activeLibType() === 'manga') {
+        this.nav.openDetail(this.router, 'manga', item.id, item, instanceId);
+      } else {
+        this.nav.openDetail(this.router, 'book', item.id, item, instanceId);
       }
-    }
-    if (this.activeLibType() === 'manga') {
-      this.nav.openReader(this.router, 'image', item.id);
-    } else {
-      this.nav.openReader(this.router, 'text', item.id);
-    }
-  }
-
-  async onOpenDetail(item: Manga | Book): Promise<void> {
-    if (!item.id) return;
-    if (item.path) {
-      const online = await this.electronService.checkPathOnline(item.path);
-      if (!online) {
-        this.shareMark.showToast('HD Externo desconectado. Conecte o dispositivo para acessar o arquivo.', 'error');
-        return;
-      }
-    }
-    if (this.activeLibType() === 'manga') {
-      this.nav.openDetail(this.router, 'manga', item.id, item);
-    } else {
-      this.nav.openDetail(this.router, 'book', item.id, item);
+    } finally {
+      setTimeout(() => {
+        this.isNavigating = false;
+      }, 500);
     }
   }
 

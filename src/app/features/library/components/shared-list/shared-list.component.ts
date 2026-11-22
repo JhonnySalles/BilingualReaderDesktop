@@ -440,12 +440,13 @@ function buildSimpleCarouselRows(
                     (dragover)="onDragOver($event, item)"
                     (drop)="onDrop($event, item)"
                     (dragend)="onDragEnd()"
-                    (pointerdown)="onPointerDown($event, item)"
+                    (pointerdown)="onPointerDown($event, item, !row.isLine ? 'grid' : 'list')"
+                    (pointermove)="onPointerMove($event)"
                     (pointerup)="onPointerUp($event, item)"
                     (pointerleave)="onPointerCancel()"
                     (pointercancel)="onPointerCancel()"
-                    (click)="onClick($event, item)"
-                    (contextmenu)="onContextMenu($event, item)"
+                    (click)="onClick($event, item, !row.isLine ? 'grid' : 'list')"
+                    (contextmenu)="onContextMenu($event, item, !row.isLine ? 'grid' : 'list')"
                     [attr.data-flip-id]="'lib-' + getItemKey(item)"
                     [class.opacity-40]="draggedItemKey() === getItemKey(item)"
                     [class.border-2]="dragOverItemKey() === getItemKey(item)"
@@ -486,12 +487,13 @@ function buildSimpleCarouselRows(
                     (dragover)="onDragOver($event, item)"
                     (drop)="onDrop($event, item)"
                     (dragend)="onDragEnd()"
-                    (pointerdown)="onPointerDown($event, item)"
+                    (pointerdown)="onPointerDown($event, item, !row.isLine ? 'grid' : 'list')"
+                    (pointermove)="onPointerMove($event)"
                     (pointerup)="onPointerUp($event, item)"
                     (pointerleave)="onPointerCancel()"
                     (pointercancel)="onPointerCancel()"
-                    (click)="onClick($event, item)"
-                    (contextmenu)="onContextMenu($event, item)"
+                    (click)="onClick($event, item, !row.isLine ? 'grid' : 'list')"
+                    (contextmenu)="onContextMenu($event, item, !row.isLine ? 'grid' : 'list')"
                     [class.opacity-40]="draggedItemKey() === getItemKey(item)"
                     [class.border-l-4]="dragOverItemKey() === getItemKey(item)"
                     [class.border-manga-500]="dragOverItemKey() === getItemKey(item) && type === 'manga'"
@@ -564,8 +566,8 @@ export class SharedListComponent implements OnInit, OnDestroy {
   @Input() isLoading: boolean = false;
   @Input() cardStyle: 'STANDARD' | 'OVERLAY' = 'STANDARD';
   @Output() reordered = new EventEmitter<(Manga | Book)[]>();
-  @Output() open = new EventEmitter<Manga | Book>();
-  @Output() openDetail = new EventEmitter<Manga | Book>();
+  @Output() open = new EventEmitter<{ item: Manga | Book; instanceId?: string }>();
+  @Output() openDetail = new EventEmitter<{ item: Manga | Book; instanceId?: string }>();
   @Output() setBookmark = new EventEmitter<Manga | Book>();
   @Output() openTracker = new EventEmitter<Manga | Book>();
   @Output() openTags = new EventEmitter<Manga | Book>();
@@ -589,10 +591,14 @@ export class SharedListComponent implements OnInit, OnDestroy {
   private scrollEl: HTMLElement | null = null;
   private scrollRafId: number | null = null;
   private pressTimer: ReturnType<typeof setTimeout> | null = null;
+  private pointerStartX = 0;
+  private pointerStartY = 0;
+  private isPointerDown = false;
   private longPressFired = false;
   private suppressClick = false;
   private didDrag = false;
   private readonly LONG_PRESS_MS = 480;
+  private readonly MOVE_THRESHOLD = 8;
 
   ngOnInit(): void {
     if (typeof ResizeObserver !== 'undefined' && this.elRef?.nativeElement) {
@@ -928,8 +934,16 @@ export class SharedListComponent implements OnInit, OnDestroy {
     return item.id || item.path || item.title;
   }
 
-  onPointerDown(event: PointerEvent, item: Manga | Book): void {
+  getItemInstanceId(item: Manga | Book, viewMode: 'grid' | 'list'): string {
+    const key = this.getItemKey(item);
+    return `shared-${viewMode}-${this.type}-${key}`;
+  }
+
+  onPointerDown(event: PointerEvent, item: Manga | Book, viewMode: 'grid' | 'list'): void {
     if (event.button !== 0) return;
+    this.isPointerDown = true;
+    this.pointerStartX = event.clientX;
+    this.pointerStartY = event.clientY;
     this.longPressFired = false;
     this.suppressClick = false;
     this.didDrag = false;
@@ -937,19 +951,31 @@ export class SharedListComponent implements OnInit, OnDestroy {
     this.pressTimer = setTimeout(() => {
       this.longPressFired = true;
       this.suppressClick = true;
-      this.openDetail.emit(item);
+      this.openDetail.emit({ item, instanceId: this.getItemInstanceId(item, viewMode) });
     }, this.LONG_PRESS_MS);
   }
 
+  onPointerMove(event: PointerEvent): void {
+    if (!this.isPointerDown || !this.pressTimer) return;
+    const deltaX = Math.abs(event.clientX - this.pointerStartX);
+    const deltaY = Math.abs(event.clientY - this.pointerStartY);
+    if (deltaX > this.MOVE_THRESHOLD || deltaY > this.MOVE_THRESHOLD) {
+      this.clearPressTimer();
+    }
+  }
+
   onPointerUp(_event: PointerEvent, _item: Manga | Book): void {
+    this.isPointerDown = false;
     this.clearPressTimer();
   }
 
   onPointerCancel(): void {
+    this.isPointerDown = false;
     this.clearPressTimer();
   }
 
-  onClick(event: MouseEvent, item: Manga | Book): void {
+  onClick(event: MouseEvent, item: Manga | Book, viewMode: 'grid' | 'list'): void {
+    this.isPointerDown = false;
     if (this.suppressClick || this.didDrag || this.longPressFired) {
       event.preventDefault();
       event.stopPropagation();
@@ -957,13 +983,14 @@ export class SharedListComponent implements OnInit, OnDestroy {
       this.longPressFired = false;
       return;
     }
-    this.open.emit(item);
+    this.open.emit({ item, instanceId: this.getItemInstanceId(item, viewMode) });
   }
 
-  onContextMenu(event: MouseEvent, item: Manga | Book): void {
+  onContextMenu(event: MouseEvent, item: Manga | Book, viewMode: 'grid' | 'list'): void {
     event.preventDefault();
+    this.isPointerDown = false;
     this.clearPressTimer();
-    this.openDetail.emit(item);
+    this.openDetail.emit({ item, instanceId: this.getItemInstanceId(item, viewMode) });
   }
 
   onDragStart(event: DragEvent, item: Manga | Book) {

@@ -36,6 +36,7 @@ const MENU_WIDTH = 208;
           : 'border-slate-800/80 book-card-hover hover:shadow-xl hover:-translate-y-1.5'
       ]"
       (pointerdown)="onPointerDown($event)"
+      (pointermove)="onPointerMove($event)"
       (pointerup)="onPointerUp($event)"
       (pointercancel)="onPointerCancel()"
       (pointerleave)="onPointerCancel()"
@@ -270,8 +271,8 @@ export class LibraryCarouselCardComponent implements OnDestroy {
   @Input() cardSize: 'normal' | 'small' = 'normal';
   @Input() instanceId: string = 'carousel';
 
-  @Output() open = new EventEmitter<Manga | Book>();
-  @Output() openDetail = new EventEmitter<Manga | Book>();
+  @Output() open = new EventEmitter<{ item: Manga | Book; instanceId?: string }>();
+  @Output() openDetail = new EventEmitter<{ item: Manga | Book; instanceId?: string }>();
   @Output() setBookmark = new EventEmitter<Manga | Book>();
   @Output() openTracker = new EventEmitter<Manga | Book>();
   @Output() openTags = new EventEmitter<Manga | Book>();
@@ -291,8 +292,12 @@ export class LibraryCarouselCardComponent implements OnDestroy {
   private deleteModalNode: HTMLElement | null = null;
 
   private pressTimer: ReturnType<typeof setTimeout> | null = null;
+  private pointerStartX = 0;
+  private pointerStartY = 0;
+  private isPointerDown = false;
   private longPressFired = false;
   private suppressClick = false;
+  private readonly MOVE_THRESHOLD = 8;
 
   @ViewChild('menuEl')
   set menuEl(ref: ElementRef<HTMLElement> | undefined) {
@@ -389,25 +394,40 @@ export class LibraryCarouselCardComponent implements OnDestroy {
 
   onPointerDown(event: PointerEvent): void {
     if (event.button !== 0) return;
+    this.isPointerDown = true;
+    this.pointerStartX = event.clientX;
+    this.pointerStartY = event.clientY;
     this.longPressFired = false;
     this.suppressClick = false;
     this.clearPressTimer();
     this.pressTimer = setTimeout(() => {
       this.longPressFired = true;
       this.suppressClick = true;
-      this.openDetail.emit(this.item);
+      this.openDetail.emit({ item: this.item, instanceId: this.instanceId });
     }, 450);
   }
 
+  onPointerMove(event: PointerEvent): void {
+    if (!this.isPointerDown || !this.pressTimer) return;
+    const deltaX = Math.abs(event.clientX - this.pointerStartX);
+    const deltaY = Math.abs(event.clientY - this.pointerStartY);
+    if (deltaX > this.MOVE_THRESHOLD || deltaY > this.MOVE_THRESHOLD) {
+      this.clearPressTimer();
+    }
+  }
+
   onPointerUp(_event: PointerEvent): void {
+    this.isPointerDown = false;
     this.clearPressTimer();
   }
 
   onPointerCancel(): void {
+    this.isPointerDown = false;
     this.clearPressTimer();
   }
 
   onClick(event: MouseEvent): void {
+    this.isPointerDown = false;
     if (this.suppressClick || this.longPressFired) {
       event.preventDefault();
       event.stopPropagation();
@@ -415,13 +435,14 @@ export class LibraryCarouselCardComponent implements OnDestroy {
       this.longPressFired = false;
       return;
     }
-    this.open.emit(this.item);
+    this.open.emit({ item: this.item, instanceId: this.instanceId });
   }
 
   onContextMenu(event: MouseEvent): void {
     event.preventDefault();
+    this.isPointerDown = false;
     this.clearPressTimer();
-    this.openDetail.emit(this.item);
+    this.openDetail.emit({ item: this.item, instanceId: this.instanceId });
   }
 
   async onOpenLocation(event: MouseEvent): Promise<void> {

@@ -190,8 +190,8 @@ export class LibraryCarouselShelfComponent implements AfterViewInit, OnDestroy {
   @Input() cardSize: 'normal' | 'small' = 'normal';
   @Input() shelfId?: string;
 
-  @Output() open = new EventEmitter<Manga | Book>();
-  @Output() openDetail = new EventEmitter<Manga | Book>();
+  @Output() open = new EventEmitter<{ item: Manga | Book; instanceId?: string }>();
+  @Output() openDetail = new EventEmitter<{ item: Manga | Book; instanceId?: string }>();
   @Output() setBookmark = new EventEmitter<Manga | Book>();
   @Output() openTracker = new EventEmitter<Manga | Book>();
   @Output() openTags = new EventEmitter<Manga | Book>();

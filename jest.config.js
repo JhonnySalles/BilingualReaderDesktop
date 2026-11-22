@@ -9,6 +9,12 @@ module.exports = {
     '<rootDir>/test/back/**/*.spec.ts',
     '<rootDir>/test/back/**/*.test.ts'
   ],
+  modulePathIgnorePatterns: [
+    '<rootDir>/exec/',
+    '<rootDir>/exec_old/',
+    '<rootDir>/dist/',
+    '<rootDir>/dist-electron/'
+  ],
   testPathIgnorePatterns: [
     '/node_modules/',
     'app/services/ebook-convert/smoke',

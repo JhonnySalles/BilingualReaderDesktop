@@ -578,7 +578,11 @@ app.on('ready', () => {
     ipcMain.handle('fs:check-path-online', async (_event, folderPath: string) => {
       try {
         if (!folderPath) return false;
-        return fs.existsSync(folderPath);
+        // Check asynchronously with a 1500ms safety timeout to prevent main process freeze on disconnected network/SMB shares or sleeping HDDs
+        return await Promise.race([
+          fs.promises.access(folderPath).then(() => true).catch(() => false),
+          new Promise<boolean>(resolve => setTimeout(() => resolve(false), 1500))
+        ]);
       } catch {
         return false;
       }

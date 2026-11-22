@@ -558,7 +558,11 @@ electron_1.app.on('ready', () => {
             try {
                 if (!folderPath)
                     return false;
-                return fs.existsSync(folderPath);
+                // Check asynchronously with a 1500ms safety timeout to prevent main process freeze on disconnected network/SMB shares or sleeping HDDs
+                return await Promise.race([
+                    fs.promises.access(folderPath).then(() => true).catch(() => false),
+                    new Promise(resolve => setTimeout(() => resolve(false), 1500))
+                ]);
             }
             catch {
                 return false;

@@ -60,7 +60,13 @@ export class NavigationStackService {
       this.sharedTransition.setActiveItem(type, id, instanceId);
     }
     this.pushReturnUrl(router.url);
-    void router.navigate(['/detail', type, id], { state: { initialData } });
+    void router.navigate(['/detail', type, id], { state: { initialData } }).then(success => {
+      if (!success) {
+        this.sharedTransition.clearActiveItem();
+      }
+    }).catch(() => {
+      this.sharedTransition.clearActiveItem();
+    });
   }
 
   openReader(router: Router, kind: 'image' | 'text', id: number | string, instanceId?: string): void {
@@ -69,7 +75,13 @@ export class NavigationStackService {
       this.sharedTransition.setActiveItem(type, id, instanceId);
     }
     this.pushReturnUrl(router.url);
-    void router.navigate([kind === 'image' ? '/reader-image' : '/reader-text', id]);
+    void router.navigate([kind === 'image' ? '/reader-image' : '/reader-text', id]).then(success => {
+      if (!success) {
+        this.sharedTransition.clearActiveItem();
+      }
+    }).catch(() => {
+      this.sharedTransition.clearActiveItem();
+    });
   }
 
   private normalizeUrl(url: string): string {
