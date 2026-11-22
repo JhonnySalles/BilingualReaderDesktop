@@ -1,16 +1,18 @@
-import { Component, HostListener, Input, Output, EventEmitter, signal } from '@angular/core';
+import { Component, HostListener, Input, Output, EventEmitter, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { TranslatePipe } from '@ngx-translate/core';
 import {
   AnnotationItem,
   BOOK_ANNOTATION_COLOR_HEX,
   BookAnnotationColor
 } from '../../../core/models';
+import { LanguageService } from '../../../core/services/language.service';
 import { markTypeLabel } from '../annotation-group.util';
 
 @Component({
   selector: 'app-annotation-card',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, TranslatePipe],
   template: `
     <div
       class="group relative w-full text-left rounded-xl border border-slate-800/80 bg-slate-900/60
@@ -23,7 +25,7 @@ import { markTypeLabel } from '../annotation-group.util';
           [class.text-amber-400]="item.favorite"
           [class.text-slate-500]="!item.favorite"
           [class.hover:text-amber-300]="!item.favorite"
-          title="Favorito"
+          [title]="'annotations.favorite' | translate"
           (click)="onFavorite($event)">
           @if (item.favorite) {
             <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
@@ -38,14 +40,14 @@ import { markTypeLabel } from '../annotation-group.util';
         </button>
 
         <p class="flex-1 min-w-0 text-[11px] font-bold uppercase tracking-wider text-slate-300 truncate">
-          Página {{ item.page + 1 }} de {{ item.pages || '?' }} · {{ typeLabel() }}
+          {{ 'annotations.pageOf' | translate:{ page: item.page + 1, total: item.pages || '?', type: typeLabel() } }}
         </p>
 
         <div class="relative shrink-0">
           <button
             type="button"
             class="p-1 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 cursor-pointer"
-            title="Opções"
+            [title]="'annotations.options' | translate"
             (click)="toggleMenu($event)">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -59,17 +61,17 @@ import { markTypeLabel } from '../annotation-group.util';
               (click)="$event.stopPropagation()">
               <button type="button" class="w-full text-left px-3 py-2 text-xs text-slate-200 hover:bg-slate-800 cursor-pointer"
                 (click)="onFavoriteMenu()">
-                {{ item.favorite ? 'Remover favorito' : 'Favoritar' }}
+                {{ item.favorite ? ('annotations.removeFavorite' | translate) : ('annotations.addFavorite' | translate) }}
               </button>
               @if (isDetach()) {
                 <button type="button" class="w-full text-left px-3 py-2 text-xs text-slate-200 hover:bg-slate-800 cursor-pointer"
                   (click)="colorPickerOpen.set(true); menuOpen.set(false)">
-                  Mudar cor
+                  {{ 'annotations.changeColor' | translate }}
                 </button>
               }
               <button type="button" class="w-full text-left px-3 py-2 text-xs text-rose-300 hover:bg-rose-500/10 cursor-pointer"
                 (click)="onRemove()">
-                Excluir
+                {{ 'common.delete' | translate }}
               </button>
             </div>
           }
@@ -102,13 +104,13 @@ import { markTypeLabel } from '../annotation-group.util';
                 type="button"
                 class="text-[11px] font-semibold text-slate-400 hover:text-primary-300 cursor-pointer px-2 py-1 rounded-lg hover:bg-slate-800"
                 (click)="onEditNote($event)">
-                Adicionar nota
+                {{ 'annotations.addNote' | translate }}
               </button>
             }
           </div>
         </div>
       } @else {
-        <p class="text-sm text-slate-300 leading-snug">{{ item.text || 'Marca de página' }}</p>
+        <p class="text-sm text-slate-300 leading-snug">{{ item.text || ('annotations.pageMarker' | translate) }}</p>
       }
 
       @if (colorPickerOpen()) {
@@ -128,7 +130,7 @@ import { markTypeLabel } from '../annotation-group.util';
           }
           <button type="button" class="text-[10px] text-slate-400 hover:text-slate-200 cursor-pointer ml-1"
             (click)="colorPickerOpen.set(false)">
-            Fechar
+            {{ 'common.close' | translate }}
           </button>
         </div>
       }
@@ -136,6 +138,8 @@ import { markTypeLabel } from '../annotation-group.util';
   `
 })
 export class AnnotationCardComponent {
+  private languageService = inject(LanguageService);
+
   @Input({ required: true }) item!: AnnotationItem;
   @Output() open = new EventEmitter<AnnotationItem>();
   @Output() toggleFavorite = new EventEmitter<AnnotationItem>();
@@ -154,7 +158,15 @@ export class AnnotationCardComponent {
   colorPickerOpen = signal(false);
 
   typeLabel(): string {
-    return markTypeLabel(this.item.markType);
+    switch (this.item.markType) {
+      case 'PageMark':
+        return this.languageService.t('annotations.markTypes.pageMark');
+      case 'BookMark':
+        return this.languageService.t('annotations.markTypes.bookmark');
+      case 'Annotation':
+      default:
+        return this.languageService.t('annotations.markTypes.highlight');
+    }
   }
 
   isDetach(): boolean {

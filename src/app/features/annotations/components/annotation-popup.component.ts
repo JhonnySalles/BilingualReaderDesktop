@@ -10,6 +10,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { TranslatePipe } from '@ngx-translate/core';
 import {
   BookAnnotation,
   BookAnnotationColor,
@@ -20,7 +21,7 @@ import { TeleportToBodyDirective } from '../../../shared/directives/teleport-to-
 @Component({
   selector: 'app-annotation-popup',
   standalone: true,
-  imports: [CommonModule, FormsModule, TeleportToBodyDirective],
+  imports: [CommonModule, FormsModule, TranslatePipe, TeleportToBodyDirective],
   template: `
     <div
       appTeleportToBody
@@ -35,7 +36,7 @@ import { TeleportToBodyDirective } from '../../../shared/directives/teleport-to-
         <div class="flex items-start justify-between gap-2 mb-3">
           <div class="min-w-0">
             <p id="annotation-popup-title" class="text-sm font-bold text-slate-100">
-              Anotação — Página {{ annotation().page + 1 }}
+              {{ 'annotations.popupTitle' | translate:{ page: annotation().page + 1 } }}
             </p>
             @if (annotation().chapter) {
               <p class="text-[10px] text-slate-400 truncate mt-0.5">{{ annotation().chapter }}</p>
@@ -45,7 +46,7 @@ import { TeleportToBodyDirective } from '../../../shared/directives/teleport-to-
             type="button"
             (click)="cancel.emit()"
             class="p-1 text-slate-400 hover:text-slate-200 cursor-pointer rounded-lg shrink-0"
-            title="Fechar">
+            [title]="'common.close' | translate">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
             </svg>
@@ -58,17 +59,17 @@ import { TeleportToBodyDirective } from '../../../shared/directives/teleport-to-
           </p>
         }
 
-        <label class="block text-[11px] text-slate-400 mb-1">Nota</label>
+        <label class="block text-[11px] text-slate-400 mb-1">{{ 'annotations.note' | translate }}</label>
         <textarea
           #noteInput
           rows="4"
           class="w-full mb-4 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200
             placeholder:text-slate-500 resize-y focus:outline-none focus:ring-1 focus:ring-primary-500"
-          placeholder="Escreva uma anotação (opcional)…"
+          [placeholder]="'annotations.notePlaceholder' | translate"
           [(ngModel)]="note"
           (keydown)="onTextareaKeydown($event)"></textarea>
 
-        <p class="text-[11px] text-slate-400 mb-2">Cor da marcação</p>
+        <p class="text-[11px] text-slate-400 mb-2">{{ 'annotations.markColor' | translate }}</p>
         <div class="flex items-center justify-center gap-3 mb-5">
           @for (c of colors; track c) {
             <button
@@ -100,7 +101,7 @@ import { TeleportToBodyDirective } from '../../../shared/directives/teleport-to-
                 type="button"
                 (click)="delete.emit()"
                 class="px-3 py-1.5 rounded-lg text-xs font-semibold text-rose-300 hover:bg-rose-500/10 cursor-pointer">
-                Excluir
+                {{ 'common.delete' | translate }}
               </button>
             }
           </div>
@@ -109,13 +110,13 @@ import { TeleportToBodyDirective } from '../../../shared/directives/teleport-to-
               type="button"
               (click)="cancel.emit()"
               class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-300 hover:bg-slate-800 cursor-pointer">
-              Cancelar
+              {{ 'common.cancel' | translate }}
             </button>
             <button
               type="button"
               (click)="confirm()"
               class="px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-primary-600 hover:bg-primary-500 cursor-pointer">
-              Confirmar
+              {{ 'common.confirm' | translate }}
             </button>
           </div>
         </div>

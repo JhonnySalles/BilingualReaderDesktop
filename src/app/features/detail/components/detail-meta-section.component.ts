@@ -1,5 +1,6 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { TranslatePipe } from '@ngx-translate/core';
 
 export interface DetailMetaField {
   label: string;
@@ -10,7 +11,7 @@ export interface DetailMetaField {
 @Component({
   selector: 'app-detail-meta-section',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, TranslatePipe],
   host: {
     class: 'block'
   },
@@ -21,7 +22,7 @@ export interface DetailMetaField {
       </h3>
 
       @if (fields.length === 0 && tags.length === 0) {
-        <p class="text-xs text-slate-500">Nenhum metadado disponível.</p>
+        <p class="text-xs text-slate-500">{{ 'detail.noMetadata' | translate }}</p>
       } @else {
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-3.5">
           @for (field of fields; track field.label) {
@@ -34,7 +35,7 @@ export interface DetailMetaField {
 
         @if (tags.length > 0) {
           <div class="pt-2 border-t border-slate-800/80 space-y-1.5">
-            <p class="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Tags</p>
+            <p class="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{{ 'detail.tags' | translate }}</p>
             <div class="flex flex-wrap gap-1.5">
               @for (tag of tags; track tag) {
                 <button

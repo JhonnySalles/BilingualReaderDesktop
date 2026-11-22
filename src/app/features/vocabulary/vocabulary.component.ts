@@ -1,8 +1,10 @@
-import { Component, OnInit, OnDestroy, inject, signal, effect } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, signal, effect, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
+import { TranslatePipe } from '@ngx-translate/core';
 import { ElectronService } from '../../core/services/electron.service';
 import { VocabularyUiStateService } from '../../core/services/vocabulary-ui-state.service';
+import { LanguageService } from '../../core/services/language.service';
 import {
   Kanjax,
   Vocabulary,
@@ -22,6 +24,7 @@ const PAGE_SIZE = 40;
   standalone: true,
   imports: [
     CommonModule,
+    TranslatePipe,
     VocabularyCardComponent,
     VocabularyDetailDialogComponent,
     KanjaxDetailDialogComponent
@@ -43,8 +46,8 @@ const PAGE_SIZE = 40;
           (click)="ui.showOrderPopup.set(false)">
           <div class="w-56 rounded-xl bg-slate-900 border border-slate-700 shadow-xl p-2"
             (click)="$event.stopPropagation()">
-            <p class="px-2 py-1.5 text-[10px] uppercase tracking-wider text-slate-500">Ordenar por</p>
-            @for (opt of orderOptions; track opt.value) {
+            <p class="px-2 py-1.5 text-[10px] uppercase tracking-wider text-slate-500">{{ 'vocabulary.orderBy' | translate }}</p>
+            @for (opt of orderOptions(); track opt.value) {
               <button type="button"
                 class="w-full text-left px-3 py-2 rounded-lg text-xs cursor-pointer"
                 [class.bg-primary-600]="ui.order() === opt.value"
@@ -58,7 +61,7 @@ const PAGE_SIZE = 40;
             <button type="button"
               class="w-full text-left px-3 py-2 rounded-lg text-xs text-slate-400 hover:bg-slate-800 cursor-pointer mt-1"
               (click)="toggleSortDir()">
-              {{ ui.desc() ? 'Descendente' : 'Ascendente' }} (inverter)
+              {{ (ui.desc() ? 'vocabulary.descending' : 'vocabulary.ascending') | translate }}
             </button>
           </div>
         </div>
@@ -71,16 +74,16 @@ const PAGE_SIZE = 40;
               [ngClass]="ui.mangaId() != null
                 ? 'manga-btn-badge'
                 : 'book-btn-badge'">
-              {{ ui.scopeTitle() || (ui.mangaId() != null ? 'Mangá' : 'Livro') }}
+              {{ ui.scopeTitle() || (ui.mangaId() != null ? ('nav.manga' | translate) : ('nav.book' | translate)) }}
             </span>
             <button type="button" (click)="clearScope()"
               class="px-2.5 py-1 rounded-lg text-[11px] font-semibold text-slate-400 border border-slate-800 hover:border-slate-600 cursor-pointer">
-              Ver todos
+              {{ 'vocabulary.viewAll' | translate }}
             </button>
             @if (ui.mangaId() != null || ui.bookId() != null) {
               <button type="button" (click)="importScoped()" [disabled]="importing()"
                 class="ml-auto px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-primary-600 hover:bg-primary-500 text-white disabled:opacity-50 cursor-pointer">
-                {{ importing() ? 'Importando…' : 'Importar vocabulário' }}
+                {{ importing() ? ('vocabulary.importing' | translate) : ('vocabulary.import' | translate) }}
               </button>
             }
           </div>
@@ -93,7 +96,7 @@ const PAGE_SIZE = 40;
         }
 
         @if (loading() && items().length === 0) {
-          <p class="text-xs text-slate-500 text-center py-16">Carregando vocabulário…</p>
+          <p class="text-xs text-slate-500 text-center py-16">{{ 'vocabulary.loading' | translate }}</p>
         } @else if (items().length === 0) {
           <div class="flex flex-col items-center justify-center py-20 text-center px-6">
             <div class="w-14 h-14 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center mb-4 text-primary-400">
@@ -102,24 +105,26 @@ const PAGE_SIZE = 40;
                   d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
               </svg>
             </div>
-            <p class="text-sm font-semibold text-slate-200">Nenhuma palavra encontrada</p>
+            <p class="text-sm font-semibold text-slate-200">{{ 'vocabulary.emptyTitle' | translate }}</p>
             <p class="text-xs text-slate-500 mt-1 max-w-sm">
               @if (ui.isScoped()) {
-                Importe o vocabulário deste título (legendas JP no mangá ou texto do livro) para vê-lo aqui.
+                {{ 'vocabulary.emptyDescScoped' | translate }}
               } @else {
-                O dicionário é carregado na primeira execução. Tente limpar a busca ou filtros.
+                {{ 'vocabulary.emptyDescGlobal' | translate }}
               }
             </p>
             @if (ui.isScoped()) {
               <button type="button" (click)="importScoped()" [disabled]="importing()"
                 class="mt-4 px-4 py-2 rounded-xl text-xs font-semibold bg-primary-600 hover:bg-primary-500 text-white disabled:opacity-50 cursor-pointer">
-                {{ importing() ? 'Importando…' : 'Importar agora' }}
+                {{ importing() ? ('vocabulary.importing' | translate) : ('vocabulary.importNow' | translate) }}
               </button>
             }
           </div>
         } @else {
           <div class="flex flex-col gap-3.5 max-w-3xl mx-auto">
-            <p class="text-[11px] text-slate-500 px-1 mb-1">{{ total() }} palavras</p>
+            <p class="text-[11px] text-slate-500 px-1 mb-1">
+              {{ total() === 1 ? ('vocabulary.wordsCount_one' | translate) : ('vocabulary.wordsCount' | translate:{ count: total() }) }}
+            </p>
             @for (item of items(); track item.id) {
               <app-vocabulary-card
                 [item]="item"
@@ -133,7 +138,7 @@ const PAGE_SIZE = 40;
                 (filterBook)="focusRelated('book', $event)" />
             }
             @if (loadingMore()) {
-              <p class="text-center text-[11px] text-slate-500 py-4">Carregando mais…</p>
+              <p class="text-center text-[11px] text-slate-500 py-4">{{ 'vocabulary.loadingMore' | translate }}</p>
             }
           </div>
         }
@@ -145,6 +150,7 @@ export class VocabularyComponent implements OnInit, OnDestroy {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private electron = inject(ElectronService);
+  private languageService = inject(LanguageService);
   ui = inject(VocabularyUiStateService);
 
   items = signal<Vocabulary[]>([]);
@@ -159,11 +165,14 @@ export class VocabularyComponent implements OnInit, OnDestroy {
     Record<number, { mangas: VocabularyManga[]; books: VocabularyBook[] }>
   >({});
 
-  readonly orderOptions = [
-    { value: 'word' as const, label: 'Palavra' },
-    { value: 'appears' as const, label: 'Frequência' },
-    { value: 'favorite' as const, label: 'Favorito' }
-  ];
+  readonly orderOptions = computed(() => {
+    this.languageService.currentLang();
+    return [
+      { value: 'word' as const, label: this.languageService.t('vocabulary.orderOptions.word') },
+      { value: 'appears' as const, label: this.languageService.t('vocabulary.orderOptions.frequency') },
+      { value: 'favorite' as const, label: this.languageService.t('vocabulary.orderOptions.favorite') }
+    ];
+  });
 
   private offset = 0;
   private hasMore = false;

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PAGE_TURN_EASING = exports.PAGE_TURN_DURATION_MS = exports.PAGE_TRANSITION_OPTIONS = exports.PAGE_TRANSITION_LABELS_PT = exports.PageTransitionType = void 0;
+exports.PAGE_TURN_EASING = exports.PAGE_TURN_DURATION_MS = exports.PAGE_TRANSITION_OPTIONS = exports.PAGE_TRANSITION_KEYS = exports.PAGE_TRANSITION_LABELS_PT = exports.PageTransitionType = void 0;
 exports.isPageTransitionType = isPageTransitionType;
 exports.prefersReducedMotion = prefersReducedMotion;
 /**
@@ -27,6 +27,15 @@ exports.PAGE_TRANSITION_LABELS_PT = {
     [PageTransitionType.Curl3DPage]: 'Ondulação de página 3D',
     [PageTransitionType.Depth]: 'Profundidade de página',
     [PageTransitionType.Fade]: 'Desbotamento de página'
+};
+exports.PAGE_TRANSITION_KEYS = {
+    [PageTransitionType.Default]: 'enums.pageTransition.default',
+    [PageTransitionType.Stack]: 'enums.pageTransition.stack',
+    [PageTransitionType.Zooming]: 'enums.pageTransition.zooming',
+    [PageTransitionType.CurlPage]: 'enums.pageTransition.curlPage',
+    [PageTransitionType.Curl3DPage]: 'enums.pageTransition.curl3DPage',
+    [PageTransitionType.Depth]: 'enums.pageTransition.depth',
+    [PageTransitionType.Fade]: 'enums.pageTransition.fade'
 };
 exports.PAGE_TRANSITION_OPTIONS = Object.values(PageTransitionType);
 /** Manga ViewPager custom scroller duration (AccelerateDecelerateInterpolator). */

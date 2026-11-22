@@ -1,5 +1,6 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { TranslatePipe } from '@ngx-translate/core';
 import { ElectronService } from '../../core/services/electron.service';
 
 interface OssCredit {
@@ -10,7 +11,7 @@ interface OssCredit {
 @Component({
   selector: 'app-about',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, TranslatePipe],
   template: `
     <div class="h-full overflow-y-auto bg-slate-950 text-slate-100">
       <div class="max-w-2xl mx-auto px-6 pt-24 pb-12 space-y-8">
@@ -21,13 +22,13 @@ interface OssCredit {
             class="w-16 h-16 rounded-2xl object-contain shrink-0 filter drop-shadow-[0_8px_16px_rgb(var(--accent-500)/0.35)]" />
           <div class="min-w-0">
             <h1 class="text-2xl font-bold text-slate-50 tracking-tight">{{ info().productName }}</h1>
-            <p class="text-sm text-slate-400 mt-1">Versão {{ info().version }}</p>
-            <p class="text-xs text-slate-500 mt-2">Leitor bilíngue para mangás e e-books — desktop</p>
+            <p class="text-sm text-slate-400 mt-1">{{ 'about.version' | translate:{ version: info().version } }}</p>
+            <p class="text-xs text-slate-500 mt-2">{{ 'about.tagline' | translate }}</p>
           </div>
         </div>
 
         <section class="rounded-xl border border-slate-800 bg-slate-900/60 p-5 space-y-3">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400">Autor</h2>
+          <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400">{{ 'about.author' | translate }}</h2>
           <p class="text-sm text-slate-200">{{ info().author }}</p>
           <div class="flex flex-wrap gap-2 pt-1">
             <button type="button" (click)="open('https://github.com/JhonnySalles/BilingualMangaReader')"
@@ -36,13 +37,13 @@ interface OssCredit {
             </button>
             <button type="button" (click)="open(contactMailto)"
               class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-slate-200 cursor-pointer">
-              Contato
+              {{ 'about.contact' | translate }}
             </button>
           </div>
         </section>
 
         <section class="rounded-xl border border-slate-800 bg-slate-900/60 p-5 space-y-3">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400">Créditos de código aberto</h2>
+          <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400">{{ 'about.openSourceCredits' | translate }}</h2>
           <ul class="space-y-2">
             @for (c of credits; track c.name) {
               <li>

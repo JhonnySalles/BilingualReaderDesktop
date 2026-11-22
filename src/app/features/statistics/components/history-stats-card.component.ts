@@ -19,6 +19,7 @@ import { MangaLibraryService } from '../../../core/services/manga-library.servic
 import { BookLibraryService } from '../../../core/services/book-library.service';
 import { LibraryStateService } from '../../../core/services/library-state.service';
 import { ElectronService } from '../../../core/services/electron.service';
+import { LanguageService } from '../../../core/services/language.service';
 
 const MENU_WIDTH = 176; // w-44
 
@@ -316,6 +317,7 @@ export class HistoryStatsCardComponent implements OnDestroy {
   private mangaLibrary = inject(MangaLibraryService);
   private bookLibrary = inject(BookLibraryService);
   private electron = inject(ElectronService);
+  private languageService = inject(LanguageService);
   private host = inject(ElementRef<HTMLElement>);
 
   public isMenuOpen = signal(false);
@@ -424,7 +426,7 @@ export class HistoryStatsCardComponent implements OnDestroy {
     if (!iso) return '';
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return '';
-    return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    return d.toLocaleTimeString(this.languageService.locale(), { hour: '2-digit', minute: '2-digit' });
   }
 
   onCardClick(): void {

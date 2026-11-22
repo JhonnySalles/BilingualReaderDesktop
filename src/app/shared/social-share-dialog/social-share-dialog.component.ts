@@ -681,18 +681,20 @@ import { TranslatePipe } from '@ngx-translate/core';
                       </svg>
                     </button>
 
-                    @if (previewZoom() !== 1) {
-                      <button
-                        type="button"
-                        (click)="resetZoom()"
-                        class="ml-1 px-2 h-7 flex items-center gap-1 text-[11px] font-medium text-primary-400 hover:text-primary-300 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
-                        [title]="'socialShare.fitScreen' | translate">
-                        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
-                        </svg>
-                        <span>{{ 'socialShare.fitScreen' | translate }}</span>
-                      </button>
-                    }
+                    <button
+                      type="button"
+                      (click)="resetZoom()"
+                      class="ml-1 px-2 h-7 flex items-center gap-1 text-[11px] font-medium rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
+                      [class.text-primary-400]="previewZoom() !== 1"
+                      [class.hover:text-primary-300]="previewZoom() !== 1"
+                      [class.text-slate-400]="previewZoom() === 1"
+                      [class.hover:text-slate-100]="previewZoom() === 1"
+                      [title]="'socialShare.fitScreen' | translate">
+                      <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                      </svg>
+                      <span>{{ 'socialShare.fitScreen' | translate }}</span>
+                    </button>
                   </div>
 
                   <span class="text-xs text-slate-500 font-mono">

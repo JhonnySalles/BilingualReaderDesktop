@@ -1,6 +1,8 @@
 import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
+import { TranslatePipe } from '@ngx-translate/core';
+import { LanguageService } from '../../core/services/language.service';
 import { DetailService } from '../../core/services/detail.service';
 import { NavigationStackService } from '../../core/services/navigation-stack.service';
 import { SharedTransitionService } from '../../core/services/shared-transition.service';
@@ -39,7 +41,8 @@ import { extractMangaSearchTitle } from '../../core/utils/media-title-cleaner.ut
     LibraryBookmarkDialogComponent,
     TrackerConfigDialogComponent,
     TrackerSimpleDialogComponent,
-    BookCover3dComponent
+    BookCover3dComponent,
+    TranslatePipe
   ],
   template: `
     <div class="h-full flex flex-col bg-slate-950 text-slate-100 overflow-hidden select-none relative pt-20">
@@ -51,21 +54,21 @@ import { extractMangaSearchTitle } from '../../core/utils/media-title-cleaner.ut
             </svg>
           </button>
           <div class="min-w-0">
-            <h1 class="text-base font-bold truncate">{{ manga()?.title || 'Detalhe do Mangá' }}</h1>
-            <p class="text-[10px] text-slate-400">Mangá / Comic</p>
+            <h1 class="text-base font-bold truncate">{{ manga()?.title || ('detail.mangaDetail' | translate) }}</h1>
+            <p class="text-[10px] text-slate-400">{{ 'detail.mangaType' | translate }}</p>
           </div>
         </div>
         <button type="button" (click)="openReader()"
           class="px-4 py-2 rounded-xl text-xs font-semibold bg-primary-600 hover:bg-primary-500 text-white transition-colors cursor-pointer"
           [disabled]="!manga()">
-          Abrir
+          {{ 'common.open' | translate }}
         </button>
       </div>
 
       @if (loading()) {
-        <div class="flex-1 flex items-center justify-center text-sm text-slate-400 animate-pulse">Carregando…</div>
+        <div class="flex-1 flex items-center justify-center text-sm text-slate-400 animate-pulse">{{ 'common.loading' | translate }}</div>
       } @else if (!manga()) {
-        <div class="flex-1 flex items-center justify-center text-sm text-slate-400">Item não encontrado.</div>
+        <div class="flex-1 flex items-center justify-center text-sm text-slate-400">{{ 'detail.notFound' | translate }}</div>
       } @else {
         <div class="flex-1 min-h-0 overflow-y-auto">
           <!-- Hero Section -->
@@ -162,7 +165,7 @@ import { extractMangaSearchTitle } from '../../core/utils/media-title-cleaner.ut
             <!-- Local Metadata Section -->
             <div class="pt-6">
               <app-detail-meta-section
-                title="Detalhe do Mangá"
+                [title]="'detail.mangaDetail' | translate"
                 [fields]="metaFields()"
                 [tags]="tagList()" />
             </div>
@@ -250,6 +253,7 @@ export class MangaDetailComponent implements OnInit {
   private trackerService = inject(TrackerService);
   private confirmDialog = inject(ConfirmDialogService);
   private coverViewerService = inject(CoverViewerService);
+  private languageService = inject(LanguageService);
   settings = inject(SettingsService);
 
   manga = signal<Manga | null>(null);
@@ -289,24 +293,26 @@ export class MangaDetailComponent implements OnInit {
   tagList = computed(() => this.detail.parseTags(this.manga()?.tags));
 
   metaFields = computed<DetailMetaField[]>(() => {
+    this.languageService.currentLang();
     const m = this.manga();
     if (!m) return [];
     const fields: DetailMetaField[] = [];
-    if (m.series) fields.push({ label: 'Série', value: m.series });
-    if (m.author) fields.push({ label: 'Autores', value: m.author });
-    if (m.volume) fields.push({ label: 'Volume', value: m.volume });
-    if (m.release) fields.push({ label: 'Lançamento', value: m.release });
-    if (m.dateCreate) fields.push({ label: 'Publicado', value: this.formatDate(m.dateCreate) });
-    if (m.language) fields.push({ label: 'Idioma', value: this.detail.formatLanguage(m.language) });
-    if (m.title) fields.push({ label: 'Título', value: m.title });
-    if (m.storyArch) fields.push({ label: 'Arco da História', value: m.storyArch });
-    if (m.genre) fields.push({ label: 'Gênero', value: m.genre });
-    if (m.characters) fields.push({ label: 'Personagens', value: m.characters });
-    if (m.publisher) fields.push({ label: 'Editora', value: m.publisher });
+    if (m.series) fields.push({ label: this.languageService.t('detail.series'), value: m.series });
+    if (m.author) fields.push({ label: this.languageService.t('detail.author'), value: m.author });
+    if (m.volume) fields.push({ label: this.languageService.t('detail.volume'), value: m.volume });
+    if (m.release) fields.push({ label: this.languageService.t('detail.release'), value: m.release });
+    if (m.dateCreate) fields.push({ label: this.languageService.t('detail.published'), value: this.formatDate(m.dateCreate) });
+    if (m.language) fields.push({ label: this.languageService.t('detail.language'), value: this.detail.formatLanguage(m.language) });
+    if (m.title) fields.push({ label: this.languageService.t('detail.title'), value: m.title });
+    if (m.storyArch) fields.push({ label: this.languageService.t('detail.storyArc'), value: m.storyArch });
+    if (m.genre) fields.push({ label: this.languageService.t('detail.genre'), value: m.genre });
+    if (m.characters) fields.push({ label: this.languageService.t('detail.characters'), value: m.characters });
+    if (m.publisher) fields.push({ label: this.languageService.t('detail.publisher'), value: m.publisher });
     return fields;
   });
 
   chapters = computed<DetailChapterItem[]>(() => {
+    this.languageService.currentLang();
     const m = this.manga();
     if (!m?.chapters?.length) return [];
     return m.chapters.map((ch, index) => {
@@ -315,7 +321,7 @@ export class MangaDetailComponent implements OnInit {
       const label =
         typeof titleRaw === 'string' && titleRaw.trim()
           ? titleRaw.trim()
-          : `Capítulo ${index + 1}`;
+          : this.languageService.t('detail.chapterNum', { num: index + 1 });
       return {
         index,
         label,
@@ -480,7 +486,7 @@ export class MangaDetailComponent implements OnInit {
     if (!iso) return '';
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return iso;
-    return d.toLocaleDateString('pt-BR');
+    return d.toLocaleDateString(this.languageService.locale());
   }
 
   goBack(): void {

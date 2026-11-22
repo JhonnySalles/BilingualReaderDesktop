@@ -24,6 +24,16 @@ export const PAGE_TRANSITION_LABELS_PT: Record<PageTransitionType, string> = {
   [PageTransitionType.Fade]: 'Desbotamento de página'
 };
 
+export const PAGE_TRANSITION_KEYS: Record<PageTransitionType, string> = {
+  [PageTransitionType.Default]: 'enums.pageTransition.default',
+  [PageTransitionType.Stack]: 'enums.pageTransition.stack',
+  [PageTransitionType.Zooming]: 'enums.pageTransition.zooming',
+  [PageTransitionType.CurlPage]: 'enums.pageTransition.curlPage',
+  [PageTransitionType.Curl3DPage]: 'enums.pageTransition.curl3DPage',
+  [PageTransitionType.Depth]: 'enums.pageTransition.depth',
+  [PageTransitionType.Fade]: 'enums.pageTransition.fade'
+};
+
 export const PAGE_TRANSITION_OPTIONS = Object.values(PageTransitionType);
 
 /** Manga ViewPager custom scroller duration (AccelerateDecelerateInterpolator). */

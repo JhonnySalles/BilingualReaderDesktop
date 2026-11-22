@@ -1,5 +1,6 @@
 import { Component, EventEmitter, Input, OnInit, Output, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { TranslatePipe } from '@ngx-translate/core';
 import { ElectronService } from '../../../core/services/electron.service';
 import { Kanjax, Vocabulary } from '../../../core/models';
 import { TeleportToBodyDirective } from '../../../shared/directives/teleport-to-body.directive';
@@ -7,7 +8,7 @@ import { TeleportToBodyDirective } from '../../../shared/directives/teleport-to-
 @Component({
   selector: 'app-vocabulary-detail-dialog',
   standalone: true,
-  imports: [CommonModule, TeleportToBodyDirective],
+  imports: [CommonModule, TranslatePipe, TeleportToBodyDirective],
   template: `
     <div appTeleportToBody class="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in" (click)="close.emit()">
       <div class="w-full max-w-md rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl overflow-hidden"
@@ -21,10 +22,10 @@ import { TeleportToBodyDirective } from '../../../shared/directives/teleport-to-
             </p>
             <p class="text-xs text-slate-400">JLPT {{ item.jlpt || '—' }} · Freq. {{ item.appears || 0 }}</p>
             @if (item.basicForm) {
-              <p class="text-xs text-slate-500">Forma base: {{ item.basicForm }}</p>
+              <p class="text-xs text-slate-500">{{ 'vocabulary.baseForm' | translate:{ form: item.basicForm } }}</p>
             }
           </div>
-          <button type="button" (click)="close.emit()" class="p-1.5 rounded-lg text-slate-400 hover:bg-slate-800 cursor-pointer">
+          <button type="button" (click)="close.emit()" class="p-1.5 rounded-lg text-slate-400 hover:bg-slate-800 cursor-pointer" [title]="'common.close' | translate">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
             </svg>
@@ -32,11 +33,11 @@ import { TeleportToBodyDirective } from '../../../shared/directives/teleport-to-
         </div>
         <div class="px-5 py-4 space-y-3 max-h-[60vh] overflow-y-auto">
           <div>
-            <p class="text-[10px] uppercase tracking-wider text-slate-500 mb-1">Português</p>
+            <p class="text-[10px] uppercase tracking-wider text-slate-500 mb-1">{{ 'settings.system.language.portuguese' | translate }}</p>
             <p class="text-sm text-slate-200">{{ item.portuguese || '—' }}</p>
           </div>
           <div>
-            <p class="text-[10px] uppercase tracking-wider text-slate-500 mb-1">English</p>
+            <p class="text-[10px] uppercase tracking-wider text-slate-500 mb-1">{{ 'settings.system.language.english' | translate }}</p>
             <p class="text-sm text-slate-300">{{ item.english || '—' }}</p>
           </div>
           @if (kanjiList().length) {

@@ -1,11 +1,12 @@
 import { Component, Input, Output, EventEmitter, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { TranslatePipe } from '@ngx-translate/core';
 import { ExternalTrackerMediaDetails, ExternalTrackerRelatedItem } from '../../../core/models';
 
 @Component({
   selector: 'app-detail-web-section',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, TranslatePipe],
   host: {
     class: 'block'
   },
@@ -14,7 +15,7 @@ import { ExternalTrackerMediaDetails, ExternalTrackerRelatedItem } from '../../.
       <div class="flex items-center justify-between border-b border-slate-800 pb-2">
         <div class="flex items-center gap-2">
           <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">
-            Informações da Web
+            {{ 'detail.webInfo' | translate }}
           </h3>
           @if (mediaDetails?.source === 'MAL') {
             <span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-blue-600/30 text-blue-400 border border-blue-500/40 flex items-center gap-1">
@@ -34,7 +35,7 @@ import { ExternalTrackerMediaDetails, ExternalTrackerRelatedItem } from '../../.
             type="button"
             (click)="openLink.emit(mediaDetails!.url!)"
             class="text-[11px] font-medium text-primary-400 hover:text-primary-300 flex items-center gap-1 transition-colors cursor-pointer">
-            <span>Abrir no {{ mediaDetails?.source === 'MAL' ? 'MyAnimeList' : 'AniList' }}</span>
+            <span>{{ 'detail.openOnSource' | translate:{ source: (mediaDetails?.source === 'MAL' ? 'MyAnimeList' : 'AniList') } }}</span>
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
             </svg>
@@ -45,16 +46,16 @@ import { ExternalTrackerMediaDetails, ExternalTrackerRelatedItem } from '../../.
       @if (loading) {
         <div class="p-6 rounded-2xl border border-slate-800 bg-slate-900/40 flex items-center justify-center gap-3 text-xs text-slate-400 animate-pulse">
           <div class="w-4 h-4 rounded-full border-2 border-primary-500 border-t-transparent animate-spin"></div>
-          Buscando detalhes sincronizados na web (MAL / AniList)...
+          {{ 'detail.searchingWeb' | translate }}
         </div>
       } @else if (!mediaDetails) {
         <div class="p-6 rounded-2xl border border-dashed border-slate-800 bg-slate-900/20 flex flex-col items-center justify-center gap-2 text-center">
-          <p class="text-xs text-slate-400">Nenhuma informação web encontrada automaticamente.</p>
+          <p class="text-xs text-slate-400">{{ 'detail.noWebInfo' | translate }}</p>
           <button
             type="button"
             (click)="searchManual.emit()"
             class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors cursor-pointer">
-            Vincular Rastreador
+            {{ 'detail.linkTracker' | translate }}
           </button>
         </div>
       } @else {
@@ -75,7 +76,7 @@ import { ExternalTrackerMediaDetails, ExternalTrackerRelatedItem } from '../../.
                 <div class="min-w-0">
                   <h4 class="text-base font-bold text-slate-100 leading-snug">{{ mediaDetails.title }}</h4>
                   @if (mediaDetails.authors && mediaDetails.authors.length > 0) {
-                    <p class="text-xs text-slate-400 mt-0.5">Por: {{ mediaDetails.authors.join(', ') }}</p>
+                    <p class="text-xs text-slate-400 mt-0.5">{{ 'detail.byAuthor' | translate:{ authors: mediaDetails.authors.join(', ') } }}</p>
                   }
                 </div>
 
@@ -103,12 +104,12 @@ import { ExternalTrackerMediaDetails, ExternalTrackerRelatedItem } from '../../.
                 }
                 @if (mediaDetails.totalChapters) {
                   <span class="px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 border border-slate-700/60 font-medium">
-                    {{ mediaDetails.totalChapters }} capítulos
+                    {{ mediaDetails.totalChapters }} {{ 'common.chapters' | translate }}
                   </span>
                 }
                 @if (mediaDetails.totalVolumes) {
                   <span class="px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 border border-slate-700/60 font-medium">
-                    {{ mediaDetails.totalVolumes }} volumes
+                    {{ mediaDetails.totalVolumes }} {{ 'common.volumes' | translate }}
                   </span>
                 }
                 @if (mediaDetails.published) {
@@ -142,7 +143,7 @@ import { ExternalTrackerMediaDetails, ExternalTrackerRelatedItem } from '../../.
                   type="button"
                   (click)="isSynopsisExpanded.set(!isSynopsisExpanded())"
                   class="text-primary-400 hover:text-primary-300 font-semibold cursor-pointer text-[11px]">
-                  {{ isSynopsisExpanded() ? 'Mostrar menos' : 'Mostrar mais' }}
+                  {{ (isSynopsisExpanded() ? 'common.showLess' : 'common.showMore') | translate }}
                 </button>
               }
             </div>
@@ -153,7 +154,7 @@ import { ExternalTrackerMediaDetails, ExternalTrackerRelatedItem } from '../../.
         @if (mediaDetails.related && mediaDetails.related.length > 0) {
           <div class="space-y-3 pt-2">
             <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400">
-              Obras Relacionadas ({{ mediaDetails.related.length }})
+              {{ 'detail.relatedMedia' | translate:{ count: mediaDetails.related.length } }}
             </h4>
 
             <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
@@ -168,7 +169,7 @@ import { ExternalTrackerMediaDetails, ExternalTrackerRelatedItem } from '../../.
                         [alt]="rel.title"
                         class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                     } @else {
-                      <div class="w-full h-full flex items-center justify-center text-[10px] text-slate-600">Sem capa</div>
+                      <div class="w-full h-full flex items-center justify-center text-[10px] text-slate-600">{{ 'common.noCover' | translate }}</div>
                     }
 
                     <span class="absolute top-1 left-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-black/70 text-slate-200 backdrop-blur-xs">

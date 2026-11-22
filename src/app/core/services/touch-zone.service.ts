@@ -6,6 +6,7 @@ import {
   TouchZoneMap
 } from '../models';
 import { SettingsService } from './settings.service';
+import { LanguageService } from './language.service';
 
 /** Landscape-style columns: 20% | 60% | 20%. */
 export const TOUCH_COL_SIDE = 0.2;
@@ -128,6 +129,7 @@ const ACTION_META: Record<TouchScreen, TouchZoneMeta> = {
 })
 export class TouchZoneService {
   private settings = inject(SettingsService);
+  private languageService = inject(LanguageService);
 
   getConfigurablePositions(): Exclude<TouchPosition, TouchPosition.CENTER>[] {
     return [...CONFIGURABLE_POSITIONS];
@@ -180,15 +182,35 @@ export class TouchZoneService {
     return this.getMap(type)[position];
   }
 
+  getActionLabel(action: TouchScreen): string {
+    const keyMap: Record<TouchScreen, string> = {
+      [TouchScreen.NOT_IMPLEMENTED]: 'reader.actions.toggleControls',
+      [TouchScreen.NOT_ASSIGNED]: 'reader.actions.notAssigned',
+      [TouchScreen.ASPECT_FIT]: 'reader.actions.aspectFit',
+      [TouchScreen.FIT_WIDTH]: 'reader.actions.fitWidth',
+      [TouchScreen.CHAPTER_LIST]: 'reader.actions.chapterList',
+      [TouchScreen.NEXT_FILE]: 'reader.actions.nextFile',
+      [TouchScreen.PREVIOUS_FILE]: 'reader.actions.previousFile',
+      [TouchScreen.NEXT_PAGE]: 'reader.actions.nextPage',
+      [TouchScreen.PREVIOUS_PAGE]: 'reader.actions.previousPage',
+      [TouchScreen.SHARE_IMAGE]: 'reader.actions.shareImage',
+      [TouchScreen.PAGE_MARK]: 'reader.actions.pageMark'
+    };
+    const key = keyMap[action];
+    return key ? this.languageService.t(key) : (ACTION_META[action]?.label || '');
+  }
+
   getMeta(action: TouchScreen): TouchZoneMeta {
-    return ACTION_META[action] ?? ACTION_META[TouchScreen.NOT_ASSIGNED];
+    const base = ACTION_META[action] ?? ACTION_META[TouchScreen.NOT_ASSIGNED];
+    return { ...base, label: this.getActionLabel(action) };
   }
 
   /** Actions available in the config picker (excludes CENTER placeholder). */
   getAssignableActions(): TouchZoneMeta[] {
     return Object.values(ACTION_META)
       .filter(m => m.action !== TouchScreen.NOT_IMPLEMENTED)
-      .sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
+      .map(m => ({ ...m, label: this.getActionLabel(m.action) }))
+      .sort((a, b) => a.label.localeCompare(b.label));
   }
 
   /**

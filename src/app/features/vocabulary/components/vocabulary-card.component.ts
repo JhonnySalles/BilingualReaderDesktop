@@ -1,12 +1,13 @@
 import { Component, EventEmitter, Input, Output, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { TranslatePipe } from '@ngx-translate/core';
 import { ElectronService } from '../../../core/services/electron.service';
 import { Vocabulary, VocabularyBook, VocabularyManga } from '../../../core/models';
 
 @Component({
   selector: 'app-vocabulary-card',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, TranslatePipe],
   host: {
     class: 'block w-full'
   },
@@ -29,12 +30,12 @@ import { Vocabulary, VocabularyBook, VocabularyManga } from '../../../core/model
             <p class="text-xs text-slate-300 truncate">
               <span class="text-slate-100 font-medium">{{ item.reading || '—' }}</span>
               @if (!item.revised) {
-                <span class="text-amber-400/90 ml-0.5" title="Não revisado">¹</span>
+                <span class="text-amber-400/90 ml-0.5" [title]="'vocabulary.unrevised' | translate">¹</span>
               }
               <span class="text-slate-500 ml-2">Freq. {{ item.appears || 0 }}</span>
             </p>
             @if (item.basicForm && item.basicForm !== item.word) {
-              <p class="text-[11px] text-slate-500 truncate">Forma base: {{ item.basicForm }}</p>
+              <p class="text-[11px] text-slate-500 truncate">{{ 'vocabulary.baseForm' | translate:{ form: item.basicForm } }}</p>
             }
           </div>
           <button type="button"
@@ -43,7 +44,7 @@ import { Vocabulary, VocabularyBook, VocabularyManga } from '../../../core/model
             [class.text-slate-500]="!item.favorite"
             [class.hover:bg-slate-800]="true"
             (click)="onFavorite($event)"
-            [title]="item.favorite ? 'Remover favorito' : 'Favoritar'">
+            [title]="item.favorite ? ('annotations.removeFavorite' | translate) : ('annotations.addFavorite' | translate)">
             <svg class="w-4 h-4" [attr.fill]="item.favorite ? 'currentColor' : 'none'" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                 d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/>

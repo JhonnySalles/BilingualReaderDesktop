@@ -14,6 +14,7 @@ import {
   HostListener
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { TranslatePipe } from '@ngx-translate/core';
 import {
   ReaderTouchType,
   TouchPosition,
@@ -36,7 +37,7 @@ interface ConfigCell {
 @Component({
   selector: 'app-reader-touch-config',
   standalone: true,
-  imports: [CommonModule, ReaderTouchActionPickerComponent],
+  imports: [CommonModule, TranslatePipe, ReaderTouchActionPickerComponent],
   template: `
     @if (open) {
       <div class="fixed inset-0 z-[70] flex flex-col bg-slate-950 select-none">
@@ -53,14 +54,14 @@ interface ConfigCell {
           <div class="h-14 px-4 sm:px-6 flex items-center gap-3 bg-slate-900/70 backdrop-blur-md border-b border-slate-800/50">
             <button type="button" (click)="close.emit()"
               class="p-2 text-slate-300 hover:text-white rounded-lg transition-colors cursor-pointer shrink-0"
-              title="Voltar">
+              [title]="'common.back' | translate">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
               </svg>
             </button>
             <div class="min-w-0">
               <h2 class="text-sm font-bold text-slate-100 truncate">{{ title }}</h2>
-              <p class="text-[10px] text-slate-400">Toque em uma zona para alterar a função</p>
+              <p class="text-[10px] text-slate-400">{{ 'reader.touchTip' | translate }}</p>
             </div>
           </div>
         </header>

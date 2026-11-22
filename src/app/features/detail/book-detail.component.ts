@@ -2,6 +2,8 @@ import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
+import { TranslatePipe } from '@ngx-translate/core';
+import { LanguageService } from '../../core/services/language.service';
 import { DetailService } from '../../core/services/detail.service';
 import { NavigationStackService } from '../../core/services/navigation-stack.service';
 import { SharedTransitionService } from '../../core/services/shared-transition.service';
@@ -44,7 +46,8 @@ import { extractBookSearchTitle } from '../../core/utils/media-title-cleaner.uti
     TrackerConfigDialogComponent,
     TrackerSimpleDialogComponent,
     BookCover3dComponent,
-    TagsDialogComponent
+    TagsDialogComponent,
+    TranslatePipe
   ],
   template: `
     <div class="h-full flex flex-col bg-slate-950 text-slate-100 overflow-hidden select-none relative pt-20">
@@ -56,21 +59,21 @@ import { extractBookSearchTitle } from '../../core/utils/media-title-cleaner.uti
             </svg>
           </button>
           <div class="min-w-0">
-            <h1 class="text-base font-bold truncate">{{ book()?.title || 'Detalhe do Livro' }}</h1>
-            <p class="text-[10px] text-slate-400">Livro / EPUB</p>
+            <h1 class="text-base font-bold truncate">{{ book()?.title || ('detail.bookDetail' | translate) }}</h1>
+            <p class="text-[10px] text-slate-400">{{ 'detail.bookType' | translate }}</p>
           </div>
         </div>
         <button type="button" (click)="openReader()"
           class="px-4 py-2 rounded-xl text-xs font-semibold bg-primary-600 hover:bg-primary-500 text-white transition-colors cursor-pointer"
           [disabled]="!book()">
-          Abrir
+          {{ 'common.open' | translate }}
         </button>
       </div>
 
       @if (loading()) {
-        <div class="flex-1 flex items-center justify-center text-sm text-slate-400 animate-pulse">Carregando…</div>
+        <div class="flex-1 flex items-center justify-center text-sm text-slate-400 animate-pulse">{{ 'common.loading' | translate }}</div>
       } @else if (!book()) {
-        <div class="flex-1 flex items-center justify-center text-sm text-slate-400">Item não encontrado.</div>
+        <div class="flex-1 flex items-center justify-center text-sm text-slate-400">{{ 'detail.notFound' | translate }}</div>
       } @else {
         <div class="flex-1 min-h-0 overflow-y-auto">
           <!-- Hero Section -->
@@ -176,23 +179,23 @@ import { extractBookSearchTitle } from '../../core/utils/media-title-cleaner.uti
             <section class="p-4 rounded-2xl border border-slate-800 bg-slate-900/40 space-y-2">
               <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                  <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300">Senha de Abertura</h3>
-                  <p class="text-[11px] text-slate-400">Trava a leitura deste livro no aplicativo (não altera DRM).</p>
+                  <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300">{{ 'detail.passwordSection' | translate }}</h3>
+                  <p class="text-[11px] text-slate-400">{{ 'detail.passwordDesc' | translate }}</p>
                 </div>
                 <div class="flex flex-wrap gap-2">
                   @if (!hasPassword()) {
                     <button type="button" (click)="openPasswordModal('set')"
                       class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors cursor-pointer">
-                      Definir senha
+                      {{ 'detail.setPassword' | translate }}
                     </button>
                   } @else {
                     <button type="button" (click)="openPasswordModal('change')"
                       class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors cursor-pointer">
-                      Alterar senha
+                      {{ 'detail.changePassword' | translate }}
                     </button>
                     <button type="button" (click)="openPasswordModal('remove')"
                       class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-rose-950/60 hover:bg-rose-900/50 text-rose-200 border border-rose-800/60 transition-colors cursor-pointer">
-                      Remover senha
+                      {{ 'detail.removePassword' | translate }}
                     </button>
                   }
                 </div>
@@ -202,16 +205,16 @@ import { extractBookSearchTitle } from '../../core/utils/media-title-cleaner.uti
             <!-- Language configuration section -->
             <section class="p-4 rounded-2xl border border-slate-800 bg-slate-900/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300">Idioma do Livro</h3>
-                <p class="text-[11px] text-slate-400">Define o idioma para o sintetizador de voz (TTS) e OCR.</p>
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300">{{ 'detail.bookLanguage' | translate }}</h3>
+                <p class="text-[11px] text-slate-400">{{ 'detail.bookLanguageDesc' | translate }}</p>
               </div>
               <select
                 class="bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-primary-500 cursor-pointer min-w-[160px]"
                 [ngModel]="currentLanguageSelect()"
                 (ngModelChange)="onLanguage($event)">
-                <option value="">Não definido</option>
-                <option value="PORTUGUESE">Português</option>
-                <option value="ENGLISH">Inglês</option>
+                <option value="">{{ 'detail.undefinedLanguage' | translate }}</option>
+                <option value="PORTUGUESE">{{ 'settings.system.language.portuguese' | translate }}</option>
+                <option value="ENGLISH">{{ 'settings.system.language.english' | translate }}</option>
                 <option value="JAPANESE">Japonês</option>
               </select>
             </section>
@@ -219,14 +222,14 @@ import { extractBookSearchTitle } from '../../core/utils/media-title-cleaner.uti
             <!-- Metadata Section with Horizontal Tags -->
             <div class="pt-6">
               <app-detail-meta-section
-                title="Detalhe do Livro"
+                [title]="'detail.bookDetail' | translate"
                 [fields]="metaFields()"
                 [tags]="tagList()"
                 (tagClick)="onTagClicked($event)">
                 <div class="mt-3 flex items-center justify-between">
                   <button type="button" (click)="showTagsModal.set(true)"
                     class="text-[11px] font-semibold text-primary-400 hover:text-primary-300 hover:underline flex items-center gap-1 cursor-pointer">
-                    🏷️ Gerenciar Todas as Tags
+                    {{ 'detail.manageAllTags' | translate }}
                   </button>
                 </div>
 
@@ -235,16 +238,16 @@ import { extractBookSearchTitle } from '../../core/utils/media-title-cleaner.uti
                     <input
                       type="text"
                       class="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-primary-500"
-                      placeholder="Nova tag"
+                      [placeholder]="'detail.newTagPlaceholder' | translate"
                       [(ngModel)]="newTag"
                       (keydown.enter)="addTag()" />
                     <button type="button" (click)="addTag()"
                       class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-primary-600 hover:bg-primary-500 text-white transition-colors cursor-pointer">
-                      Adicionar
+                      {{ 'detail.add' | translate }}
                     </button>
                     <button type="button" (click)="showTagInput.set(false)"
                       class="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-400 hover:bg-slate-800 transition-colors cursor-pointer">
-                      Fechar
+                      {{ 'common.close' | translate }}
                     </button>
                   </div>
                 }
@@ -404,6 +407,7 @@ export class BookDetailComponent implements OnInit {
   private trackerService = inject(TrackerService);
   private confirmDialog = inject(ConfirmDialogService);
   private coverViewerService = inject(CoverViewerService);
+  private languageService = inject(LanguageService);
   settings = inject(SettingsService);
 
   book = signal<Book | null>(null);
@@ -466,22 +470,23 @@ export class BookDetailComponent implements OnInit {
   });
 
   metaFields = computed<DetailMetaField[]>(() => {
+    this.languageService.currentLang();
     const b = this.book();
     if (!b) return [];
     const fields: DetailMetaField[] = [];
-    if (b.series) fields.push({ label: 'Série', value: b.series });
-    if (b.title) fields.push({ label: 'Título', value: b.title });
-    if (b.author) fields.push({ label: 'Autores', value: b.author });
-    if (b.genre) fields.push({ label: 'Gênero', value: b.genre });
+    if (b.series) fields.push({ label: this.languageService.t('detail.series'), value: b.series });
+    if (b.title) fields.push({ label: this.languageService.t('detail.title'), value: b.title });
+    if (b.author) fields.push({ label: this.languageService.t('detail.author'), value: b.author });
+    if (b.genre) fields.push({ label: this.languageService.t('detail.genre'), value: b.genre });
     if (b.isbn) fields.push({ label: 'ISBN', value: b.isbn });
-    if (b.language) fields.push({ label: 'Idioma', value: this.detail.formatLanguage(b.language) });
-    if (b.volume) fields.push({ label: 'Volume', value: b.volume });
-    if (b.release) fields.push({ label: 'Lançamento', value: b.release });
-    if (b.publisher) fields.push({ label: 'Editora', value: b.publisher });
+    if (b.language) fields.push({ label: this.languageService.t('detail.language'), value: this.detail.formatLanguage(b.language) });
+    if (b.volume) fields.push({ label: this.languageService.t('detail.volume'), value: b.volume });
+    if (b.release) fields.push({ label: this.languageService.t('detail.release'), value: b.release });
+    if (b.publisher) fields.push({ label: this.languageService.t('detail.publisher'), value: b.publisher });
     if (b.annotation) {
       const cleanAnnotation = this.detail.stripHtml(b.annotation);
       if (cleanAnnotation) {
-        fields.push({ label: 'Anotação / Descrição', value: cleanAnnotation, fullWidth: true });
+        fields.push({ label: this.languageService.t('detail.description'), value: cleanAnnotation, fullWidth: true });
       }
     }
     return fields;

@@ -1,5 +1,6 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { ElectronService } from './electron.service';
+import { LanguageService } from './language.service';
 import { Manga, Book, MangaAnnotation, BookAnnotation } from '../models';
 import {
   clampBookMark,
@@ -10,6 +11,8 @@ import {
 
 @Injectable({ providedIn: 'root' })
 export class DetailService {
+  private languageService = inject(LanguageService);
+
   constructor(private electron: ElectronService) {}
 
   loadManga(id: number): Promise<Manga | null> {
@@ -216,10 +219,10 @@ export class DetailService {
   }
 
   formatLastAccess(iso?: string | null): string {
-    if (!iso) return 'Nunca';
+    if (!iso) return this.languageService.t('common.neverAccessed');
     const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return 'Nunca';
-    return d.toLocaleString('pt-BR', {
+    if (Number.isNaN(d.getTime())) return this.languageService.t('common.neverAccessed');
+    return d.toLocaleString(this.languageService.locale(), {
       day: '2-digit',
       month: 'short',
       year: 'numeric',

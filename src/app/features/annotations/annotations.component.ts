@@ -1,6 +1,7 @@
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
+import { TranslatePipe } from '@ngx-translate/core';
 import { ElectronService } from '../../core/services/electron.service';
 import { AnnotationsUiStateService } from '../../core/services/annotations-ui-state.service';
 import {
@@ -25,6 +26,7 @@ import { AnnotationPopupComponent } from './components/annotation-popup.componen
   standalone: true,
   imports: [
     CommonModule,
+    TranslatePipe,
     AnnotationCardComponent,
     AnnotationFilterPopupComponent,
     AnnotationPopupComponent
@@ -51,7 +53,7 @@ import { AnnotationPopupComponent } from './components/annotation-popup.componen
 
       <div class="flex-1 min-h-0 overflow-y-auto px-6 pb-6 pt-24">
         @if (loading()) {
-          <p class="text-xs text-slate-500 text-center py-16">Carregando anotações…</p>
+          <p class="text-xs text-slate-500 text-center py-16">{{ 'annotations.loading' | translate }}</p>
         } @else if (rows().length === 0) {
           <div class="flex flex-col items-center justify-center py-20 text-center px-6">
             <div class="w-14 h-14 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center mb-4 text-primary-400">
@@ -60,9 +62,9 @@ import { AnnotationPopupComponent } from './components/annotation-popup.componen
                   d="M7 8h10M7 12h6m-6 8l-4-4V6a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H7z"/>
               </svg>
             </div>
-            <p class="text-sm font-semibold text-slate-200">Nenhuma anotação encontrada</p>
+            <p class="text-sm font-semibold text-slate-200">{{ 'annotations.emptyTitle' | translate }}</p>
             <p class="text-xs text-slate-500 mt-1 max-w-sm">
-              Destaque trechos nos livros ou marque páginas em livros e mangás para vê-los aqui.
+              {{ 'annotations.emptyDesc' | translate }}
             </p>
           </div>
         } @else {

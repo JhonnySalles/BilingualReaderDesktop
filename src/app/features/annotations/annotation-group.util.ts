@@ -74,7 +74,7 @@ export function collectChapters(items: AnnotationItem[]): string[] {
     const c = (item.chapter || '').trim();
     if (c) set.add(c);
   }
-  return Array.from(set).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  return Array.from(set).sort((a, b) => a.localeCompare(b));
 }
 
 /**
@@ -182,11 +182,11 @@ export function toAnnotationItemsFromMangas(
 export function sortAnnotationItems(items: AnnotationItem[]): AnnotationItem[] {
   return [...items].sort((a, b) => {
     if (a.type !== b.type) return a.type === 'BOOK' ? -1 : 1;
-    const title = (a.parentTitle || '').localeCompare(b.parentTitle || '', 'pt-BR');
+    const title = (a.parentTitle || '').localeCompare(b.parentTitle || '');
     if (title !== 0) return title;
     const ch = (a.chapterNumber ?? 0) - (b.chapterNumber ?? 0);
     if (ch !== 0) return ch;
-    const chLabel = (a.chapter || '').localeCompare(b.chapter || '', 'pt-BR');
+    const chLabel = (a.chapter || '').localeCompare(b.chapter || '');
     if (chLabel !== 0) return chLabel;
     return (a.page ?? 0) - (b.page ?? 0);
   });

@@ -1,12 +1,13 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { TranslatePipe } from '@ngx-translate/core';
 import { TouchScreen } from '../../core/models';
 import { TouchZoneMeta } from '../../core/services/touch-zone.service';
 
 @Component({
   selector: 'app-reader-touch-action-picker',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, TranslatePipe],
   template: `
     @if (open) {
       <div class="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4"
@@ -14,8 +15,8 @@ import { TouchZoneMeta } from '../../core/services/touch-zone.service';
         <div class="w-full max-w-md max-h-[min(80vh,32rem)] overflow-hidden rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl flex flex-col"
           (click)="$event.stopPropagation()">
           <div class="px-5 py-4 border-b border-slate-800">
-            <h3 class="text-sm font-bold text-slate-100">Escolher função</h3>
-            <p class="text-xs text-slate-400 mt-1">Selecione a ação para esta zona de clique.</p>
+            <h3 class="text-sm font-bold text-slate-100">{{ 'reader.chooseAction' | translate }}</h3>
+            <p class="text-xs text-slate-400 mt-1">{{ 'reader.chooseActionDesc' | translate }}</p>
           </div>
           <div class="overflow-y-auto flex-1 p-2">
             @for (item of actions; track item.action) {
@@ -39,7 +40,7 @@ import { TouchZoneMeta } from '../../core/services/touch-zone.service';
           <div class="px-4 py-3 border-t border-slate-800 flex justify-end">
             <button type="button" (click)="cancel.emit()"
               class="px-3 py-2 rounded-lg text-xs font-semibold text-slate-300 hover:bg-slate-800 cursor-pointer">
-              Cancelar
+              {{ 'common.cancel' | translate }}
             </button>
           </div>
         </div>

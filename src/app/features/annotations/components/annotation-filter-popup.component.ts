@@ -1,16 +1,18 @@
-import { Component, Input, Output, EventEmitter, signal, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, Input, Output, EventEmitter, signal, OnChanges, SimpleChanges, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { TranslatePipe } from '@ngx-translate/core';
 import {
   ANNOTATION_COLOR_OPTIONS,
   ANNOTATION_MARK_OPTIONS,
   AnnotationMarkFilter
 } from '../../../core/models';
+import { LanguageService } from '../../../core/services/language.service';
 import { TeleportToBodyDirective } from '../../../shared/directives/teleport-to-body.directive';
 
 @Component({
   selector: 'app-annotation-filter-popup',
   standalone: true,
-  imports: [CommonModule, TeleportToBodyDirective],
+  imports: [CommonModule, TranslatePipe, TeleportToBodyDirective],
   template: `
     <div
       appTeleportToBody
@@ -20,9 +22,9 @@ import { TeleportToBodyDirective } from '../../../shared/directives/teleport-to-
         class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[min(90vh,32rem)]"
         (click)="$event.stopPropagation()">
         <div class="flex items-center justify-between px-5 py-4 border-b border-slate-800 shrink-0">
-          <h3 class="text-sm font-bold text-slate-100">Filtros de anotações</h3>
+          <h3 class="text-sm font-bold text-slate-100">{{ 'annotations.filterTitle' | translate }}</h3>
           <button type="button" (click)="close.emit()"
-            class="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 cursor-pointer" title="Fechar">
+            class="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 cursor-pointer" [title]="'common.close' | translate">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
             </svg>
@@ -40,7 +42,7 @@ import { TeleportToBodyDirective } from '../../../shared/directives/teleport-to-
               [class.text-slate-400]="activeTab() !== tab.id"
               [class.hover:text-slate-200]="activeTab() !== tab.id"
               (click)="activeTab.set(tab.id)">
-              {{ tab.label }}
+              {{ tabLabel(tab.id) }}
             </button>
           }
         </div>
@@ -55,7 +57,7 @@ import { TeleportToBodyDirective } from '../../../shared/directives/teleport-to-
                     class="w-4 h-4 accent-primary-600 rounded"
                     [checked]="localMarks().includes(opt.value)"
                     (change)="toggleMark(opt.value)" />
-                  <span class="text-sm text-slate-200 group-hover:text-white">{{ opt.label }}</span>
+                  <span class="text-sm text-slate-200 group-hover:text-white">{{ markLabel(opt.value) }}</span>
                 </label>
               }
             </div>
@@ -74,7 +76,7 @@ import { TeleportToBodyDirective } from '../../../shared/directives/teleport-to-
                     class="w-4 h-4 rounded-full border border-slate-600 shrink-0"
                     [style.backgroundColor]="opt.hex || 'transparent'"
                     [class.bg-slate-800]="!opt.hex"></span>
-                  <span class="text-sm text-slate-200 group-hover:text-white">{{ opt.label }}</span>
+                  <span class="text-sm text-slate-200 group-hover:text-white">{{ colorLabel(opt.value) }}</span>
                 </label>
               }
             </div>
@@ -82,7 +84,7 @@ import { TeleportToBodyDirective } from '../../../shared/directives/teleport-to-
 
           @if (activeTab() === 'chapter') {
             @if (chapters.length === 0) {
-              <p class="text-xs text-slate-500 text-center py-6">Nenhum capítulo disponível</p>
+              <p class="text-xs text-slate-500 text-center py-6">{{ 'annotations.noChapters' | translate }}</p>
             } @else {
               <div class="space-y-2">
                 @for (ch of chapters; track ch) {
@@ -105,13 +107,13 @@ import { TeleportToBodyDirective } from '../../../shared/directives/teleport-to-
             type="button"
             class="text-xs font-semibold text-slate-400 hover:text-rose-300 cursor-pointer px-2 py-1.5 rounded-lg hover:bg-slate-800"
             (click)="clearAll()">
-            Limpar filtros
+            {{ 'annotations.clearFilters' | translate }}
           </button>
           <button
             type="button"
             class="px-4 py-1.5 rounded-xl text-xs font-semibold bg-primary-600 hover:bg-primary-500 text-white cursor-pointer"
             (click)="apply()">
-            Aplicar
+            {{ 'annotations.apply' | translate }}
           </button>
         </div>
       </div>
@@ -119,6 +121,8 @@ import { TeleportToBodyDirective } from '../../../shared/directives/teleport-to-
   `
 })
 export class AnnotationFilterPopupComponent implements OnChanges {
+  private languageService = inject(LanguageService);
+
   @Input() marks: AnnotationMarkFilter[] = [];
   @Input() colors: string[] = [];
   @Input() selectedChapters: string[] = [];
@@ -143,6 +147,44 @@ export class AnnotationFilterPopupComponent implements OnChanges {
   localMarks = signal<AnnotationMarkFilter[]>([]);
   localColors = signal<string[]>([]);
   localChapters = signal<string[]>([]);
+
+  tabLabel(id: 'type' | 'color' | 'chapter'): string {
+    if (id === 'type') return this.languageService.t('annotations.tabType');
+    if (id === 'color') return this.languageService.t('annotations.tabColor');
+    return this.languageService.t('annotations.tabChapter');
+  }
+
+  markLabel(value: AnnotationMarkFilter): string {
+    switch (value) {
+      case 'Detach':
+        return this.languageService.t('annotations.markTypes.highlight');
+      case 'BookMark':
+        return this.languageService.t('annotations.markTypes.bookmark');
+      case 'PageMark':
+        return this.languageService.t('annotations.markTypes.pageMark');
+      case 'Favorite':
+        return this.languageService.t('annotations.markTypes.favorite');
+      default:
+        return value;
+    }
+  }
+
+  colorLabel(value: string): string {
+    switch (value) {
+      case 'Yellow':
+        return this.languageService.t('annotations.colors.yellow');
+      case 'Green':
+        return this.languageService.t('annotations.colors.green');
+      case 'Blue':
+        return this.languageService.t('annotations.colors.blue');
+      case 'Red':
+        return this.languageService.t('annotations.colors.red');
+      case 'None':
+        return this.languageService.t('annotations.colors.none');
+      default:
+        return value;
+    }
+  }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['marks']) this.localMarks.set([...this.marks]);
