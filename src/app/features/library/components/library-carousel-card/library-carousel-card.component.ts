@@ -424,12 +424,12 @@ export class LibraryCarouselCardComponent implements OnDestroy {
     this.openDetail.emit(this.item);
   }
 
-  onOpenLocation(event: MouseEvent): void {
+  async onOpenLocation(event: MouseEvent): Promise<void> {
     event.stopPropagation();
     this.isMenuOpen.set(false);
     const target = this.item?.path || (this.item as any)?.file || this.item?.folder;
     if (target) {
-      this.electronService.showItemInFolder(target);
+      await this.electronService.showItemInFolder(target);
     }
   }
 

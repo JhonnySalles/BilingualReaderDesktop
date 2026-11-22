@@ -23,6 +23,7 @@ export class SharedTransitionService {
 
   clearActiveItem(): void {
     this.activeItem.set(null);
+    this.claimedNames.clear();
   }
 
   isActive(id?: number | string | undefined | null, type?: TransitionItemType, instanceId?: string): boolean {
@@ -36,11 +37,6 @@ export class SharedTransitionService {
     // If active item already has an instanceId and caller provides an instanceId, they must match.
     if (current.instanceId && instanceId && current.instanceId !== instanceId) {
       return false;
-    }
-
-    // If active item had no instanceId, bind to the first caller with an instanceId to avoid duplicates across repeated cards
-    if (!current.instanceId && instanceId) {
-      current.instanceId = instanceId;
     }
 
     return true;

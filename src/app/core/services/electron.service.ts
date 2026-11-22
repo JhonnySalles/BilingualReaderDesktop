@@ -1932,7 +1932,12 @@ export class ElectronService {
 
   async showItemInFolder(fullPath: string): Promise<boolean> {
     if (this.isElectron && window.electronAPI?.showItemInFolder) {
-      return await window.electronAPI.showItemInFolder(fullPath);
+      try {
+        return await window.electronAPI.showItemInFolder(fullPath);
+      } catch (err) {
+        console.warn('[ElectronService] showItemInFolder failed:', err);
+        return false;
+      }
     }
     return false;
   }

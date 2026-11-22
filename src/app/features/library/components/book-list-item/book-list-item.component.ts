@@ -294,12 +294,12 @@ export class BookListItemComponent implements OnDestroy {
     }
   }
 
-  onOpenLocation(event: MouseEvent): void {
+  async onOpenLocation(event: MouseEvent): Promise<void> {
     event.stopPropagation();
     this.isMenuOpen.set(false);
     const target = this.book?.path || this.book?.folder;
     if (target) {
-      this.electronService.showItemInFolder(target);
+      await this.electronService.showItemInFolder(target);
     }
   }
 

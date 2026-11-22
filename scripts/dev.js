@@ -1,6 +1,7 @@
 const net = require('net');
 const fs = require('fs');
 const path = require('path');
+const { execSync } = require('child_process');
 const concurrentlyMod = require('concurrently');
 const concurrently = concurrentlyMod.default || concurrentlyMod.concurrently || concurrentlyMod;
 
@@ -73,6 +74,13 @@ async function resolvePort() {
 async function start() {
   try {
     const port = await resolvePort();
+
+    try {
+      console.log('\x1b[36m[dev]\x1b[0m Compilando Electron previamente...');
+      execSync('npx tsc -p tsconfig.electron.json', { stdio: 'inherit' });
+    } catch (compileErr) {
+      console.warn('\x1b[33m[dev]\x1b[0m Aviso na compilação inicial do Electron:', compileErr.message);
+    }
 
     const env = {
       ...process.env,

@@ -52,6 +52,25 @@ class SettingsController {
         return this._instance;
     }
     registerIpcHandlers() {
+        const handlers = [
+            'settings:get',
+            'settings:set',
+            'secrets:get',
+            'telemetry:is-enabled',
+            'telemetry:record',
+            'telemetry:set-key',
+            'shell:openExternal',
+            'shell:showItemInFolder',
+            'converter:tools-status'
+        ];
+        for (const h of handlers) {
+            try {
+                electron_1.ipcMain.removeHandler(h);
+            }
+            catch {
+                /* ignore */
+            }
+        }
         electron_1.ipcMain.handle('settings:get', async (_event, key, defaultValue) => {
             return settings_service_1.SettingsService.instance.get(key, defaultValue);
         });

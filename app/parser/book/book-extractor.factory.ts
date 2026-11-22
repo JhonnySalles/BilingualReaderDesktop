@@ -10,7 +10,7 @@ import { SnbBookExtractor } from './snb-book-extractor';
 import { CalibreMetaExtractor } from './calibre-meta-extractor';
 import { CoverGenerator } from './cover-generator';
 
-export { BookMetadataResult } from './epub-book-extractor';
+export type { BookMetadataResult } from './epub-book-extractor';
 
 export class BookExtractorFactory {
   public static getMetadata(filePath: string): BookMetadataResult {

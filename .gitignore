@@ -67,3 +67,4 @@ public/assets/llm/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf
 /.trace-frames
 /libs/epubjs/node_modules
 /libs/epubjs/test
+/exec_old

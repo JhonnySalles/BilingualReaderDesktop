@@ -51,44 +51,46 @@ describe('scroll-edges.util', () => {
 
   describe('smoothScrollTo', () => {
     it('should fallback to element.scrollTo with smooth behavior when rAF is undefined', () => {
-      const mockEl = { scrollTo: jest.fn() } as unknown as HTMLElement;
-      smoothScrollTo(mockEl, 1200);
-      expect(mockEl.scrollTo).toHaveBeenCalledWith({ top: 1200, behavior: 'smooth' });
+      const origRaf = window.requestAnimationFrame;
+      (window as any).requestAnimationFrame = undefined;
+      try {
+        const mockEl = { scrollTo: jasmine.createSpy('scrollTo') } as unknown as HTMLElement;
+        smoothScrollTo(mockEl, 1200);
+        expect((mockEl as any).scrollTo).toHaveBeenCalledWith({ top: 1200, behavior: 'smooth' });
+      } finally {
+        window.requestAnimationFrame = origRaf;
+      }
     });
 
     it('should animate scrollTop using requestAnimationFrame when available', () => {
       let rAfCallback: ((time: number) => void) | null = null;
-      const originalRaf = (global as any).requestAnimationFrame;
-      (global as any).requestAnimationFrame = jest.fn((cb: any) => {
+      const originalRaf = window.requestAnimationFrame;
+      spyOn(window, 'requestAnimationFrame').and.callFake((cb: any) => {
         rAfCallback = cb;
         return 1;
       });
 
-      try {
-        const mockEl = {
-          scrollTop: 0,
-          addEventListener: jest.fn(),
-          removeEventListener: jest.fn()
-        } as unknown as HTMLElement;
+      const mockEl = {
+        scrollTop: 0,
+        addEventListener: jasmine.createSpy('addEventListener'),
+        removeEventListener: jasmine.createSpy('removeEventListener')
+      } as unknown as HTMLElement;
 
-        smoothScrollTo(mockEl, 1200);
-        expect((global as any).requestAnimationFrame).toHaveBeenCalled();
-        expect(mockEl.addEventListener).toHaveBeenCalledWith('wheel', expect.any(Function), expect.any(Object));
+      smoothScrollTo(mockEl, 1200);
+      expect(window.requestAnimationFrame).toHaveBeenCalled();
+      expect((mockEl as any).addEventListener).toHaveBeenCalledWith('wheel', jasmine.any(Function), jasmine.any(Object));
 
-        if (rAfCallback) {
-          (rAfCallback as any)(performance.now() + 600);
-        }
-        expect(mockEl.scrollTop).toBeGreaterThan(0);
-      } finally {
-        (global as any).requestAnimationFrame = originalRaf;
+      if (rAfCallback) {
+        (rAfCallback as any)(performance.now() + 600);
       }
+      expect(mockEl.scrollTop).toBeGreaterThan(0);
     });
 
     it('should immediately set scrollTop if distance is negligible', () => {
       const mockEl = {
         scrollTop: 100,
-        addEventListener: jest.fn(),
-        removeEventListener: jest.fn()
+        addEventListener: jasmine.createSpy('addEventListener'),
+        removeEventListener: jasmine.createSpy('removeEventListener')
       } as unknown as HTMLElement;
 
       smoothScrollTo(mockEl, 101);
@@ -103,37 +105,38 @@ describe('scroll-edges.util', () => {
 
   describe('smoothScrollHorizontalTo', () => {
     it('should fallback to element.scrollTo with smooth behavior when rAF is undefined', () => {
-      const mockEl = { scrollTo: jest.fn() } as unknown as HTMLElement;
-      smoothScrollHorizontalTo(mockEl, 800);
-      expect(mockEl.scrollTo).toHaveBeenCalledWith({ left: 800, behavior: 'smooth' });
+      const origRaf = window.requestAnimationFrame;
+      (window as any).requestAnimationFrame = undefined;
+      try {
+        const mockEl = { scrollTo: jasmine.createSpy('scrollTo') } as unknown as HTMLElement;
+        smoothScrollHorizontalTo(mockEl, 800);
+        expect((mockEl as any).scrollTo).toHaveBeenCalledWith({ left: 800, behavior: 'smooth' });
+      } finally {
+        window.requestAnimationFrame = origRaf;
+      }
     });
 
     it('should animate scrollLeft using requestAnimationFrame when available', () => {
       let rAfCallback: ((time: number) => void) | null = null;
-      const originalRaf = (global as any).requestAnimationFrame;
-      (global as any).requestAnimationFrame = jest.fn((cb: any) => {
+      spyOn(window, 'requestAnimationFrame').and.callFake((cb: any) => {
         rAfCallback = cb;
         return 1;
       });
 
-      try {
-        const mockEl = {
-          scrollLeft: 0,
-          addEventListener: jest.fn(),
-          removeEventListener: jest.fn()
-        } as unknown as HTMLElement;
+      const mockEl = {
+        scrollLeft: 0,
+        addEventListener: jasmine.createSpy('addEventListener'),
+        removeEventListener: jasmine.createSpy('removeEventListener')
+      } as unknown as HTMLElement;
 
-        smoothScrollHorizontalTo(mockEl, 800);
-        expect((global as any).requestAnimationFrame).toHaveBeenCalled();
-        expect(mockEl.addEventListener).toHaveBeenCalledWith('wheel', expect.any(Function), expect.any(Object));
+      smoothScrollHorizontalTo(mockEl, 800);
+      expect(window.requestAnimationFrame).toHaveBeenCalled();
+      expect((mockEl as any).addEventListener).toHaveBeenCalledWith('wheel', jasmine.any(Function), jasmine.any(Object));
 
-        if (rAfCallback) {
-          (rAfCallback as any)(performance.now() + 400);
-        }
-        expect(mockEl.scrollLeft).toBeGreaterThan(0);
-      } finally {
-        (global as any).requestAnimationFrame = originalRaf;
+      if (rAfCallback) {
+        (rAfCallback as any)(performance.now() + 400);
       }
+      expect(mockEl.scrollLeft).toBeGreaterThan(0);
     });
 
     it('should safely do nothing when element is null or undefined', () => {

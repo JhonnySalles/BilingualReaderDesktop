@@ -302,12 +302,12 @@ export class MangaListItemComponent implements OnDestroy {
     }
   }
 
-  onOpenLocation(event: MouseEvent): void {
+  async onOpenLocation(event: MouseEvent): Promise<void> {
     event.stopPropagation();
     this.isMenuOpen.set(false);
     const target = this.manga?.path || (this.manga as any)?.file || this.manga?.folder;
     if (target) {
-      this.electronService.showItemInFolder(target);
+      await this.electronService.showItemInFolder(target);
     }
   }
 

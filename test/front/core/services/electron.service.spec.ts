@@ -42,6 +42,7 @@ describe('ElectronService (Frontend Angular)', () => {
         cancelMangaScan: jasmine.createSpy('cancelMangaScan').and.resolveTo(true),
         cancelBookScan: jasmine.createSpy('cancelBookScan').and.resolveTo(true),
         cancelAllScans: jasmine.createSpy('cancelAllScans').and.resolveTo(true),
+        showItemInFolder: jasmine.createSpy('showItemInFolder').and.resolveTo(true),
         send: jasmine.createSpy('send'),
         on: jasmine.createSpy('on').and.returnValue(() => {})
       };
@@ -103,6 +104,18 @@ describe('ElectronService (Frontend Angular)', () => {
 
       expect(await service.cancelAllScans()).toBeTrue();
       expect(mockApi.cancelAllScans).toHaveBeenCalled();
+    });
+
+    it('showItemInFolder deve invocar electronAPI e retornar true em caso de sucesso', async () => {
+      const res = await service.showItemInFolder('/caminho/arquivo.cbz');
+      expect(mockApi.showItemInFolder).toHaveBeenCalledWith('/caminho/arquivo.cbz');
+      expect(res).toBeTrue();
+    });
+
+    it('showItemInFolder deve capturar excecao e retornar false se electronAPI rejeitar', async () => {
+      mockApi.showItemInFolder.and.rejectWith(new Error("No handler registered for 'shell:showItemInFolder'"));
+      const res = await service.showItemInFolder('/caminho/inexistente.cbz');
+      expect(res).toBeFalse();
     });
   });
 

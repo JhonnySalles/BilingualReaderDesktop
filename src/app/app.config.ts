@@ -6,6 +6,7 @@ import { provideTranslateService } from '@ngx-translate/core';
 import { routes } from './app.routes';
 import { TelemetryErrorHandler } from './core/services/telemetry.service';
 import { StaticTranslateLoader } from './core/i18n/static-translate-loader';
+import { onViewTransitionCreated } from './core/utils/view-transition.util';
 
 registerLocaleData(localePt);
 
@@ -15,7 +16,8 @@ export const appConfig: ApplicationConfig = {
     provideRouter(
       routes,
       withViewTransitions({
-        skipInitialTransition: true
+        skipInitialTransition: true,
+        onViewTransitionCreated
       })
     ),
     provideTranslateService({

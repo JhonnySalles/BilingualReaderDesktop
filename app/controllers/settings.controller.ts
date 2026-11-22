@@ -19,6 +19,25 @@ export class SettingsController {
   }
 
   public registerIpcHandlers(): void {
+    const handlers = [
+      'settings:get',
+      'settings:set',
+      'secrets:get',
+      'telemetry:is-enabled',
+      'telemetry:record',
+      'telemetry:set-key',
+      'shell:openExternal',
+      'shell:showItemInFolder',
+      'converter:tools-status'
+    ];
+    for (const h of handlers) {
+      try {
+        ipcMain.removeHandler(h);
+      } catch {
+        /* ignore */
+      }
+    }
+
     ipcMain.handle('settings:get', async (_event, key: string, defaultValue?: any) => {
       return SettingsService.instance.get(key, defaultValue);
     });
